@@ -62,6 +62,8 @@ export function HistoryScreen() {
         prompt,
         videoUri: session.videoPath,
         durationSecondsLocal: session.durationSeconds,
+        wantsGrading: session.wantsGrading,
+        wantsNotionSync: session.wantsNotionSync,
       });
     }
   }

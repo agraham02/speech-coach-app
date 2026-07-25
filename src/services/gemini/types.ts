@@ -48,6 +48,12 @@ export interface GeminiSessionAnalysis {
   };
 }
 
+export interface GeminiTranscriptOnly {
+  transcript_verbatim: string;
+  transcript_clean: string;
+  duration_seconds: number;
+}
+
 export class GeminiApiError extends Error {
   constructor(
     message: string,

@@ -150,3 +150,15 @@ export const TOPICS: Prompt[] = [
 export function getPromptById(id: string): Prompt | undefined {
   return TOPICS.find((t) => t.id === id);
 }
+
+// Deliberately not part of TOPICS — represents "Free Record" (no assigned
+// prompt), so it must never be picked by random prompt selection.
+export const FREE_RECORD_PROMPT: Prompt = {
+  id: "free_record",
+  category: "Free Recording",
+  text: "Free recording — talk about whatever's on your mind.",
+};
+
+export function isFreeRecordPrompt(promptId: string): boolean {
+  return promptId === FREE_RECORD_PROMPT.id;
+}

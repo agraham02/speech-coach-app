@@ -27,9 +27,6 @@ import {
 } from "../services/prefs/prefsStore";
 import { resolvePrepDurationSeconds, resolveRecordingDurationSeconds } from "../domain/recordingSettings";
 import { persistRecording } from "../services/storage/videoStorage";
-import { processSession } from "../services/pipeline/sessionProcessor";
-import { generateId } from "../utils/generateId";
-import { logger } from "../utils/logger";
 import { colors, spacing, typography } from "../theme/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Recording">;
@@ -72,20 +69,13 @@ export function RecordingScreen({ route, navigation }: Props) {
         stop();
         setIsFinishing(true);
         try {
-          const sessionId = generateId();
           const videoUri = video.path.startsWith("file://") ? video.path : `file://${video.path}`;
-          const persistedUri = await persistRecording(videoUri, sessionId);
+          // Persisted under a temp name (not a session id yet — nothing's
+          // saved to the DB until the user confirms on the Preview screen).
+          const persistedUri = await persistRecording(videoUri, `preview-${Date.now()}`);
           const durationSecondsLocal = Math.round(video.duration);
 
-          // Fire-and-forget: processing runs independently of this screen from
-          // here on, so navigating anywhere (or closing the Processing viewer)
-          // never interrupts the upload/transcribe/Notion pipeline.
-          processSession({ sessionId, prompt, videoUri: persistedUri, durationSecondsLocal }).catch((error) =>
-            logger.error(`[recording] unhandled processing error for ${sessionId}: ${(error as Error).message}`),
-          );
-
-          navigation.replace("Processing", {
-            sessionId,
+          navigation.replace("Preview", {
             prompt,
             videoUri: persistedUri,
             durationSecondsLocal,

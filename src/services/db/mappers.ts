@@ -18,6 +18,8 @@ export interface SessionRow {
   transcript_clean: string | null;
   status: string;
   notion_synced_at: string | null;
+  wants_grading: number;
+  wants_notion_sync: number;
 }
 
 export function rowToSession(row: SessionRow): Session {
@@ -32,6 +34,8 @@ export function rowToSession(row: SessionRow): Session {
     transcriptClean: row.transcript_clean,
     status: row.status as SessionStatus,
     notionSyncedAt: row.notion_synced_at,
+    wantsGrading: row.wants_grading === 1,
+    wantsNotionSync: row.wants_notion_sync === 1,
   };
 }
 

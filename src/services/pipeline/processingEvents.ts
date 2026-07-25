@@ -11,7 +11,6 @@ export interface ProcessingStatus {
   sessionId: string;
   phase: ProcessingPhase;
   errorMessage?: string;
-  notionFailedOnly?: boolean;
 }
 
 type Listener = (status: ProcessingStatus) => void;

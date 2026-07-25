@@ -163,3 +163,38 @@ Be specific and reference actual moments/words from the response wherever possib
 
 Respond only with JSON matching the provided schema.`;
 }
+
+// Lighter schema for sessions that don't want AI grading (e.g. free
+// recordings by default) — just the two transcripts + duration, no rubric.
+export const TRANSCRIPT_ONLY_SCHEMA = {
+  type: "object",
+  properties: {
+    transcript_verbatim: {
+      type: "string",
+      description:
+        "Verbatim transcript including filler words, false starts, and repetitions.",
+    },
+    transcript_clean: {
+      type: "string",
+      description:
+        "Grammatically cleaned transcript, ready to paste into a journal.",
+    },
+    duration_seconds: {
+      type: "number",
+      description: "Duration of the spoken response, in seconds.",
+    },
+  },
+  required: ["transcript_verbatim", "transcript_clean", "duration_seconds"],
+} as const;
+
+export function buildTranscriptOnlySystemPrompt(): string {
+  return `You are transcribing a personal journal-style video recording.
+
+Produce two transcripts of what was said:
+1. transcript_verbatim: word-for-word, including filler words (um, uh, like), false starts, and repetitions.
+2. transcript_clean: the same content rewritten as grammatically clean prose, with fillers and false starts removed, suitable for pasting directly into a personal journal. Preserve the speaker's meaning, tone, and word choice as much as possible — do not summarize or add content that wasn't said.
+
+Also report duration_seconds: the approximate duration of the recording in seconds.
+
+Respond only with JSON matching the provided schema.`;
+}

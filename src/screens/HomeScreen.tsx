@@ -11,6 +11,7 @@ import { Card } from "../components/common/Card";
 import { Badge } from "../components/common/Badge";
 import { Banner } from "../components/common/Banner";
 import { AVOID_REPEAT_LAST_N, pickTodaysPrompt } from "../domain/pickTodaysPrompt";
+import { FREE_RECORD_PROMPT } from "../data/topics";
 import { getAllPrompts } from "../services/db/promptsRepo";
 import { getRecentlyUsedPromptIds, getTodaysSession } from "../services/db/sessionsRepo";
 import type { Prompt } from "../domain/sessionTypes";
@@ -82,16 +83,24 @@ export function HomeScreen() {
         )}
       </View>
 
-      <PrimaryButton
-        label={alreadyPracticedToday ? "Practice Again" : "Start Recording"}
-        onPress={() => navigation.navigate("Recording", { prompt })}
-      />
+      <View style={styles.actions}>
+        <PrimaryButton
+          label={alreadyPracticedToday ? "Practice Again" : "Start Recording"}
+          onPress={() => navigation.navigate("Recording", { prompt })}
+        />
+        <PrimaryButton
+          label="Free Record (no prompt)"
+          variant="ghost"
+          onPress={() => navigation.navigate("Recording", { prompt: FREE_RECORD_PROMPT })}
+        />
+      </View>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: { justifyContent: "space-between" },
+  actions: { gap: spacing.sm },
   centered: { alignItems: "center", justifyContent: "center" },
   header: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" },
   settingsButton: { padding: spacing.xs },

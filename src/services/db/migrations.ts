@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
 // Bump this and add a new numbered migration when the schema changes.
-export const LATEST_DB_VERSION = 3;
+export const LATEST_DB_VERSION = 4;
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(
@@ -77,6 +77,24 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
       ALTER TABLE scores ADD COLUMN overall_score INTEGER NOT NULL DEFAULT 0;
     `);
     currentVersion = 3;
+  }
+
+  if (currentVersion < 4) {
+    // Persist the per-session save-time choices so re-opening an in-progress
+    // or errored session later (e.g. from History, possibly after an app
+    // restart) knows what was actually requested instead of guessing.
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN wants_grading INTEGER NOT NULL DEFAULT 1;
+    `);
+    // Default true (not the new prompted-session default of off) because this
+    // backfills pre-existing rows, which were all created back when Notion
+    // sync was automatic for every session. New rows never rely on this
+    // default — insertSession always passes an explicit value — so this only
+    // affects retrying an old in-progress/errored session after upgrading.
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN wants_notion_sync INTEGER NOT NULL DEFAULT 1;
+    `);
+    currentVersion = 4;
   }
 
   await db.execAsync(`PRAGMA user_version = ${currentVersion}`);

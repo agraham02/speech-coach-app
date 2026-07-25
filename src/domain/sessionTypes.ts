@@ -23,6 +23,8 @@ export interface Session {
   transcriptClean: string | null;
   status: SessionStatus;
   notionSyncedAt: string | null;
+  wantsGrading: boolean;
+  wantsNotionSync: boolean;
 }
 
 export type StructureUsed = "what/why/how" | "story arc" | "none detected" | "other";

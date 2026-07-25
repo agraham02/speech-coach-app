@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
@@ -8,13 +8,15 @@ import { PrimaryButton } from "../components/common/PrimaryButton";
 import { LoadingSpinner } from "../components/common/LoadingSpinner";
 import { Card } from "../components/common/Card";
 import { Badge } from "../components/common/Badge";
-import { Banner } from "../components/common/Banner";
 import { ScoreBar } from "../components/result/ScoreBar";
 import { OverallScoreRing } from "../components/result/OverallScoreRing";
 import { VideoPlayback } from "../components/result/VideoPlayback";
-import { getSessionById } from "../services/db/sessionsRepo";
+import { useToast } from "../components/common/ToastProvider";
+import { getSessionById, deleteSession } from "../services/db/sessionsRepo";
 import { getScoresBySessionId } from "../services/db/scoresRepo";
 import { getPrompt } from "../services/db/promptsRepo";
+import { deleteRecording } from "../services/storage/videoStorage";
+import { syncSessionToNotion, gradeExistingSession } from "../services/pipeline/sessionProcessor";
 import type { Session, SessionScores } from "../domain/sessionTypes";
 import { formatDuration } from "../utils/dateUtils";
 import { colors, spacing, typography } from "../theme/theme";
@@ -23,10 +25,13 @@ type Props = NativeStackScreenProps<RootStackParamList, "Result">;
 
 export function ResultScreen({ route, navigation }: Props) {
   const { sessionId } = route.params;
+  const showToast = useToast();
   const [session, setSession] = useState<Session | null>(null);
   const [scores, setScores] = useState<SessionScores | null>(null);
   const [showVerbatim, setShowVerbatim] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
+  const [isSyncingNotion, setIsSyncingNotion] = useState(false);
+  const [isGrading, setIsGrading] = useState(false);
 
   useEffect(() => {
     getSessionById(sessionId).then(setSession);
@@ -43,13 +48,84 @@ export function ResultScreen({ route, navigation }: Props) {
 
   const prompt = getPrompt(session.promptId);
 
+  async function handleNotionToggle(value: boolean) {
+    if (!value || session!.notionSyncedAt) return;
+    setIsSyncingNotion(true);
+    try {
+      await syncSessionToNotion(sessionId);
+      const updated = await getSessionById(sessionId);
+      setSession(updated);
+      showToast("Saved to Notion", "success");
+    } catch (error) {
+      showToast(`Couldn't sync to Notion — ${(error as Error).message}`, "error");
+    } finally {
+      setIsSyncingNotion(false);
+    }
+  }
+
+  async function handleGrade() {
+    if (!session || !prompt) return;
+    setIsGrading(true);
+    try {
+      await gradeExistingSession(sessionId, prompt, session.videoPath);
+      const updatedScores = await getScoresBySessionId(sessionId);
+      setScores(updatedScores);
+      showToast("Grading complete", "success");
+    } catch (error) {
+      showToast(`Grading failed — ${(error as Error).message}`, "error");
+    } finally {
+      setIsGrading(false);
+    }
+  }
+
+  function handleDelete() {
+    Alert.alert("Delete this session?", "This removes the recording, transcript, and scores. This can't be undone.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          await deleteSession(sessionId);
+          deleteRecording(session!.videoPath);
+          navigation.popToTop();
+        },
+      },
+    ]);
+  }
+
+  const notionSynced = !!session.notionSyncedAt;
+
   return (
     <ScreenContainer style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.headerSpacer} />
+        <Pressable
+          onPress={handleDelete}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Delete session"
+        >
+          <Ionicons name="trash-outline" size={22} color={colors.textSecondary} />
+        </Pressable>
+      </View>
+
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Banner
-          tone={session.notionSyncedAt ? "success" : "warning"}
-          text={session.notionSyncedAt ? "Saved to Notion" : "Saved locally — not yet synced to Notion"}
-        />
+        <Card style={styles.notionCard}>
+          <View style={styles.row}>
+            <View style={styles.rowText}>
+              <Text style={styles.rowTitle}>Sync to Notion</Text>
+              <Text style={styles.rowSubtitle}>
+                {notionSynced ? "Saved to your journal" : isSyncingNotion ? "Syncing…" : "Not sent yet"}
+              </Text>
+            </View>
+            <Switch
+              value={notionSynced}
+              onValueChange={handleNotionToggle}
+              disabled={notionSynced || isSyncingNotion}
+              trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
+            />
+          </View>
+        </Card>
 
         {scores ? (
           <Card style={styles.overallCard}>
@@ -59,7 +135,15 @@ export function ResultScreen({ route, navigation }: Props) {
               <Text style={styles.archetypeFit}>{scores.archetypeFitForTopic}</Text>
             </View>
           </Card>
-        ) : null}
+        ) : (
+          <Card style={styles.gradeCard}>
+            <View style={styles.rowText}>
+              <Text style={styles.rowTitle}>No AI feedback yet</Text>
+              <Text style={styles.rowSubtitle}>Get structure, delivery, presence, and coaching scores.</Text>
+            </View>
+            <PrimaryButton label="Grade with Gemini" onPress={handleGrade} loading={isGrading} />
+          </Card>
+        )}
 
         {prompt ? (
           <Card style={styles.promptCard}>
@@ -163,7 +247,15 @@ export function ResultScreen({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   container: { gap: spacing.md },
   centered: { alignItems: "center", justifyContent: "center" },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  headerSpacer: { width: 22 },
   scrollContent: { gap: spacing.md, paddingBottom: spacing.lg },
+  notionCard: { gap: spacing.sm },
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
+  rowText: { flex: 1, gap: spacing.xs },
+  rowTitle: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "600" },
+  rowSubtitle: { color: colors.textSecondary, fontSize: typography.caption },
+  gradeCard: { gap: spacing.md },
   overallCard: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   overallTextGroup: { flex: 1, gap: spacing.xs },
   archetypeFit: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },

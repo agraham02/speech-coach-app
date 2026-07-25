@@ -36,6 +36,7 @@ export default (): ExpoConfig => ({
   plugins: [
     "expo-sqlite",
     "expo-video",
+    "expo-notifications",
     [
       "react-native-vision-camera",
       {

@@ -1,6 +1,6 @@
 import { generateContent, uploadVideoFile, waitForFileActive } from "./geminiClient";
-import { buildSystemPrompt, RESPONSE_SCHEMA } from "./schema";
-import { GeminiApiError, type GeminiSessionAnalysis } from "./types";
+import { buildSystemPrompt, buildTranscriptOnlySystemPrompt, RESPONSE_SCHEMA, TRANSCRIPT_ONLY_SCHEMA } from "./schema";
+import { GeminiApiError, type GeminiSessionAnalysis, type GeminiTranscriptOnly } from "./types";
 import { logger } from "../../utils/logger";
 
 export type TranscribeProgressStep =
@@ -8,13 +8,10 @@ export type TranscribeProgressStep =
   | "processing"
   | "transcribing";
 
-export async function transcribeSession(
-  videoUri: string,
-  promptText: string,
-  onProgress?: (step: TranscribeProgressStep) => void,
-): Promise<GeminiSessionAnalysis> {
-  logger.info(`[gemini] starting analysis for ${videoUri}`);
-
+// Shared by transcribeSession and transcribeOnly: upload the recording to the
+// Gemini Files API and wait for it to become ACTIVE before generateContent
+// can reference it.
+async function uploadAndWaitForActive(videoUri: string, onProgress?: (step: TranscribeProgressStep) => void) {
   onProgress?.("uploading");
   logger.info("[gemini] uploading video file...");
   const uploaded = await uploadVideoFile(videoUri, "video/mp4", `session-${Date.now()}.mp4`);
@@ -24,6 +21,42 @@ export async function transcribeSession(
   logger.info(`[gemini] waiting for ${uploaded.name} to become ACTIVE...`);
   await waitForFileActive(uploaded.name);
   logger.info(`[gemini] ${uploaded.name} is ACTIVE`);
+
+  return uploaded;
+}
+
+// Validated by both parseGeminiSessionAnalysis and parseTranscriptOnly: every
+// Gemini response schema in this app includes these two transcripts.
+function extractTranscriptFields(
+  candidate: Partial<GeminiTranscriptOnly>,
+  parsed: unknown,
+): Pick<GeminiTranscriptOnly, "transcript_verbatim" | "transcript_clean" | "duration_seconds"> {
+  if (
+    typeof candidate.transcript_verbatim !== "string" ||
+    typeof candidate.transcript_clean !== "string" ||
+    typeof candidate.duration_seconds !== "number"
+  ) {
+    throw new GeminiApiError(
+      "Gemini response JSON did not match the expected schema (transcript fields)",
+      undefined,
+      parsed,
+    );
+  }
+  return {
+    transcript_verbatim: candidate.transcript_verbatim,
+    transcript_clean: candidate.transcript_clean,
+    duration_seconds: candidate.duration_seconds,
+  };
+}
+
+export async function transcribeSession(
+  videoUri: string,
+  promptText: string,
+  onProgress?: (step: TranscribeProgressStep) => void,
+): Promise<GeminiSessionAnalysis> {
+  logger.info(`[gemini] starting analysis for ${videoUri}`);
+
+  const uploaded = await uploadAndWaitForActive(videoUri, onProgress);
 
   onProgress?.("transcribing");
   logger.info("[gemini] calling generateContent...");
@@ -53,6 +86,45 @@ export async function transcribeSession(
   return result;
 }
 
+// For sessions that don't want AI grading — just the two transcripts, no rubric.
+export async function transcribeOnly(
+  videoUri: string,
+  onProgress?: (step: TranscribeProgressStep) => void,
+): Promise<GeminiTranscriptOnly> {
+  logger.info(`[gemini] starting transcript-only pass for ${videoUri}`);
+
+  const uploaded = await uploadAndWaitForActive(videoUri, onProgress);
+
+  onProgress?.("transcribing");
+  logger.info("[gemini] calling generateContent (transcript-only)...");
+  const responseText = await generateContent({
+    fileUri: uploaded.uri,
+    mimeType: "video/mp4",
+    systemPrompt: buildTranscriptOnlySystemPrompt(),
+    responseSchema: TRANSCRIPT_ONLY_SCHEMA,
+    mediaResolution: "MEDIA_RESOLUTION_LOW",
+  });
+  logger.info(`[gemini] generateContent returned ${responseText.length} chars`);
+
+  const result = parseTranscriptOnly(responseText);
+  logger.info(
+    `[gemini] parsed OK (transcript-only): verbatim=${result.transcript_verbatim.length} chars, ` +
+      `clean=${result.transcript_clean.length} chars, duration=${result.duration_seconds}s`,
+  );
+  return result;
+}
+
+export function parseTranscriptOnly(responseText: string): GeminiTranscriptOnly {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(responseText);
+  } catch (error) {
+    throw new GeminiApiError(`Gemini response was not valid JSON: ${(error as Error).message}`);
+  }
+
+  return extractTranscriptFields(parsed as Partial<GeminiTranscriptOnly>, parsed);
+}
+
 function isScoredNote(value: unknown): value is { score: number; notes: string } {
   return (
     typeof value === "object" &&
@@ -71,18 +143,7 @@ export function parseGeminiSessionAnalysis(responseText: string): GeminiSessionA
   }
 
   const candidate = parsed as Partial<GeminiSessionAnalysis>;
-
-  if (
-    typeof candidate.transcript_verbatim !== "string" ||
-    typeof candidate.transcript_clean !== "string" ||
-    typeof candidate.duration_seconds !== "number"
-  ) {
-    throw new GeminiApiError(
-      "Gemini response JSON did not match the expected schema (transcript fields)",
-      undefined,
-      parsed,
-    );
-  }
+  const transcriptFields = extractTranscriptFields(candidate, parsed);
 
   const structure = candidate.structure;
   if (
@@ -140,9 +201,7 @@ export function parseGeminiSessionAnalysis(responseText: string): GeminiSessionA
   }
 
   return {
-    transcript_verbatim: candidate.transcript_verbatim,
-    transcript_clean: candidate.transcript_clean,
-    duration_seconds: candidate.duration_seconds,
+    ...transcriptFields,
     structure,
     delivery,
     presence,

@@ -5,6 +5,7 @@ import {
   type PrepPhaseSettings,
   type RecordingDurationSettings,
 } from "../../domain/recordingSettings";
+import { DEFAULT_REMINDER_SETTINGS, type ReminderSettings } from "../../domain/reminderSettings";
 
 const storage = createMMKV({ id: "speech-coach-prefs" });
 
@@ -12,6 +13,7 @@ const KEYS = {
   recordBlind: "recordBlind",
   recordingDurationSettings: "recordingDurationSettings",
   prepPhaseSettings: "prepPhaseSettings",
+  reminderSettings: "reminderSettings",
 } as const;
 
 export function getRecordBlindPref(): boolean {
@@ -48,4 +50,18 @@ export function getPrepPhaseSettings(): PrepPhaseSettings {
 
 export function setPrepPhaseSettings(settings: PrepPhaseSettings): void {
   storage.set(KEYS.prepPhaseSettings, JSON.stringify(settings));
+}
+
+export function getReminderSettings(): ReminderSettings {
+  const raw = storage.getString(KEYS.reminderSettings);
+  if (!raw) return DEFAULT_REMINDER_SETTINGS;
+  try {
+    return { ...DEFAULT_REMINDER_SETTINGS, ...JSON.parse(raw) };
+  } catch {
+    return DEFAULT_REMINDER_SETTINGS;
+  }
+}
+
+export function setReminderSettings(settings: ReminderSettings): void {
+  storage.set(KEYS.reminderSettings, JSON.stringify(settings));
 }

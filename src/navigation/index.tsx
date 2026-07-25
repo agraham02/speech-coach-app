@@ -7,6 +7,7 @@ import { HistoryScreen } from "../screens/HistoryScreen";
 import { TrendsScreen } from "../screens/TrendsScreen";
 import { DevScreen } from "../screens/DevScreen";
 import { RecordingScreen } from "../screens/RecordingScreen";
+import { PreviewScreen } from "../screens/PreviewScreen";
 import { ProcessingScreen } from "../screens/ProcessingScreen";
 import { ResultScreen } from "../screens/ResultScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
@@ -24,7 +25,15 @@ export type RootStackParamList = {
   Tabs: NavigatorScreenParams<TabParamList> | undefined;
   Settings: undefined;
   Recording: { prompt: Prompt };
-  Processing: { sessionId: string; prompt: Prompt; videoUri: string; durationSecondsLocal: number };
+  Preview: { prompt: Prompt; videoUri: string; durationSecondsLocal: number };
+  Processing: {
+    sessionId: string;
+    prompt: Prompt;
+    videoUri: string;
+    durationSecondsLocal: number;
+    wantsGrading: boolean;
+    wantsNotionSync: boolean;
+  };
   Result: { sessionId: string };
 };
 
@@ -81,6 +90,7 @@ export function AppNavigator() {
         <Stack.Screen name="Tabs" component={Tabs} />
         <Stack.Screen name="Settings" component={SettingsScreen} options={{ presentation: "modal" }} />
         <Stack.Screen name="Recording" component={RecordingScreen} />
+        <Stack.Screen name="Preview" component={PreviewScreen} />
         <Stack.Screen name="Processing" component={ProcessingScreen} />
         <Stack.Screen name="Result" component={ResultScreen} />
       </Stack.Navigator>

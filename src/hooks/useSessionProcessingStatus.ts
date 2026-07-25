@@ -5,19 +5,14 @@ import { getSessionById } from "../services/db/sessionsRepo";
 export interface SessionProcessingState {
   phase: ProcessingPhase;
   errorMessage: string | null;
-  notionFailedOnly: boolean;
 }
 
 function initialStateFor(sessionId: string): SessionProcessingState {
   const cached = getLastProcessingStatus(sessionId);
   if (cached) {
-    return {
-      phase: cached.phase,
-      errorMessage: cached.errorMessage ?? null,
-      notionFailedOnly: cached.notionFailedOnly ?? false,
-    };
+    return { phase: cached.phase, errorMessage: cached.errorMessage ?? null };
   }
-  return { phase: "saving_locally", errorMessage: null, notionFailedOnly: false };
+  return { phase: "saving_locally", errorMessage: null };
 }
 
 // Reflects a session's live processing status. Seeded from the last known
@@ -40,11 +35,7 @@ export function useSessionProcessingStatus(sessionId: string): SessionProcessing
     });
 
     const unsubscribe = subscribeToSession(sessionId, (status) => {
-      setState({
-        phase: status.phase,
-        errorMessage: status.errorMessage ?? null,
-        notionFailedOnly: status.notionFailedOnly ?? false,
-      });
+      setState({ phase: status.phase, errorMessage: status.errorMessage ?? null });
     });
 
     return () => {
