@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import { HomeScreen } from "../screens/HomeScreen";
 import { HistoryScreen } from "../screens/HistoryScreen";
+import { TrendsScreen } from "../screens/TrendsScreen";
 import { DevScreen } from "../screens/DevScreen";
 import { RecordingScreen } from "../screens/RecordingScreen";
 import { ProcessingScreen } from "../screens/ProcessingScreen";
@@ -15,6 +16,7 @@ import { colors } from "../theme/theme";
 export type TabParamList = {
   Home: undefined;
   History: undefined;
+  Trends: undefined;
   Dev: undefined;
 };
 
@@ -52,6 +54,13 @@ function Tabs() {
         component={HistoryScreen}
         options={{
           tabBarIcon: ({ color, size }) => <Ionicons name="time-outline" size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Trends"
+        component={TrendsScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <Ionicons name="stats-chart-outline" size={size} color={color} />,
         }}
       />
       <Tab.Screen

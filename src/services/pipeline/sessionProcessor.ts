@@ -1,3 +1,4 @@
+import * as Haptics from "expo-haptics";
 import { transcribeSession, type TranscribeProgressStep } from "../gemini/transcribeSession";
 import { appendTodayTranscript } from "../notion/appendTodayTranscript";
 import {
@@ -7,9 +8,27 @@ import {
   updateSessionStatus,
   updateSessionTranscripts,
 } from "../db/sessionsRepo";
+import { getCompletedSessionDates } from "../db/statsRepo";
+import { analysisToSessionScores, getScoresBySessionId, upsertScores } from "../db/scoresRepo";
 import { emitProcessingStatus, type ProcessingPhase } from "./processingEvents";
+import { showGlobalToast } from "../../components/common/ToastProvider";
+import { computeStreaks } from "../../domain/streaks";
 import { logger } from "../../utils/logger";
 import type { Prompt } from "../../domain/sessionTypes";
+
+// Fires regardless of which screen (if any) is currently open, since this
+// runs from the background pipeline, not a mounted screen.
+async function celebrateCompletion(overallScore: number): Promise<void> {
+  await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  showGlobalToast(`Session graded — overall ${overallScore}/10`, "success");
+
+  const dates = await getCompletedSessionDates();
+  const { currentStreak, longestStreak } = computeStreaks(dates);
+  if (currentStreak >= 2 && currentStreak === longestStreak) {
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    showGlobalToast(`🔥 ${currentStreak} day streak!`, "success");
+  }
+}
 
 export interface ProcessSessionArgs {
   sessionId: string;
@@ -24,10 +43,11 @@ function progressStepToPhase(step: TranscribeProgressStep): ProcessingPhase {
   return "transcribing";
 }
 
-// Runs the full save -> transcribe -> Notion pipeline for a session, entirely
-// independent of any mounted screen. Call this once (fire-and-forget) right
-// after a recording finishes; screens observe progress via processingEvents
-// instead of driving it, so navigating away never interrupts the work.
+// Runs the full save -> transcribe/grade -> Notion pipeline for a session,
+// entirely independent of any mounted screen. Call this once (fire-and-forget)
+// right after a recording finishes; screens observe progress via
+// processingEvents instead of driving it, so navigating away never
+// interrupts the work.
 export async function processSession({ sessionId, prompt, videoUri, durationSecondsLocal }: ProcessSessionArgs): Promise<void> {
   const emit = (phase: ProcessingPhase, extra?: Partial<{ errorMessage: string; notionFailedOnly: boolean }>) =>
     emitProcessingStatus({ sessionId, phase, ...extra });
@@ -54,30 +74,26 @@ export async function processSession({ sessionId, prompt, videoUri, durationSeco
       logger.info(`[pipeline] session ${sessionId}: found existing row (status=${existing.status}), retrying`);
     }
 
-    let transcripts = existing?.transcriptClean
-      ? {
-          transcript_verbatim: existing.transcriptVerbatim ?? "",
-          transcript_clean: existing.transcriptClean,
-          duration_seconds: existing.durationSeconds,
-        }
-      : null;
+    let cleanTranscript = existing?.transcriptClean;
 
-    if (!transcripts) {
-      transcripts = await transcribeSession(videoUri, prompt.text, (step) => emit(progressStepToPhase(step)));
+    if (!cleanTranscript) {
+      const analysis = await transcribeSession(videoUri, prompt.text, (step) => emit(progressStepToPhase(step)));
       await updateSessionTranscripts(
         sessionId,
-        transcripts.transcript_verbatim,
-        transcripts.transcript_clean,
-        transcripts.duration_seconds,
+        analysis.transcript_verbatim,
+        analysis.transcript_clean,
+        analysis.duration_seconds,
       );
-      logger.info(`[pipeline] session ${sessionId}: transcripts saved locally`);
+      await upsertScores(analysisToSessionScores(sessionId, analysis));
+      logger.info(`[pipeline] session ${sessionId}: transcripts + scores saved locally`);
+      cleanTranscript = analysis.transcript_clean;
     } else {
-      logger.info(`[pipeline] session ${sessionId}: reusing existing transcripts (retry after Notion-only failure)`);
+      logger.info(`[pipeline] session ${sessionId}: reusing existing transcripts/scores (retry after Notion-only failure)`);
     }
 
     emit("saving_notion");
     try {
-      await appendTodayTranscript(transcripts.transcript_clean, prompt.text);
+      await appendTodayTranscript(cleanTranscript, prompt.text);
       await markSessionNotionSynced(sessionId);
       logger.info(`[pipeline] session ${sessionId}: Notion sync complete`);
     } catch (notionError) {
@@ -92,6 +108,13 @@ export async function processSession({ sessionId, prompt, videoUri, durationSeco
     await updateSessionStatus(sessionId, "done");
     logger.info(`[pipeline] session ${sessionId}: done`);
     emit("done");
+
+    const scores = await getScoresBySessionId(sessionId);
+    if (scores) {
+      celebrateCompletion(scores.overallScore).catch((err) =>
+        logger.error(`[pipeline] session ${sessionId}: celebration feedback failed — ${(err as Error).message}`),
+      );
+    }
   } catch (error) {
     logger.error(`[pipeline] session ${sessionId}: failed — ${(error as Error).message}`);
     await updateSessionStatus(sessionId, "error").catch(() => undefined);

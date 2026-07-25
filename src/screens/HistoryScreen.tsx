@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -7,8 +7,10 @@ import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
 import { Card } from "../components/common/Card";
 import { Badge } from "../components/common/Badge";
-import { getAllSessions } from "../services/db/sessionsRepo";
+import { useToast } from "../components/common/ToastProvider";
+import { deleteSession, getAllSessions } from "../services/db/sessionsRepo";
 import { getPrompt } from "../services/db/promptsRepo";
+import { deleteRecording } from "../services/storage/videoStorage";
 import { subscribeToAllSessions } from "../services/pipeline/processingEvents";
 import type { Session } from "../domain/sessionTypes";
 import { formatDuration } from "../utils/dateUtils";
@@ -30,7 +32,9 @@ function formatSessionDate(isoDatetime: string): string {
 
 export function HistoryScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const showToast = useToast();
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   const refresh = useCallback(() => {
     getAllSessions().then(setSessions);
@@ -39,6 +43,12 @@ export function HistoryScreen() {
   useFocusEffect(refresh);
 
   useEffect(() => subscribeToAllSessions(() => refresh()), [refresh]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await getAllSessions().then(setSessions);
+    setRefreshing(false);
+  }
 
   function openSession(session: Session) {
     const prompt = getPrompt(session.promptId);
@@ -56,6 +66,22 @@ export function HistoryScreen() {
     }
   }
 
+  function confirmDelete(session: Session) {
+    Alert.alert("Delete this session?", "This removes the recording, transcript, and scores. This can't be undone.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          await deleteSession(session.id);
+          deleteRecording(session.videoPath);
+          setSessions((prev) => prev.filter((s) => s.id !== session.id));
+          showToast("Session deleted", "success");
+        },
+      },
+    ]);
+  }
+
   return (
     <ScreenContainer style={styles.container}>
       <Text style={styles.title}>History</Text>
@@ -70,11 +96,17 @@ export function HistoryScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.accent} />}
           renderItem={({ item }) => {
             const prompt = getPrompt(item.promptId);
             const status = STATUS_META[item.status];
             return (
-              <Pressable onPress={() => openSession(item)}>
+              <Pressable
+                onPress={() => openSession(item)}
+                onLongPress={() => confirmDelete(item)}
+                accessibilityLabel={`${prompt?.text ?? "Session"}, ${status.label}, recorded ${formatSessionDate(item.recordedAt)}`}
+                accessibilityHint="Double tap to open. Long press to delete."
+              >
                 <Card style={styles.row}>
                   <View style={styles.rowTop}>
                     {prompt ? <Badge label={prompt.category} /> : null}

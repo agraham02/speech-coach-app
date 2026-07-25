@@ -25,8 +25,35 @@ export interface Session {
   notionSyncedAt: string | null;
 }
 
-export interface GeminiPhase1Result {
-  transcript_verbatim: string;
-  transcript_clean: string;
-  duration_seconds: number;
+export type StructureUsed = "what/why/how" | "story arc" | "none detected" | "other";
+export type Archetype = "Motivator" | "Educator" | "Coach" | "Friend";
+
+// Phase 3 (structure, delivery, coaching) + Phase 4 (presence, combined).
+export interface SessionScores {
+  sessionId: string;
+  structureScore: number;
+  structureUsed: StructureUsed;
+  structureNotes: string;
+  rateScore: number;
+  rateWpmAvg: number;
+  rateNotes: string;
+  volumeScore: number;
+  volumeNotes: string;
+  pitchMelodyScore: number;
+  pitchMelodyNotes: string;
+  tonalityScore: number;
+  tonalityNotes: string;
+  pausingScore: number;
+  pausingNotes: string;
+  eyeContactScore: number;
+  facialExpressivenessScore: number;
+  bodyLanguageNotes: string;
+  faceVoiceCongruenceScore: number;
+  archetypeDetected: Archetype;
+  archetypeFitForTopic: string;
+  overallScore: number;
+  coachingSummary: string;
+  topStrength: string;
+  topFocusArea: string;
+  recommendedDrill: string;
 }

@@ -127,7 +127,13 @@ export function RecordingScreen({ route, navigation }: Props) {
   if (!hasAllPermissions) {
     return (
       <View style={[styles.permissionContainer, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.lg }]}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.closeButton} hitSlop={12}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={styles.closeButton}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+        >
           <Ionicons name="close" size={24} color={colors.textPrimary} />
         </Pressable>
         <View style={styles.permissionBody}>
@@ -166,7 +172,13 @@ export function RecordingScreen({ route, navigation }: Props) {
 
       {stage === "idle" && (
         <View style={[styles.topBar, { top: insets.top + spacing.sm }]}>
-          <Pressable onPress={() => navigation.goBack()} style={styles.iconButton} hitSlop={12}>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            style={styles.iconButton}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+          >
             <Ionicons name="close" size={22} color={colors.textPrimary} />
           </Pressable>
           <View style={styles.promptBannerSlot}>

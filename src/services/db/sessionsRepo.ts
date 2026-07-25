@@ -95,3 +95,12 @@ export async function getAllSessions(): Promise<Session[]> {
   );
   return rows.map(rowToSession);
 }
+
+// Deletes a session's DB rows (session + any scores). The caller is
+// responsible for deleting the associated video file, since that's a
+// filesystem concern, not a DB one.
+export async function deleteSession(id: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(`DELETE FROM scores WHERE session_id = ?`, [id]);
+  await db.runAsync(`DELETE FROM sessions WHERE id = ?`, [id]);
+}

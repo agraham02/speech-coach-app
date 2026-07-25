@@ -1,5 +1,6 @@
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import Animated, { ZoomIn } from "react-native-reanimated";
 import { colors, spacing, typography } from "../../theme/theme";
 
 export interface Step {
@@ -15,7 +16,11 @@ export function StepList({ steps, currentIndex }: { steps: Step[]; currentIndex:
         return (
           <View key={step.key} style={styles.row}>
             <View style={styles.iconSlot}>
-              {status === "done" && <Ionicons name="checkmark-circle" size={22} color={colors.success} />}
+              {status === "done" && (
+                <Animated.View entering={ZoomIn.duration(280)}>
+                  <Ionicons name="checkmark-circle" size={22} color={colors.success} />
+                </Animated.View>
+              )}
               {status === "active" && <ActivityIndicator size="small" color={colors.accent} />}
               {status === "pending" && <Ionicons name="ellipse-outline" size={20} color={colors.textMuted} />}
             </View>

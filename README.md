@@ -1,6 +1,6 @@
 # Speech Coach App
 
-Personal, unpublished daily speaking-practice app. Full product spec is in [plan.md](./plan.md). This is the **Phase 1** scaffold: recording UX (framing guide + record blind) → Gemini transcription (verbatim + clean) → local save → append to Notion under today's date.
+Personal, unpublished daily speaking-practice app. Full product spec, phase-by-phase status, and changelog are in [plan.md](./plan.md). Phases 1, 3, 4, 5, and an unplanned Phase 6 (UI/UX pass) are built; Phase 2 (on-device transcription toggle) is deferred.
 
 ## Setup
 
@@ -40,7 +40,13 @@ If a future need arises to move to the v5 Nitro pair, re-check `visioncamera.mar
 
 ## Architecture notes
 
-- `src/services/gemini/` — hand-rolled `fetch`-based Gemini client (Files API resumable upload + `generateContent` with a `responseSchema`), not the `@google/genai` SDK, which has reported RN/Hermes friction.
+- `src/services/gemini/` — hand-rolled `fetch`-based Gemini client (Files API resumable upload + `generateContent` with a `responseSchema`), not the `@google/genai` SDK, which has reported RN/Hermes friction. The rubric schema now covers transcripts + structure + delivery + presence + combined + coaching (Phases 1/3/4) in one call.
 - `src/services/notion/` — hand-rolled `fetch`-based Notion client. Date headings are created as **toggleable `heading_2` blocks** (plain headings can't visually contain children); transcripts are appended as paragraph children of that block, so a second same-day session just adds another paragraph. Note: toggle headings render **collapsed by default** in Notion's UI — if a page looks empty after a successful sync, click the arrow next to the date heading (or check via the API directly) before assuming something's wrong.
-- `src/services/db/` — `expo-sqlite`, with `mappers.ts` kept pure (row↔object) and separate from native calls so it's unit-testable in plain Jest.
+- `src/services/db/` — `expo-sqlite`, with `mappers.ts` kept pure (row↔object) and separate from native calls so it's unit-testable in plain Jest. `scores` is a separate table joined to `sessions`; `statsRepo.ts` joins them for Trends.
+- `src/services/pipeline/` — `sessionProcessor.ts` runs the whole save→transcribe/grade→Notion pipeline independently of any mounted screen (fire-and-forget from `RecordingScreen`); `processingEvents.ts` is a small pub-sub (with last-known-status caching) that screens subscribe to for live status instead of driving the pipeline themselves.
+- `src/components/common/ToastProvider.tsx` — a small Reanimated-based toast, plus a module-level `showGlobalToast()` escape hatch so non-component code (the background pipeline) can surface feedback (e.g. "session graded", streak milestones) regardless of which screen is open.
 - Secrets are embedded in the built app via `app.config.ts`'s `extra` block — acceptable for a personal, unpublished app (see `plan.md` §12), but technically extractable if the app is ever decompiled.
+
+## Native dependencies requiring an EAS rebuild
+
+Beyond the original camera/face-detection stack, Phase 6 added: `expo-video` (Result screen video playback), `react-native-gifted-charts` + `react-native-svg` (Trends chart). None of these need extra config beyond what's already in `app.config.ts`'s `plugins` array. As always on this Windows-only dev setup, a JS-only change just needs a dev-client reload; anything that adds/updates a native module needs `eas build --profile development --platform ios` first.

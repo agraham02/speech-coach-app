@@ -28,7 +28,7 @@ export function DevScreen() {
     <ScreenContainer style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Dev Log</Text>
-        <Pressable onPress={clearLogs} hitSlop={12}>
+        <Pressable onPress={clearLogs} hitSlop={12} accessibilityRole="button" accessibilityLabel="Clear logs">
           <Ionicons name="trash-outline" size={22} color={colors.textSecondary} />
         </Pressable>
       </View>

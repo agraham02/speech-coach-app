@@ -1,4 +1,12 @@
-import { Pressable, StyleSheet, View } from "react-native";
+import { useEffect } from "react";
+import { Pressable, StyleSheet } from "react-native";
+import Animated, {
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from "react-native-reanimated";
 import { colors } from "../../theme/theme";
 
 interface RecordButtonProps {
@@ -8,18 +16,53 @@ interface RecordButtonProps {
 }
 
 export function RecordButton({ isRecording, onPress, disabled }: RecordButtonProps) {
+  const ringScale = useSharedValue(1);
+  const ringOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    if (isRecording) {
+      ringScale.value = 1;
+      ringOpacity.value = 0.5;
+      ringScale.value = withRepeat(withTiming(1.35, { duration: 1100 }), -1, false);
+      ringOpacity.value = withRepeat(withTiming(0, { duration: 1100 }), -1, false);
+    } else {
+      cancelAnimation(ringScale);
+      cancelAnimation(ringOpacity);
+      ringScale.value = 1;
+      ringOpacity.value = 0;
+    }
+  }, [isRecording, ringScale, ringOpacity]);
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    opacity: ringOpacity.value,
+    transform: [{ scale: ringScale.value }],
+  }));
+
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={({ pressed }) => [styles.outerRing, disabled && styles.disabled, pressed && !disabled && styles.pressed]}
+      style={({ pressed }) => [styles.wrapper, pressed && !disabled && styles.pressed]}
+      accessibilityRole="button"
+      accessibilityLabel={isRecording ? "Stop recording" : "Start recording"}
     >
-      <View style={[styles.inner, isRecording ? styles.innerRecording : styles.innerIdle]} />
+      {isRecording ? <Animated.View style={[styles.pulseRing, pulseStyle]} /> : null}
+      <Animated.View style={[styles.outerRing, disabled && styles.disabled]}>
+        <Animated.View style={[styles.inner, isRecording ? styles.innerRecording : styles.innerIdle]} />
+      </Animated.View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: { width: 88, height: 88, alignItems: "center", justifyContent: "center", alignSelf: "center" },
+  pulseRing: {
+    position: "absolute",
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: colors.danger,
+  },
   outerRing: {
     width: 88,
     height: 88,
@@ -28,7 +71,6 @@ const styles = StyleSheet.create({
     borderColor: "white",
     alignItems: "center",
     justifyContent: "center",
-    alignSelf: "center",
     shadowColor: "#000",
     shadowOpacity: 0.3,
     shadowRadius: 12,

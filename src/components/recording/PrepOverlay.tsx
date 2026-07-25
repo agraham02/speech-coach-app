@@ -15,7 +15,13 @@ interface PrepOverlayProps {
 export function PrepOverlay({ promptText, remainingSeconds, onSkip, onClose, topInset }: PrepOverlayProps) {
   return (
     <View style={styles.container} pointerEvents="box-none">
-      <Pressable onPress={onClose} style={[styles.closeButton, { top: topInset }]} hitSlop={12}>
+      <Pressable
+        onPress={onClose}
+        style={[styles.closeButton, { top: topInset }]}
+        hitSlop={12}
+        accessibilityRole="button"
+        accessibilityLabel="Close"
+      >
         <Ionicons name="close" size={22} color={colors.textPrimary} />
       </Pressable>
 

@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AppNavigator } from "./src/navigation";
 import { getMissingEnvKeys } from "./src/config/env";
+import { ToastProvider } from "./src/components/common/ToastProvider";
 import { colors, spacing, typography } from "./src/theme/theme";
 
 export default function App() {
@@ -25,8 +26,10 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <AppNavigator />
-      <StatusBar style="light" />
+      <ToastProvider>
+        <AppNavigator />
+        <StatusBar style="light" />
+      </ToastProvider>
     </SafeAreaProvider>
   );
 }

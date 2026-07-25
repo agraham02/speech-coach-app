@@ -55,7 +55,13 @@ export function HomeScreen() {
           <Text style={styles.eyebrow}>{getGreeting()}</Text>
           <Text style={styles.appName}>Speech Coach</Text>
         </View>
-        <Pressable onPress={() => navigation.navigate("Settings")} hitSlop={12} style={styles.settingsButton}>
+        <Pressable
+          onPress={() => navigation.navigate("Settings")}
+          hitSlop={12}
+          style={styles.settingsButton}
+          accessibilityRole="button"
+          accessibilityLabel="Settings"
+        >
           <Ionicons name="settings-outline" size={24} color={colors.textSecondary} />
         </Pressable>
       </View>
