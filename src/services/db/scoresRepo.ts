@@ -9,6 +9,10 @@ export function analysisToSessionScores(sessionId: string, analysis: GeminiSessi
     structureScore: analysis.structure.score,
     structureUsed: analysis.structure.structure_used,
     structureNotes: analysis.structure.notes,
+    relevanceScore: analysis.content.relevance_score,
+    relevanceNotes: analysis.content.relevance_notes,
+    coherenceScore: analysis.content.coherence_score,
+    coherenceNotes: analysis.content.coherence_notes,
     rateScore: analysis.delivery.rate.score,
     rateWpmAvg: analysis.delivery.rate.wpm_avg,
     rateNotes: analysis.delivery.rate.notes,
@@ -31,6 +35,7 @@ export function analysisToSessionScores(sessionId: string, analysis: GeminiSessi
     topStrength: analysis.coaching.top_strength,
     topFocusArea: analysis.coaching.top_focus_area,
     recommendedDrill: analysis.coaching.recommended_drill,
+    annotations: analysis.annotations,
   };
 }
 
@@ -39,17 +44,22 @@ export async function upsertScores(scores: SessionScores): Promise<void> {
   await db.runAsync(
     `INSERT INTO scores
       (session_id, structure_score, structure_used, structure_notes,
+       content_relevance_score, content_relevance_notes, content_coherence_score, content_coherence_notes,
        rate_score, rate_wpm_avg, rate_notes, volume_score, volume_notes,
        pitch_melody_score, pitch_melody_notes, tonality_score, tonality_notes,
        pausing_score, pausing_notes, eye_contact_score, facial_expressiveness_score,
        body_language_notes, face_voice_congruence_score, archetype_detected,
        archetype_fit_for_topic, overall_score, coaching_summary, top_strength,
-       top_focus_area, recommended_drill)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       top_focus_area, recommended_drill, annotations_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(session_id) DO UPDATE SET
        structure_score = excluded.structure_score,
        structure_used = excluded.structure_used,
        structure_notes = excluded.structure_notes,
+       content_relevance_score = excluded.content_relevance_score,
+       content_relevance_notes = excluded.content_relevance_notes,
+       content_coherence_score = excluded.content_coherence_score,
+       content_coherence_notes = excluded.content_coherence_notes,
        rate_score = excluded.rate_score,
        rate_wpm_avg = excluded.rate_wpm_avg,
        rate_notes = excluded.rate_notes,
@@ -71,12 +81,17 @@ export async function upsertScores(scores: SessionScores): Promise<void> {
        coaching_summary = excluded.coaching_summary,
        top_strength = excluded.top_strength,
        top_focus_area = excluded.top_focus_area,
-       recommended_drill = excluded.recommended_drill`,
+       recommended_drill = excluded.recommended_drill,
+       annotations_json = excluded.annotations_json`,
     [
       scores.sessionId,
       scores.structureScore,
       scores.structureUsed,
       scores.structureNotes,
+      scores.relevanceScore,
+      scores.relevanceNotes,
+      scores.coherenceScore,
+      scores.coherenceNotes,
       scores.rateScore,
       scores.rateWpmAvg,
       scores.rateNotes,
@@ -99,6 +114,7 @@ export async function upsertScores(scores: SessionScores): Promise<void> {
       scores.topStrength,
       scores.topFocusArea,
       scores.recommendedDrill,
+      JSON.stringify(scores.annotations),
     ],
   );
 }

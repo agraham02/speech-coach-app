@@ -39,6 +39,20 @@ export async function updateSessionTranscripts(
   );
 }
 
+// Computed on-device from transcript_verbatim right after transcription
+// succeeds — independent of whether grading was requested for this session.
+export async function updateSessionFillerStats(
+  id: string,
+  fillerWordCount: number,
+  fillerRatePerMinute: number,
+): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    `UPDATE sessions SET filler_word_count = ?, filler_rate_per_minute = ? WHERE id = ?`,
+    [fillerWordCount, fillerRatePerMinute, id],
+  );
+}
+
 export async function updateSessionStatus(
   id: string,
   status: SessionStatus,

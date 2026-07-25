@@ -14,7 +14,25 @@ export const colors = {
   danger: "#E5484D",
   dangerMuted: "rgba(229,72,77,0.15)",
   overlayScrim: "rgba(11,11,15,0.75)",
+  violet: "#8B5CF6",
+  violetMuted: "rgba(139,92,246,0.18)",
+  pink: "#EC4899",
+  pinkMuted: "rgba(236,72,153,0.18)",
+  teal: "#14B8A6",
+  tealMuted: "rgba(20,184,166,0.18)",
 } as const;
+
+// Transcript-annotation highlight colors — one per feedback category. All
+// represent "worth noticing/improving" flags, so none reuse `success` (green
+// is reserved for "good outcome" semantics elsewhere in the app — status
+// badges, high scores, checkmarks).
+export const annotationColors: Record<"filler" | "structure" | "delivery" | "presence" | "content", string> = {
+  filler: colors.warning,
+  structure: colors.violet,
+  delivery: colors.accent,
+  presence: colors.pink,
+  content: colors.teal,
+};
 
 export const spacing = {
   xs: 4,

@@ -11,6 +11,8 @@ import { Badge } from "../components/common/Badge";
 import { ScoreBar } from "../components/result/ScoreBar";
 import { OverallScoreRing } from "../components/result/OverallScoreRing";
 import { VideoPlayback } from "../components/result/VideoPlayback";
+import { AnnotatedTranscript } from "../components/result/AnnotatedTranscript";
+import { ScoreRadarChart } from "../components/result/ScoreRadarChart";
 import { useToast } from "../components/common/ToastProvider";
 import { getSessionById, deleteSession } from "../services/db/sessionsRepo";
 import { getScoresBySessionId } from "../services/db/scoresRepo";
@@ -28,7 +30,7 @@ export function ResultScreen({ route, navigation }: Props) {
   const showToast = useToast();
   const [session, setSession] = useState<Session | null>(null);
   const [scores, setScores] = useState<SessionScores | null>(null);
-  const [showVerbatim, setShowVerbatim] = useState(false);
+  const [showClean, setShowClean] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
   const [isSyncingNotion, setIsSyncingNotion] = useState(false);
   const [isGrading, setIsGrading] = useState(false);
@@ -68,7 +70,11 @@ export function ResultScreen({ route, navigation }: Props) {
     setIsGrading(true);
     try {
       await gradeExistingSession(sessionId, prompt, session.videoPath);
-      const updatedScores = await getScoresBySessionId(sessionId);
+      const [updatedSession, updatedScores] = await Promise.all([
+        getSessionById(sessionId),
+        getScoresBySessionId(sessionId),
+      ]);
+      setSession(updatedSession);
       setScores(updatedScores);
       showToast("Grading complete", "success");
     } catch (error) {
@@ -190,12 +196,18 @@ export function ResultScreen({ route, navigation }: Props) {
 
         {scores ? (
           <Card style={styles.scoresCard}>
+            <ScoreRadarChart scores={scores} />
+
             <Text style={styles.sectionLabel}>STRUCTURE</Text>
             <ScoreBar
               label={scores.structureUsed === "none detected" ? "No clear structure" : scores.structureUsed}
               score={scores.structureScore}
               notes={scores.structureNotes}
             />
+
+            <Text style={[styles.sectionLabel, styles.sectionSpacer]}>CONTENT</Text>
+            <ScoreBar label="Relevance to prompt" score={scores.relevanceScore} notes={scores.relevanceNotes} />
+            <ScoreBar label="Coherence & storytelling" score={scores.coherenceScore} notes={scores.coherenceNotes} />
 
             <Text style={[styles.sectionLabel, styles.sectionSpacer]}>DELIVERY</Text>
             <ScoreBar label="Rate" score={scores.rateScore} notes={scores.rateNotes} suffix={`${scores.rateWpmAvg} wpm`} />
@@ -219,22 +231,22 @@ export function ResultScreen({ route, navigation }: Props) {
           <Text style={styles.duration}>{formatDuration(session.durationSeconds)}</Text>
         </View>
         <Card>
-          <Text style={styles.transcript}>{session.transcriptClean}</Text>
+          <AnnotatedTranscript
+            transcriptVerbatim={session.transcriptVerbatim ?? ""}
+            durationSeconds={session.durationSeconds}
+            fillerWordCount={session.fillerWordCount}
+            fillerRatePerMinute={session.fillerRatePerMinute}
+            annotations={scores?.annotations ?? []}
+          />
         </Card>
 
-        <Pressable style={styles.verbatimToggle} onPress={() => setShowVerbatim((v) => !v)}>
-          <Text style={styles.verbatimToggleText}>
-            {showVerbatim ? "Hide verbatim transcript" : "Show verbatim transcript"}
-          </Text>
-          <Ionicons
-            name={showVerbatim ? "chevron-up" : "chevron-down"}
-            size={16}
-            color={colors.accent}
-          />
+        <Pressable style={styles.verbatimToggle} onPress={() => setShowClean((v) => !v)}>
+          <Text style={styles.verbatimToggleText}>{showClean ? "Hide cleaned-up response" : "Show cleaned-up response"}</Text>
+          <Ionicons name={showClean ? "chevron-up" : "chevron-down"} size={16} color={colors.accent} />
         </Pressable>
-        {showVerbatim ? (
+        {showClean ? (
           <Card style={styles.verbatimCard}>
-            <Text style={styles.verbatim}>{session.transcriptVerbatim}</Text>
+            <Text style={styles.transcript}>{session.transcriptClean}</Text>
           </Card>
         ) : null}
       </ScrollView>
@@ -269,7 +281,6 @@ const styles = StyleSheet.create({
   verbatimToggle: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, paddingVertical: spacing.sm },
   verbatimToggleText: { color: colors.accent, fontSize: typography.body, fontWeight: "600" },
   verbatimCard: { backgroundColor: colors.surfaceRaised },
-  verbatim: { color: colors.textSecondary, fontSize: typography.body, lineHeight: 21, fontStyle: "italic" },
   coachingCard: { gap: spacing.sm },
   coachingSummary: { color: colors.textPrimary, fontSize: typography.body, lineHeight: 21 },
   coachingRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },

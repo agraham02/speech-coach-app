@@ -6,6 +6,8 @@ import type {
   StructureUsed,
   TranscriptionSource,
 } from "../../domain/sessionTypes";
+import type { GeminiQuoteAnnotation } from "../../domain/transcriptAnnotations";
+import { logger } from "../../utils/logger";
 
 export interface SessionRow {
   id: string;
@@ -20,6 +22,8 @@ export interface SessionRow {
   notion_synced_at: string | null;
   wants_grading: number;
   wants_notion_sync: number;
+  filler_word_count: number | null;
+  filler_rate_per_minute: number | null;
 }
 
 export function rowToSession(row: SessionRow): Session {
@@ -36,6 +40,8 @@ export function rowToSession(row: SessionRow): Session {
     notionSyncedAt: row.notion_synced_at,
     wantsGrading: row.wants_grading === 1,
     wantsNotionSync: row.wants_notion_sync === 1,
+    fillerWordCount: row.filler_word_count,
+    fillerRatePerMinute: row.filler_rate_per_minute,
   };
 }
 
@@ -44,6 +50,10 @@ export interface ScoreRow {
   structure_score: number;
   structure_used: string;
   structure_notes: string;
+  content_relevance_score: number;
+  content_relevance_notes: string;
+  content_coherence_score: number;
+  content_coherence_notes: string;
   rate_score: number;
   rate_wpm_avg: number;
   rate_notes: string;
@@ -66,6 +76,17 @@ export interface ScoreRow {
   top_strength: string;
   top_focus_area: string;
   recommended_drill: string;
+  annotations_json: string;
+}
+
+function parseAnnotationsJson(json: string): GeminiQuoteAnnotation[] {
+  try {
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? (parsed as GeminiQuoteAnnotation[]) : [];
+  } catch (error) {
+    logger.warn(`[db] failed to parse annotations_json, defaulting to []: ${(error as Error).message}`);
+    return [];
+  }
 }
 
 export function rowToScores(row: ScoreRow): SessionScores {
@@ -74,6 +95,10 @@ export function rowToScores(row: ScoreRow): SessionScores {
     structureScore: row.structure_score,
     structureUsed: row.structure_used as StructureUsed,
     structureNotes: row.structure_notes,
+    relevanceScore: row.content_relevance_score,
+    relevanceNotes: row.content_relevance_notes,
+    coherenceScore: row.content_coherence_score,
+    coherenceNotes: row.content_coherence_notes,
     rateScore: row.rate_score,
     rateWpmAvg: row.rate_wpm_avg,
     rateNotes: row.rate_notes,
@@ -96,5 +121,6 @@ export function rowToScores(row: ScoreRow): SessionScores {
     topStrength: row.top_strength,
     topFocusArea: row.top_focus_area,
     recommendedDrill: row.recommended_drill,
+    annotations: parseAnnotationsJson(row.annotations_json),
   };
 }

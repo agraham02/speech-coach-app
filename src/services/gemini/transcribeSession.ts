@@ -1,6 +1,12 @@
 import { generateContent, uploadVideoFile, waitForFileActive } from "./geminiClient";
 import { buildSystemPrompt, buildTranscriptOnlySystemPrompt, RESPONSE_SCHEMA, TRANSCRIPT_ONLY_SCHEMA } from "./schema";
-import { GeminiApiError, type GeminiSessionAnalysis, type GeminiTranscriptOnly } from "./types";
+import {
+  GeminiApiError,
+  type AnnotationCategory,
+  type GeminiSessionAnalysis,
+  type GeminiTranscriptOnly,
+  type TranscriptAnnotation,
+} from "./types";
 import { logger } from "../../utils/logger";
 
 export type TranscribeProgressStep =
@@ -73,6 +79,7 @@ export async function transcribeSession(
   logger.info(
     `[gemini] parsed OK: verbatim=${result.transcript_verbatim.length} chars, clean=${result.transcript_clean.length} chars, ` +
       `duration=${result.duration_seconds}s, structure=${result.structure.score}/10 (${result.structure.structure_used}), ` +
+      `content relevance=${result.content.relevance_score}/coherence=${result.content.coherence_score}, ` +
       `delivery avg=${(
         (result.delivery.rate.score +
           result.delivery.volume.score +
@@ -134,6 +141,19 @@ function isScoredNote(value: unknown): value is { score: number; notes: string }
   );
 }
 
+const ANNOTATION_CATEGORIES: readonly AnnotationCategory[] = ["structure", "delivery", "presence", "content"];
+
+function isTranscriptAnnotation(value: unknown): value is TranscriptAnnotation {
+  if (typeof value !== "object" || value === null) return false;
+  const candidate = value as Partial<TranscriptAnnotation>;
+  return (
+    typeof candidate.quote === "string" &&
+    typeof candidate.note === "string" &&
+    typeof candidate.category === "string" &&
+    (ANNOTATION_CATEGORIES as string[]).includes(candidate.category)
+  );
+}
+
 export function parseGeminiSessionAnalysis(responseText: string): GeminiSessionAnalysis {
   let parsed: unknown;
   try {
@@ -153,6 +173,17 @@ export function parseGeminiSessionAnalysis(responseText: string): GeminiSessionA
     typeof structure.notes !== "string"
   ) {
     throw new GeminiApiError("Gemini response JSON did not match the expected schema (structure)", undefined, parsed);
+  }
+
+  const content = candidate.content;
+  if (
+    !content ||
+    typeof content.relevance_score !== "number" ||
+    typeof content.relevance_notes !== "string" ||
+    typeof content.coherence_score !== "number" ||
+    typeof content.coherence_notes !== "string"
+  ) {
+    throw new GeminiApiError("Gemini response JSON did not match the expected schema (content)", undefined, parsed);
   }
 
   const delivery = candidate.delivery;
@@ -200,12 +231,20 @@ export function parseGeminiSessionAnalysis(responseText: string): GeminiSessionA
     throw new GeminiApiError("Gemini response JSON did not match the expected schema (coaching)", undefined, parsed);
   }
 
+  const rawAnnotations = candidate.annotations;
+  if (!Array.isArray(rawAnnotations) || !rawAnnotations.every(isTranscriptAnnotation)) {
+    throw new GeminiApiError("Gemini response JSON did not match the expected schema (annotations)", undefined, parsed);
+  }
+  const annotations: TranscriptAnnotation[] = rawAnnotations;
+
   return {
     ...transcriptFields,
     structure,
+    content,
     delivery,
     presence,
     combined,
+    annotations,
     coaching,
   };
 }

@@ -1,3 +1,5 @@
+import type { GeminiQuoteAnnotation } from "./transcriptAnnotations";
+
 export interface Prompt {
   id: string;
   category: string;
@@ -25,6 +27,10 @@ export interface Session {
   notionSyncedAt: string | null;
   wantsGrading: boolean;
   wantsNotionSync: boolean;
+  // Computed on-device from transcriptVerbatim right after transcription —
+  // null until then, independent of whether grading was requested.
+  fillerWordCount: number | null;
+  fillerRatePerMinute: number | null;
 }
 
 export type StructureUsed = "what/why/how" | "story arc" | "none detected" | "other";
@@ -36,6 +42,10 @@ export interface SessionScores {
   structureScore: number;
   structureUsed: StructureUsed;
   structureNotes: string;
+  relevanceScore: number;
+  relevanceNotes: string;
+  coherenceScore: number;
+  coherenceNotes: string;
   rateScore: number;
   rateWpmAvg: number;
   rateNotes: string;
@@ -58,4 +68,5 @@ export interface SessionScores {
   topStrength: string;
   topFocusArea: string;
   recommendedDrill: string;
+  annotations: GeminiQuoteAnnotation[];
 }

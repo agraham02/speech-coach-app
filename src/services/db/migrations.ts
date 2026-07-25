@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
 // Bump this and add a new numbered migration when the schema changes.
-export const LATEST_DB_VERSION = 4;
+export const LATEST_DB_VERSION = 5;
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(
@@ -95,6 +95,36 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
       ALTER TABLE sessions ADD COLUMN wants_notion_sync INTEGER NOT NULL DEFAULT 1;
     `);
     currentVersion = 4;
+  }
+
+  if (currentVersion < 5) {
+    // Filler-word stats are computed on-device right after transcription
+    // (see computeFillerStats), independent of whether grading happened —
+    // nullable since they're populated in a follow-up write, not the initial insert.
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN filler_word_count INTEGER;
+    `);
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN filler_rate_per_minute REAL;
+    `);
+    // Content dimension (relevance + coherence) and Gemini's evidence
+    // annotations, added alongside the rigor/grading-philosophy prompt rewrite.
+    await db.execAsync(`
+      ALTER TABLE scores ADD COLUMN content_relevance_score INTEGER NOT NULL DEFAULT 0;
+    `);
+    await db.execAsync(`
+      ALTER TABLE scores ADD COLUMN content_relevance_notes TEXT NOT NULL DEFAULT '';
+    `);
+    await db.execAsync(`
+      ALTER TABLE scores ADD COLUMN content_coherence_score INTEGER NOT NULL DEFAULT 0;
+    `);
+    await db.execAsync(`
+      ALTER TABLE scores ADD COLUMN content_coherence_notes TEXT NOT NULL DEFAULT '';
+    `);
+    await db.execAsync(`
+      ALTER TABLE scores ADD COLUMN annotations_json TEXT NOT NULL DEFAULT '[]';
+    `);
+    currentVersion = 5;
   }
 
   await db.execAsync(`PRAGMA user_version = ${currentVersion}`);

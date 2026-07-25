@@ -7,10 +7,17 @@ export interface UploadedGeminiFile {
 
 export type StructureUsed = "what/why/how" | "story arc" | "none detected" | "other";
 export type Archetype = "Motivator" | "Educator" | "Coach" | "Friend";
+export type AnnotationCategory = "structure" | "delivery" | "presence" | "content";
 
 export interface ScoredNote {
   score: number;
   notes: string;
+}
+
+export interface TranscriptAnnotation {
+  quote: string;
+  category: AnnotationCategory;
+  note: string;
 }
 
 export interface GeminiSessionAnalysis {
@@ -21,6 +28,12 @@ export interface GeminiSessionAnalysis {
     score: number;
     structure_used: StructureUsed;
     notes: string;
+  };
+  content: {
+    relevance_score: number;
+    relevance_notes: string;
+    coherence_score: number;
+    coherence_notes: string;
   };
   delivery: {
     rate: ScoredNote & { wpm_avg: number };
@@ -40,6 +53,7 @@ export interface GeminiSessionAnalysis {
     archetype_fit_for_topic: string;
     overall_score: number;
   };
+  annotations: TranscriptAnnotation[];
   coaching: {
     summary: string;
     top_strength: string;

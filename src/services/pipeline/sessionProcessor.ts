@@ -5,9 +5,11 @@ import {
   getSessionById,
   insertSession,
   markSessionNotionSynced,
+  updateSessionFillerStats,
   updateSessionStatus,
   updateSessionTranscripts,
 } from "../db/sessionsRepo";
+import { computeFillerStats } from "../../domain/transcriptAnnotations";
 import { getCompletedSessionDates } from "../db/statsRepo";
 import { analysisToSessionScores, getScoresBySessionId, upsertScores } from "../db/scoresRepo";
 import { getPrompt } from "../db/promptsRepo";
@@ -78,10 +80,19 @@ async function runGradingPass(
     analysis.transcript_clean,
     analysis.duration_seconds,
   );
+  await persistFillerStats(sessionId, analysis.transcript_verbatim, analysis.duration_seconds);
   const scores = analysisToSessionScores(sessionId, analysis);
   await upsertScores(scores);
   logger.info(`[pipeline] session ${sessionId}: transcripts + scores saved locally`);
   return scores;
+}
+
+// Deterministic, on-device — runs for every session right after a transcript
+// exists, independent of whether Gemini's grading happened to notice fillers.
+async function persistFillerStats(sessionId: string, transcriptVerbatim: string, durationSeconds: number): Promise<void> {
+  const stats = computeFillerStats(transcriptVerbatim, durationSeconds);
+  await updateSessionFillerStats(sessionId, stats.count, stats.ratePerMinute);
+  logger.info(`[pipeline] session ${sessionId}: filler stats = ${stats.count} words, ${stats.ratePerMinute}/min (${stats.label})`);
 }
 
 // Runs the full grading rubric on a session that was saved without it (e.g. a
@@ -146,6 +157,8 @@ export async function processSession({
         notionSyncedAt: null,
         wantsGrading,
         wantsNotionSync,
+        fillerWordCount: null,
+        fillerRatePerMinute: null,
       });
     } else {
       logger.info(`[pipeline] session ${sessionId}: found existing row (status=${existing.status}), retrying`);
@@ -156,10 +169,13 @@ export async function processSession({
     // failure that happened between saving the transcript and upserting
     // scores (e.g. the DB write for scores throwing) would see the transcript
     // already there, skip straight past scoring, and mark the session "done"
-    // without ever having graded it.
+    // without ever having graded it. Same idea for the non-grading path: a
+    // retry after a failure between saving the transcript and persisting
+    // filler stats must not skip straight past persistFillerStats, or those
+    // columns stay null forever.
     const alreadyHasRequiredArtifacts = wantsGrading
       ? !!existing?.transcriptClean && !!(await getScoresBySessionId(sessionId))
-      : !!existing?.transcriptClean;
+      : !!existing?.transcriptClean && existing?.fillerWordCount !== null;
 
     if (!alreadyHasRequiredArtifacts) {
       if (wantsGrading) {
@@ -172,6 +188,7 @@ export async function processSession({
           transcript.transcript_clean,
           transcript.duration_seconds,
         );
+        await persistFillerStats(sessionId, transcript.transcript_verbatim, transcript.duration_seconds);
         logger.info(`[pipeline] session ${sessionId}: transcript-only saved locally`);
       }
     } else {
