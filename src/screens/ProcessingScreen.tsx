@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useIsFocused } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
@@ -43,24 +44,29 @@ function buildPhaseToStepIndex(wantsNotionSync: boolean): Record<ProcessingPhase
 // Preview screen and keeps running whether or not this screen is mounted.
 // That's what lets you navigate away immediately instead of waiting here.
 export function ProcessingScreen({ route, navigation }: Props) {
-  const { sessionId, prompt, videoUri, durationSecondsLocal, wantsGrading, wantsNotionSync } = route.params;
+  const { sessionId, videoUri, durationSecondsLocal, wantsGrading, wantsNotionSync, ...subject } = route.params;
   const { phase, errorMessage } = useSessionProcessingStatus(sessionId);
+  const isFocused = useIsFocused();
 
   const steps = buildSteps(wantsGrading, wantsNotionSync);
   const phaseToStepIndex = buildPhaseToStepIndex(wantsNotionSync);
 
+  // Only auto-advance while the user is actually still looking at this
+  // screen — if they've left (e.g. via "Continue in background"), completion
+  // is announced by a toast instead so it never yanks them away from
+  // whatever they're doing elsewhere in the app.
   useEffect(() => {
-    if (phase === "done") {
+    if (phase === "done" && isFocused) {
       navigation.replace("Result", { sessionId });
     }
-  }, [phase, sessionId, navigation]);
+  }, [phase, isFocused, sessionId, navigation]);
 
   function retry() {
-    processSession({ sessionId, prompt, videoUri, durationSecondsLocal, wantsGrading, wantsNotionSync });
+    processSession({ ...subject, sessionId, videoUri, durationSecondsLocal, wantsGrading, wantsNotionSync });
   }
 
   function continueInBackground() {
-    navigation.navigate("Tabs", { screen: "Home" });
+    navigation.popToTop();
   }
 
   if (phase === "error") {

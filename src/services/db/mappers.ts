@@ -3,6 +3,7 @@ import type {
   Session,
   SessionScores,
   SessionStatus,
+  SessionType,
   StructureUsed,
   TranscriptionSource,
 } from "../../domain/sessionTypes";
@@ -24,6 +25,11 @@ export interface SessionRow {
   wants_notion_sync: number;
   filler_word_count: number | null;
   filler_rate_per_minute: number | null;
+  video_deleted_at: string | null;
+  deleted_at: string | null;
+  session_type: string;
+  script_id: string | null;
+  cues_enabled: number | null;
 }
 
 export function rowToSession(row: SessionRow): Session {
@@ -42,6 +48,11 @@ export function rowToSession(row: SessionRow): Session {
     wantsNotionSync: row.wants_notion_sync === 1,
     fillerWordCount: row.filler_word_count,
     fillerRatePerMinute: row.filler_rate_per_minute,
+    videoDeletedAt: row.video_deleted_at,
+    deletedAt: row.deleted_at,
+    sessionType: row.session_type as SessionType,
+    scriptId: row.script_id,
+    cuesEnabled: row.cues_enabled === null ? null : row.cues_enabled === 1,
   };
 }
 
@@ -77,6 +88,8 @@ export interface ScoreRow {
   top_focus_area: string;
   recommended_drill: string;
   annotations_json: string;
+  cue_compliance_score: number | null;
+  cue_compliance_notes: string | null;
 }
 
 function parseAnnotationsJson(json: string): GeminiQuoteAnnotation[] {
@@ -122,5 +135,7 @@ export function rowToScores(row: ScoreRow): SessionScores {
     topFocusArea: row.top_focus_area,
     recommendedDrill: row.recommended_drill,
     annotations: parseAnnotationsJson(row.annotations_json),
+    cueComplianceScore: row.cue_compliance_score,
+    cueComplianceNotes: row.cue_compliance_notes,
   };
 }

@@ -224,7 +224,7 @@ The `combined` block is the part no existing off-the-shelf app does — checking
   - *Storage resolution* (what the RN app records/saves locally): 720p — plenty for reviewing your own practice videos, no reason to go higher.
   - *Analysis resolution* (the `media_resolution` parameter on the Gemini call): video bills at roughly 258 tokens/second at default sampling; `low` cuts that to roughly a quarter of the tokens per frame vs. `medium`/default. Since this task reads facial expression and body language, not fine text, `low` or `medium` should be plenty.
   - Rough math: a 5-minute clip ≈ 77K video tokens plus audio on top — comfortably under 100K total, landing at a few cents at most on a Flash-tier model.
-- **Notion write:** needs a Notion integration token to append blocks under today's date heading on the existing journal page (see §12) — stored alongside the Gemini key, same "in-app for now" call for both.
+- **Notion write:** needs a Notion integration token to append blocks under today's date heading on the existing journal page (see §12) — entered in Settings and stored securely on-device, same as the Gemini key.
 
 ## 11. On-device AI — status and the Settings toggle
 
@@ -254,7 +254,7 @@ Net effect: the toggle saves some Gemini cost/latency on the transcription step 
 - **Lightweight state (streaks, prefs, toggle setting):** `react-native-mmkv`.
 - **Upload:** multipart upload of the clip to wherever the Gemini call is made from.
 - **Journal export:** Notion API — append the clean transcript under a heading block for today's date (`YYYY-MM-DD`) on the existing journal page. Since it's one growing page (per your call in §14's predecessor), the app needs to check whether today's date heading already exists before creating a new one, in case of a second session in one day.
-- **Secrets (Gemini key, Notion token):** embedded in-app for now — reasonable for a personal, unpublished app. Worth knowing both are technically extractable from the built app if it's ever handed off or decompiled, so don't treat them as unrecoverable secrets.
+- **Secrets (Gemini key, Notion token, Notion page ID):** entered in Settings and stored via `expo-secure-store` (Keychain/Keystore) — never baked into the built app. Grading/Notion sync fail with a clear "add a key in Settings" message if you use them before entering one.
 
 ## 13. Phased roadmap
 

@@ -1,6 +1,8 @@
 import * as Haptics from "expo-haptics";
-import { transcribeOnly, transcribeSession, type TranscribeProgressStep } from "../gemini/transcribeSession";
+import { transcribeOnly, transcribeSession, type GradingContext, type TranscribeProgressStep } from "../gemini/transcribeSession";
+import { describeGeminiError } from "../gemini/describeError";
 import { appendTodayTranscript } from "../notion/appendTodayTranscript";
+import { describeNotionError } from "../notion/describeError";
 import {
   getSessionById,
   insertSession,
@@ -13,34 +15,103 @@ import { computeFillerStats } from "../../domain/transcriptAnnotations";
 import { getCompletedSessionDates } from "../db/statsRepo";
 import { analysisToSessionScores, getScoresBySessionId, upsertScores } from "../db/scoresRepo";
 import { getPrompt } from "../db/promptsRepo";
+import { getScriptById } from "../db/scriptsRepo";
+import { isFreeRecordPrompt } from "../../data/topics";
 import { emitProcessingStatus, type ProcessingPhase } from "./processingEvents";
 import { showGlobalToast } from "../../components/common/ToastProvider";
-import { computeStreaks } from "../../domain/streaks";
+import { notifySessionComplete } from "../notifications/sessionCompleteNotifier";
+import { syncDailyReminder } from "../notifications/reminderScheduler";
+import { navigationRef } from "../../navigation/navigationRef";
+import { computeStreaks, streakMilestoneReached } from "../../domain/streaks";
 import { logger } from "../../utils/logger";
-import type { Prompt } from "../../domain/sessionTypes";
+import type { RecordingSubject, Session, SessionType } from "../../domain/sessionTypes";
+
+function subjectToGradingContext(subject: RecordingSubject): GradingContext {
+  return subject.kind === "script"
+    ? { kind: "script", script: subject.script, cuesEnabled: subject.cuesEnabled }
+    : { kind: "prompt", promptText: subject.prompt.text };
+}
+
+function subjectToPromptId(subject: RecordingSubject): string {
+  return subject.kind === "script" ? subject.script.id : subject.prompt.id;
+}
+
+function subjectToSessionType(subject: RecordingSubject): SessionType {
+  if (subject.kind === "script") return "script_practice";
+  return isFreeRecordPrompt(subject.prompt.id) ? "free_record" : "spontaneous";
+}
+
+// Rebuilds a GradingContext for a previously-saved session (the "Grade with
+// Gemini" retry path from Result screen) — unlike the initial pipeline run,
+// there's no RecordingSubject from navigation params here, just the DB row.
+export async function sessionToGradingContext(session: Session): Promise<GradingContext | null> {
+  if (session.sessionType === "script_practice") {
+    const script = session.scriptId ? getScriptById(session.scriptId) : undefined;
+    if (!script) return null;
+    return { kind: "script", script, cuesEnabled: session.cuesEnabled ?? false };
+  }
+  const prompt = getPrompt(session.promptId);
+  if (!prompt) return null;
+  return { kind: "prompt", promptText: prompt.text };
+}
+
+// Rebuilds a full RecordingSubject for a previously-saved session (History's
+// "reopen an in-progress/errored session" path, which needs to hand a
+// ProcessSessionArgs-shaped subject to the Processing screen for retrying) —
+// same idea as sessionToGradingContext above, but keeps the full Prompt/Script
+// object rather than just the text Gemini needs.
+export function sessionToRecordingSubject(session: Session): RecordingSubject | null {
+  if (session.sessionType === "script_practice") {
+    const script = session.scriptId ? getScriptById(session.scriptId) : undefined;
+    if (!script) return null;
+    return { kind: "script", script, cuesEnabled: session.cuesEnabled ?? false };
+  }
+  const prompt = getPrompt(session.promptId);
+  if (!prompt) return null;
+  return { kind: "prompt", prompt };
+}
+
+function goToResult(sessionId: string): void {
+  if (navigationRef.isReady()) {
+    navigationRef.navigate("Result", { sessionId });
+  }
+}
 
 // Fires regardless of which screen (if any) is currently open, since this
-// runs from the background pipeline, not a mounted screen.
-async function celebrateCompletion(overallScore: number): Promise<void> {
+// runs from the background pipeline, not a mounted screen. Tapping the toast
+// (rather than the completion itself) is the only thing that navigates —
+// see processSession/gradeExistingSession, which never navigate on their own.
+async function celebrateCompletion(sessionId: string, overallScore: number): Promise<void> {
   await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  showGlobalToast(`Session graded — overall ${overallScore}/10`, "success");
+  const title = "Session graded";
+  const body = `Overall ${overallScore}/10 — tap to view.`;
+  showGlobalToast(`${title} — overall ${overallScore}/10`, "success", () => goToResult(sessionId));
+  notifySessionComplete(sessionId, title, body).catch((err) =>
+    logger.error(`[pipeline] session ${sessionId}: completion notification failed — ${(err as Error).message}`),
+  );
 
   const dates = await getCompletedSessionDates();
   const { currentStreak, longestStreak } = computeStreaks(dates);
-  if (currentStreak >= 2 && currentStreak === longestStreak) {
+  const milestone = streakMilestoneReached(currentStreak);
+  if (milestone) {
+    // A fixed-day-count milestone (3/7/14/30/...) is a bigger moment than an
+    // ordinary personal best, so it gets its own message instead of the
+    // generic "new streak" toast below.
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    showGlobalToast(`🏆 ${milestone}-day streak milestone!`, "success");
+  } else if (currentStreak >= 2 && currentStreak === longestStreak) {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     showGlobalToast(`🔥 ${currentStreak} day streak!`, "success");
   }
 }
 
-export interface ProcessSessionArgs {
+export type ProcessSessionArgs = RecordingSubject & {
   sessionId: string;
-  prompt: Prompt;
   videoUri: string;
   durationSecondsLocal: number;
   wantsGrading: boolean;
   wantsNotionSync: boolean;
-}
+};
 
 function progressStepToPhase(step: TranscribeProgressStep): ProcessingPhase {
   if (step === "uploading") return "uploading";
@@ -69,11 +140,11 @@ export async function syncSessionToNotion(sessionId: string): Promise<void> {
 // initial pipeline run below so the two don't drift out of sync.
 async function runGradingPass(
   sessionId: string,
-  prompt: Prompt,
+  context: GradingContext,
   videoUri: string,
   emit: (phase: ProcessingPhase, extra?: Partial<{ errorMessage: string }>) => void,
 ): Promise<ReturnType<typeof analysisToSessionScores>> {
-  const analysis = await transcribeSession(videoUri, prompt.text, (step) => emit(progressStepToPhase(step)));
+  const analysis = await transcribeSession(videoUri, context, (step) => emit(progressStepToPhase(step)));
   await updateSessionTranscripts(
     sessionId,
     analysis.transcript_verbatim,
@@ -100,22 +171,22 @@ async function persistFillerStats(sessionId: string, transcriptVerbatim: string,
 // Necessarily re-uploads the video — Gemini Files API entries expire after
 // 48h (plan.md §10), so there's nothing from an earlier transcript-only call
 // to reuse. Emits phase updates via processingEvents so a screen can show progress.
-export async function gradeExistingSession(sessionId: string, prompt: Prompt, videoUri: string): Promise<void> {
+export async function gradeExistingSession(sessionId: string, context: GradingContext, videoUri: string): Promise<void> {
   const emit = (phase: ProcessingPhase, extra?: Partial<{ errorMessage: string }>) =>
     emitProcessingStatus({ sessionId, phase, ...extra });
 
   try {
     emit("uploading");
-    const scores = await runGradingPass(sessionId, prompt, videoUri, emit);
+    const scores = await runGradingPass(sessionId, context, videoUri, emit);
     logger.info(`[pipeline] session ${sessionId}: graded on demand`);
     emit("done");
 
-    celebrateCompletion(scores.overallScore).catch((err) =>
+    celebrateCompletion(sessionId, scores.overallScore).catch((err) =>
       logger.error(`[pipeline] session ${sessionId}: celebration feedback failed — ${(err as Error).message}`),
     );
   } catch (error) {
     logger.error(`[pipeline] session ${sessionId}: on-demand grading failed — ${(error as Error).message}`);
-    emit("error", { errorMessage: (error as Error).message });
+    emit("error", { errorMessage: describeGeminiError(error) });
     throw error;
   }
 }
@@ -125,20 +196,15 @@ export async function gradeExistingSession(sessionId: string, prompt: Prompt, vi
 // (fire-and-forget) right after the user chooses "Save" on the Preview
 // screen; screens observe progress via processingEvents instead of driving
 // it, so navigating away never interrupts the work.
-export async function processSession({
-  sessionId,
-  prompt,
-  videoUri,
-  durationSecondsLocal,
-  wantsGrading,
-  wantsNotionSync,
-}: ProcessSessionArgs): Promise<void> {
+export async function processSession(args: ProcessSessionArgs): Promise<void> {
+  const { sessionId, videoUri, durationSecondsLocal, wantsGrading, wantsNotionSync } = args;
+  const gradingContext = subjectToGradingContext(args);
   const emit = (phase: ProcessingPhase, extra?: Partial<{ errorMessage: string }>) =>
     emitProcessingStatus({ sessionId, phase, ...extra });
 
   try {
     logger.info(
-      `[pipeline] session ${sessionId}: starting (prompt="${prompt.text}", grading=${wantsGrading}, notion=${wantsNotionSync})`,
+      `[pipeline] session ${sessionId}: starting (type=${subjectToSessionType(args)}, grading=${wantsGrading}, notion=${wantsNotionSync})`,
     );
     emit("saving_locally");
     const existing = await getSessionById(sessionId);
@@ -146,7 +212,7 @@ export async function processSession({
       logger.info(`[pipeline] session ${sessionId}: inserting new row`);
       await insertSession({
         id: sessionId,
-        promptId: prompt.id,
+        promptId: subjectToPromptId(args),
         recordedAt: new Date().toISOString(),
         videoPath: videoUri,
         durationSeconds: durationSecondsLocal,
@@ -157,8 +223,13 @@ export async function processSession({
         notionSyncedAt: null,
         wantsGrading,
         wantsNotionSync,
+        sessionType: subjectToSessionType(args),
+        scriptId: args.kind === "script" ? args.script.id : null,
+        cuesEnabled: args.kind === "script" ? args.cuesEnabled : null,
         fillerWordCount: null,
         fillerRatePerMinute: null,
+        videoDeletedAt: null,
+        deletedAt: null,
       });
     } else {
       logger.info(`[pipeline] session ${sessionId}: found existing row (status=${existing.status}), retrying`);
@@ -179,7 +250,7 @@ export async function processSession({
 
     if (!alreadyHasRequiredArtifacts) {
       if (wantsGrading) {
-        await runGradingPass(sessionId, prompt, videoUri, emit);
+        await runGradingPass(sessionId, gradingContext, videoUri, emit);
       } else {
         const transcript = await transcribeOnly(videoUri, (step) => emit(progressStepToPhase(step)));
         await updateSessionTranscripts(
@@ -204,7 +275,7 @@ export async function processSession({
         // later from the Result screen. Still surface it, though, since this
         // runs in the background and nothing else would tell the user.
         logger.error(`[pipeline] session ${sessionId}: Notion sync failed — ${(notionError as Error).message}`);
-        showGlobalToast(`Saved locally — Notion sync failed (${(notionError as Error).message})`, "error");
+        showGlobalToast(`Saved locally — Notion sync failed (${describeNotionError(notionError)})`, "error");
       }
     }
 
@@ -212,15 +283,26 @@ export async function processSession({
     logger.info(`[pipeline] session ${sessionId}: done`);
     emit("done");
 
+    // Today's practice just happened, so re-arm the reminder for tomorrow
+    // instead of leaving a same-day nudge armed that would fire anyway.
+    syncDailyReminder().catch((err) =>
+      logger.error(`[pipeline] session ${sessionId}: reminder resync failed — ${(err as Error).message}`),
+    );
+
     const scores = await getScoresBySessionId(sessionId);
     if (scores) {
-      celebrateCompletion(scores.overallScore).catch((err) =>
+      celebrateCompletion(sessionId, scores.overallScore).catch((err) =>
         logger.error(`[pipeline] session ${sessionId}: celebration feedback failed — ${(err as Error).message}`),
+      );
+    } else {
+      showGlobalToast("Session ready", "success", () => goToResult(sessionId));
+      notifySessionComplete(sessionId, "Session ready", "Your transcript is ready — tap to view.").catch((err) =>
+        logger.error(`[pipeline] session ${sessionId}: completion notification failed — ${(err as Error).message}`),
       );
     }
   } catch (error) {
     logger.error(`[pipeline] session ${sessionId}: failed — ${(error as Error).message}`);
     await updateSessionStatus(sessionId, "error").catch(() => undefined);
-    emit("error", { errorMessage: (error as Error).message });
+    emit("error", { errorMessage: describeGeminiError(error) });
   }
 }

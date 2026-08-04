@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
 // Bump this and add a new numbered migration when the schema changes.
-export const LATEST_DB_VERSION = 5;
+export const LATEST_DB_VERSION = 7;
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(
@@ -125,6 +125,48 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
       ALTER TABLE scores ADD COLUMN annotations_json TEXT NOT NULL DEFAULT '[]';
     `);
     currentVersion = 5;
+  }
+
+  if (currentVersion < 6) {
+    // Both nullable, NULL meaning "not deleted." video_deleted_at supports
+    // the lighter "delete video only" action (frees storage, keeps the
+    // session fully intact). deleted_at is a soft delete for "Delete
+    // Session" — hides it from History, but the row is never actually
+    // removed so Trends' streaks/averages keep counting it forever.
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN video_deleted_at TEXT;
+    `);
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN deleted_at TEXT;
+    `);
+    currentVersion = 6;
+  }
+
+  if (currentVersion < 7) {
+    // Script Practice mode: a session recorded against a fixed script
+    // (src/data/scripts.json) instead of a spontaneous prompt. session_type
+    // distinguishes it from 'spontaneous'/'free_record' so History/Trends can
+    // label it distinctly; script_id and cues_enabled are only ever set
+    // alongside session_type = 'script_practice'.
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN session_type TEXT NOT NULL DEFAULT 'spontaneous';
+    `);
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN script_id TEXT;
+    `);
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN cues_enabled INTEGER;
+    `);
+    // Nullable (unlike the other score columns) — only meaningful for
+    // script_practice sessions, so NULL here means "not applicable" rather
+    // than "scored zero."
+    await db.execAsync(`
+      ALTER TABLE scores ADD COLUMN cue_compliance_score INTEGER;
+    `);
+    await db.execAsync(`
+      ALTER TABLE scores ADD COLUMN cue_compliance_notes TEXT;
+    `);
+    currentVersion = 7;
   }
 
   await db.execAsync(`PRAGMA user_version = ${currentVersion}`);

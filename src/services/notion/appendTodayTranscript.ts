@@ -1,6 +1,6 @@
-import { env } from "../../config/env";
+import { getNotionPageId } from "../secrets/secretsStore";
 import { todayISODate } from "../../utils/dateUtils";
-import { appendBlockChildren, getBlockChildren, type NotionBlock } from "./notionClient";
+import { appendBlockChildren, getBlockChildren, NotionApiError, type NotionBlock } from "./notionClient";
 import { splitIntoNotionRichText } from "./richText";
 import { logger } from "../../utils/logger";
 
@@ -52,7 +52,10 @@ export async function appendTodayTranscript(
   promptText: string,
 ): Promise<void> {
   const todayDate = todayISODate();
-  const pageId = env.notionPageId;
+  const pageId = await getNotionPageId();
+  if (!pageId) {
+    throw new NotionApiError("No Notion page ID set — add one in Settings.", 0);
+  }
 
   logger.info(`[notion] fetching existing children of page ${pageId}...`);
   const children = await getBlockChildren(pageId);

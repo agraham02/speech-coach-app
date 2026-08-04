@@ -7,8 +7,8 @@ export async function insertSession(session: Session): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
     `INSERT INTO sessions
-      (id, prompt_id, recorded_at, video_path, duration_seconds, transcription_source, transcript_verbatim, transcript_clean, status, notion_synced_at, wants_grading, wants_notion_sync)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, prompt_id, recorded_at, video_path, duration_seconds, transcription_source, transcript_verbatim, transcript_clean, status, notion_synced_at, wants_grading, wants_notion_sync, session_type, script_id, cues_enabled)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       session.id,
       session.promptId,
@@ -22,6 +22,9 @@ export async function insertSession(session: Session): Promise<void> {
       session.notionSyncedAt,
       session.wantsGrading ? 1 : 0,
       session.wantsNotionSync ? 1 : 0,
+      session.sessionType,
+      session.scriptId,
+      session.cuesEnabled === null ? null : session.cuesEnabled ? 1 : 0,
     ],
   );
 }
@@ -93,30 +96,76 @@ export async function getRecentlyUsedPromptIds(limit: number): Promise<string[]>
   return rows.map((row) => row.prompt_id);
 }
 
+// Deliberately not filtered by deleted_at — a soft-deleted session was still
+// recorded today for the purposes of "have you practiced today," but once
+// it's gone from History it shouldn't count, so the user can freely
+// re-record if they deleted their only session for the day.
 export async function getTodaysSession(): Promise<Session | null> {
   const db = await getDatabase();
   const today = todayISODate();
   const row = await db.getFirstAsync<SessionRow>(
-    `SELECT * FROM sessions WHERE recorded_at LIKE ? ORDER BY recorded_at DESC LIMIT 1`,
+    `SELECT * FROM sessions WHERE recorded_at LIKE ? AND deleted_at IS NULL ORDER BY recorded_at DESC LIMIT 1`,
     [`${today}%`],
   );
   return row ? rowToSession(row) : null;
 }
 
-// All sessions, most recent first — used by the History screen.
+// All sessions, most recent first — used by the History screen. Excludes
+// soft-deleted sessions (see deleteSession below).
 export async function getAllSessions(): Promise<Session[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<SessionRow>(
-    `SELECT * FROM sessions ORDER BY recorded_at DESC`,
+    `SELECT * FROM sessions WHERE deleted_at IS NULL ORDER BY recorded_at DESC`,
   );
   return rows.map(rowToSession);
 }
 
-// Deletes a session's DB rows (session + any scores). The caller is
-// responsible for deleting the associated video file, since that's a
-// filesystem concern, not a DB one.
+interface SessionWithScoreRow extends SessionRow {
+  overall_score: number | null;
+}
+
+export interface SessionWithScore extends Session {
+  overallScore: number | null;
+}
+
+// Same as getAllSessions, but also brings back each session's overall score
+// (null for ungraded sessions) in one query — used by the History screen so
+// it can show a score on each card without an extra fetch per row.
+export async function getAllSessionsWithScores(): Promise<SessionWithScore[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<SessionWithScoreRow>(
+    `SELECT s.*, sc.overall_score
+     FROM sessions s
+     LEFT JOIN scores sc ON sc.session_id = s.id
+     WHERE s.deleted_at IS NULL
+     ORDER BY s.recorded_at DESC`,
+  );
+  return rows.map((row) => ({ ...rowToSession(row), overallScore: row.overall_score }));
+}
+
+// "Delete video only" — frees device storage while keeping the session fully
+// intact and visible (transcript, scores, History card). The caller is
+// responsible for deleting the actual video file (see deleteRecording in
+// storage/videoStorage.ts); this just marks it gone in the DB.
+export async function deleteSessionVideo(id: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(`UPDATE sessions SET video_deleted_at = ? WHERE id = ?`, [
+    new Date().toISOString(),
+    id,
+  ]);
+}
+
+// Soft-deletes a session: hides it from History (getAllSessions/
+// getAllSessionsWithScores/getTodaysSession all filter on deleted_at) and
+// marks its video gone, but never actually removes the sessions/scores rows
+// — so Trends' streaks and averages keep counting it forever. The caller is
+// still responsible for deleting the actual video file, same as before.
 export async function deleteSession(id: string): Promise<void> {
   const db = await getDatabase();
-  await db.runAsync(`DELETE FROM scores WHERE session_id = ?`, [id]);
-  await db.runAsync(`DELETE FROM sessions WHERE id = ?`, [id]);
+  const now = new Date().toISOString();
+  await db.runAsync(`UPDATE sessions SET deleted_at = ?, video_deleted_at = ? WHERE id = ?`, [
+    now,
+    now,
+    id,
+  ]);
 }

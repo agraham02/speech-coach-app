@@ -5,6 +5,25 @@ export interface StreakResult {
   longestStreak: number;
 }
 
+// Fixed day counts worth celebrating, ascending — used both for the
+// in-the-moment "you just hit N days" toast and for the persistent badge on
+// Trends showing the best milestone ever reached.
+export const STREAK_MILESTONES = [3, 7, 14, 30, 50, 100, 150, 200, 365] as const;
+
+// Returns the milestone `streak` days exactly equals, or null if it's not one
+// — call right after a session completes, so the toast fires on the one day
+// it's actually true rather than every day past the threshold.
+export function streakMilestoneReached(streak: number): number | null {
+  return STREAK_MILESTONES.find((m) => m === streak) ?? null;
+}
+
+// Returns the highest milestone `streak` has ever reached or passed, or null
+// if none yet — for a persistent "best milestone" badge that doesn't
+// disappear if the streak later breaks.
+export function highestStreakMilestone(streak: number): number | null {
+  return [...STREAK_MILESTONES].reverse().find((m) => streak >= m) ?? null;
+}
+
 // dates: any-order array of "YYYY-MM-DD" or ISO datetime strings, one per
 // practiced day (duplicates on the same day are fine — a second same-day
 // session doesn't count as a second streak day).

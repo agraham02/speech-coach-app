@@ -6,6 +6,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { Camera as VisionCamera } from "react-native-vision-camera";
 import type { RootStackParamList } from "../navigation";
 import { PrimaryButton } from "../components/common/PrimaryButton";
+import { ProgressRing } from "../components/common/ProgressRing";
 import { CameraPreview } from "../components/recording/CameraPreview";
 import { FramingGuideOverlay } from "../components/recording/FramingGuideOverlay";
 import { PrepOverlay } from "../components/recording/PrepOverlay";
@@ -13,7 +14,7 @@ import { PromptBanner } from "../components/recording/PromptBanner";
 import { RecordBlindOverlay } from "../components/recording/RecordBlindOverlay";
 import { RecordBlindToggle } from "../components/recording/RecordBlindToggle";
 import { RecordButton } from "../components/recording/RecordButton";
-import { RecordingTimer } from "../components/recording/RecordingTimer";
+import { ScriptTeleprompterOverlay } from "../components/recording/ScriptTeleprompterOverlay";
 import { useCameraPermissions } from "../hooks/useCameraPermissions";
 import { useCountdownTimer } from "../hooks/useCountdownTimer";
 import { useFaceDetection } from "../hooks/useFaceDetection";
@@ -27,6 +28,7 @@ import {
 } from "../services/prefs/prefsStore";
 import { resolvePrepDurationSeconds, resolveRecordingDurationSeconds } from "../domain/recordingSettings";
 import { persistRecording } from "../services/storage/videoStorage";
+import { formatDuration } from "../utils/dateUtils";
 import { colors, spacing, typography } from "../theme/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Recording">;
@@ -34,19 +36,27 @@ type Props = NativeStackScreenProps<RootStackParamList, "Recording">;
 type Stage = "prep" | "idle" | "recording";
 
 export function RecordingScreen({ route, navigation }: Props) {
-  const { prompt } = route.params;
+  const subject = route.params;
+  const isScript = subject.kind === "script";
+  const prepText = isScript ? `Reading: ${subject.script.title}` : subject.prompt.text;
   const insets = useSafeAreaInsets();
   const cameraRef = useRef<VisionCamera>(null);
   const { hasAllPermissions, hasCameraPermission, hasMicrophonePermission, requestCameraPermission, requestMicrophonePermission } =
     useCameraPermissions();
   const { faceDetected, framingStatus, onFacesDetected, faceDetectionOptions } = useFaceDetection();
   const { elapsedSeconds, start, stop } = useRecordingTimer();
-  const [recordBlind, setRecordBlind] = useState(getRecordBlindPref());
+  const [recordBlind, setRecordBlind] = useState(!isScript && getRecordBlindPref());
   const [isFinishing, setIsFinishing] = useState(false);
   const stoppingRef = useRef(false);
 
   const [prepSettings] = useState(() => getPrepPhaseSettings());
-  const [targetDurationSeconds] = useState(() => resolveRecordingDurationSeconds(getRecordingDurationSettings()));
+  // Script Practice paces to the script's own word count (see scriptTypes.ts),
+  // never the general recording-duration setting — a script's teleprompter
+  // has to finish scrolling roughly when the script ends, independent of
+  // whatever duration the user has configured for spontaneous prompts.
+  const [targetDurationSeconds] = useState(() =>
+    isScript ? subject.script.targetDurationSeconds : resolveRecordingDurationSeconds(getRecordingDurationSettings()),
+  );
   const [prepDurationSeconds] = useState(() =>
     prepSettings.enabled ? resolvePrepDurationSeconds(prepSettings) : 0,
   );
@@ -76,7 +86,7 @@ export function RecordingScreen({ route, navigation }: Props) {
           const durationSecondsLocal = Math.round(video.duration);
 
           navigation.replace("Preview", {
-            prompt,
+            ...subject,
             videoUri: persistedUri,
             durationSecondsLocal,
           });
@@ -152,7 +162,7 @@ export function RecordingScreen({ route, navigation }: Props) {
 
       {stage === "prep" && (
         <PrepOverlay
-          promptText={prompt.text}
+          promptText={prepText}
           remainingSeconds={prepRemaining}
           onSkip={skipPrep}
           onClose={() => navigation.goBack()}
@@ -160,7 +170,7 @@ export function RecordingScreen({ route, navigation }: Props) {
         />
       )}
 
-      {stage === "idle" && (
+      {stage === "idle" && !isScript && (
         <View style={[styles.topBar, { top: insets.top + spacing.sm }]}>
           <Pressable
             onPress={() => navigation.goBack()}
@@ -172,36 +182,77 @@ export function RecordingScreen({ route, navigation }: Props) {
             <Ionicons name="close" size={22} color={colors.textPrimary} />
           </Pressable>
           <View style={styles.promptBannerSlot}>
-            <PromptBanner text={prompt.text} />
+            <PromptBanner text={subject.prompt.text} />
           </View>
         </View>
       )}
 
-      {stage === "idle" && <FramingGuideOverlay status={framingStatus} />}
+      {stage === "idle" && !isScript && <FramingGuideOverlay status={framingStatus} />}
 
-      {stage === "recording" && recordBlind && (
-        <RecordBlindOverlay promptText={prompt.text} elapsedSeconds={remainingRecordingSeconds} />
+      {stage === "recording" && !isScript && recordBlind && (
+        <RecordBlindOverlay promptText={subject.prompt.text} elapsedSeconds={remainingRecordingSeconds} />
       )}
 
-      {stage === "recording" && !recordBlind && (
-        <View style={[styles.timerBadge, { top: insets.top + spacing.md }]}>
-          <RecordingTimer elapsedSeconds={remainingRecordingSeconds} size="small" />
+      {/* Script Practice replaces the spontaneous-mode prompt banner/framing
+          guide/blind mode with a scrolling teleprompter for both idle (static,
+          at the top of the script) and recording (auto-scrolling to the
+          script's own pace) — reading along is the point, so there's no
+          "blind" variant for this mode. */}
+      {isScript && (stage === "idle" || stage === "recording") && (
+        <View style={styles.teleprompterWrap} pointerEvents="box-none">
+          {stage === "idle" && (
+            <Pressable
+              onPress={() => navigation.goBack()}
+              style={[styles.iconButton, styles.teleprompterCloseButton, { top: insets.top + spacing.sm }]}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+            >
+              <Ionicons name="close" size={22} color={colors.textPrimary} />
+            </Pressable>
+          )}
+          <ScriptTeleprompterOverlay
+            script={subject.script}
+            cuesEnabled={subject.cuesEnabled}
+            isRecording={stage === "recording"}
+          />
         </View>
       )}
 
       {stage !== "prep" && (
         <View style={[styles.bottomBar, { paddingBottom: insets.bottom + spacing.lg }]}>
-          {stage === "idle" && (
+          {stage === "idle" && !isScript && (
             <RecordBlindToggle value={recordBlind} onValueChange={handleToggleRecordBlind} />
           )}
           <View style={styles.recordButtonGroup}>
-            <RecordButton
-              isRecording={stage === "recording"}
-              disabled={isFinishing}
-              onPress={stage === "recording" ? handleStop : beginRecording}
-            />
+            {/* The ring only appears once recording starts (and blind mode isn't
+                hiding it), so it never reads as decoration on the idle button —
+                it's specifically the countdown, made visible. */}
+            {stage === "recording" && !recordBlind ? (
+              <ProgressRing
+                size={120}
+                strokeWidth={6}
+                progress={remainingRecordingSeconds / targetDurationSeconds}
+                color={colors.danger}
+                trackColor="rgba(255,255,255,0.15)"
+              >
+                <RecordButton isRecording disabled={isFinishing} onPress={handleStop} />
+              </ProgressRing>
+            ) : (
+              <RecordButton
+                isRecording={stage === "recording"}
+                disabled={isFinishing}
+                onPress={stage === "recording" ? handleStop : beginRecording}
+              />
+            )}
             <Text style={styles.recordHint}>
-              {isFinishing ? "Saving…" : stage === "recording" ? "Tap to stop" : "Tap to start"}
+              {isFinishing
+                ? "Saving…"
+                : stage !== "recording"
+                  ? "Tap to start"
+                  : recordBlind
+                    ? "Tap to stop"
+                    : `${formatDuration(remainingRecordingSeconds)} left · tap to stop`}
             </Text>
           </View>
         </View>
@@ -239,7 +290,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   promptBannerSlot: { flex: 1 },
-  timerBadge: { position: "absolute", alignSelf: "center" },
+  teleprompterWrap: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
+  teleprompterCloseButton: { position: "absolute", left: spacing.lg, zIndex: 1 },
   bottomBar: {
     position: "absolute",
     bottom: 0,

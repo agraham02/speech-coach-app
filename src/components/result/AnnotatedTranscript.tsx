@@ -1,4 +1,7 @@
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import {
   buildHighlightSegments,
   computeFillerStats,
@@ -19,6 +22,11 @@ interface AnnotatedTranscriptProps {
   annotations: GeminiQuoteAnnotation[];
 }
 
+interface PanelContent {
+  category: AnnotationCategory;
+  note: string;
+}
+
 const CATEGORY_LABELS: Record<AnnotationCategory, string> = {
   filler: "Filler word",
   structure: "Structure",
@@ -34,6 +42,13 @@ export function AnnotatedTranscript({
   fillerRatePerMinute,
   annotations,
 }: AnnotatedTranscriptProps) {
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  // Kept separate from selectedIndex, cleared only after the dismiss
+  // animation finishes — otherwise the panel's text would vanish instantly
+  // instead of fading out with it.
+  const [panelContent, setPanelContent] = useState<PanelContent | null>(null);
+  const panelProgress = useSharedValue(0);
+
   const fillerMatches = detectFillerWords(transcriptVerbatim);
   const stats =
     fillerWordCount !== null && fillerRatePerMinute !== null
@@ -68,6 +83,30 @@ export function AnnotatedTranscript({
   const segments = buildHighlightSegments(transcriptVerbatim, located);
   const categoriesPresent = new Set(located.map((a) => a.category));
 
+  function toggleSegment(index: number) {
+    if (selectedIndex === index) {
+      dismissPanel();
+      return;
+    }
+    const segment = segments[index];
+    if (!segment.category) return;
+    setSelectedIndex(index);
+    setPanelContent({ category: segment.category, note: segment.note ?? "" });
+    panelProgress.value = withTiming(1, { duration: 200 });
+  }
+
+  function dismissPanel() {
+    setSelectedIndex(null);
+    panelProgress.value = withTiming(0, { duration: 180 }, (finished) => {
+      if (finished) runOnJS(setPanelContent)(null);
+    });
+  }
+
+  const panelStyle = useAnimatedStyle(() => ({
+    opacity: panelProgress.value,
+    transform: [{ translateY: (1 - panelProgress.value) * -8 }],
+  }));
+
   return (
     <View style={styles.container}>
       <Text style={styles.statLine}>
@@ -91,7 +130,7 @@ export function AnnotatedTranscript({
             <Text
               key={index}
               style={{ backgroundColor: annotationColors[segment.category], color: colors.textPrimary }}
-              onPress={() => Alert.alert(CATEGORY_LABELS[segment.category!], segment.note ?? "")}
+              onPress={() => toggleSegment(index)}
               suppressHighlighting
             >
               {segment.text}
@@ -101,6 +140,20 @@ export function AnnotatedTranscript({
           ),
         )}
       </Text>
+
+      {panelContent ? (
+        <Animated.View style={[styles.notePanel, { borderColor: annotationColors[panelContent.category] }, panelStyle]}>
+          <View style={styles.notePanelHeader}>
+            <Text style={[styles.notePanelLabel, { color: annotationColors[panelContent.category] }]}>
+              {CATEGORY_LABELS[panelContent.category]}
+            </Text>
+            <Pressable onPress={dismissPanel} hitSlop={12} accessibilityRole="button" accessibilityLabel="Dismiss note">
+              <Ionicons name="close" size={16} color={colors.textMuted} />
+            </Pressable>
+          </View>
+          <Text style={styles.notePanelText}>{panelContent.note}</Text>
+        </Animated.View>
+      ) : null}
     </View>
   );
 }
@@ -113,4 +166,14 @@ const styles = StyleSheet.create({
   legendDot: { width: 9, height: 9, borderRadius: radii.pill },
   legendText: { color: colors.textSecondary, fontSize: typography.caption - 1 },
   transcript: { color: colors.textPrimary, fontSize: typography.bodyLarge, lineHeight: 26 },
+  notePanel: {
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  notePanelHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  notePanelLabel: { fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 0.6, textTransform: "uppercase" },
+  notePanelText: { color: colors.textSecondary, fontSize: typography.body, lineHeight: 20 },
 });

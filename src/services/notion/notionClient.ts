@@ -1,4 +1,4 @@
-import { env } from "../../config/env";
+import { getNotionToken } from "../secrets/secretsStore";
 
 const API_BASE = "https://api.notion.com/v1";
 const NOTION_VERSION = "2022-06-28";
@@ -14,9 +14,13 @@ export class NotionApiError extends Error {
   }
 }
 
-function headers(): Record<string, string> {
+async function headers(): Promise<Record<string, string>> {
+  const token = await getNotionToken();
+  if (!token) {
+    throw new NotionApiError("No Notion token set — add one in Settings.", 0);
+  }
   return {
-    Authorization: `Bearer ${env.notionToken}`,
+    Authorization: `Bearer ${token}`,
     "Notion-Version": NOTION_VERSION,
     "Content-Type": "application/json",
   };
@@ -30,7 +34,11 @@ async function handleResponse<T>(response: Response): Promise<T> {
         ? "Notion rejected the integration token (401) — check NOTION_TOKEN."
         : response.status === 404
           ? "Notion page not found (404) — check NOTION_PAGE_ID, and make sure the integration has been shared with that page."
-          : `Notion API error (${response.status})`;
+          : response.status === 429
+            ? "Notion is rate-limiting requests right now. It'll sync automatically on the next retry."
+            : response.status >= 500
+              ? "Notion's servers had a temporary issue. Try again shortly."
+              : `Notion API error (${response.status})`;
     throw new NotionApiError(message, response.status, body);
   }
   return response.json() as Promise<T>;
@@ -51,7 +59,7 @@ export async function getBlockChildren(blockId: string): Promise<NotionBlock[]> 
     url.searchParams.set("page_size", "100");
     if (cursor) url.searchParams.set("start_cursor", cursor);
 
-    const response = await fetch(url.toString(), { headers: headers() });
+    const response = await fetch(url.toString(), { headers: await headers() });
     const data = await handleResponse<{
       results: NotionBlock[];
       has_more: boolean;
@@ -71,7 +79,7 @@ export async function appendBlockChildren(
 ): Promise<{ results: NotionBlock[] }> {
   const response = await fetch(`${API_BASE}/blocks/${blockId}/children`, {
     method: "PATCH",
-    headers: headers(),
+    headers: await headers(),
     body: JSON.stringify({ children }),
   });
   return handleResponse(response);

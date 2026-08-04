@@ -5,16 +5,17 @@ Personal, unpublished daily speaking-practice app. Full product spec, phase-by-p
 ## Setup
 
 1. `npm install`
-2. Copy `.env.example` to `.env` and fill in real values:
-   - `GEMINI_API_KEY` — from Google AI Studio.
-   - `NOTION_TOKEN` — a Notion integration token.
-   - `NOTION_PAGE_ID` — the journal page's ID. **You must also share that page with your Notion integration in Notion's UI** (Share → invite the integration by name), or every Notion API call 404s regardless of a correct token/page ID.
-3. Since this app uses custom native modules (`react-native-vision-camera`, face detection, `expo-sqlite`, `react-native-mmkv`), it needs a custom **development build** — plain Expo Go won't work.
+2. Since this app uses custom native modules (`react-native-vision-camera`, face detection, `expo-sqlite`, `react-native-mmkv`, `expo-secure-store`), it needs a custom **development build** — plain Expo Go won't work.
    - `npx eas login`
    - `eas build:configure` (populates `extra.eas.projectId` in your EAS project)
-   - **Register your env vars with EAS** — a gitignored local `.env` never reaches EAS's cloud build servers. Run `eas env:create` for each of `GEMINI_API_KEY`, `NOTION_TOKEN`, `NOTION_PAGE_ID` (scope: project), or the build will embed empty placeholder values.
    - `eas build --profile development --platform ios`
    - Install the resulting build on your iPhone, then `npx expo start --dev-client` to load JS.
+3. Open the app, go to **Settings → API keys**, and enter:
+   - **Gemini API key** — from Google AI Studio.
+   - **Notion token** — a Notion integration token.
+   - **Notion page ID** — the journal page's ID. **You must also share that page with your Notion integration in Notion's UI** (Share → invite the integration by name), or every Notion API call 404s regardless of a correct token/page ID.
+
+   These are stored via `expo-secure-store` (Keychain/Keystore) on-device only — never baked into the build, unlike the old `.env`-at-build-time approach. Grading and Notion sync just fail with a "add a key in Settings" message until you've entered the relevant one; nothing else is gated on it.
 
 ## What's checkable without a device build (this repo was developed on Windows, no local Mac)
 
@@ -46,8 +47,8 @@ If a future need arises to move to the v5 Nitro pair, re-check `visioncamera.mar
 - `src/services/pipeline/` — `sessionProcessor.ts` runs the whole save→transcribe(/grade)→(optionally) Notion pipeline independently of any mounted screen (fire-and-forget from `PreviewScreen`, after the user chooses "Save"), driven by two explicit per-session booleans (`wantsGrading`, `wantsNotionSync`) resolved from prompted-vs-free-record defaults before the pipeline ever sees them — the pipeline itself doesn't need to know which kind of session it's processing. Also exports `syncSessionToNotion` and `gradeExistingSession` as standalone, independently-triggerable actions for any session missing one or the other (used by Result screen's "Sync to Notion" switch and "Grade with Gemini" button). `processingEvents.ts` is a small pub-sub (with last-known-status caching) that screens subscribe to for live status instead of driving the pipeline themselves.
 - `src/screens/PreviewScreen.tsx` — sits between Recording and Processing. Nothing is written to the DB or uploaded anywhere until the user chooses "Save" here (vs. "Discard", which just deletes the temp video file) — recording no longer auto-saves/auto-processes the instant it stops.
 - `src/components/common/ToastProvider.tsx` — a small Reanimated-based toast, plus a module-level `showGlobalToast()` escape hatch so non-component code (the background pipeline) can surface feedback (e.g. "session graded", streak milestones) regardless of which screen is open.
-- Secrets are embedded in the built app via `app.config.ts`'s `extra` block — acceptable for a personal, unpublished app (see `plan.md` §12), but technically extractable if the app is ever decompiled.
+- `src/services/secrets/secretsStore.ts` — the Gemini key and Notion token/page ID, entered via Settings and stored with `expo-secure-store` (Keychain/Keystore), never embedded in the build (see `plan.md` §12). `geminiClient.ts`/`notionClient.ts` throw a normal `GeminiApiError`/`NotionApiError` with no HTTP status when a key is missing, which the existing `describeGeminiError`/`describeNotionError` + toast pipeline already surfaces without any special-casing.
 
 ## Native dependencies requiring an EAS rebuild
 
-Beyond the original camera/face-detection stack: `expo-video` (Result screen video playback), `react-native-gifted-charts` + `react-native-svg` (Trends chart, Phase 6), `expo-notifications` (daily reminder, Phase 7). None of these need extra config beyond what's already in `app.config.ts`'s `plugins` array. As always on this Windows-only dev setup, a JS-only change just needs a dev-client reload; anything that adds/updates a native module needs `eas build --profile development --platform ios` first.
+Beyond the original camera/face-detection stack: `expo-video` (Result screen video playback), `react-native-gifted-charts` + `react-native-svg` (Trends chart, Phase 6), `expo-notifications` (daily reminder, Phase 7), `expo-secure-store` (on-device API keys, Settings). None of these need extra config beyond what's already in `app.config.ts`'s `plugins` array. As always on this Windows-only dev setup, a JS-only change just needs a dev-client reload; anything that adds/updates a native module needs `eas build --profile development --platform ios` first.

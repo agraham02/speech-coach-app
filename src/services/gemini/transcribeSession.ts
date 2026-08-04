@@ -1,5 +1,12 @@
 import { generateContent, uploadVideoFile, waitForFileActive } from "./geminiClient";
-import { buildSystemPrompt, buildTranscriptOnlySystemPrompt, RESPONSE_SCHEMA, TRANSCRIPT_ONLY_SCHEMA } from "./schema";
+import {
+  buildResponseSchemaWithCueCompliance,
+  buildScriptSystemPrompt,
+  buildSystemPrompt,
+  buildTranscriptOnlySystemPrompt,
+  RESPONSE_SCHEMA,
+  TRANSCRIPT_ONLY_SCHEMA,
+} from "./schema";
 import {
   GeminiApiError,
   type AnnotationCategory,
@@ -7,12 +14,21 @@ import {
   type GeminiTranscriptOnly,
   type TranscriptAnnotation,
 } from "./types";
+import type { Script } from "../../domain/scriptTypes";
 import { logger } from "../../utils/logger";
 
 export type TranscribeProgressStep =
   | "uploading"
   | "processing"
   | "transcribing";
+
+// Grading context for a session: either a spontaneous/free-record prompt, or
+// a fixed Script Practice script (with whatever cuesEnabled was chosen at
+// recording time). Determines which system prompt + response schema
+// transcribeSession uses.
+export type GradingContext =
+  | { kind: "prompt"; promptText: string }
+  | { kind: "script"; script: Script; cuesEnabled: boolean };
 
 // Shared by transcribeSession and transcribeOnly: upload the recording to the
 // Gemini Files API and wait for it to become ACTIVE before generateContent
@@ -57,20 +73,28 @@ function extractTranscriptFields(
 
 export async function transcribeSession(
   videoUri: string,
-  promptText: string,
+  context: GradingContext,
   onProgress?: (step: TranscribeProgressStep) => void,
 ): Promise<GeminiSessionAnalysis> {
   logger.info(`[gemini] starting analysis for ${videoUri}`);
 
   const uploaded = await uploadAndWaitForActive(videoUri, onProgress);
 
+  const systemPrompt =
+    context.kind === "script"
+      ? buildScriptSystemPrompt(context.script, context.cuesEnabled)
+      : buildSystemPrompt(context.promptText);
+  const showsCueCompliance =
+    context.kind === "script" && context.cuesEnabled && context.script.cues.length > 0;
+  const responseSchema = showsCueCompliance ? buildResponseSchemaWithCueCompliance() : RESPONSE_SCHEMA;
+
   onProgress?.("transcribing");
   logger.info("[gemini] calling generateContent...");
   const responseText = await generateContent({
     fileUri: uploaded.uri,
     mimeType: "video/mp4",
-    systemPrompt: buildSystemPrompt(promptText),
-    responseSchema: RESPONSE_SCHEMA,
+    systemPrompt,
+    responseSchema,
     mediaResolution: "MEDIA_RESOLUTION_LOW",
   });
   logger.info(`[gemini] generateContent returned ${responseText.length} chars`);
@@ -237,6 +261,13 @@ export function parseGeminiSessionAnalysis(responseText: string): GeminiSessionA
   }
   const annotations: TranscriptAnnotation[] = rawAnnotations;
 
+  // Only present (and only required by the schema) when grading a
+  // script_practice session recorded with cues enabled — absent otherwise.
+  const cueCompliance = candidate.cue_compliance;
+  if (cueCompliance !== undefined && !isScoredNote(cueCompliance)) {
+    throw new GeminiApiError("Gemini response JSON did not match the expected schema (cue_compliance)", undefined, parsed);
+  }
+
   return {
     ...transcriptFields,
     structure,
@@ -246,5 +277,6 @@ export function parseGeminiSessionAnalysis(responseText: string): GeminiSessionA
     combined,
     annotations,
     coaching,
+    ...(cueCompliance ? { cue_compliance: cueCompliance } : {}),
   };
 }

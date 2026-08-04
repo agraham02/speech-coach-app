@@ -34,3 +34,21 @@ export function pickTodaysPrompt(
   const index = hashStringToInt(isoDate) % pool.length;
   return pool[index];
 }
+
+// Non-deterministic reroll for the "dice" button on the home screen — unlike
+// pickTodaysPrompt, this doesn't need to be stable across app re-opens, so it
+// just picks uniformly at random from whatever survives exclusion. Callers
+// should pass the currently-shown prompt's id in excludePromptIds (alongside
+// the recently-used ids) so a reroll never lands back on the same prompt,
+// unless the whole exclusion window has consumed the entire topic bank.
+export function pickRandomPrompt(topics: Prompt[], excludePromptIds: string[] = []): Prompt {
+  if (topics.length === 0) {
+    throw new Error("Topic list is empty");
+  }
+
+  const excludeSet = new Set(excludePromptIds);
+  const candidates = topics.filter((t) => !excludeSet.has(t.id));
+  const pool = candidates.length > 0 ? candidates : topics;
+
+  return pool[Math.floor(Math.random() * pool.length)];
+}

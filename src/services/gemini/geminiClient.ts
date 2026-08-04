@@ -1,12 +1,16 @@
 import { File } from "expo-file-system";
-import { env } from "../../config/env";
+import { getGeminiApiKey } from "../secrets/secretsStore";
 import { GeminiApiError, type UploadedGeminiFile } from "./types";
 
 const API_BASE = "https://generativelanguage.googleapis.com";
 const MODEL = "gemini-flash-latest";
 
-function apiKeyQuery(): string {
-  return `key=${encodeURIComponent(env.geminiApiKey)}`;
+async function apiKeyQuery(): Promise<string> {
+  const key = await getGeminiApiKey();
+  if (!key) {
+    throw new GeminiApiError("No Gemini API key set — add one in Settings.");
+  }
+  return `key=${encodeURIComponent(key)}`;
 }
 
 // Step 1 of the resumable upload protocol: tells Gemini a file is coming and
@@ -16,7 +20,7 @@ async function startResumableUpload(
   mimeType: string,
   displayName: string,
 ): Promise<string> {
-  const response = await fetch(`${API_BASE}/upload/v1beta/files?${apiKeyQuery()}`, {
+  const response = await fetch(`${API_BASE}/upload/v1beta/files?${await apiKeyQuery()}`, {
     method: "POST",
     headers: {
       "X-Goog-Upload-Protocol": "resumable",
@@ -91,7 +95,7 @@ export async function waitForFileActive(
   const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {
-    const response = await fetch(`${API_BASE}/v1beta/${fileName}?${apiKeyQuery()}`);
+    const response = await fetch(`${API_BASE}/v1beta/${fileName}?${await apiKeyQuery()}`);
     if (!response.ok) {
       throw new GeminiApiError(
         `Failed to poll file status (${response.status})`,
@@ -119,7 +123,7 @@ export async function generateContent(args: {
   mediaResolution?: "MEDIA_RESOLUTION_LOW" | "MEDIA_RESOLUTION_MEDIUM";
 }): Promise<string> {
   const response = await fetch(
-    `${API_BASE}/v1beta/models/${MODEL}:generateContent?${apiKeyQuery()}`,
+    `${API_BASE}/v1beta/models/${MODEL}:generateContent?${await apiKeyQuery()}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },

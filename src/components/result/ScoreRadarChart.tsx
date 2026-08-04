@@ -39,12 +39,11 @@ export function ScoreRadarChart({ scores }: { scores: SessionScores }) {
           opacity: 0.25,
           stroke: colors.accent,
           strokeWidth: 2,
+          showDataValuesAsLabels: true,
         }}
-        gridConfig={{ stroke: colors.border, strokeWidth: 1 }}
+        gridConfig={{ stroke: colors.border, strokeWidth: 1, fill: "transparent", showGradient: false, opacity: 1 }}
         labelConfig={{ stroke: colors.textSecondary, fontSize: 11 }}
-        dataLabelsConfig={{ stroke: colors.textMuted, fontSize: 10 }}
-        isAnimated
-        animationDuration={600}
+        dataLabelsConfig={{ stroke: colors.textPrimary, fontSize: 11, fontWeight: "700" }}
       />
     </View>
   );

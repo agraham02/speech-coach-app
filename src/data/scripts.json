@@ -1,0 +1,1797 @@
+[
+  {
+    "id": "s01",
+    "title": "The Sixty-Second Fix",
+    "category": "Pitch",
+    "text": "Thirty seconds. That's about how long I have before you check your phone, so let's not waste it. My name is [Name], and I build software that gives small business owners back their evenings.\n\nThe average shop owner spends eleven hours a week on scheduling, invoicing, and chasing no-shows. Eleven hours. That's almost a full extra workday, gone, every single week.\n\nWe built a tool that does all of it automatically — booking, reminders, payments — in one place. No spreadsheets. No 11pm panic texts to yourself.\n\nIn the first three months, our early users got an average of nine hours back. Nine hours. Think about what you'd do with an extra morning every week.\n\nThat's the whole pitch. Can I show you how it works?",
+    "wordCount": 126,
+    "targetDurationSeconds": 60,
+    "cues": [
+      {
+        "wordIndex": 0,
+        "type": "emphasis",
+        "label": "Cold open — punchy and confident, not rushed"
+      },
+      {
+        "wordIndex": 2,
+        "type": "volume_down",
+        "label": "Conversational — like talking to one person"
+      },
+      {
+        "wordIndex": 18,
+        "type": "pitch_down",
+        "label": "Grounded intro — steady, not salesy"
+      },
+      {
+        "wordIndex": 34,
+        "type": "slow_down",
+        "label": "List the problem plainly — let each item land"
+      },
+      {
+        "wordIndex": 49,
+        "type": "emphasis",
+        "label": "'Eleven' said again alone — its own beat, let it land"
+      },
+      {
+        "wordIndex": 57,
+        "type": "emphasis",
+        "label": "Punch 'gone' — that's the sting of the sentence"
+      },
+      {
+        "wordIndex": 61,
+        "type": "volume_up",
+        "label": "Reveal the fix — brighten your energy here"
+      },
+      {
+        "wordIndex": 79,
+        "type": "emphasis",
+        "label": "Clipped negative — flat and final"
+      },
+      {
+        "wordIndex": 81,
+        "type": "emphasis",
+        "label": "Second 'no' — mirror the previous beat"
+      },
+      {
+        "wordIndex": 87,
+        "type": "slow_down",
+        "label": "Proof point — give the timeframe room to register"
+      },
+      {
+        "wordIndex": 102,
+        "type": "emphasis",
+        "label": "'Nine' said again alone — echo the earlier 'eleven' beat"
+      },
+      {
+        "wordIndex": 104,
+        "type": "pitch_up",
+        "label": "Invite them to imagine it — warmer, a little slower"
+      },
+      {
+        "wordIndex": 115,
+        "type": "volume_down",
+        "label": "Simple and confident — no hard sell"
+      },
+      {
+        "wordIndex": 119,
+        "type": "pitch_up",
+        "label": "Genuine question — look up, inflect up"
+      }
+    ]
+  },
+  {
+    "id": "s02",
+    "title": "Twelve Years of Bad Decisions",
+    "category": "Toast",
+    "text": "Okay. Is this thing on? Good — because I only wrote this once, and I'm not doing it twice.\n\nFor anyone who doesn't know me, I'm [Name], and I've had the questionable honor of being [Groom]'s best friend since we were twelve years old. Twelve. Old enough to know better. Apparently not old enough to actually behave better.\n\nI could tell you about the time we got lost hiking and had to be walked out by a park ranger who was clearly trying not to laugh at us. I could tell you about the apartment we shared that had — and I want to be precise here — exactly one working burner on the stove. But that's not really what tonight is about.\n\nTonight is about watching my friend become the best version of himself, and watching him do it because of [Bride]. I've known [Groom] a long time. I have never, not once, seen him this calm, this certain, this happy before a big decision. That's not luck. That's her.\n\nSo if you'll raise your glasses with me. To [Groom] and [Bride] — may your fridge always have more than one working burner, may you laugh more than you argue, and may this be the easiest big decision you ever make together. To the happy couple!",
+    "wordCount": 217,
+    "targetDurationSeconds": 100,
+    "cues": [
+      {
+        "wordIndex": 0,
+        "type": "pause",
+        "label": "Wait for the room to settle before you start"
+      },
+      {
+        "wordIndex": 1,
+        "type": "pitch_up",
+        "label": "Playful opener — genuine question energy"
+      },
+      {
+        "wordIndex": 5,
+        "type": "volume_up",
+        "label": "Confirming the mic — confident, not mumbled"
+      },
+      {
+        "wordIndex": 19,
+        "type": "slow_down",
+        "label": "Introduce yourself — unhurried, let them place you"
+      },
+      {
+        "wordIndex": 44,
+        "type": "emphasis",
+        "label": "'Twelve' repeated alone — its own beat, let it land"
+      },
+      {
+        "wordIndex": 45,
+        "type": "pitch_down",
+        "label": "Dry, deadpan aside"
+      },
+      {
+        "wordIndex": 50,
+        "type": "emphasis",
+        "label": "The correction — land 'apparently' with a smirk"
+      },
+      {
+        "wordIndex": 58,
+        "type": "slow_down",
+        "label": "First story — paint the scene, don't rush it"
+      },
+      {
+        "wordIndex": 99,
+        "type": "pause",
+        "label": "Parenthetical — drop into a more precise, deliberate tone"
+      },
+      {
+        "wordIndex": 115,
+        "type": "pitch_down",
+        "label": "Pivot back to the real point — steadier tone"
+      },
+      {
+        "wordIndex": 123,
+        "type": "emphasis",
+        "label": "Restate 'tonight' — this is the actual thesis"
+      },
+      {
+        "wordIndex": 143,
+        "type": "volume_down",
+        "label": "Sincere turn — warmer and quieter"
+      },
+      {
+        "wordIndex": 151,
+        "type": "emphasis",
+        "label": "Stress 'never, not once' — each denial its own beat"
+      },
+      {
+        "wordIndex": 166,
+        "type": "pause",
+        "label": "One-line beat — let 'that's not luck' hang"
+      },
+      {
+        "wordIndex": 169,
+        "type": "emphasis",
+        "label": "The reveal — land 'that's her' with full certainty"
+      },
+      {
+        "wordIndex": 171,
+        "type": "volume_up",
+        "label": "Build toward the toast — rally the room"
+      },
+      {
+        "wordIndex": 179,
+        "type": "slow_down",
+        "label": "The toast list — space out each wish"
+      },
+      {
+        "wordIndex": 213,
+        "type": "volume_up",
+        "label": "Big finish — full glass-raise energy"
+      }
+    ]
+  },
+  {
+    "id": "s03",
+    "title": "Guess Which One I Was",
+    "category": "Acceptance",
+    "text": "Wow. Okay. I did not prepare a face for this, so please bear with me.\n\nThank you. Genuinely, thank you. When they called my name I turned to the person next to me and asked if they'd heard correctly, so if this speech is a little scattered, that's why — my brain is still catching up.\n\nI want to be honest about something. This award has my name on it, but it doesn't belong to just me. It belongs to a team that stayed late more nights than I can count, to a manager who believed in an idea before it had any right to work, and to a family that put up with a lot of missed dinners this year.\n\nThree years ago, this project was a sketch on a whiteboard that two people thought was a bad idea and one person thought might just work. Guess which one I was.\n\nThere's a lesson in that, I think. Not every good idea looks good on day one. Some of them look messy, and slow, and a little embarrassing in a room full of confident people. You keep going anyway. You keep going because you believe the work is worth it, even when the outcome isn't guaranteed.\n\nSo to everyone in this room who's sitting on an idea that feels too small, too weird, or too early — keep going. This is what it looks like on the other side.\n\nThank you so much. This means more than I can say.",
+    "wordCount": 251,
+    "targetDurationSeconds": 115,
+    "cues": [
+      {
+        "wordIndex": 0,
+        "type": "pause",
+        "label": "Genuine surprise — let it be a little messy, don't perform composure"
+      },
+      {
+        "wordIndex": 2,
+        "type": "slow_down",
+        "label": "Self-deprecating opener — light and unhurried"
+      },
+      {
+        "wordIndex": 15,
+        "type": "volume_down",
+        "label": "First 'thank you' — quiet, not rehearsed"
+      },
+      {
+        "wordIndex": 17,
+        "type": "emphasis",
+        "label": "Second 'thank you' — mean it even more this time"
+      },
+      {
+        "wordIndex": 20,
+        "type": "slow_down",
+        "label": "The confusion story — a little breathless, let it ramble"
+      },
+      {
+        "wordIndex": 49,
+        "type": "pause",
+        "label": "Aside — drop into a more candid, quieter tone"
+      },
+      {
+        "wordIndex": 56,
+        "type": "pitch_down",
+        "label": "Pivot to sincerity — steady down here"
+      },
+      {
+        "wordIndex": 63,
+        "type": "emphasis",
+        "label": "The turn — 'not just me' is the real point of the speech"
+      },
+      {
+        "wordIndex": 77,
+        "type": "slow_down",
+        "label": "Naming who this belongs to — give each person real weight"
+      },
+      {
+        "wordIndex": 121,
+        "type": "slow_down",
+        "label": "Flashback — unhurried, like remembering it clearly"
+      },
+      {
+        "wordIndex": 147,
+        "type": "pitch_up",
+        "label": "The punchline 'guess which one I was' — wry, invite the laugh"
+      },
+      {
+        "wordIndex": 152,
+        "type": "pitch_down",
+        "label": "Reflective turn — quieter, more thoughtful"
+      },
+      {
+        "wordIndex": 159,
+        "type": "slow_down",
+        "label": "Thesis line — slow and clear"
+      },
+      {
+        "wordIndex": 168,
+        "type": "slow_down",
+        "label": "Space out each word: messy, slow, embarrassing"
+      },
+      {
+        "wordIndex": 186,
+        "type": "emphasis",
+        "label": "Short and flat — a plain statement of fact"
+      },
+      {
+        "wordIndex": 190,
+        "type": "volume_up",
+        "label": "Build the reasoning — grow more convicted as it goes"
+      },
+      {
+        "wordIndex": 207,
+        "type": "volume_up",
+        "label": "Direct address to the room — rally them"
+      },
+      {
+        "wordIndex": 227,
+        "type": "pause",
+        "label": "Beat before the callback 'keep going'"
+      },
+      {
+        "wordIndex": 230,
+        "type": "volume_down",
+        "label": "Land the closing image — calm and clear"
+      },
+      {
+        "wordIndex": 240,
+        "type": "volume_down",
+        "label": "Final thanks — sincere, unhurried"
+      },
+      {
+        "wordIndex": 244,
+        "type": "pause",
+        "label": "Let the last line stay quiet and real"
+      }
+    ]
+  },
+  {
+    "id": "s04",
+    "title": "Bailing Water, Not Sinking",
+    "category": "Rally",
+    "text": "Alright, everybody, gather in. Bring it in close, I don't want to yell this.\n\nLook, I'm not going to stand up here and pretend the last two quarters have been easy, because they haven't. We lost a client we thought we'd have forever. We missed a launch date. We had weeks where it felt like we were bailing water faster than we were rowing. I know that. You know that. Let's not pretend otherwise.\n\nBut here's what I also know. When it got hard, nobody on this team pointed fingers. Nobody quit on each other. You showed up, you fixed what was broken, and you kept moving. That's not nothing. That's actually everything.\n\nSo today isn't about pretending the road was smooth. It's about looking at where we are now — because where we are now is better than where we started. Our numbers are up. Our product is stronger. Our team is tighter than it's ever been.\n\nHere's my question for you. Are we the team that got knocked down last quarter? Or are we the team that's standing here right now, ready to go again?\n\nI know which team I see in front of me.\n\nWe've got a big quarter ahead. There will be more hard days — I won't lie to you about that. But we've already proven something important: we don't fold when it gets tough. We adjust. We push. We win together.\n\nSo let's go out there and finish what we started. Not because it's easy. Because it's ours.\n\nLet's go!",
+    "wordCount": 256,
+    "targetDurationSeconds": 120,
+    "cues": [
+      {
+        "wordIndex": 0,
+        "type": "volume_down",
+        "label": "Open low and steady — pull them in, don't perform yet"
+      },
+      {
+        "wordIndex": 4,
+        "type": "pause",
+        "label": "Literal instruction — say it quietly, almost a whisper"
+      },
+      {
+        "wordIndex": 14,
+        "type": "slow_down",
+        "label": "Name the hard truth plainly — no spin"
+      },
+      {
+        "wordIndex": 34,
+        "type": "slow_down",
+        "label": "List the losses one at a time — client, launch date, pace"
+      },
+      {
+        "wordIndex": 64,
+        "type": "emphasis",
+        "label": "'I know. You know.' — flat, matter-of-fact, no denial"
+      },
+      {
+        "wordIndex": 70,
+        "type": "pause",
+        "label": "Short line — let it close out the honesty section"
+      },
+      {
+        "wordIndex": 74,
+        "type": "pitch_up",
+        "label": "The turn — lift your tone into the reframe"
+      },
+      {
+        "wordIndex": 80,
+        "type": "slow_down",
+        "label": "What actually held together — give this list real weight"
+      },
+      {
+        "wordIndex": 95,
+        "type": "emphasis",
+        "label": "Stress each verb: showed up, fixed, kept moving"
+      },
+      {
+        "wordIndex": 107,
+        "type": "emphasis",
+        "label": "'Not nothing' then 'everything' — build across both lines"
+      },
+      {
+        "wordIndex": 113,
+        "type": "volume_down",
+        "label": "Reframe — steady tone, not defensive"
+      },
+      {
+        "wordIndex": 122,
+        "type": "slow_down",
+        "label": "The real comparison — now vs. where we started"
+      },
+      {
+        "wordIndex": 142,
+        "type": "emphasis",
+        "label": "Three short wins — a beat between each one"
+      },
+      {
+        "wordIndex": 158,
+        "type": "pitch_up",
+        "label": "Turn to face them directly — a real question is coming"
+      },
+      {
+        "wordIndex": 163,
+        "type": "pitch_up",
+        "label": "First half of the question — pause after it"
+      },
+      {
+        "wordIndex": 173,
+        "type": "pitch_up",
+        "label": "Second half of the pair — build more energy into this one"
+      },
+      {
+        "wordIndex": 187,
+        "type": "pitch_down",
+        "label": "Answer your own question — certain and grounded"
+      },
+      {
+        "wordIndex": 197,
+        "type": "volume_up",
+        "label": "Look ahead — lift the energy back up"
+      },
+      {
+        "wordIndex": 203,
+        "type": "pause",
+        "label": "Honest caveat — quieter, more level tone"
+      },
+      {
+        "wordIndex": 217,
+        "type": "emphasis",
+        "label": "The pivot — land 'we don't fold' hard"
+      },
+      {
+        "wordIndex": 230,
+        "type": "emphasis",
+        "label": "Three short commands — punch each one separately"
+      },
+      {
+        "wordIndex": 237,
+        "type": "volume_up",
+        "label": "Build toward the close — rising energy"
+      },
+      {
+        "wordIndex": 247,
+        "type": "slow_down",
+        "label": "Contrast pair — slow and deliberate on each half"
+      },
+      {
+        "wordIndex": 254,
+        "type": "volume_up",
+        "label": "Shout it — full energy close"
+      }
+    ]
+  },
+  {
+    "id": "s05",
+    "title": "The Sound of a Leak",
+    "category": "Pitch",
+    "text": "Two years ago, we asked a simple question. What if checking your home's water usage was as easy as checking the weather?\n\nEveryone laughed a little when we said that out loud, because water is invisible. You don't see it leaking behind a wall. You don't see it dripping under a slab foundation at two in the morning. You just see the bill, three weeks later, and by then the damage is already done.\n\nSo we built something to fix that. Today, I'm proud to introduce [Product Name] — a sensor the size of a coin that clips onto your main water line and tells you, in real time, exactly what's happening in your home's plumbing.\n\nHere's how it works. It listens. Every drop of water moving through your pipes has a signature — a rhythm. Our sensor learns your home's normal rhythm in the first week, and after that, it knows the difference between someone running the dishwasher and a slow leak behind your bathroom wall.\n\nWhen something's off, you get a notification. Not a bill. Not a flooded basement. A notification, days or weeks before the problem becomes a disaster.\n\nIn our pilot with two hundred homes, we caught eleven leaks before they caused a single dollar of damage. Eleven. Homeowners told us it paid for itself the very first time it caught something.\n\nWe're not just building a gadget. We're building peace of mind for anyone who's ever come home to a soaked carpet and a sinking feeling in their stomach.\n\nStarting today, [Product Name] is available for pre-order. And if you've ever stood in a hardware store aisle wondering if you should buy a water sensor \"just in case\" — this is your sign.\n\nLet's stop finding out about leaks after they've already cost us something. Let's find out first.",
+    "wordCount": 304,
+    "targetDurationSeconds": 140,
+    "cues": [
+      {
+        "wordIndex": 0,
+        "type": "slow_down",
+        "label": "Set the origin story — unhurried, like telling it fresh"
+      },
+      {
+        "wordIndex": 8,
+        "type": "pitch_up",
+        "label": "The core question — genuine curiosity, look up"
+      },
+      {
+        "wordIndex": 22,
+        "type": "pitch_down",
+        "label": "Wry, knowing tone — you know something they don't yet"
+      },
+      {
+        "wordIndex": 36,
+        "type": "slow_down",
+        "label": "First 'you don't see it' — paint the image clearly"
+      },
+      {
+        "wordIndex": 44,
+        "type": "slow_down",
+        "label": "Second 'you don't see it' — mirror the same unhurried pace"
+      },
+      {
+        "wordIndex": 58,
+        "type": "pause",
+        "label": "Let 'the damage is already done' land heavy"
+      },
+      {
+        "wordIndex": 74,
+        "type": "pitch_up",
+        "label": "The turn to the solution — brighten here"
+      },
+      {
+        "wordIndex": 81,
+        "type": "slow_down",
+        "label": "Product reveal — give the name its own moment"
+      },
+      {
+        "wordIndex": 116,
+        "type": "pause",
+        "label": "Beat before explaining how it actually works"
+      },
+      {
+        "wordIndex": 120,
+        "type": "pause",
+        "label": "Two words, full stop — let it land"
+      },
+      {
+        "wordIndex": 122,
+        "type": "slow_down",
+        "label": "Technical detail — unhurried and precise"
+      },
+      {
+        "wordIndex": 136,
+        "type": "slow_down",
+        "label": "Walk through the learning process steadily"
+      },
+      {
+        "wordIndex": 167,
+        "type": "pitch_down",
+        "label": "Calm and reassuring — this is the payoff moment"
+      },
+      {
+        "wordIndex": 174,
+        "type": "emphasis",
+        "label": "Clipped negative — flat delivery"
+      },
+      {
+        "wordIndex": 177,
+        "type": "emphasis",
+        "label": "Second clipped negative — mirror the previous beat"
+      },
+      {
+        "wordIndex": 181,
+        "type": "emphasis",
+        "label": "The real answer — land 'a notification' with confidence"
+      },
+      {
+        "wordIndex": 192,
+        "type": "slow_down",
+        "label": "Proof point — let the pilot numbers register"
+      },
+      {
+        "wordIndex": 201,
+        "type": "emphasis",
+        "label": "Landed number — the proof point of the whole pitch"
+      },
+      {
+        "wordIndex": 211,
+        "type": "emphasis",
+        "label": "'Eleven' said alone — its own beat, let it land"
+      },
+      {
+        "wordIndex": 212,
+        "type": "pitch_up",
+        "label": "The payoff quote — warm, a little proud"
+      },
+      {
+        "wordIndex": 226,
+        "type": "pitch_down",
+        "label": "Reframe — steady, more serious tone"
+      },
+      {
+        "wordIndex": 234,
+        "type": "slow_down",
+        "label": "The real value prop — let it land, unhurried"
+      },
+      {
+        "wordIndex": 254,
+        "type": "volume_up",
+        "label": "The ask begins — lift your energy here"
+      },
+      {
+        "wordIndex": 284,
+        "type": "pitch_up",
+        "label": "Direct address to the room — speak to the doubter"
+      },
+      {
+        "wordIndex": 288,
+        "type": "volume_up",
+        "label": "Build toward the close — rising energy"
+      },
+      {
+        "wordIndex": 300,
+        "type": "emphasis",
+        "label": "Final line — short, confident, full stop"
+      }
+    ]
+  },
+  {
+    "id": "s06",
+    "title": "Exactly, Not Almost",
+    "category": "Toast",
+    "text": "Hi, everyone. For those who don't know me, I'm [Name], and I've been [Bride]'s best friend since we were assigned lab partners in ninth grade biology and she let me copy exactly one answer, one time, and has never let me forget it.\n\nI want to tell you a quick story. About six years ago, [Bride] called me at eleven at night, completely convinced she was never going to find the right person. She was tired of dating. She was tired of almost-right. She told me, and I quote, maybe I'm just meant to be really good at being alone.\n\nI remember telling her, you're not meant to settle for almost. You're meant to wait for exactly. I don't know if she believed me that night. But I believed it, because I'd watched her be an incredible friend, an incredible daughter, an incredible person, for years, and I knew whoever finally showed up better be worth the wait.\n\nThen she met [Groom].\n\nAnd I want you all to know — the first time she talked about him, she didn't talk about how he made her feel swept off her feet. She talked about how calm she felt around him. How normal. How like herself. If you know [Bride], you know that's the highest compliment she has.\n\n[Groom], I've watched you two build something steady and real and, honestly, a little annoyingly cute over the last few years. You make her laugh the specific, loud laugh that she only does when she's truly comfortable. That laugh is my favorite sound in the world, and now it's yours to keep making happen.\n\nSo here's to exactly, not almost. Here's to two people who found their calm in each other. And here's to [Bride] and [Groom] — may your laughter stay loud, your love stay easy, and your marriage be exactly what nineteen-year-old [Bride] didn't even know to hope for.\n\nTo the bride and groom!",
+    "wordCount": 322,
+    "targetDurationSeconds": 150,
+    "cues": [
+      {
+        "wordIndex": 0,
+        "type": "volume_up",
+        "label": "Warm, casual open — like greeting friends across a room"
+      },
+      {
+        "wordIndex": 2,
+        "type": "slow_down",
+        "label": "Set up who you are — unhurried, a little playful"
+      },
+      {
+        "wordIndex": 43,
+        "type": "pitch_down",
+        "label": "Signal the story is starting — settle into it"
+      },
+      {
+        "wordIndex": 51,
+        "type": "slow_down",
+        "label": "Set the scene — unhurried, specific details"
+      },
+      {
+        "wordIndex": 73,
+        "type": "pause",
+        "label": "Short line — let it sit before the next"
+      },
+      {
+        "wordIndex": 78,
+        "type": "emphasis",
+        "label": "Second 'tired of' — mirror the previous beat"
+      },
+      {
+        "wordIndex": 83,
+        "type": "pitch_down",
+        "label": "Quote her — resigned, quiet"
+      },
+      {
+        "wordIndex": 100,
+        "type": "emphasis",
+        "label": "The turn of the story — land 'not meant to settle'"
+      },
+      {
+        "wordIndex": 111,
+        "type": "emphasis",
+        "label": "The payoff line — land 'exactly' with real weight"
+      },
+      {
+        "wordIndex": 117,
+        "type": "pause",
+        "label": "Quiet admission — let the doubt show"
+      },
+      {
+        "wordIndex": 126,
+        "type": "slow_down",
+        "label": "Warm, unhurried list — friend, daughter, person"
+      },
+      {
+        "wordIndex": 158,
+        "type": "pause",
+        "label": "One-line paragraph — let it hang"
+      },
+      {
+        "wordIndex": 162,
+        "type": "slow_down",
+        "label": "Building the observation — take your time"
+      },
+      {
+        "wordIndex": 190,
+        "type": "slow_down",
+        "label": "The real observation — warm and specific"
+      },
+      {
+        "wordIndex": 199,
+        "type": "pause",
+        "label": "Short beat between each descriptor"
+      },
+      {
+        "wordIndex": 201,
+        "type": "pause",
+        "label": "Second short beat — mirror the previous pace"
+      },
+      {
+        "wordIndex": 204,
+        "type": "pitch_down",
+        "label": "Confiding tone — like sharing a secret with the room"
+      },
+      {
+        "wordIndex": 216,
+        "type": "slow_down",
+        "label": "Direct address to the groom — warm, unhurried"
+      },
+      {
+        "wordIndex": 237,
+        "type": "emphasis",
+        "label": "Specific detail — savor 'that laugh'"
+      },
+      {
+        "wordIndex": 253,
+        "type": "volume_down",
+        "label": "Sincere aside — softer, more tender"
+      },
+      {
+        "wordIndex": 270,
+        "type": "volume_up",
+        "label": "Toast line begins — lift your energy here"
+      },
+      {
+        "wordIndex": 276,
+        "type": "slow_down",
+        "label": "Continue the toast — steady, unhurried pace"
+      },
+      {
+        "wordIndex": 287,
+        "type": "slow_down",
+        "label": "The full toast — space out each wish"
+      },
+      {
+        "wordIndex": 317,
+        "type": "volume_up",
+        "label": "Big finish — full glass-raise energy"
+      }
+    ]
+  },
+  {
+    "id": "s07",
+    "title": "Messier Than You Planned",
+    "category": "Graduation",
+    "text": "Good morning, graduates, families, faculty — and honestly, good morning to whoever's phone is about to go off in the next twenty minutes. It's fine. We forgive you in advance.\n\nFour years ago, most of us walked onto this campus as strangers. We didn't know which dining hall had the good pizza. We didn't know which professors gave out extensions and which ones absolutely, positively did not. We definitely didn't know that a global pandemic, three roommate changes, and one deeply questionable spring break trip were all somewhere in our future.\n\nBut here we are.\n\nI want to say something that might sound strange on a day built for celebration: it's okay that this wasn't the four years you planned. Maybe you switched majors twice. Maybe you failed a class you were sure you'd ace, or aced one you were sure you'd fail. Maybe the plan you had freshman year looks nothing like the person sitting in this chair today.\n\nThat's not a failure. That's just what growing up actually looks like. Nobody tells you that the straight line you imagine for your twenties is basically a myth. It's messier than that. It's supposed to be messier than that.\n\nSo here's what I actually want to leave you with. The people you became closest to in college weren't the people who had it all figured out. They were the people who showed up — to the study group, to the late-night conversation, to the friend having a hard week. Showing up is still going to be the thing that matters most, long after these gowns come off.\n\nYou are walking out of here with more resilience than you probably give yourselves credit for. You've already survived versions of hard that you didn't think you could survive. Whatever comes next — a job you love, a job you're not sure about yet, more school, no plan at all — you've already proven you can handle uncertainty.\n\nSo go. Be uncertain. Be brave about it.\n\nCongratulations, graduates. We are so, so proud of you.",
+    "wordCount": 342,
+    "targetDurationSeconds": 160,
+    "cues": [
+      {
+        "wordIndex": 0,
+        "type": "volume_up",
+        "label": "Warm, welcoming open — big-room energy"
+      },
+      {
+        "wordIndex": 23,
+        "type": "pitch_down",
+        "label": "Deadpan aside — dry humor"
+      },
+      {
+        "wordIndex": 30,
+        "type": "slow_down",
+        "label": "Nostalgic opener — unhurried, painting the past"
+      },
+      {
+        "wordIndex": 42,
+        "type": "emphasis",
+        "label": "Specific, playful detail — light touch"
+      },
+      {
+        "wordIndex": 52,
+        "type": "emphasis",
+        "label": "Second 'we didn't know' — mirror the previous rhythm"
+      },
+      {
+        "wordIndex": 67,
+        "type": "slow_down",
+        "label": "The bigger list — let each item register"
+      },
+      {
+        "wordIndex": 91,
+        "type": "pause",
+        "label": "Short line — let it land plainly"
+      },
+      {
+        "wordIndex": 95,
+        "type": "slow_down",
+        "label": "The real thesis begins — slow down, mean it"
+      },
+      {
+        "wordIndex": 120,
+        "type": "pause",
+        "label": "Short beat between each hypothetical"
+      },
+      {
+        "wordIndex": 125,
+        "type": "emphasis",
+        "label": "Mirror pair — ace/aced, sure/sure — stress the contrast"
+      },
+      {
+        "wordIndex": 143,
+        "type": "slow_down",
+        "label": "Let the image land — unhurried"
+      },
+      {
+        "wordIndex": 160,
+        "type": "pause",
+        "label": "Short, definitive line"
+      },
+      {
+        "wordIndex": 164,
+        "type": "emphasis",
+        "label": "The reframe — land 'growing up' plainly"
+      },
+      {
+        "wordIndex": 172,
+        "type": "slow_down",
+        "label": "The myth-busting line — clear and deliberate"
+      },
+      {
+        "wordIndex": 188,
+        "type": "emphasis",
+        "label": "First 'messier' — flat and matter-of-fact"
+      },
+      {
+        "wordIndex": 192,
+        "type": "emphasis",
+        "label": "Second 'messier' — mirror the beat, a little warmer"
+      },
+      {
+        "wordIndex": 199,
+        "type": "pitch_up",
+        "label": "Turn to the real advice — lean in"
+      },
+      {
+        "wordIndex": 209,
+        "type": "slow_down",
+        "label": "The real observation — unhurried, thoughtful"
+      },
+      {
+        "wordIndex": 226,
+        "type": "slow_down",
+        "label": "The list of 'showing up' — give each example room"
+      },
+      {
+        "wordIndex": 249,
+        "type": "emphasis",
+        "label": "Thesis line — land 'showing up' with real weight"
+      },
+      {
+        "wordIndex": 267,
+        "type": "volume_up",
+        "label": "Direct address — warmer, more encouraging"
+      },
+      {
+        "wordIndex": 283,
+        "type": "emphasis",
+        "label": "Stress 'already survived' — give them credit"
+      },
+      {
+        "wordIndex": 296,
+        "type": "slow_down",
+        "label": "The uncertainty list — space out each option"
+      },
+      {
+        "wordIndex": 325,
+        "type": "emphasis",
+        "label": "Three short commands — punch each one separately"
+      },
+      {
+        "wordIndex": 333,
+        "type": "volume_up",
+        "label": "Congratulations — full warmth"
+      },
+      {
+        "wordIndex": 335,
+        "type": "volume_up",
+        "label": "Final line — proud, full-volume close"
+      }
+    ]
+  },
+  {
+    "id": "s08",
+    "title": "Ten-Thirty in the Morning",
+    "category": "Fundraising",
+    "text": "I want to start with a number, and I want you to sit with it for a second: four thousand, two hundred. That's how many kids in this county went to bed hungry last night.\n\nNot last year. Last night.\n\nIt's easy for a number like that to wash over you at a dinner like this, between the appetizer and the entrée, so I'm going to try to make it smaller and harder to ignore. Four thousand, two hundred kids is roughly every student in every elementary school across this entire district. Combined.\n\nI met one of those kids last spring. I'm not going to use her name, because that's not my story to tell, but I'll tell you what her teacher told me. She said this girl used to put her head down on her desk every day around ten-thirty in the morning. Not because she was tired. Because she was hungry, and it was easier to close her eyes than to sit with it.\n\nThat's the problem we're here tonight to talk about. And I promise you, this isn't a story about hopelessness — because six months ago, this same girl started coming to our after-school meal program three days a week. Her teacher told me something else, too: she stopped putting her head down. She started raising her hand.\n\nThat's what your dollars actually do in this room tonight. They're not abstract. They're not a line item. They're the difference between a kid who's checked out by ten-thirty and a kid who's raising her hand.\n\nHere's what we're asking tonight. We need to raise three hundred thousand dollars to expand this program into eleven more schools by next fall. That's it. That's the whole ask. Eleven schools. Thousands more kids who get to keep their heads up.\n\nI know everyone in this room gets asked to give to something almost every week. I know that. So I'm not going to pretend this is the only cause that matters. But I am going to ask you to think about one specific ten-thirty in the morning, in one specific classroom, and one kid deciding whether it's worth raising her hand.\n\nHelp us make that decision easy for her.\n\nThank you.",
+    "wordCount": 371,
+    "targetDurationSeconds": 170,
+    "cues": [
+      {
+        "wordIndex": 0,
+        "type": "slow_down",
+        "label": "Let each half of the number land separately"
+      },
+      {
+        "wordIndex": 22,
+        "type": "pause",
+        "label": "Beat before naming who that number is"
+      },
+      {
+        "wordIndex": 35,
+        "type": "emphasis",
+        "label": "Sharp correction — mirror the previous rhythm"
+      },
+      {
+        "wordIndex": 38,
+        "type": "emphasis",
+        "label": "Second correction — one word, full stop"
+      },
+      {
+        "wordIndex": 40,
+        "type": "volume_down",
+        "label": "Acknowledge the moment — conversational, self-aware"
+      },
+      {
+        "wordIndex": 75,
+        "type": "slow_down",
+        "label": "Reframe the number — let it register as a real scale"
+      },
+      {
+        "wordIndex": 92,
+        "type": "pause",
+        "label": "One word, full stop — let it land"
+      },
+      {
+        "wordIndex": 93,
+        "type": "pitch_down",
+        "label": "Turn personal — quieter, more intimate"
+      },
+      {
+        "wordIndex": 101,
+        "type": "slow_down",
+        "label": "Careful and respectful — protecting her privacy"
+      },
+      {
+        "wordIndex": 124,
+        "type": "slow_down",
+        "label": "The image — paint it clearly, unhurried"
+      },
+      {
+        "wordIndex": 144,
+        "type": "pause",
+        "label": "Beat before the real reason"
+      },
+      {
+        "wordIndex": 149,
+        "type": "emphasis",
+        "label": "The real reason — stress 'hungry'"
+      },
+      {
+        "wordIndex": 166,
+        "type": "pitch_down",
+        "label": "Land the thesis — plain and grounded"
+      },
+      {
+        "wordIndex": 175,
+        "type": "emphasis",
+        "label": "The turn — hope after hardship, brighten here"
+      },
+      {
+        "wordIndex": 204,
+        "type": "emphasis",
+        "label": "Stress each denial before the reveal — 'stopped putting her head down'"
+      },
+      {
+        "wordIndex": 217,
+        "type": "emphasis",
+        "label": "The payoff — land 'raising her hand' with warmth"
+      },
+      {
+        "wordIndex": 222,
+        "type": "emphasis",
+        "label": "Direct address — this is the ask connecting to the story"
+      },
+      {
+        "wordIndex": 232,
+        "type": "emphasis",
+        "label": "Clipped negative — flat delivery"
+      },
+      {
+        "wordIndex": 235,
+        "type": "emphasis",
+        "label": "Second clipped negative — mirror the previous beat"
+      },
+      {
+        "wordIndex": 240,
+        "type": "slow_down",
+        "label": "The real contrast — let it land clearly"
+      },
+      {
+        "wordIndex": 258,
+        "type": "pitch_up",
+        "label": "Turn to the actual ask — lean in"
+      },
+      {
+        "wordIndex": 263,
+        "type": "slow_down",
+        "label": "Say the ask number deliberately"
+      },
+      {
+        "wordIndex": 282,
+        "type": "pause",
+        "label": "Short, definitive line"
+      },
+      {
+        "wordIndex": 284,
+        "type": "emphasis",
+        "label": "Restate plainly — this is the whole ask"
+      },
+      {
+        "wordIndex": 288,
+        "type": "emphasis",
+        "label": "'Eleven schools' repeated — let it land"
+      },
+      {
+        "wordIndex": 290,
+        "type": "volume_up",
+        "label": "The payoff — brighten and lift here"
+      },
+      {
+        "wordIndex": 300,
+        "type": "slow_down",
+        "label": "Acknowledge donor fatigue — honest, unhurried"
+      },
+      {
+        "wordIndex": 315,
+        "type": "pause",
+        "label": "Short line — let it sit"
+      },
+      {
+        "wordIndex": 318,
+        "type": "pitch_down",
+        "label": "Simple, certain — no embellishment"
+      },
+      {
+        "wordIndex": 331,
+        "type": "slow_down",
+        "label": "Let the real ask land clearly, unhurried"
+      },
+      {
+        "wordIndex": 361,
+        "type": "volume_down",
+        "label": "Quiet, direct closing ask"
+      },
+      {
+        "wordIndex": 369,
+        "type": "volume_down",
+        "label": "Simple thank you — sincere, unhurried"
+      }
+    ]
+  },
+  {
+    "id": "s09",
+    "title": "Eight Thousand Days",
+    "category": "Tribute",
+    "text": "When they asked me to say a few words about [Name] tonight, my first thought was: a few words? Thirty-one years and they're giving me five minutes?\n\nLet's start with the basics. [Name] walked through these doors for the first time back when we still used fax machines and nobody here had gray hair yet — present company included. Thirty-one years. That's not a job. That's a chapter of a life.\n\nI've been trying to think of the right story to tell tonight, and honestly, there are too many. There's the time [Name] drove two hours in a snowstorm because a client had an emergency and refused to let anyone else handle it. There's the fact that [Name] still, to this day, remembers every single new hire's first-week nerves and makes a point of eating lunch with them so they don't feel alone. Ask anyone in this room who started here scared and unsure. I'd bet most of us have a story about [Name] making us feel like we belonged.\n\nThat's the thing about [Name] that I think gets lost in a job title. [Name] never once acted like the smartest person in the room, even on the days when [Name] absolutely was. What [Name] did instead was make everyone else better at their job, quietly, patiently, year after year, without ever needing the credit for it.\n\nI did some rough math earlier. Thirty-one years. If you count it up, that's somewhere around eight thousand days spent showing up for this company, this team, and honestly, for a lot of us personally. Eight thousand days of answering the phone when someone needed help. Eight thousand days of remembering birthdays, showing up for hard weeks, and never once making anyone feel small for asking a question twice.\n\nYou built something here that outlasts any org chart, [Name]. You built a culture. And cultures don't retire, even when the person who built them finally does.\n\nSo tonight isn't goodbye. It's a thank you, thirty-one years overdue, for every single one of those eight thousand days.\n\n[Name], on behalf of everyone in this room — past and present — thank you for showing us what it looks like to do this job, and honestly, this life, with this much heart.\n\nWe are going to miss you more than this five-minute speech could ever say. Congratulations on everything ahead. You've more than earned it.",
+    "wordCount": 400,
+    "targetDurationSeconds": 185,
+    "cues": [
+      {
+        "wordIndex": 0,
+        "type": "pitch_up",
+        "label": "Wry rhetorical question — deadpan, genuine surprise"
+      },
+      {
+        "wordIndex": 19,
+        "type": "emphasis",
+        "label": "Second joke — build on the first, land the punch"
+      },
+      {
+        "wordIndex": 27,
+        "type": "pitch_down",
+        "label": "Settle in — steady, grounded tone"
+      },
+      {
+        "wordIndex": 32,
+        "type": "slow_down",
+        "label": "Nostalgic image — unhurried, let them picture it"
+      },
+      {
+        "wordIndex": 59,
+        "type": "emphasis",
+        "label": "'Thirty-one years' alone — its own beat, let it land"
+      },
+      {
+        "wordIndex": 61,
+        "type": "emphasis",
+        "label": "Land the reframe — stress 'not a job'"
+      },
+      {
+        "wordIndex": 65,
+        "type": "pitch_down",
+        "label": "The real point — warmer, more sincere"
+      },
+      {
+        "wordIndex": 71,
+        "type": "slow_down",
+        "label": "Setup for the stories — take your time"
+      },
+      {
+        "wordIndex": 89,
+        "type": "slow_down",
+        "label": "First story — paint the scene clearly"
+      },
+      {
+        "wordIndex": 113,
+        "type": "slow_down",
+        "label": "Second story — same unhurried pace, mirror the first"
+      },
+      {
+        "wordIndex": 143,
+        "type": "pitch_up",
+        "label": "Direct address to the room — genuine invitation"
+      },
+      {
+        "wordIndex": 154,
+        "type": "pitch_down",
+        "label": "Land the warmth — quieter, sincere"
+      },
+      {
+        "wordIndex": 170,
+        "type": "emphasis",
+        "label": "The reframe — stress 'gets lost in a job title'"
+      },
+      {
+        "wordIndex": 184,
+        "type": "emphasis",
+        "label": "Land the contrast — humble despite being right"
+      },
+      {
+        "wordIndex": 203,
+        "type": "slow_down",
+        "label": "The real thesis of the speech — unhurried, let it land"
+      },
+      {
+        "wordIndex": 227,
+        "type": "pitch_down",
+        "label": "Playful pivot — lighter tone"
+      },
+      {
+        "wordIndex": 233,
+        "type": "emphasis",
+        "label": "'Thirty-one years' repeated — echo the earlier beat"
+      },
+      {
+        "wordIndex": 235,
+        "type": "slow_down",
+        "label": "Say the number deliberately, first time"
+      },
+      {
+        "wordIndex": 262,
+        "type": "emphasis",
+        "label": "Repetition begins — build on each 'eight thousand days'"
+      },
+      {
+        "wordIndex": 273,
+        "type": "emphasis",
+        "label": "Second repetition — build further, more conviction"
+      },
+      {
+        "wordIndex": 296,
+        "type": "emphasis",
+        "label": "Direct address — land 'built something' with pride"
+      },
+      {
+        "wordIndex": 306,
+        "type": "pause",
+        "label": "Short, definitive line"
+      },
+      {
+        "wordIndex": 310,
+        "type": "slow_down",
+        "label": "The thesis line — this is the point, unhurried"
+      },
+      {
+        "wordIndex": 323,
+        "type": "pause",
+        "label": "Let the line breathe before the reveal"
+      },
+      {
+        "wordIndex": 327,
+        "type": "slow_down",
+        "label": "The reframe — deliberate, warm pace"
+      },
+      {
+        "wordIndex": 343,
+        "type": "slow_down",
+        "label": "Direct address to [Name] — sincere and unhurried"
+      },
+      {
+        "wordIndex": 377,
+        "type": "volume_down",
+        "label": "Sincere, softer close"
+      },
+      {
+        "wordIndex": 391,
+        "type": "volume_up",
+        "label": "Warm congratulations — lift the energy"
+      },
+      {
+        "wordIndex": 395,
+        "type": "volume_down",
+        "label": "Final line — quiet and heartfelt"
+      }
+    ]
+  },
+  {
+    "id": "s10",
+    "title": "The Permission Nobody's Waiting On",
+    "category": "Keynote",
+    "text": "Fifteen years ago, if you wanted to build a piece of software, you needed a team of engineers, a server room, and roughly six months before anyone outside your company saw a single line of it work. Today, a fourteen-year-old with a laptop and a weekend can build something that would have taken that entire team a full quarter.\n\nI want to sit with that for a second, because I don't think we've fully processed what it means.\n\nWe talk a lot about disruption in rooms like this one. It's become almost a throwaway word — disruption, innovation, paradigm shift — said so often it's lost its weight. But what's happening right now isn't a throwaway trend. It's a fundamental rewiring of who gets to build things.\n\nFor most of history, building something required permission. Permission from investors. Permission from institutions. Permission, frankly, from gatekeepers who decided whose ideas were worth funding and whose weren't. That system produced a lot of great things. It also quietly filtered out an enormous amount of talent that simply didn't have access to the room.\n\nThat's changing. Not slowly — fast. And I think the biggest mistake any of us in this room can make right now is assuming the next five years will look anything like the last twenty.\n\nSo what do you do with that? Here's what I'd offer you.\n\nFirst: stop treating your current advantage as permanent. Whatever moat you think you have today is narrower than it was two years ago, and it will be narrower still two years from now. That's not a reason to panic. It's a reason to keep building.\n\nSecond: the companies that win the next decade won't be the ones with the most resources. They'll be the ones closest to their users, moving the fastest on what they learn from them. Speed of learning is the new moat.\n\nAnd third — this is the one I actually believe most — don't wait for permission anymore, because increasingly, there's no one left to ask. The tools are sitting right there. The only real question left is whether you're going to use them.\n\nI started this talk by telling you a fourteen-year-old can now build in a weekend what used to take a team a quarter. I want to end by asking you a harder question: if that's true, what exactly is your excuse?\n\nWe are living through the most accessible moment in the history of building things. Not the easiest — I'm not naive about how hard this still is. But the most accessible. That's not a small shift. That's the whole game changing underneath our feet.\n\nSo my challenge to everyone in this room is simple. Go build something you would have talked yourself out of two years ago. The permission you've been waiting for was never coming from anyone else.\n\nIt was always going to have to come from you.\n\nThank you.",
+    "wordCount": 488,
+    "targetDurationSeconds": 225,
+    "cues": [
+      {
+        "wordIndex": 0,
+        "type": "slow_down",
+        "label": "Set up the contrast — unhurried, matter-of-fact"
+      },
+      {
+        "wordIndex": 37,
+        "type": "pitch_up",
+        "label": "The reveal — brighten, this is the surprising part"
+      },
+      {
+        "wordIndex": 59,
+        "type": "pause",
+        "label": "Let it sink in before continuing"
+      },
+      {
+        "wordIndex": 78,
+        "type": "pitch_down",
+        "label": "Wry aside — a little cynical"
+      },
+      {
+        "wordIndex": 89,
+        "type": "slow_down",
+        "label": "List the buzzwords — flat, almost bored delivery"
+      },
+      {
+        "wordIndex": 108,
+        "type": "emphasis",
+        "label": "The turn — land 'isn't a throwaway trend' seriously"
+      },
+      {
+        "wordIndex": 117,
+        "type": "emphasis",
+        "label": "Thesis line — slow and clear"
+      },
+      {
+        "wordIndex": 127,
+        "type": "pitch_down",
+        "label": "Setup — steady, matter-of-fact"
+      },
+      {
+        "wordIndex": 135,
+        "type": "emphasis",
+        "label": "First 'permission' — flat, list-like"
+      },
+      {
+        "wordIndex": 138,
+        "type": "emphasis",
+        "label": "Second 'permission' — mirror the previous beat"
+      },
+      {
+        "wordIndex": 141,
+        "type": "emphasis",
+        "label": "Third 'permission' — build the repetition, land it harder"
+      },
+      {
+        "wordIndex": 155,
+        "type": "pitch_down",
+        "label": "Concede the point — fair, balanced tone"
+      },
+      {
+        "wordIndex": 163,
+        "type": "slow_down",
+        "label": "The cost — let this land with real weight"
+      },
+      {
+        "wordIndex": 181,
+        "type": "pause",
+        "label": "Short line — let it announce the turn"
+      },
+      {
+        "wordIndex": 186,
+        "type": "emphasis",
+        "label": "Sharp correction — punch the word"
+      },
+      {
+        "wordIndex": 187,
+        "type": "slow_down",
+        "label": "The warning — deliberate, let them sit with it"
+      },
+      {
+        "wordIndex": 216,
+        "type": "pitch_up",
+        "label": "Genuine question to the room"
+      },
+      {
+        "wordIndex": 223,
+        "type": "pitch_down",
+        "label": "Transition into the offer — calmer, more direct"
+      },
+      {
+        "wordIndex": 228,
+        "type": "emphasis",
+        "label": "First point — clear, numbered delivery"
+      },
+      {
+        "wordIndex": 236,
+        "type": "slow_down",
+        "label": "The moat metaphor — unhurried, let it land"
+      },
+      {
+        "wordIndex": 261,
+        "type": "pause",
+        "label": "Short reassurance"
+      },
+      {
+        "wordIndex": 267,
+        "type": "emphasis",
+        "label": "The reframe — land 'keep building' with resolve"
+      },
+      {
+        "wordIndex": 273,
+        "type": "emphasis",
+        "label": "Second point — same clear, numbered energy"
+      },
+      {
+        "wordIndex": 289,
+        "type": "slow_down",
+        "label": "The real differentiator — unhurried"
+      },
+      {
+        "wordIndex": 306,
+        "type": "emphasis",
+        "label": "Key line of the talk — slow and clear"
+      },
+      {
+        "wordIndex": 313,
+        "type": "emphasis",
+        "label": "Third point — build to the strongest claim"
+      },
+      {
+        "wordIndex": 338,
+        "type": "pitch_down",
+        "label": "Grounded statement — confident, not hyped"
+      },
+      {
+        "wordIndex": 344,
+        "type": "pitch_down",
+        "label": "Flat, certain close statement"
+      },
+      {
+        "wordIndex": 356,
+        "type": "slow_down",
+        "label": "Callback to the opening example — unhurried"
+      },
+      {
+        "wordIndex": 379,
+        "type": "pitch_up",
+        "label": "Direct challenge — hold eye contact, genuine question"
+      },
+      {
+        "wordIndex": 397,
+        "type": "volume_up",
+        "label": "Building to the close — rising energy"
+      },
+      {
+        "wordIndex": 411,
+        "type": "pause",
+        "label": "Honest caveat — quieter, more careful"
+      },
+      {
+        "wordIndex": 424,
+        "type": "emphasis",
+        "label": "Land the contrast — simple and confident"
+      },
+      {
+        "wordIndex": 428,
+        "type": "emphasis",
+        "label": "Restate — flat and certain"
+      },
+      {
+        "wordIndex": 433,
+        "type": "volume_up",
+        "label": "Building to the close — bigger energy"
+      },
+      {
+        "wordIndex": 441,
+        "type": "pitch_down",
+        "label": "Direct address — steady, sincere"
+      },
+      {
+        "wordIndex": 451,
+        "type": "emphasis",
+        "label": "The challenge — land 'go build' with conviction"
+      },
+      {
+        "wordIndex": 464,
+        "type": "slow_down",
+        "label": "The reframe — unhurried, let it register"
+      },
+      {
+        "wordIndex": 476,
+        "type": "volume_down",
+        "label": "Simple, quiet landing"
+      },
+      {
+        "wordIndex": 486,
+        "type": "volume_down",
+        "label": "Sincere close"
+      }
+    ]
+  },
+  {
+    "id": "s11",
+    "title": "The 2 A.M. Sensor",
+    "category": "Pitch",
+    "text": "Every year, small manufacturers in this country lose an estimated forty billion dollars to unplanned equipment downtime. Forty billion. Not from bad management. Not from bad workers. From a single failed part nobody saw coming, on a Tuesday afternoon, that shuts down an entire production line for six hours while someone drives to the nearest supplier hoping they have the right one in stock.\n\nWe think that's insane. And we built a company to fix it.\n\nMy name is [Name], and I'm the co-founder and CEO of [Company Name]. Before this, I spent nine years running operations at a mid-sized auto parts manufacturer, and I lived this problem personally. I've stood on a factory floor at 2 a.m. watching a six-hundred-thousand-dollar production line sit completely idle because of an eleven-dollar sensor that failed with zero warning.\n\nThat night is the reason this company exists.\n\nHere's what we built. [Company Name] is a predictive maintenance platform that uses low-cost vibration and temperature sensors, combined with a machine learning model trained on failure data from over three thousand industrial machines, to tell manufacturers exactly which part is going to fail — and roughly when — before it actually happens.\n\nLet me give you the numbers, because I know that's what you're here for.\n\nWe're currently live with fourteen manufacturing customers. In the last twelve months, those customers have prevented an average of thirty-one hours of unplanned downtime each, per year. At an average cost of nine thousand dollars an hour in lost production, that's roughly two hundred and eighty thousand dollars saved, per customer, per year.\n\nOur platform costs them eighteen thousand dollars a year.\n\nDo that math with me for a second — because I think it's the whole pitch in one sentence. We are selling a fifteen-x return, with results customers can see within their first ninety days.\n\nThat's why our net revenue retention is sitting at one hundred and forty-one percent. Nobody churns off a fifteen-x return. If anything, they buy more sensors.\n\nWe're raising four million dollars to do three things. First, triple our sales team so we can move from fourteen customers to sixty within eighteen months. Second, expand our model beyond vibration and temperature into acoustic failure detection, which our current customers are already asking for. And third, build out the integration layer that lets us plug directly into the enterprise resource planning systems these manufacturers already use, so adoption stops depending on a single champion inside each company.\n\nThe market here is not small. There are roughly two hundred and thirty thousand mid-sized manufacturers in North America alone, and fewer than four percent of them have any predictive maintenance system in place today. We are early. We are not speculative.\n\nI'll leave you with this. Every single manufacturer we've ever pitched has had their own version of my 2 a.m. story — a night an eleven-dollar part cost them six figures. We're not selling them a hypothetical. We're selling them the thing that would have saved them that night.\n\nWe'd love to have you as part of building it.\n\nThank you.",
+    "wordCount": 516,
+    "targetDurationSeconds": 240,
+    "cues": [
+      {
+        "wordIndex": 0,
+        "type": "slow_down",
+        "label": "Big number opening — give it room to register"
+      },
+      {
+        "wordIndex": 17,
+        "type": "emphasis",
+        "label": "'Forty billion' alone — its own beat, let it land"
+      },
+      {
+        "wordIndex": 19,
+        "type": "emphasis",
+        "label": "First denial — flat and clean"
+      },
+      {
+        "wordIndex": 23,
+        "type": "emphasis",
+        "label": "Second denial — mirror the previous beat"
+      },
+      {
+        "wordIndex": 27,
+        "type": "slow_down",
+        "label": "The real story — paint the scene vividly, unhurried"
+      },
+      {
+        "wordIndex": 64,
+        "type": "pitch_down",
+        "label": "Blunt reaction — flat and certain"
+      },
+      {
+        "wordIndex": 68,
+        "type": "pitch_up",
+        "label": "The turn to the company — brighten here"
+      },
+      {
+        "wordIndex": 76,
+        "type": "slow_down",
+        "label": "Introduce yourself and the company — steady, credible"
+      },
+      {
+        "wordIndex": 89,
+        "type": "slow_down",
+        "label": "Personal credibility — unhurried, matter-of-fact"
+      },
+      {
+        "wordIndex": 109,
+        "type": "slow_down",
+        "label": "Personal image — paint it clearly, this is the origin story"
+      },
+      {
+        "wordIndex": 136,
+        "type": "pause",
+        "label": "Personal turn — let it land"
+      },
+      {
+        "wordIndex": 144,
+        "type": "pitch_down",
+        "label": "Transition into the product — calm, confident"
+      },
+      {
+        "wordIndex": 148,
+        "type": "slow_down",
+        "label": "The product explanation — technical, unhurried"
+      },
+      {
+        "wordIndex": 197,
+        "type": "pitch_up",
+        "label": "Invite the room in — genuine, a little knowing"
+      },
+      {
+        "wordIndex": 211,
+        "type": "emphasis",
+        "label": "The core customer count — say it plainly"
+      },
+      {
+        "wordIndex": 218,
+        "type": "slow_down",
+        "label": "Proof point — let each number register"
+      },
+      {
+        "wordIndex": 238,
+        "type": "slow_down",
+        "label": "The math — walk through it deliberately"
+      },
+      {
+        "wordIndex": 264,
+        "type": "emphasis",
+        "label": "Confident aside — quick and sure, the contrast is the point"
+      },
+      {
+        "wordIndex": 273,
+        "type": "pitch_up",
+        "label": "Invite them to do the math with you — lean in"
+      },
+      {
+        "wordIndex": 292,
+        "type": "emphasis",
+        "label": "The core number of the pitch — land 'fifteen-x' with confidence"
+      },
+      {
+        "wordIndex": 308,
+        "type": "emphasis",
+        "label": "Second proof point — build the credibility further"
+      },
+      {
+        "wordIndex": 322,
+        "type": "pitch_down",
+        "label": "Flat, certain close statement"
+      },
+      {
+        "wordIndex": 328,
+        "type": "emphasis",
+        "label": "The kicker — light and confident"
+      },
+      {
+        "wordIndex": 334,
+        "type": "pitch_up",
+        "label": "The ask begins — lean in, direct"
+      },
+      {
+        "wordIndex": 343,
+        "type": "emphasis",
+        "label": "First use of funds — clear, numbered delivery"
+      },
+      {
+        "wordIndex": 360,
+        "type": "emphasis",
+        "label": "Second use of funds — same clear energy"
+      },
+      {
+        "wordIndex": 380,
+        "type": "emphasis",
+        "label": "Third use of funds — build to the most technical point"
+      },
+      {
+        "wordIndex": 413,
+        "type": "pitch_down",
+        "label": "Confident, grounded statement"
+      },
+      {
+        "wordIndex": 419,
+        "type": "slow_down",
+        "label": "Market sizing — let the scale register"
+      },
+      {
+        "wordIndex": 448,
+        "type": "pitch_down",
+        "label": "Confident, grounded statement"
+      },
+      {
+        "wordIndex": 451,
+        "type": "pitch_down",
+        "label": "Flat, certain close statement"
+      },
+      {
+        "wordIndex": 455,
+        "type": "pause",
+        "label": "Transition into the close — settle the room"
+      },
+      {
+        "wordIndex": 460,
+        "type": "slow_down",
+        "label": "The universal story — unhurried, let it resonate"
+      },
+      {
+        "wordIndex": 486,
+        "type": "emphasis",
+        "label": "Clipped negative — flat delivery"
+      },
+      {
+        "wordIndex": 492,
+        "type": "emphasis",
+        "label": "The real pitch — land it with conviction"
+      },
+      {
+        "wordIndex": 504,
+        "type": "volume_up",
+        "label": "Warm, direct ask to close"
+      }
+    ]
+  },
+  {
+    "id": "s12",
+    "title": "The Worst Advice I Ever Got",
+    "category": "Keynote",
+    "text": "I want to tell you about the worst piece of advice I ever received, because I think it's more useful to you than the best advice I ever got.\n\nEarly in my career, a mentor I deeply respected told me: find the thing you're best at, and do that thing forever. Specialize. Stay in your lane. Don't get distracted chasing every shiny new idea that crosses your desk.\n\nFor about six years, I followed that advice almost religiously. And it worked, in the sense that I got very good at one specific thing. I also got very bored, very anxious about the future, and very quietly convinced that I'd built a career-shaped cage for myself instead of a career.\n\nHere's what nobody told me at the time: the world does not reward people for staying in a lane. It rewards people for noticing when the lane has changed underneath them, and having the nerve to move.\n\nI want to be careful here, because I'm not telling you to abandon discipline or chase every new idea that sounds exciting on a Tuesday. Depth still matters. Expertise still matters. But depth in a single skill isn't the same thing as depth in a single job, at a single company, doing a single task, forever. Those are very different kinds of commitment, and I think we confuse them constantly.\n\nThink about the person you know who followed one path in a straight line from twenty-two to sixty-five. Now think about the person you know who didn't — who tried the strange lateral move, who took the pay cut, who started over in a field they didn't understand yet. I'd bet the second person has a much better story. I'd also bet they're more interesting to sit next to at dinner.\n\nLet me tell you what actually changed things for me. At thirty-four, I left a job I was genuinely excellent at to go do something I was, at best, mediocre at. I want to be honest with you: it was humiliating for about a year. I went from being the person other people asked for help to being the person asking everyone else for help, in meetings, in emails, in front of people half my age who'd been doing this for years and clearly wondered what I was doing there.\n\nBut here's the thing about being bad at something new. It's the fastest way I know to remember how to actually learn again. Not perform expertise. Learn. Ask the question that might sound obvious. Get something wrong in front of people. Get corrected, and say thank you, and mean it.\n\nTwo years into that mediocre decision, I was running a team. Five years in, I'd built something that didn't exist when I made that jump. None of that happens if I stay in the lane I was told to stay in forever.\n\nSo here's what I actually want to leave you with today, on a day that's supposed to be about endings and beginnings both at once.\n\nYou are going to be told, probably many times, by people who genuinely mean well, to find your lane and stay in it. Sometimes that's good advice. Often, it's advice that made sense for the person giving it, in their decade, in their industry, and it may not make sense for yours.\n\nAsk yourself this instead: am I choosing this path because it's genuinely right for me, or because it's comfortable, and comfortable has quietly started masquerading as right?\n\nThat's not an easy question. I still ask myself a version of it every couple of years, and the honest answer changes.\n\nYou don't owe anyone — not a mentor, not a parent, not the eighteen-year-old version of yourself who picked a major three years ago — a lifetime of staying exactly where you started.\n\nStay curious enough to notice when the lane has changed. And be brave enough to move when it has.\n\nCongratulations. Go be gloriously, productively bad at something new.",
+    "wordCount": 666,
+    "targetDurationSeconds": 305,
+    "cues": [
+      {
+        "wordIndex": 0,
+        "type": "slow_down",
+        "label": "Set up the frame — unhurried, a little wry"
+      },
+      {
+        "wordIndex": 29,
+        "type": "pitch_down",
+        "label": "Quote the bad advice flatly — matter-of-fact"
+      },
+      {
+        "wordIndex": 51,
+        "type": "emphasis",
+        "label": "One-word command — flat and clipped"
+      },
+      {
+        "wordIndex": 52,
+        "type": "emphasis",
+        "label": "Second command — mirror the previous beat"
+      },
+      {
+        "wordIndex": 56,
+        "type": "emphasis",
+        "label": "Third command — build the list, same clipped delivery"
+      },
+      {
+        "wordIndex": 68,
+        "type": "slow_down",
+        "label": "Set the timeframe — unhurried"
+      },
+      {
+        "wordIndex": 78,
+        "type": "pitch_up",
+        "label": "The turn — cautiously optimistic tone"
+      },
+      {
+        "wordIndex": 93,
+        "type": "slow_down",
+        "label": "The real cost — let each item land, building weight"
+      },
+      {
+        "wordIndex": 119,
+        "type": "emphasis",
+        "label": "The reframe — stress 'noticing' when it comes"
+      },
+      {
+        "wordIndex": 138,
+        "type": "slow_down",
+        "label": "The actual thesis — deliberate pace"
+      },
+      {
+        "wordIndex": 156,
+        "type": "pitch_down",
+        "label": "Careful caveat — measured, not preachy"
+      },
+      {
+        "wordIndex": 181,
+        "type": "emphasis",
+        "label": "Clipped affirmation — flat and short"
+      },
+      {
+        "wordIndex": 184,
+        "type": "emphasis",
+        "label": "Second affirmation — mirror the previous beat"
+      },
+      {
+        "wordIndex": 187,
+        "type": "slow_down",
+        "label": "The real distinction — unhurried, precise"
+      },
+      {
+        "wordIndex": 212,
+        "type": "pitch_down",
+        "label": "Land the distinction plainly"
+      },
+      {
+        "wordIndex": 226,
+        "type": "slow_down",
+        "label": "First example — paint the contrast clearly"
+      },
+      {
+        "wordIndex": 244,
+        "type": "slow_down",
+        "label": "Second example — same unhurried pace, build the list"
+      },
+      {
+        "wordIndex": 275,
+        "type": "emphasis",
+        "label": "The payoff — land 'better story' with conviction"
+      },
+      {
+        "wordIndex": 285,
+        "type": "pitch_up",
+        "label": "Light, wry aside"
+      },
+      {
+        "wordIndex": 297,
+        "type": "pitch_down",
+        "label": "Transition into the personal story — settle in"
+      },
+      {
+        "wordIndex": 307,
+        "type": "slow_down",
+        "label": "Vulnerable admission — take your time"
+      },
+      {
+        "wordIndex": 328,
+        "type": "slow_down",
+        "label": "Vulnerable beat — don't rush the honesty"
+      },
+      {
+        "wordIndex": 342,
+        "type": "slow_down",
+        "label": "The hard part — unhurried, let the discomfort show"
+      },
+      {
+        "wordIndex": 387,
+        "type": "pitch_down",
+        "label": "Transition into the reframe — calmer tone"
+      },
+      {
+        "wordIndex": 397,
+        "type": "emphasis",
+        "label": "The key insight — land it clearly"
+      },
+      {
+        "wordIndex": 410,
+        "type": "emphasis",
+        "label": "Clipped correction — flat and quick"
+      },
+      {
+        "wordIndex": 413,
+        "type": "emphasis",
+        "label": "One word — its own beat, let it land"
+      },
+      {
+        "wordIndex": 414,
+        "type": "emphasis",
+        "label": "List cadence — space each short command"
+      },
+      {
+        "wordIndex": 421,
+        "type": "emphasis",
+        "label": "Second item — mirror the previous beat"
+      },
+      {
+        "wordIndex": 428,
+        "type": "emphasis",
+        "label": "Third item — build to the end of the list"
+      },
+      {
+        "wordIndex": 437,
+        "type": "pitch_up",
+        "label": "The payoff begins — lift the energy"
+      },
+      {
+        "wordIndex": 448,
+        "type": "pitch_up",
+        "label": "Second payoff — build further"
+      },
+      {
+        "wordIndex": 462,
+        "type": "emphasis",
+        "label": "Consequence line — land it with real weight"
+      },
+      {
+        "wordIndex": 479,
+        "type": "pitch_down",
+        "label": "Turn to the direct address — steady and warm"
+      },
+      {
+        "wordIndex": 504,
+        "type": "slow_down",
+        "label": "The universal warning — unhurried, let it register"
+      },
+      {
+        "wordIndex": 527,
+        "type": "pause",
+        "label": "Concede the nuance — brief and thoughtful"
+      },
+      {
+        "wordIndex": 531,
+        "type": "slow_down",
+        "label": "The caveat — deliberate pace, precise"
+      },
+      {
+        "wordIndex": 556,
+        "type": "pitch_up",
+        "label": "The real rhetorical question of the talk"
+      },
+      {
+        "wordIndex": 583,
+        "type": "pause",
+        "label": "Let it sit before continuing"
+      },
+      {
+        "wordIndex": 588,
+        "type": "pitch_down",
+        "label": "Direct address — grounded and firm"
+      },
+      {
+        "wordIndex": 605,
+        "type": "slow_down",
+        "label": "The long list of who you don't owe — unhurried, deliberate"
+      },
+      {
+        "wordIndex": 638,
+        "type": "emphasis",
+        "label": "Thesis restated — deliberate pace"
+      },
+      {
+        "wordIndex": 648,
+        "type": "emphasis",
+        "label": "Second half of the thesis — mirror the pace"
+      },
+      {
+        "wordIndex": 657,
+        "type": "volume_up",
+        "label": "Big, warm close"
+      },
+      {
+        "wordIndex": 658,
+        "type": "volume_up",
+        "label": "Final line — playful, full energy"
+      }
+    ]
+  }
+]

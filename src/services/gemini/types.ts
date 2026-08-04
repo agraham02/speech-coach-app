@@ -60,6 +60,12 @@ export interface GeminiSessionAnalysis {
     top_focus_area: string;
     recommended_drill: string;
   };
+  // Only present when grading a script_practice session recorded with cues
+  // enabled — see schema.ts's buildResponseSchema(hasCues).
+  cue_compliance?: {
+    score: number;
+    notes: string;
+  };
 }
 
 export interface GeminiTranscriptOnly {

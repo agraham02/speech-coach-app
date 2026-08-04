@@ -1,3 +1,5 @@
+import { tokenizeScript, type Script, type ScriptCue } from "../../domain/scriptTypes";
+
 // Response schema for the Gemini rubric call. Covers Phase 1 (transcripts),
 // Phase 3 (structure + delivery + coaching), Phase 4 (presence + combined),
 // and the rigor/content/annotations pass added after real-session review
@@ -195,6 +197,32 @@ export const RESPONSE_SCHEMA = {
   ],
 } as const;
 
+const CUE_COMPLIANCE_FIELD = {
+  type: "object",
+  properties: {
+    score: { type: "number", description: "1-10. See the grading-rigor instructions." },
+    notes: {
+      type: "string",
+      description:
+        NOTE_DESCRIPTION +
+        " Explicitly name which on-screen delivery cues (pitch/volume/pause/emphasis/pace) were followed and which were missed or ignored, quoting the moment in the script each one was tied to.",
+    },
+  },
+  required: ["score", "notes"],
+} as const;
+
+// Only added to the schema for script_practice sessions recorded with cues
+// enabled (see transcribeSession.ts) — every other session uses RESPONSE_SCHEMA
+// unmodified, so the shape Gemini is asked for never implies a cue-compliance
+// score that wasn't actually possible to grade.
+export function buildResponseSchemaWithCueCompliance(): object {
+  return {
+    ...RESPONSE_SCHEMA,
+    properties: { ...RESPONSE_SCHEMA.properties, cue_compliance: CUE_COMPLIANCE_FIELD },
+    required: [...RESPONSE_SCHEMA.required, "cue_compliance"],
+  };
+}
+
 export function buildSystemPrompt(promptText: string): string {
   return `You are a rigorous, critical speaking coach grading a personal daily speaking-practice session — not a supportive cheerleader. Analyze this video clip of someone responding, unscripted, to a prompt.
 
@@ -240,6 +268,81 @@ Produce ANNOTATIONS: 4-8 of the most impactful specific moments backing up the s
 Finally, write COACHING notes: a 2-3 sentence summary (honest, not softened), the single top strength, the single top focus area to improve next, and one concrete recommended drill to practice before the next session.
 
 Be specific and reference actual moments/words from the response wherever possible — avoid generic feedback that could apply to any recording.
+
+Respond only with JSON matching the provided schema.`;
+}
+
+// A few words of context on either side of the cued word, taken from the
+// script's own tokenization — gives Gemini something it can actually locate
+// in the audio (an exact word index means nothing to it), the same way
+// annotation quotes elsewhere in this app are grounded by text, not offsets.
+function cueContextSnippet(script: Script, cue: ScriptCue, radius = 3): string {
+  const tokens = tokenizeScript(script.text);
+  const start = Math.max(0, cue.wordIndex - radius);
+  const end = Math.min(tokens.length, cue.wordIndex + radius + 1);
+  return tokens.slice(start, end).join(" ");
+}
+
+// Script Practice mode: the speaker was reading a fixed script, not
+// generating their own content — so STRUCTURE and CONTENT reflect the
+// script's own construction (out of the speaker's hands) rather than their
+// improvisation, and the real signal is DELIVERY, PRESENCE, and (if cues were
+// shown) CUE COMPLIANCE. Reuses the same grading-philosophy and dimension
+// instructions as buildSystemPrompt so the two rubrics never drift apart.
+export function buildScriptSystemPrompt(script: Script, cuesEnabled: boolean): string {
+  const showCues = cuesEnabled && script.cues.length > 0;
+  const cueListText = showCues
+    ? script.cues
+        .map((cue) => `- Near "...${cueContextSnippet(script, cue)}...": ${cue.type} — ${cue.label}`)
+        .join("\n")
+    : null;
+
+  return `You are a rigorous, critical speaking coach grading a SCRIPTED practice session — not a supportive cheerleader. Analyze this video of someone reading the following fixed script aloud on camera. This was NOT a spontaneous response — the words were given to them in advance.
+
+THE SCRIPT THEY WERE READING:
+"""
+${script.text}
+"""
+
+GRADING PHILOSOPHY (read this before scoring anything):
+- Be honest and demanding on DELIVERY, PRESENCE, and CUE COMPLIANCE — those are the actual skills being practiced here. Most unrehearsed-but-scripted readings should land in the 4-7 range on delivery/presence. Reserve 8-10 for genuinely strong, polished delivery you'd hold up as an example.
+- Because the words themselves were pre-written, do NOT penalize structure or content for the script's own construction — that's not the speaker's work to grade. Score structure_score and content's relevance_score/coherence_score each at a flat 7 with notes stating "not applicable — this was a scripted reading," and set structure_used to "other," UNLESS the speaker deviated meaningfully from the script (skipped or added large sections, lost their place, paraphrased significantly) — if that happened, say so specifically and score accordingly.
+- Anchor delivery/presence scores against this band: 1-2 unacceptable, 3-4 weak, 5-6 developing, 7-8 strong, 9-10 exceptional.
+- Every "notes" field must name specific evidence — a count, a quote, or a specific observed moment — and state what's missing to reach a 10.
+
+Produce two transcripts of what they actually said:
+1. transcript_verbatim: word-for-word, including filler words, false starts, and repetitions — even if it doesn't exactly match the script, transcribe what was actually spoken.
+2. transcript_clean: the same content rewritten as grammatically clean prose, fillers and false starts removed.
+
+Also report duration_seconds: the approximate duration of the spoken response in seconds.
+
+Grade DELIVERY using Vinh Giang's five vocal foundations, each scored 1-10:
+- rate: pacing — too fast, too slow, or well-varied for emphasis? Explicitly count filler words you hear and state the count and rate per minute.
+- volume: is it varied deliberately, or flat/monotone?
+- pitch_melody: does pitch rise and fall naturally, or is delivery flat?
+- tonality: does vocal tone match the content being said?
+- pausing: distinguish deliberate, dramatic pauses (good) from awkward silent gaps or filler-filled gaps (bad).
+
+Grade PRESENCE by watching the video:
+- eye_contact_score (1-10): looking into the lens vs. away/down — note that reading a script legitimately pulls the eyes down/off-camera more than spontaneous speech does, so judge whether they recovered eye contact between glances rather than expecting zero glances down.
+- facial_expressiveness_score (1-10): animated and expressive, or flat/neutral?
+- body_language_notes: posture, hand gestures, physical energy.
+
+Grade the COMBINED dimension:
+- face_voice_congruence_score (1-10): does facial expression match vocal tone?
+- archetype_detected: Motivator, Educator, Coach, or Friend — whichever this delivery's vocal/body signature actually matched.
+- archetype_fit_for_topic: did that archetype suit what this specific script called for?
+- overall_score (1-10): a holistic score weighing delivery, presence, and congruence as the primary pillars (structure/content are near-fixed at 7 for a scripted reading, so they shouldn't swing this much). Most readings land 4-7.
+
+${
+  showCues
+    ? `The speaker was shown these ON-SCREEN DELIVERY CUES while recording — short instructions tied to specific moments in the script:\n${cueListText}\n\nGrade CUE COMPLIANCE (cue_compliance, 1-10): for each cue above, did their actual delivery at that moment follow the instruction? Name specific hits and misses (e.g. "paused well after 'seconds.' but did not raise pitch on the closing question"). Score generously if most cues visibly shaped the delivery — this is about whether the cues were followed with reasonable fidelity, not pixel-perfect execution.`
+    : `Cues were NOT shown during this recording, so do not include a cue_compliance field.`
+}
+
+Produce ANNOTATIONS: 4-8 of the most impactful specific moments backing up the scores above. Each quote must be an EXACT, word-for-word substring of transcript_verbatim, 3-12 words, located by exact string search. If a phrase occurs more than once, include enough surrounding words to uniquely identify the occurrence you mean. Do not annotate filler words here — those are handled separately on-device.
+
+Finally, write COACHING notes: a 2-3 sentence summary (honest, not softened), the single top strength, the single top focus area to improve next, and one concrete recommended drill to practice before the next session — focused on delivery/presence${showCues ? "/cue compliance" : ""}, since structure and content were fixed by the script.
 
 Respond only with JSON matching the provided schema.`;
 }

@@ -5,17 +5,32 @@ import { useFocusEffect } from "@react-navigation/native";
 import { ScreenContainer } from "../components/common/ScreenContainer";
 import { Card } from "../components/common/Card";
 import { Badge } from "../components/common/Badge";
+import { HeroCard } from "../components/common/HeroCard";
 import { ScoreTrendChart, type TrendPoint } from "../components/trends/ScoreTrendChart";
-import { computeStreaks } from "../domain/streaks";
-import { computeThisWeekVsLastWeek, type WeekStats } from "../domain/trends";
+import { computeStreaks, highestStreakMilestone } from "../domain/streaks";
+import { computeThisWeekVsLastWeek, type ScoredSessionSummary, type WeekStats } from "../domain/trends";
 import { getCompletedSessionDates, getScoredSessionSummaries } from "../services/db/statsRepo";
 import { subscribeToAllSessions } from "../services/pipeline/processingEvents";
-import { colors, spacing, typography } from "../theme/theme";
+import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
+import { colors, fontDisplay, spacing, typography } from "../theme/theme";
 
 const RECENT_COUNT = 10;
 
 function shortDate(isoDatetime: string): string {
   return new Date(isoDatetime).toLocaleDateString(undefined, { month: "numeric", day: "numeric" });
+}
+
+// Blanks out a date label when it's the same as the point right before it, so
+// two same-day sessions don't render as visually-duplicate axis labels (e.g.
+// "7/25  7/25") that read as a bug rather than two distinct points.
+function buildTrendPoints(summaries: ScoredSessionSummary[]): TrendPoint[] {
+  let lastLabel: string | null = null;
+  return summaries.map((s) => {
+    const label = shortDate(s.recordedAt);
+    const point: TrendPoint = { value: s.overallScore, label: label === lastLabel ? "" : label };
+    lastLabel = label;
+    return point;
+  });
 }
 
 function DeltaIndicator({ current, previous }: { current: number | null; previous: number | null }) {
@@ -43,6 +58,7 @@ function DeltaIndicator({ current, previous }: { current: number | null; previou
 }
 
 export function TrendsScreen() {
+  const tabBarInset = useTabBarBottomInset();
   const [totalSessions, setTotalSessions] = useState(0);
   const [streaks, setStreaks] = useState({ currentStreak: 0, longestStreak: 0 });
   const [weekly, setWeekly] = useState<{ thisWeek: WeekStats; lastWeek: WeekStats } | null>(null);
@@ -56,9 +72,7 @@ export function TrendsScreen() {
 
     const summaries = await getScoredSessionSummaries();
     setWeekly(computeThisWeekVsLastWeek(summaries));
-    setRecentPoints(
-      summaries.slice(-RECENT_COUNT).map((s) => ({ value: s.overallScore, label: shortDate(s.recordedAt) })),
-    );
+    setRecentPoints(buildTrendPoints(summaries.slice(-RECENT_COUNT)));
   }, []);
 
   useFocusEffect(
@@ -77,14 +91,15 @@ export function TrendsScreen() {
   const hasScoredSessions = recentPoints.length > 0;
 
   return (
-    <ScreenContainer style={styles.container}>
+    <ScreenContainer style={styles.container} edges={["top", "left", "right"]}>
       <Text style={styles.title}>Trends</Text>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: spacing.lg + tabBarInset }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.accent} />}
       >
-        <Card style={styles.streakCard}>
+        <HeroCard contentStyle={styles.streakCard} accent={colors.warning} accentSecondary={colors.pink}>
           <View style={styles.streakRow}>
             <Ionicons name="flame" size={28} color={streaks.currentStreak > 0 ? colors.warning : colors.textMuted} />
             <Text style={styles.streakNumber}>{streaks.currentStreak}</Text>
@@ -93,7 +108,14 @@ export function TrendsScreen() {
           <Text style={styles.streakMeta}>
             Longest streak: {streaks.longestStreak} · Total sessions: {totalSessions}
           </Text>
-        </Card>
+          {highestStreakMilestone(streaks.longestStreak) ? (
+            <Badge
+              label={`🏆 ${highestStreakMilestone(streaks.longestStreak)}-day milestone`}
+              fg={colors.warning}
+              bg={colors.warningMuted}
+            />
+          ) : null}
+        </HeroCard>
 
         {!hasScoredSessions ? (
           <View style={styles.empty}>
@@ -141,12 +163,17 @@ export function TrendsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { gap: spacing.md },
+  // paddingBottom: 0 overrides ScreenContainer's default bottom padding —
+  // this screen's own ScrollView already reserves breathing room via
+  // scrollContent's paddingBottom, and the tab bar sits directly below with
+  // no further gap needed, unlike stack-pushed screens with a fixed button.
+  container: { gap: spacing.md, paddingBottom: 0 },
   title: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
+  scroll: { flex: 1 },
   scrollContent: { gap: spacing.md, paddingBottom: spacing.lg },
   streakCard: { gap: spacing.xs },
   streakRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  streakNumber: { color: colors.textPrimary, fontSize: typography.headline, fontWeight: "800" },
+  streakNumber: { color: colors.textPrimary, fontSize: typography.headline, fontFamily: fontDisplay.bold },
   streakLabel: { color: colors.textSecondary, fontSize: typography.body },
   streakMeta: { color: colors.textMuted, fontSize: typography.caption },
   sectionLabel: { color: colors.accent, fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 1 },

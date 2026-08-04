@@ -3,6 +3,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenContainer } from "../components/common/ScreenContainer";
 import { clearLogs, getLogs, subscribeLogs, type LogEntry } from "../services/logs/logStore";
+import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
 import { colors, spacing, typography } from "../theme/theme";
 
 const LEVEL_COLOR: Record<LogEntry["level"], string> = {
@@ -20,12 +21,13 @@ function formatTime(isoTimestamp: string): string {
 }
 
 export function DevScreen() {
+  const tabBarInset = useTabBarBottomInset();
   const [logs, setLogs] = useState<LogEntry[]>(getLogs());
 
   useEffect(() => subscribeLogs(setLogs), []);
 
   return (
-    <ScreenContainer style={styles.container}>
+    <ScreenContainer style={styles.container} edges={["top", "left", "right"]}>
       <View style={styles.header}>
         <Text style={styles.title}>Dev Log</Text>
         <Pressable onPress={clearLogs} hitSlop={12} accessibilityRole="button" accessibilityLabel="Clear logs">
@@ -43,9 +45,10 @@ export function DevScreen() {
         </View>
       ) : (
         <FlatList
+          style={styles.list}
           data={logs}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.listContent, { paddingBottom: spacing.lg + tabBarInset }]}
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
             <View style={styles.row}>
@@ -60,10 +63,14 @@ export function DevScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { gap: spacing.md },
+  // See TrendsScreen.tsx for why paddingBottom: 0 — overrides
+  // ScreenContainer's default bottom padding, since the list's own
+  // listContent already reserves end-of-content breathing room.
+  container: { gap: spacing.md, paddingBottom: 0 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   title: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
-  list: { gap: spacing.sm, paddingBottom: spacing.lg },
+  list: { flex: 1 },
+  listContent: { gap: spacing.sm, paddingBottom: spacing.lg },
   row: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start" },
   time: { color: colors.textMuted, fontSize: typography.caption - 1, fontVariant: ["tabular-nums"], width: 76 },
   message: { flex: 1, fontSize: typography.caption, fontFamily: "monospace", lineHeight: 17 },

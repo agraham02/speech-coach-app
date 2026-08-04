@@ -11,6 +11,7 @@ export const colors = {
   success: "#3DD68C",
   successMuted: "rgba(61,214,140,0.15)",
   warning: "#F5A524",
+  warningMuted: "rgba(245,165,36,0.15)",
   danger: "#E5484D",
   dangerMuted: "rgba(229,72,77,0.15)",
   overlayScrim: "rgba(11,11,15,0.75)",
@@ -56,4 +57,14 @@ export const typography = {
   bodyLarge: 17,
   title: 22,
   headline: 28,
+} as const;
+
+// Sora, loaded via expo-font in App.tsx — reserved for the "hero" numbers
+// (overall score, streak count, recording timer) that the visual-direction
+// pass calls out as display moments; everything else stays on the system
+// font. Falls back to the system font automatically if used before the
+// fonts finish loading, since an unregistered fontFamily name just no-ops.
+export const fontDisplay = {
+  regular: "Sora-Regular",
+  bold: "Sora-Bold",
 } as const;

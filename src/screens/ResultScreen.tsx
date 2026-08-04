@@ -8,35 +8,65 @@ import { PrimaryButton } from "../components/common/PrimaryButton";
 import { LoadingSpinner } from "../components/common/LoadingSpinner";
 import { Card } from "../components/common/Card";
 import { Badge } from "../components/common/Badge";
+import { HeroCard } from "../components/common/HeroCard";
+import { ProgressRing } from "../components/common/ProgressRing";
+import { SegmentedControl } from "../components/common/SegmentedControl";
 import { ScoreBar } from "../components/result/ScoreBar";
-import { OverallScoreRing } from "../components/result/OverallScoreRing";
+import { colorForScore } from "../components/result/scoreColor";
 import { VideoPlayback } from "../components/result/VideoPlayback";
 import { AnnotatedTranscript } from "../components/result/AnnotatedTranscript";
 import { ScoreRadarChart } from "../components/result/ScoreRadarChart";
 import { useToast } from "../components/common/ToastProvider";
-import { getSessionById, deleteSession } from "../services/db/sessionsRepo";
-import { getScoresBySessionId } from "../services/db/scoresRepo";
+import { getSessionById, deleteSession, deleteSessionVideo } from "../services/db/sessionsRepo";
+import { getPreviousOverallScore, getScoresBySessionId } from "../services/db/scoresRepo";
 import { getPrompt } from "../services/db/promptsRepo";
+import { getScriptById } from "../services/db/scriptsRepo";
 import { deleteRecording } from "../services/storage/videoStorage";
-import { syncSessionToNotion, gradeExistingSession } from "../services/pipeline/sessionProcessor";
+import { syncSessionToNotion, gradeExistingSession, sessionToGradingContext } from "../services/pipeline/sessionProcessor";
+import { describeGeminiError } from "../services/gemini/describeError";
+import { describeNotionError } from "../services/notion/describeError";
+import { colorForCategory } from "../domain/categoryColor";
 import type { Session, SessionScores } from "../domain/sessionTypes";
 import { formatDuration } from "../utils/dateUtils";
-import { colors, spacing, typography } from "../theme/theme";
+import { colors, fontDisplay, spacing, typography } from "../theme/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Result">;
+type ResultTab = "overview" | "scores" | "transcript";
+
+function ScoreDelta({ current, previous }: { current: number; previous: number | null }) {
+  if (previous === null) return null;
+  const diff = Math.round((current - previous) * 10) / 10;
+  if (diff === 0) {
+    return <Text style={styles.deltaNeutral}>Same as last session</Text>;
+  }
+  const isUp = diff > 0;
+  return (
+    <View style={styles.deltaRow}>
+      <Ionicons name={isUp ? "arrow-up" : "arrow-down"} size={12} color={isUp ? colors.success : colors.warning} />
+      <Text style={[styles.deltaText, { color: isUp ? colors.success : colors.warning }]}>
+        {Math.abs(diff)} vs last session
+      </Text>
+    </View>
+  );
+}
 
 export function ResultScreen({ route, navigation }: Props) {
   const { sessionId } = route.params;
   const showToast = useToast();
   const [session, setSession] = useState<Session | null>(null);
   const [scores, setScores] = useState<SessionScores | null>(null);
+  const [previousOverallScore, setPreviousOverallScore] = useState<number | null>(null);
+  const [tab, setTab] = useState<ResultTab>("overview");
   const [showClean, setShowClean] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
   const [isSyncingNotion, setIsSyncingNotion] = useState(false);
   const [isGrading, setIsGrading] = useState(false);
 
   useEffect(() => {
-    getSessionById(sessionId).then(setSession);
+    getSessionById(sessionId).then((s) => {
+      setSession(s);
+      if (s) getPreviousOverallScore(s.recordedAt).then(setPreviousOverallScore);
+    });
     getScoresBySessionId(sessionId).then(setScores);
   }, [sessionId]);
 
@@ -48,7 +78,23 @@ export function ResultScreen({ route, navigation }: Props) {
     );
   }
 
-  const prompt = getPrompt(session.promptId);
+  const prompt = session.sessionType === "script_practice" ? undefined : getPrompt(session.promptId);
+  const script = session.sessionType === "script_practice" && session.scriptId ? getScriptById(session.scriptId) : undefined;
+
+  // The Scores tab is only meaningful once grading has happened — the
+  // transcript exists regardless of whether grading was requested (see
+  // sessionProcessor.ts's non-grading path), so Transcript stays available
+  // either way.
+  const tabs: { key: ResultTab; label: string }[] = scores
+    ? [
+        { key: "overview", label: "Overview" },
+        { key: "scores", label: "Scores" },
+        { key: "transcript", label: "Transcript" },
+      ]
+    : [
+        { key: "overview", label: "Overview" },
+        { key: "transcript", label: "Transcript" },
+      ];
 
   async function handleNotionToggle(value: boolean) {
     if (!value || session!.notionSyncedAt) return;
@@ -59,17 +105,19 @@ export function ResultScreen({ route, navigation }: Props) {
       setSession(updated);
       showToast("Saved to Notion", "success");
     } catch (error) {
-      showToast(`Couldn't sync to Notion — ${(error as Error).message}`, "error");
+      showToast(`Couldn't sync to Notion — ${describeNotionError(error)}`, "error");
     } finally {
       setIsSyncingNotion(false);
     }
   }
 
   async function handleGrade() {
-    if (!session || !prompt) return;
+    if (!session) return;
+    const context = await sessionToGradingContext(session);
+    if (!context) return;
     setIsGrading(true);
     try {
-      await gradeExistingSession(sessionId, prompt, session.videoPath);
+      await gradeExistingSession(sessionId, context, session.videoPath);
       const [updatedSession, updatedScores] = await Promise.all([
         getSessionById(sessionId),
         getScoresBySessionId(sessionId),
@@ -78,25 +126,41 @@ export function ResultScreen({ route, navigation }: Props) {
       setScores(updatedScores);
       showToast("Grading complete", "success");
     } catch (error) {
-      showToast(`Grading failed — ${(error as Error).message}`, "error");
+      showToast(`Grading failed — ${describeGeminiError(error)}`, "error");
     } finally {
       setIsGrading(false);
     }
   }
 
+  async function handleDeleteVideo() {
+    await deleteSessionVideo(sessionId);
+    deleteRecording(session!.videoPath);
+    setSession((prev) => (prev ? { ...prev, videoDeletedAt: new Date().toISOString() } : prev));
+    showToast("Video deleted — transcript and scores kept", "success");
+  }
+
+  async function handleDeleteSession() {
+    await deleteSession(sessionId);
+    deleteRecording(session!.videoPath);
+    navigation.popToTop();
+  }
+
   function handleDelete() {
-    Alert.alert("Delete this session?", "This removes the recording, transcript, and scores. This can't be undone.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          await deleteSession(sessionId);
-          deleteRecording(session!.videoPath);
-          navigation.popToTop();
-        },
-      },
-    ]);
+    const buttons: Parameters<typeof Alert.alert>[2] = [{ text: "Cancel", style: "cancel" }];
+    // Same rationale as HistoryScreen.tsx's confirmDelete: only offer once
+    // grading is done and the video hasn't already been removed — grading
+    // retry needs the local file since Gemini's Files API entries expire
+    // after 48h (see sessionProcessor.ts).
+    if (session!.status === "done" && !session!.videoDeletedAt) {
+      buttons.push({ text: "Delete Video", style: "destructive", onPress: handleDeleteVideo });
+    }
+    buttons.push({ text: "Delete Session", style: "destructive", onPress: handleDeleteSession });
+
+    Alert.alert(
+      "Delete this session?",
+      "Delete Video frees up space but keeps the transcript and scores. Delete Session removes it from History entirely (it's kept for Trends stats, just hidden here).",
+      buttons,
+    );
   }
 
   const notionSynced = !!session.notionSyncedAt;
@@ -115,86 +179,126 @@ export function ResultScreen({ route, navigation }: Props) {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Card style={styles.notionCard}>
-          <View style={styles.row}>
-            <View style={styles.rowText}>
-              <Text style={styles.rowTitle}>Sync to Notion</Text>
-              <Text style={styles.rowSubtitle}>
-                {notionSynced ? "Saved to your journal" : isSyncingNotion ? "Syncing…" : "Not sent yet"}
+      <SegmentedControl options={tabs} value={tab} onChange={setTab} />
+
+      {tab === "overview" ? (
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <Card style={styles.notionCard}>
+            <View style={styles.row}>
+              <View style={styles.rowText}>
+                <Text style={styles.rowTitle}>Sync to Notion</Text>
+                <Text style={styles.rowSubtitle}>
+                  {notionSynced ? "Saved to your journal" : isSyncingNotion ? "Syncing…" : "Not sent yet"}
+                </Text>
+              </View>
+              <Switch
+                value={notionSynced}
+                onValueChange={handleNotionToggle}
+                disabled={notionSynced || isSyncingNotion}
+                trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
+              />
+            </View>
+          </Card>
+
+          {scores ? (
+            <HeroCard
+              contentStyle={styles.scoreHeroContent}
+              accent={colorForScore(scores.overallScore)}
+              accentSecondary={colors.violet}
+            >
+              <ProgressRing
+                size={132}
+                strokeWidth={10}
+                progress={scores.overallScore / 10}
+                color={colorForScore(scores.overallScore)}
+              >
+                <Text style={[styles.scoreHeroNumber, { color: colorForScore(scores.overallScore) }]}>
+                  {scores.overallScore}
+                </Text>
+                <Text style={styles.scoreHeroOutOf}>OUT OF 10</Text>
+              </ProgressRing>
+              <Text style={[styles.scoreHeroArchetype, { color: colorForScore(scores.overallScore) }]}>
+                {scores.archetypeDetected}
               </Text>
-            </View>
-            <Switch
-              value={notionSynced}
-              onValueChange={handleNotionToggle}
-              disabled={notionSynced || isSyncingNotion}
-              trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
-            />
-          </View>
-        </Card>
+              <ScoreDelta current={scores.overallScore} previous={previousOverallScore} />
+              <Text style={styles.scoreHeroFit}>{scores.archetypeFitForTopic}</Text>
+            </HeroCard>
+          ) : (
+            <Card style={styles.gradeCard}>
+              <View style={styles.rowText}>
+                <Text style={styles.rowTitle}>No AI feedback yet</Text>
+                <Text style={styles.rowSubtitle}>Get structure, delivery, presence, and coaching scores.</Text>
+              </View>
+              <PrimaryButton label="Grade with Gemini" onPress={handleGrade} loading={isGrading} />
+            </Card>
+          )}
 
-        {scores ? (
-          <Card style={styles.overallCard}>
-            <OverallScoreRing score={scores.overallScore} />
-            <View style={styles.overallTextGroup}>
-              <Text style={styles.sectionLabel}>OVERALL · {scores.archetypeDetected.toUpperCase()}</Text>
-              <Text style={styles.archetypeFit}>{scores.archetypeFitForTopic}</Text>
-            </View>
-          </Card>
-        ) : (
-          <Card style={styles.gradeCard}>
-            <View style={styles.rowText}>
-              <Text style={styles.rowTitle}>No AI feedback yet</Text>
-              <Text style={styles.rowSubtitle}>Get structure, delivery, presence, and coaching scores.</Text>
-            </View>
-            <PrimaryButton label="Grade with Gemini" onPress={handleGrade} loading={isGrading} />
-          </Card>
-        )}
+          {prompt ? (
+            <Card style={styles.promptCard}>
+              <Badge label={prompt.category} {...colorForCategory(prompt.category)} />
+              <Text style={styles.promptText}>{prompt.text}</Text>
+            </Card>
+          ) : null}
 
-        {prompt ? (
-          <Card style={styles.promptCard}>
-            <Badge label={prompt.category} />
-            <Text style={styles.promptText}>{prompt.text}</Text>
-          </Card>
-        ) : null}
-
-        <Pressable
-          style={styles.verbatimToggle}
-          onPress={() => setShowVideo((v) => !v)}
-          accessibilityRole="button"
-          accessibilityLabel={showVideo ? "Hide recording" : "Watch recording"}
-        >
-          <Ionicons name={showVideo ? "chevron-up" : "play-circle-outline"} size={18} color={colors.accent} />
-          <Text style={styles.verbatimToggleText}>{showVideo ? "Hide recording" : "Watch recording"}</Text>
-        </Pressable>
-        {showVideo ? <VideoPlayback videoUri={session.videoPath} /> : null}
-
-        {scores ? (
-          <Card style={styles.coachingCard}>
-            <Text style={styles.sectionLabel}>COACHING</Text>
-            <Text style={styles.coachingSummary}>{scores.coachingSummary}</Text>
-            <View style={styles.coachingRow}>
-              <Ionicons name="thumbs-up-outline" size={16} color={colors.success} />
-              <Text style={styles.coachingRowText}>
-                <Text style={styles.coachingRowLabel}>Strength: </Text>
-                {scores.topStrength}
+          {script ? (
+            <Card style={styles.promptCard}>
+              <Badge label={script.category} {...colorForCategory(script.category)} />
+              <Text style={styles.rowTitle}>{script.title}</Text>
+              <Text style={styles.promptText} numberOfLines={3}>
+                {script.text}
               </Text>
-            </View>
-            <View style={styles.coachingRow}>
-              <Ionicons name="build-outline" size={16} color={colors.warning} />
-              <Text style={styles.coachingRowText}>
-                <Text style={styles.coachingRowLabel}>Focus on: </Text>
-                {scores.topFocusArea}
-              </Text>
-            </View>
-            <View style={styles.drillBox}>
-              <Text style={styles.drillLabel}>NEXT DRILL</Text>
-              <Text style={styles.drillText}>{scores.recommendedDrill}</Text>
-            </View>
-          </Card>
-        ) : null}
+            </Card>
+          ) : null}
 
-        {scores ? (
+          {session.videoDeletedAt ? (
+            <View style={styles.videoRemovedRow}>
+              <Ionicons name="trash-outline" size={16} color={colors.textMuted} />
+              <Text style={styles.videoRemovedText}>Video removed to save space</Text>
+            </View>
+          ) : (
+            <>
+              <Pressable
+                style={styles.verbatimToggle}
+                onPress={() => setShowVideo((v) => !v)}
+                accessibilityRole="button"
+                accessibilityLabel={showVideo ? "Hide recording" : "Watch recording"}
+              >
+                <Ionicons name={showVideo ? "chevron-up" : "play-circle-outline"} size={18} color={colors.accent} />
+                <Text style={styles.verbatimToggleText}>{showVideo ? "Hide recording" : "Watch recording"}</Text>
+              </Pressable>
+              {showVideo ? <VideoPlayback videoUri={session.videoPath} /> : null}
+            </>
+          )}
+
+          {scores ? (
+            <Card style={styles.coachingCard}>
+              <Text style={styles.sectionLabel}>COACHING</Text>
+              <Text style={styles.coachingSummary}>{scores.coachingSummary}</Text>
+              <View style={styles.coachingRow}>
+                <Ionicons name="thumbs-up-outline" size={16} color={colors.success} />
+                <Text style={styles.coachingRowText}>
+                  <Text style={styles.coachingRowLabel}>Strength: </Text>
+                  {scores.topStrength}
+                </Text>
+              </View>
+              <View style={styles.coachingRow}>
+                <Ionicons name="build-outline" size={16} color={colors.warning} />
+                <Text style={styles.coachingRowText}>
+                  <Text style={styles.coachingRowLabel}>Focus on: </Text>
+                  {scores.topFocusArea}
+                </Text>
+              </View>
+              <View style={styles.drillBox}>
+                <Text style={styles.drillLabel}>NEXT DRILL</Text>
+                <Text style={styles.drillText}>{scores.recommendedDrill}</Text>
+              </View>
+            </Card>
+          ) : null}
+        </ScrollView>
+      ) : null}
+
+      {tab === "scores" && scores ? (
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <Card style={styles.scoresCard}>
             <ScoreRadarChart scores={scores} />
 
@@ -223,33 +327,48 @@ export function ResultScreen({ route, navigation }: Props) {
 
             <Text style={[styles.sectionLabel, styles.sectionSpacer]}>FACE-VOICE CONGRUENCE</Text>
             <ScoreBar label="Congruence" score={scores.faceVoiceCongruenceScore} />
-          </Card>
-        ) : null}
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionLabel}>YOUR RESPONSE</Text>
-          <Text style={styles.duration}>{formatDuration(session.durationSeconds)}</Text>
-        </View>
-        <Card>
-          <AnnotatedTranscript
-            transcriptVerbatim={session.transcriptVerbatim ?? ""}
-            durationSeconds={session.durationSeconds}
-            fillerWordCount={session.fillerWordCount}
-            fillerRatePerMinute={session.fillerRatePerMinute}
-            annotations={scores?.annotations ?? []}
-          />
-        </Card>
-
-        <Pressable style={styles.verbatimToggle} onPress={() => setShowClean((v) => !v)}>
-          <Text style={styles.verbatimToggleText}>{showClean ? "Hide cleaned-up response" : "Show cleaned-up response"}</Text>
-          <Ionicons name={showClean ? "chevron-up" : "chevron-down"} size={16} color={colors.accent} />
-        </Pressable>
-        {showClean ? (
-          <Card style={styles.verbatimCard}>
-            <Text style={styles.transcript}>{session.transcriptClean}</Text>
+            {scores.cueComplianceScore !== null ? (
+              <>
+                <Text style={[styles.sectionLabel, styles.sectionSpacer]}>CUE COMPLIANCE</Text>
+                <ScoreBar
+                  label="Followed the on-screen cues"
+                  score={scores.cueComplianceScore}
+                  notes={scores.cueComplianceNotes ?? undefined}
+                />
+              </>
+            ) : null}
           </Card>
-        ) : null}
-      </ScrollView>
+        </ScrollView>
+      ) : null}
+
+      {tab === "transcript" ? (
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionLabel}>YOUR RESPONSE</Text>
+            <Text style={styles.duration}>{formatDuration(session.durationSeconds)}</Text>
+          </View>
+          <Card>
+            <AnnotatedTranscript
+              transcriptVerbatim={session.transcriptVerbatim ?? ""}
+              durationSeconds={session.durationSeconds}
+              fillerWordCount={session.fillerWordCount}
+              fillerRatePerMinute={session.fillerRatePerMinute}
+              annotations={scores?.annotations ?? []}
+            />
+          </Card>
+
+          <Pressable style={styles.verbatimToggle} onPress={() => setShowClean((v) => !v)}>
+            <Text style={styles.verbatimToggleText}>{showClean ? "Hide cleaned-up response" : "Show cleaned-up response"}</Text>
+            <Ionicons name={showClean ? "chevron-up" : "chevron-down"} size={16} color={colors.accent} />
+          </Pressable>
+          {showClean ? (
+            <Card style={styles.verbatimCard}>
+              <Text style={styles.transcript}>{session.transcriptClean}</Text>
+            </Card>
+          ) : null}
+        </ScrollView>
+      ) : null}
 
       <PrimaryButton label="Done" onPress={() => navigation.popToTop()} />
     </ScreenContainer>
@@ -261,6 +380,7 @@ const styles = StyleSheet.create({
   centered: { alignItems: "center", justifyContent: "center" },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   headerSpacer: { width: 22 },
+  scroll: { flex: 1 },
   scrollContent: { gap: spacing.md, paddingBottom: spacing.lg },
   notionCard: { gap: spacing.sm },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
@@ -268,18 +388,31 @@ const styles = StyleSheet.create({
   rowTitle: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "600" },
   rowSubtitle: { color: colors.textSecondary, fontSize: typography.caption },
   gradeCard: { gap: spacing.md },
-  overallCard: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  overallTextGroup: { flex: 1, gap: spacing.xs },
-  archetypeFit: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },
+  scoreHeroContent: { alignItems: "center", gap: spacing.xs },
+  scoreHeroNumber: { fontFamily: fontDisplay.bold, fontSize: 40, lineHeight: 44 },
+  scoreHeroOutOf: { color: colors.textMuted, fontSize: typography.caption - 2, letterSpacing: 0.5, marginTop: 2 },
+  scoreHeroArchetype: {
+    fontSize: typography.caption,
+    fontWeight: "800",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginTop: spacing.xs,
+  },
+  scoreHeroFit: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17, textAlign: "center", marginTop: spacing.xs },
+  deltaRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  deltaText: { fontSize: typography.caption, fontWeight: "600" },
+  deltaNeutral: { color: colors.textMuted, fontSize: typography.caption },
   promptCard: { gap: spacing.sm },
   promptText: { color: colors.textSecondary, fontSize: typography.body, lineHeight: 21, fontStyle: "italic" },
-  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: spacing.sm },
+  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   sectionLabel: { color: colors.accent, fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 1 },
   sectionSpacer: { marginTop: spacing.sm },
   duration: { color: colors.textMuted, fontSize: typography.caption },
   transcript: { color: colors.textPrimary, fontSize: typography.bodyLarge, lineHeight: 25 },
   verbatimToggle: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, paddingVertical: spacing.sm },
   verbatimToggleText: { color: colors.accent, fontSize: typography.body, fontWeight: "600" },
+  videoRemovedRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, paddingVertical: spacing.sm },
+  videoRemovedText: { color: colors.textMuted, fontSize: typography.body },
   verbatimCard: { backgroundColor: colors.surfaceRaised },
   coachingCard: { gap: spacing.sm },
   coachingSummary: { color: colors.textPrimary, fontSize: typography.body, lineHeight: 21 },

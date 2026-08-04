@@ -36,6 +36,8 @@ export function analysisToSessionScores(sessionId: string, analysis: GeminiSessi
     topFocusArea: analysis.coaching.top_focus_area,
     recommendedDrill: analysis.coaching.recommended_drill,
     annotations: analysis.annotations,
+    cueComplianceScore: analysis.cue_compliance?.score ?? null,
+    cueComplianceNotes: analysis.cue_compliance?.notes ?? null,
   };
 }
 
@@ -50,8 +52,9 @@ export async function upsertScores(scores: SessionScores): Promise<void> {
        pausing_score, pausing_notes, eye_contact_score, facial_expressiveness_score,
        body_language_notes, face_voice_congruence_score, archetype_detected,
        archetype_fit_for_topic, overall_score, coaching_summary, top_strength,
-       top_focus_area, recommended_drill, annotations_json)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       top_focus_area, recommended_drill, annotations_json,
+       cue_compliance_score, cue_compliance_notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(session_id) DO UPDATE SET
        structure_score = excluded.structure_score,
        structure_used = excluded.structure_used,
@@ -82,7 +85,9 @@ export async function upsertScores(scores: SessionScores): Promise<void> {
        top_strength = excluded.top_strength,
        top_focus_area = excluded.top_focus_area,
        recommended_drill = excluded.recommended_drill,
-       annotations_json = excluded.annotations_json`,
+       annotations_json = excluded.annotations_json,
+       cue_compliance_score = excluded.cue_compliance_score,
+       cue_compliance_notes = excluded.cue_compliance_notes`,
     [
       scores.sessionId,
       scores.structureScore,
@@ -115,6 +120,8 @@ export async function upsertScores(scores: SessionScores): Promise<void> {
       scores.topFocusArea,
       scores.recommendedDrill,
       JSON.stringify(scores.annotations),
+      scores.cueComplianceScore,
+      scores.cueComplianceNotes,
     ],
   );
 }
@@ -123,4 +130,19 @@ export async function getScoresBySessionId(sessionId: string): Promise<SessionSc
   const db = await getDatabase();
   const row = await db.getFirstAsync<ScoreRow>(`SELECT * FROM scores WHERE session_id = ?`, [sessionId]);
   return row ? rowToScores(row) : null;
+}
+
+// The overall score of the most recent *other* graded session before this
+// one, for Result screen's "vs your last session" delta — null if this is the
+// first graded session, or the given recordedAt is the earliest.
+export async function getPreviousOverallScore(recordedAt: string): Promise<number | null> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ overall_score: number }>(
+    `SELECT sc.overall_score FROM scores sc
+     JOIN sessions s ON s.id = sc.session_id
+     WHERE s.status = 'done' AND s.deleted_at IS NULL AND s.recorded_at < ?
+     ORDER BY s.recorded_at DESC LIMIT 1`,
+    [recordedAt],
+  );
+  return row ? row.overall_score : null;
 }
