@@ -19,10 +19,11 @@ import { TipsScreen } from "../screens/TipsScreen";
 import { ScriptLibraryScreen } from "../screens/ScriptLibraryScreen";
 import { PromptLibraryScreen } from "../screens/PromptLibraryScreen";
 import { AddPromptScreen } from "../screens/AddPromptScreen";
+import { PlanYourPointScreen } from "../screens/PlanYourPointScreen";
 import { navigationRef } from "./navigationRef";
 import { syncDailyReminder } from "../services/notifications/reminderScheduler";
 import { logger } from "../utils/logger";
-import type { RecordingSubject } from "../domain/sessionTypes";
+import type { Prompt, RecordingSubject } from "../domain/sessionTypes";
 import { colors } from "../theme/theme";
 
 export { navigationRef };
@@ -41,6 +42,7 @@ export type RootStackParamList = {
   ScriptLibrary: undefined;
   PromptLibrary: undefined;
   AddPrompt: undefined;
+  PlanYourPoint: { prompt: Prompt };
   Recording: RecordingSubject;
   Preview: RecordingSubject & { videoUri: string; durationSecondsLocal: number };
   Processing: RecordingSubject & {
@@ -221,6 +223,7 @@ export function AppNavigator() {
         <Stack.Screen name="ScriptLibrary" component={ScriptLibraryScreen} />
         <Stack.Screen name="PromptLibrary" component={PromptLibraryScreen} />
         <Stack.Screen name="AddPrompt" component={AddPromptScreen} options={{ presentation: "modal" }} />
+        <Stack.Screen name="PlanYourPoint" component={PlanYourPointScreen} />
         <Stack.Screen name="Recording" component={RecordingScreen} />
         <Stack.Screen name="Preview" component={PreviewScreen} />
         <Stack.Screen name="Processing" component={ProcessingScreen} />

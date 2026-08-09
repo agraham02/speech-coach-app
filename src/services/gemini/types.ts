@@ -7,7 +7,7 @@ export interface UploadedGeminiFile {
 
 export type StructureUsed = "what/why/how" | "story arc" | "none detected" | "other";
 export type Archetype = "Motivator" | "Educator" | "Coach" | "Friend";
-export type AnnotationCategory = "structure" | "delivery" | "presence" | "content";
+export type AnnotationCategory = "structure" | "delivery" | "presence" | "content" | "restated_point";
 
 export interface ScoredNote {
   score: number;

@@ -1,4 +1,5 @@
 import { tokenizeScript, type Script, type ScriptCue } from "../../domain/scriptTypes";
+import { hasAnyPlanText, type PlanText } from "../../domain/planYourPoint";
 
 // Response schema for the Gemini rubric call. Covers Phase 1 (transcripts),
 // Phase 3 (structure + delivery + coaching), Phase 4 (presence + combined),
@@ -62,7 +63,7 @@ export const RESPONSE_SCHEMA = {
           type: "string",
           description:
             NOTE_DESCRIPTION +
-            " Specifically judge sentence-level clarity, logical flow, storytelling/engagement, and whether the speaker restated the same point in different words instead of progressing — call that out explicitly by quoting both restatements if it happens.",
+            " Specifically judge sentence-level clarity, logical flow, and storytelling/engagement. If the speaker restated the same point in different words instead of progressing, mention it here AND create a paired \"restated_point\" annotation for each occurrence (see the annotations field) rather than only describing it in prose.",
         },
       },
       required: ["relevance_score", "relevance_notes", "coherence_score", "coherence_notes"],
@@ -161,8 +162,9 @@ export const RESPONSE_SCHEMA = {
           },
           category: {
             type: "string",
-            enum: ["structure", "delivery", "presence", "content"],
-            description: "Which dimension this moment is evidence for. (Filler words are handled separately — do not create filler-word annotations here.)",
+            enum: ["structure", "delivery", "presence", "content", "restated_point"],
+            description:
+              "Which dimension this moment is evidence for. Use \"restated_point\" specifically for a moment where the speaker re-makes a point they already made earlier, reworded — not for other content issues (use \"content\" for those). (Filler words are handled separately — do not create filler-word annotations here.)",
           },
           note: { type: "string", description: "One short, specific sentence: what happened here and what to do instead." },
         },
@@ -223,11 +225,23 @@ export function buildResponseSchemaWithCueCompliance(): object {
   };
 }
 
-export function buildSystemPrompt(promptText: string): string {
+// When present and non-empty, gives Gemini the speaker's own stated PREP plan
+// (Plan Your Point) as grounding for judging relevance/coherence — did the
+// actual response execute on what they said they'd cover, roughly in order?
+function planTextSection(planText?: PlanText): string {
+  if (!planText || !hasAnyPlanText(planText)) return "";
+  const lines: string[] = [];
+  if (planText.point.trim()) lines.push(`- Point: "${planText.point.trim()}"`);
+  if (planText.reason.trim()) lines.push(`- Reason: "${planText.reason.trim()}"`);
+  if (planText.example.trim()) lines.push(`- Example: "${planText.example.trim()}"`);
+  return `\nBefore recording, the speaker planned their point using the PREP framework:\n${lines.join("\n")}\n\nTreat this as their STATED INTENT. Judge relevance and coherence partly by whether the actual response executed on this plan — did they cover what they said they would, roughly in that order? If the response drifted from or contradicted their own stated plan, call that out specifically in relevance_notes or coherence_notes.\n`;
+}
+
+export function buildSystemPrompt(promptText: string, planText?: PlanText): string {
   return `You are a rigorous, critical speaking coach grading a personal daily speaking-practice session — not a supportive cheerleader. Analyze this video clip of someone responding, unscripted, to a prompt.
 
 The speaker was responding to this prompt: "${promptText}"
-
+${planTextSection(planText)}
 GRADING PHILOSOPHY (read this before scoring anything):
 - Be honest and demanding. Most unrehearsed, spontaneous responses should land in the 4-7 range across dimensions. Reserve 8-10 for genuinely strong, polished delivery you'd hold up as an example. Do not round scores up out of politeness, and do not default to the middle just because you're uncertain — look for specific evidence either way.
 - Anchor every score against this band: 1-2 unacceptable (a real problem that undermines the response), 3-4 weak (noticeably holds the response back), 5-6 developing (competent but with clear, nameable flaws), 7-8 strong (few flaws, would need a specific stretch to reach 9-10), 9-10 exceptional (nothing meaningful to critique).
@@ -243,7 +257,7 @@ Grade STRUCTURE using Matt Abrahams' structured-spontaneity framework (from *Thi
 
 Grade CONTENT — this is Toastmasters' third pillar alongside structure and delivery, and it is graded independently of whether the response was well-shaped:
 - relevance: did the response substantively and specifically address THIS prompt, with concrete, specific content? Or was it generic content that could answer almost any prompt with minor edits? Penalize vagueness and hand-waving.
-- coherence: are the sentences clear and well-formed? Does the response flow logically? Does it tell an engaging, concrete story rather than staying abstract? Critically: did the speaker restate the same point in different words instead of moving the response forward? If so, quote both restatements and call it out directly — this is a specific, common weakness to watch for, not a minor style note.
+- coherence: are the sentences clear and well-formed? Does the response flow logically? Does it tell an engaging, concrete story rather than staying abstract? Critically, watch for RESTATED POINTS: flag every instance where the speaker makes a point, then later makes essentially the same point again — reworded, restated, or approached from a slightly different angle — without adding new information, a new example, or advancing the argument. This is different from emphasis/intentional repetition for rhetorical effect (e.g. a deliberate callback or a rule-of-three) — only flag it when it reads as the speaker running out of new things to say and circling back, not as a deliberate device. When this happens, name it in coherence_notes AND create a "restated_point" annotation for BOTH occurrences (the original point and its restatement) so each is individually highlighted — this is one of the most common and important weaknesses to catch, not a minor style note.
 
 Grade DELIVERY using Vinh Giang's five vocal foundations, each scored 1-10:
 - rate: pacing — too fast, too slow, or well-varied for emphasis? Explicitly count filler words you hear (um, uh, like, you know, sort of, kind of, basically, actually, literally) and state the count and rate per minute in your notes — 5/min or fewer is barely noticeable, a dozen/min or more clearly hurts perceived competence, and this should visibly move the score, not just be mentioned in passing.
@@ -263,7 +277,7 @@ Grade the COMBINED dimension — this requires watching AND listening together, 
 - archetype_fit_for_topic: did that archetype actually suit this specific prompt, or would a different one have landed better?
 - overall_score (1-10): a holistic score weighing structure, content, delivery, presence, and congruence as EQUAL pillars — content is not an afterthought to delivery mechanics. Most unrehearsed responses land 4-7; say so plainly if that's where this one lands.
 
-Produce ANNOTATIONS: 4-8 of the most impactful specific moments backing up the scores above (not exhaustive or decorative). Each quote must be an EXACT, word-for-word substring of transcript_verbatim, 3-12 words, because it will be located by exact string search — any paraphrase means it silently fails to display, so copy precisely. If the same short phrase occurs more than once in the transcript, include enough surrounding words in the quote to uniquely pin down the specific occurrence you mean — a generic fragment that also matches elsewhere will resolve to the wrong spot. Any dimension scored 6 or below should have at least one annotation pointing at the specific moment that caused it. Do not annotate filler words here — those are handled separately on-device.
+Produce ANNOTATIONS: 4-8 of the most impactful specific moments backing up the scores above (not exhaustive or decorative) — PLUS a "restated_point" annotation for each restated-point pair you found (these are in addition to, and not counted against, the 4-8 guideline, since they document a specific finding rather than general evidence). Each quote must be an EXACT, word-for-word substring of transcript_verbatim, 3-12 words, because it will be located by exact string search — any paraphrase means it silently fails to display, so copy precisely. If the same short phrase occurs more than once in the transcript, include enough surrounding words in the quote to uniquely pin down the specific occurrence you mean — a generic fragment that also matches elsewhere will resolve to the wrong spot. Any dimension scored 6 or below should have at least one annotation pointing at the specific moment that caused it. Do not annotate filler words here — those are handled separately on-device.
 
 Finally, write COACHING notes: a 2-3 sentence summary (honest, not softened), the single top strength, the single top focus area to improve next, and one concrete recommended drill to practice before the next session.
 

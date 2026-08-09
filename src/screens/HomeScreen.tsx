@@ -17,6 +17,7 @@ import { colorForCategory } from "../domain/categoryColor";
 import { getAllPrompts } from "../services/db/promptsRepo";
 import { getRecentlyUsedPromptIds, getTodaysSession } from "../services/db/sessionsRepo";
 import { getCompletedSessionDates } from "../services/db/statsRepo";
+import { getConciseModeSeconds, getPlanYourPointEnabled } from "../services/prefs/prefsStore";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
 import type { Prompt } from "../domain/sessionTypes";
 import { colors, fontDisplay, spacing, typography } from "../theme/theme";
@@ -77,6 +78,17 @@ export function HomeScreen() {
       const excludeIds = current ? [...recentPromptIds, current.id] : recentPromptIds;
       return pickRandomPrompt(allPrompts, excludeIds);
     });
+  }
+
+  // Both "Start Recording" and "Free Record" go through this — when Plan
+  // Your Point is enabled in Settings, detour through the planning screen
+  // first; otherwise go straight to Recording as before.
+  function startPromptRecording(promptToUse: Prompt) {
+    if (getPlanYourPointEnabled()) {
+      navigation.navigate("PlanYourPoint", { prompt: promptToUse });
+    } else {
+      navigation.navigate("Recording", { kind: "prompt", prompt: promptToUse });
+    }
   }
 
   if (!prompt) {
@@ -147,12 +159,23 @@ export function HomeScreen() {
       <View style={[styles.actions, { paddingBottom: tabBarInset }]}>
         <PrimaryButton
           label={alreadyPracticedToday ? "Practice Again" : "Start Recording"}
-          onPress={() => navigation.navigate("Recording", { kind: "prompt", prompt })}
+          onPress={() => startPromptRecording(prompt)}
         />
         <PrimaryButton
           label="Free Record (no prompt)"
           variant="ghost"
-          onPress={() => navigation.navigate("Recording", { kind: "prompt", prompt: FREE_RECORD_PROMPT })}
+          onPress={() => startPromptRecording(FREE_RECORD_PROMPT)}
+        />
+        <PrimaryButton
+          label="Concise Mode"
+          variant="ghost"
+          onPress={() =>
+            navigation.navigate("Recording", {
+              kind: "prompt",
+              prompt,
+              conciseSeconds: getConciseModeSeconds(),
+            })
+          }
         />
         <PrimaryButton
           label="Practice a Script"

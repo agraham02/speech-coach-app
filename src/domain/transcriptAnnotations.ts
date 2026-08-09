@@ -1,4 +1,4 @@
-export type AnnotationCategory = "filler" | "structure" | "delivery" | "presence" | "content";
+export type AnnotationCategory = "filler" | "structure" | "delivery" | "presence" | "content" | "restated_point";
 
 export interface LocatedSpan {
   start: number;

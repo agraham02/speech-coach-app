@@ -33,6 +33,7 @@ const CATEGORY_LABELS: Record<AnnotationCategory, string> = {
   delivery: "Delivery",
   presence: "Presence",
   content: "Content",
+  restated_point: "Restated point",
 };
 
 export function AnnotatedTranscript({

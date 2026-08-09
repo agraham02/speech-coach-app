@@ -17,6 +17,7 @@ import { analysisToSessionScores, getScoresBySessionId, upsertScores } from "../
 import { getPrompt } from "../db/promptsRepo";
 import { getScriptById } from "../db/scriptsRepo";
 import { isFreeRecordPrompt } from "../../data/topics";
+import { planTextToNullableFields, type PlanText } from "../../domain/planYourPoint";
 import { emitProcessingStatus, type ProcessingPhase } from "./processingEvents";
 import { showGlobalToast } from "../../components/common/ToastProvider";
 import { notifySessionComplete } from "../notifications/sessionCompleteNotifier";
@@ -29,7 +30,7 @@ import type { RecordingSubject, Session, SessionType } from "../../domain/sessio
 function subjectToGradingContext(subject: RecordingSubject): GradingContext {
   return subject.kind === "script"
     ? { kind: "script", script: subject.script, cuesEnabled: subject.cuesEnabled }
-    : { kind: "prompt", promptText: subject.prompt.text };
+    : { kind: "prompt", promptText: subject.prompt.text, planText: subject.planText };
 }
 
 function subjectToPromptId(subject: RecordingSubject): string {
@@ -38,6 +39,9 @@ function subjectToPromptId(subject: RecordingSubject): string {
 
 function subjectToSessionType(subject: RecordingSubject): SessionType {
   if (subject.kind === "script") return "script_practice";
+  // Checked before free_record/spontaneous — Concise Mode is a distinct,
+  // deliberately-chosen drill, not a duration variant of either.
+  if (subject.conciseSeconds) return "concise";
   return isFreeRecordPrompt(subject.prompt.id) ? "free_record" : "spontaneous";
 }
 
@@ -52,7 +56,15 @@ export async function sessionToGradingContext(session: Session): Promise<Grading
   }
   const prompt = await getPrompt(session.promptId);
   if (!prompt) return null;
-  return { kind: "prompt", promptText: prompt.text };
+  const planText: PlanText | undefined =
+    session.planPointText || session.planReasonText || session.planExampleText
+      ? {
+          point: session.planPointText ?? "",
+          reason: session.planReasonText ?? "",
+          example: session.planExampleText ?? "",
+        }
+      : undefined;
+  return { kind: "prompt", promptText: prompt.text, planText };
 }
 
 // Rebuilds a full RecordingSubject for a previously-saved session (History's
@@ -210,6 +222,7 @@ export async function processSession(args: ProcessSessionArgs): Promise<void> {
     const existing = await getSessionById(sessionId);
     if (!existing) {
       logger.info(`[pipeline] session ${sessionId}: inserting new row`);
+      const planFields = planTextToNullableFields(args.kind === "prompt" ? args.planText : undefined);
       await insertSession({
         id: sessionId,
         promptId: subjectToPromptId(args),
@@ -230,6 +243,9 @@ export async function processSession(args: ProcessSessionArgs): Promise<void> {
         fillerRatePerMinute: null,
         videoDeletedAt: null,
         deletedAt: null,
+        planPointText: planFields.point,
+        planReasonText: planFields.reason,
+        planExampleText: planFields.example,
       });
     } else {
       logger.info(`[pipeline] session ${sessionId}: found existing row (status=${existing.status}), retrying`);

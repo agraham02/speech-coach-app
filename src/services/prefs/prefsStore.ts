@@ -1,5 +1,6 @@
 import { createMMKV } from "react-native-mmkv";
 import {
+  DEFAULT_CONCISE_DURATION_SECONDS,
   DEFAULT_PREP_PHASE_SETTINGS,
   DEFAULT_RECORDING_DURATION_SETTINGS,
   type PrepPhaseSettings,
@@ -14,6 +15,8 @@ const KEYS = {
   recordingDurationSettings: "recordingDurationSettings",
   prepPhaseSettings: "prepPhaseSettings",
   reminderSettings: "reminderSettings",
+  planYourPointEnabled: "planYourPointEnabled",
+  conciseModeSeconds: "conciseModeSeconds",
 } as const;
 
 export function getRecordBlindPref(): boolean {
@@ -64,4 +67,20 @@ export function getReminderSettings(): ReminderSettings {
 
 export function setReminderSettings(settings: ReminderSettings): void {
   storage.set(KEYS.reminderSettings, JSON.stringify(settings));
+}
+
+export function getPlanYourPointEnabled(): boolean {
+  return storage.getBoolean(KEYS.planYourPointEnabled) ?? false;
+}
+
+export function setPlanYourPointEnabled(value: boolean): void {
+  storage.set(KEYS.planYourPointEnabled, value);
+}
+
+export function getConciseModeSeconds(): number {
+  return storage.getNumber(KEYS.conciseModeSeconds) ?? DEFAULT_CONCISE_DURATION_SECONDS;
+}
+
+export function setConciseModeSeconds(value: number): void {
+  storage.set(KEYS.conciseModeSeconds, value);
 }

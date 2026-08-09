@@ -27,12 +27,19 @@ export const colors = {
 // represent "worth noticing/improving" flags, so none reuse `success` (green
 // is reserved for "good outcome" semantics elsewhere in the app — status
 // badges, high scores, checkmarks).
-export const annotationColors: Record<"filler" | "structure" | "delivery" | "presence" | "content", string> = {
+export const annotationColors: Record<
+  "filler" | "structure" | "delivery" | "presence" | "content" | "restated_point",
+  string
+> = {
   filler: colors.warning,
   structure: colors.violet,
   delivery: colors.accent,
   presence: colors.pink,
   content: colors.teal,
+  // The primary lever for the user's actual "I ramble/repeat myself"
+  // complaint — a real flag on a real weakness, so it earns the danger red
+  // rather than something more decorative.
+  restated_point: colors.danger,
 };
 
 export const spacing = {

@@ -33,7 +33,19 @@ function buildTrendPoints(summaries: ScoredSessionSummary[]): TrendPoint[] {
   });
 }
 
-function DeltaIndicator({ current, previous }: { current: number | null; previous: number | null }) {
+// invert flips "up is good" to "down is good" — for metrics where less is
+// the improvement (e.g. restated-point rate), a decrease should read as
+// success (green), not regression (warning), even though the number itself
+// went down the same way a score dropping would.
+function DeltaIndicator({
+  current,
+  previous,
+  invert = false,
+}: {
+  current: number | null;
+  previous: number | null;
+  invert?: boolean;
+}) {
   if (current === null || previous === null) {
     return <Text style={styles.deltaNeutral}>Not enough data yet</Text>;
   }
@@ -47,10 +59,11 @@ function DeltaIndicator({ current, previous }: { current: number | null; previou
     );
   }
   const isUp = diff > 0;
+  const isGood = invert ? !isUp : isUp;
   return (
     <View style={styles.deltaRow}>
-      <Ionicons name={isUp ? "arrow-up" : "arrow-down"} size={14} color={isUp ? colors.success : colors.warning} />
-      <Text style={[styles.deltaText, { color: isUp ? colors.success : colors.warning }]}>
+      <Ionicons name={isUp ? "arrow-up" : "arrow-down"} size={14} color={isGood ? colors.success : colors.warning} />
+      <Text style={[styles.deltaText, { color: isGood ? colors.success : colors.warning }]}>
         {Math.abs(diff)} vs last week
       </Text>
     </View>
@@ -149,6 +162,24 @@ export function TrendsScreen() {
                 <Text style={styles.weekStatLabel}>Delivery</Text>
                 <Text style={styles.weekStatValue}>{weekly?.thisWeek.avgDelivery ?? "—"}/10</Text>
               </View>
+              <View style={styles.weekStatRow}>
+                <Text style={styles.weekStatLabel}>Coherence</Text>
+                <Text style={styles.weekStatValue}>{weekly?.thisWeek.avgCoherence ?? "—"}/10</Text>
+              </View>
+              <DeltaIndicator
+                current={weekly?.thisWeek.avgCoherence ?? null}
+                previous={weekly?.lastWeek.avgCoherence ?? null}
+              />
+
+              <View style={styles.weekStatRow}>
+                <Text style={styles.weekStatLabel}>Repeated ideas</Text>
+                <Text style={styles.weekStatValue}>{weekly?.thisWeek.avgRestatedPointRate ?? "—"}/min</Text>
+              </View>
+              <DeltaIndicator
+                current={weekly?.thisWeek.avgRestatedPointRate ?? null}
+                previous={weekly?.lastWeek.avgRestatedPointRate ?? null}
+                invert
+              />
             </Card>
 
             <Card style={styles.recentCard}>

@@ -7,8 +7,8 @@ export async function insertSession(session: Session): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
     `INSERT INTO sessions
-      (id, prompt_id, recorded_at, video_path, duration_seconds, transcription_source, transcript_verbatim, transcript_clean, status, notion_synced_at, wants_grading, wants_notion_sync, session_type, script_id, cues_enabled)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, prompt_id, recorded_at, video_path, duration_seconds, transcription_source, transcript_verbatim, transcript_clean, status, notion_synced_at, wants_grading, wants_notion_sync, session_type, script_id, cues_enabled, plan_point_text, plan_reason_text, plan_example_text)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       session.id,
       session.promptId,
@@ -25,6 +25,9 @@ export async function insertSession(session: Session): Promise<void> {
       session.sessionType,
       session.scriptId,
       session.cuesEnabled === null ? null : session.cuesEnabled ? 1 : 0,
+      session.planPointText,
+      session.planReasonText,
+      session.planExampleText,
     ],
   );
 }

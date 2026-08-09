@@ -20,6 +20,15 @@ export const DEFAULT_RECORDING_DURATION_SETTINGS: RecordingDurationSettings = {
   fixedSeconds: 180,
 };
 
+// Concise Mode: a separate, opt-in hard-cutoff drill for practicing fitting a
+// point into a tight window — 15-60 seconds, in 15-second steps. Distinct
+// from the general recording-length setting above: shorter is the point
+// here (a constraint to practice against), not a duration preference.
+export const CONCISE_DURATION_MIN_SECONDS = 15;
+export const CONCISE_DURATION_MAX_SECONDS = 60;
+export const CONCISE_DURATION_STEP_SECONDS = 15;
+export const DEFAULT_CONCISE_DURATION_SECONDS = 45;
+
 // Prep/brainstorm phase: 10-60 seconds, in 10-second steps.
 export const PREP_DURATION_MIN_SECONDS = 10;
 export const PREP_DURATION_MAX_SECONDS = 60;

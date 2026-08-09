@@ -7,6 +7,13 @@ export interface ScoredSessionSummary {
   structureScore: number;
   deliveryAvgScore: number;
   archetype: Archetype;
+  coherenceScore: number;
+  // "Restated point" rate — the content-level idea-repetition signal (making
+  // the same point again, reworded). Deliberately named unambiguously:
+  // literal word-level repetition ("I I think") is a separate, later signal
+  // and must never be confused with this one.
+  restatedPointCount: number;
+  restatedPointRatePerMinute: number;
 }
 
 export interface WeekStats {
@@ -14,6 +21,8 @@ export interface WeekStats {
   avgOverall: number | null;
   avgStructure: number | null;
   avgDelivery: number | null;
+  avgCoherence: number | null;
+  avgRestatedPointRate: number | null;
   topArchetype: Archetype | null;
 }
 
@@ -55,6 +64,8 @@ function statsForWindow(
     avgOverall: average(windowSessions.map((s) => s.overallScore)),
     avgStructure: average(windowSessions.map((s) => s.structureScore)),
     avgDelivery: average(windowSessions.map((s) => s.deliveryAvgScore)),
+    avgCoherence: average(windowSessions.map((s) => s.coherenceScore)),
+    avgRestatedPointRate: average(windowSessions.map((s) => s.restatedPointRatePerMinute)),
     topArchetype: mostFrequent(windowSessions.map((s) => s.archetype)),
   };
 }

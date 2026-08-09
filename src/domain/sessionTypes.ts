@@ -1,5 +1,6 @@
 import type { GeminiQuoteAnnotation } from "./transcriptAnnotations";
 import type { Script } from "./scriptTypes";
+import type { PlanText } from "./planYourPoint";
 
 export type DifficultyTier = "easy" | "medium" | "hard";
 
@@ -16,9 +17,11 @@ export interface Prompt {
 // way through Preview/Processing to sessionProcessor, so the DB insert and
 // the Gemini grading call both know whether this is a spontaneous/free-record
 // prompt or a fixed Script Practice script (and, for scripts, whether cues
-// were shown).
+// were shown). planText (Plan Your Point) and conciseSeconds (Concise Mode)
+// are both optional, independent, prompt-only add-ons — a session could
+// technically use either, both, or neither.
 export type RecordingSubject =
-  | { kind: "prompt"; prompt: Prompt }
+  | { kind: "prompt"; prompt: Prompt; planText?: PlanText; conciseSeconds?: number }
   | { kind: "script"; script: Script; cuesEnabled: boolean };
 
 export type TranscriptionSource = "gemini" | "on_device";
@@ -29,7 +32,9 @@ export type SessionStatus =
   | "done"
   | "error";
 
-export type SessionType = "spontaneous" | "free_record" | "script_practice";
+// "concise" mirrors "free_record" — a distinct opt-in short-recording drill,
+// not a duration variant of "spontaneous".
+export type SessionType = "spontaneous" | "free_record" | "concise" | "script_practice";
 
 export interface Session {
   id: string;
@@ -61,6 +66,12 @@ export interface Session {
   // are never actually removed, so Trends keeps counting it forever.
   videoDeletedAt: string | null;
   deletedAt: string | null;
+  // Plan Your Point (PREP framework), captured before recording started —
+  // null for every session recorded before this feature shipped, or where
+  // the setting was off, or where the speaker left every field blank.
+  planPointText: string | null;
+  planReasonText: string | null;
+  planExampleText: string | null;
 }
 
 export type StructureUsed = "what/why/how" | "story arc" | "none detected" | "other";

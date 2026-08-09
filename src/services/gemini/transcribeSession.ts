@@ -15,6 +15,7 @@ import {
   type TranscriptAnnotation,
 } from "./types";
 import type { Script } from "../../domain/scriptTypes";
+import type { PlanText } from "../../domain/planYourPoint";
 import { logger } from "../../utils/logger";
 
 export type TranscribeProgressStep =
@@ -27,7 +28,7 @@ export type TranscribeProgressStep =
 // recording time). Determines which system prompt + response schema
 // transcribeSession uses.
 export type GradingContext =
-  | { kind: "prompt"; promptText: string }
+  | { kind: "prompt"; promptText: string; planText?: PlanText }
   | { kind: "script"; script: Script; cuesEnabled: boolean };
 
 // Shared by transcribeSession and transcribeOnly: upload the recording to the
@@ -83,7 +84,7 @@ export async function transcribeSession(
   const systemPrompt =
     context.kind === "script"
       ? buildScriptSystemPrompt(context.script, context.cuesEnabled)
-      : buildSystemPrompt(context.promptText);
+      : buildSystemPrompt(context.promptText, context.planText);
   const showsCueCompliance =
     context.kind === "script" && context.cuesEnabled && context.script.cues.length > 0;
   const responseSchema = showsCueCompliance ? buildResponseSchemaWithCueCompliance() : RESPONSE_SCHEMA;
@@ -165,7 +166,13 @@ function isScoredNote(value: unknown): value is { score: number; notes: string }
   );
 }
 
-const ANNOTATION_CATEGORIES: readonly AnnotationCategory[] = ["structure", "delivery", "presence", "content"];
+const ANNOTATION_CATEGORIES: readonly AnnotationCategory[] = [
+  "structure",
+  "delivery",
+  "presence",
+  "content",
+  "restated_point",
+];
 
 function isTranscriptAnnotation(value: unknown): value is TranscriptAnnotation {
   if (typeof value !== "object" || value === null) return false;

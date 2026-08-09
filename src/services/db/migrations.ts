@@ -3,7 +3,7 @@ import { TOPICS } from "../../data/topics";
 import { DIFFICULTY_OVERRIDES, defaultDifficultyTier } from "../../domain/promptDifficulty";
 
 // Bump this and add a new numbered migration when the schema changes.
-export const LATEST_DB_VERSION = 8;
+export const LATEST_DB_VERSION = 9;
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(
@@ -208,6 +208,23 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
     });
 
     currentVersion = 8;
+  }
+
+  if (currentVersion < 9) {
+    // Plan Your Point (PREP framework), captured before recording starts —
+    // nullable, populated only for prompt-mode sessions where the setting
+    // was on and the speaker filled in at least one field (see
+    // planYourPoint.ts's planTextToNullableFields).
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN plan_point_text TEXT;
+    `);
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN plan_reason_text TEXT;
+    `);
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN plan_example_text TEXT;
+    `);
+    currentVersion = 9;
   }
 
   await db.execAsync(`PRAGMA user_version = ${currentVersion}`);

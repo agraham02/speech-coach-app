@@ -32,6 +32,9 @@ export interface SessionRow {
   session_type: string;
   script_id: string | null;
   cues_enabled: number | null;
+  plan_point_text: string | null;
+  plan_reason_text: string | null;
+  plan_example_text: string | null;
 }
 
 export function rowToSession(row: SessionRow): Session {
@@ -55,6 +58,9 @@ export function rowToSession(row: SessionRow): Session {
     sessionType: row.session_type as SessionType,
     scriptId: row.script_id,
     cuesEnabled: row.cues_enabled === null ? null : row.cues_enabled === 1,
+    planPointText: row.plan_point_text,
+    planReasonText: row.plan_reason_text,
+    planExampleText: row.plan_example_text,
   };
 }
 
@@ -113,7 +119,7 @@ export interface ScoreRow {
   cue_compliance_notes: string | null;
 }
 
-function parseAnnotationsJson(json: string): GeminiQuoteAnnotation[] {
+export function parseAnnotationsJson(json: string): GeminiQuoteAnnotation[] {
   try {
     const parsed = JSON.parse(json);
     return Array.isArray(parsed) ? (parsed as GeminiQuoteAnnotation[]) : [];

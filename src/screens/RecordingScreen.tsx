@@ -50,13 +50,16 @@ export function RecordingScreen({ route, navigation }: Props) {
   const stoppingRef = useRef(false);
 
   const [prepSettings] = useState(() => getPrepPhaseSettings());
-  // Script Practice paces to the script's own word count (see scriptTypes.ts),
-  // never the general recording-duration setting — a script's teleprompter
-  // has to finish scrolling roughly when the script ends, independent of
-  // whatever duration the user has configured for spontaneous prompts.
-  const [targetDurationSeconds] = useState(() =>
-    isScript ? subject.script.targetDurationSeconds : resolveRecordingDurationSeconds(getRecordingDurationSettings()),
-  );
+  // Concise Mode's duration is already resolved (from prefs) by the time it
+  // reaches here as subject.conciseSeconds — it bypasses the general
+  // recording-duration setting entirely, same as Script Practice bypassing
+  // it for the script's own word count (see scriptTypes.ts).
+  const isConcise = subject.kind === "prompt" && !!subject.conciseSeconds;
+  const [targetDurationSeconds] = useState(() => {
+    if (isScript) return subject.script.targetDurationSeconds;
+    if (subject.kind === "prompt" && subject.conciseSeconds) return subject.conciseSeconds;
+    return resolveRecordingDurationSeconds(getRecordingDurationSettings());
+  });
   const [prepDurationSeconds] = useState(() =>
     prepSettings.enabled ? resolvePrepDurationSeconds(prepSettings) : 0,
   );
@@ -245,11 +248,13 @@ export function RecordingScreen({ route, navigation }: Props) {
                 onPress={stage === "recording" ? handleStop : beginRecording}
               />
             )}
-            <Text style={styles.recordHint}>
+            <Text style={[styles.recordHint, isConcise && stage === "recording" && styles.recordHintUrgent]}>
               {isFinishing
                 ? "Saving…"
                 : stage !== "recording"
-                  ? "Tap to start"
+                  ? isConcise
+                    ? `One point. ${targetDurationSeconds}s.`
+                    : "Tap to start"
                   : recordBlind
                     ? "Tap to stop"
                     : `${formatDuration(remainingRecordingSeconds)} left · tap to stop`}
@@ -301,4 +306,5 @@ const styles = StyleSheet.create({
   },
   recordButtonGroup: { alignItems: "center", gap: spacing.sm },
   recordHint: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "600" },
+  recordHintUrgent: { color: colors.danger, fontWeight: "700" },
 });

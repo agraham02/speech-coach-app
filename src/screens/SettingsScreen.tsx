@@ -8,9 +8,13 @@ import { Card } from "../components/common/Card";
 import { LabeledSlider } from "../components/common/LabeledSlider";
 import { useToast } from "../components/common/ToastProvider";
 import {
+  getConciseModeSeconds,
+  getPlanYourPointEnabled,
   getPrepPhaseSettings,
   getRecordingDurationSettings,
   getReminderSettings,
+  setConciseModeSeconds,
+  setPlanYourPointEnabled,
   setPrepPhaseSettings,
   setRecordingDurationSettings,
   setReminderSettings,
@@ -24,6 +28,9 @@ import {
   setNotionToken,
 } from "../services/secrets/secretsStore";
 import {
+  CONCISE_DURATION_MAX_SECONDS,
+  CONCISE_DURATION_MIN_SECONDS,
+  CONCISE_DURATION_STEP_SECONDS,
   PREP_DURATION_MAX_SECONDS,
   PREP_DURATION_MIN_SECONDS,
   PREP_DURATION_STEP_SECONDS,
@@ -94,6 +101,8 @@ export function SettingsScreen({ navigation }: Props) {
   const [durationSettings, setDurationSettingsState] = useState(getRecordingDurationSettings());
   const [prepSettings, setPrepSettingsState] = useState(getPrepPhaseSettings());
   const [reminderSettings, setReminderSettingsState] = useState(getReminderSettings());
+  const [planYourPointEnabled, setPlanYourPointEnabledState] = useState(getPlanYourPointEnabled());
+  const [conciseModeSeconds, setConciseModeSecondsState] = useState(getConciseModeSeconds());
   const [geminiKey, setGeminiKeyField] = useState("");
   const [notionToken, setNotionTokenField] = useState("");
   const [notionPageId, setNotionPageIdField] = useState("");
@@ -114,6 +123,16 @@ export function SettingsScreen({ navigation }: Props) {
   function updatePrep(next: typeof prepSettings) {
     setPrepSettingsState(next);
     setPrepPhaseSettings(next);
+  }
+
+  function handlePlanYourPointToggle(enabled: boolean) {
+    setPlanYourPointEnabledState(enabled);
+    setPlanYourPointEnabled(enabled);
+  }
+
+  function handleConciseModeSecondsChange(seconds: number) {
+    setConciseModeSecondsState(seconds);
+    setConciseModeSeconds(seconds);
   }
 
   async function handleReminderToggle(enabled: boolean) {
@@ -209,6 +228,36 @@ export function SettingsScreen({ navigation }: Props) {
             trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
           />
         </View>
+      </Card>
+
+      <Card style={styles.section}>
+        <View style={styles.sectionHeaderRow}>
+          <View style={styles.sectionHeaderText}>
+            <Text style={styles.sectionTitle}>Plan your point</Text>
+            <Text style={styles.sectionSubtitle}>
+              A quick PREP (Point/Reason/Example) sketch before recording starts.
+            </Text>
+          </View>
+          <Switch
+            value={planYourPointEnabled}
+            onValueChange={handlePlanYourPointToggle}
+            trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
+          />
+        </View>
+      </Card>
+
+      <Card style={styles.section}>
+        <Text style={styles.sectionTitle}>Concise mode length</Text>
+        <Text style={styles.sectionSubtitle}>How long the "Concise Mode" drill on Home gives you to make one point.</Text>
+        <LabeledSlider
+          label="Length"
+          value={conciseModeSeconds}
+          minimumValue={CONCISE_DURATION_MIN_SECONDS}
+          maximumValue={CONCISE_DURATION_MAX_SECONDS}
+          step={CONCISE_DURATION_STEP_SECONDS}
+          formatValue={secondsLabel}
+          onChange={handleConciseModeSecondsChange}
+        />
       </Card>
 
       <Card style={styles.section}>
