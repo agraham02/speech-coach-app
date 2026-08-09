@@ -50,7 +50,7 @@ export async function sessionToGradingContext(session: Session): Promise<Grading
     if (!script) return null;
     return { kind: "script", script, cuesEnabled: session.cuesEnabled ?? false };
   }
-  const prompt = getPrompt(session.promptId);
+  const prompt = await getPrompt(session.promptId);
   if (!prompt) return null;
   return { kind: "prompt", promptText: prompt.text };
 }
@@ -60,13 +60,13 @@ export async function sessionToGradingContext(session: Session): Promise<Grading
 // ProcessSessionArgs-shaped subject to the Processing screen for retrying) —
 // same idea as sessionToGradingContext above, but keeps the full Prompt/Script
 // object rather than just the text Gemini needs.
-export function sessionToRecordingSubject(session: Session): RecordingSubject | null {
+export async function sessionToRecordingSubject(session: Session): Promise<RecordingSubject | null> {
   if (session.sessionType === "script_practice") {
     const script = session.scriptId ? getScriptById(session.scriptId) : undefined;
     if (!script) return null;
     return { kind: "script", script, cuesEnabled: session.cuesEnabled ?? false };
   }
-  const prompt = getPrompt(session.promptId);
+  const prompt = await getPrompt(session.promptId);
   if (!prompt) return null;
   return { kind: "prompt", prompt };
 }
@@ -129,7 +129,7 @@ export async function syncSessionToNotion(sessionId: string): Promise<void> {
   if (!session?.transcriptClean) {
     throw new Error("No transcript to sync yet");
   }
-  const prompt = getPrompt(session.promptId);
+  const prompt = await getPrompt(session.promptId);
   await appendTodayTranscript(session.transcriptClean, prompt?.text ?? "");
   await markSessionNotionSynced(sessionId);
   logger.info(`[pipeline] session ${sessionId}: Notion sync complete`);

@@ -15,7 +15,7 @@ import {
   getAllSessionsWithScores,
   type SessionWithScore,
 } from "../services/db/sessionsRepo";
-import { getAllPrompts, getPrompt } from "../services/db/promptsRepo";
+import { getAllPrompts } from "../services/db/promptsRepo";
 import { FREE_RECORD_PROMPT } from "../data/topics";
 import { deleteRecording } from "../services/storage/videoStorage";
 import { subscribeToAllSessions } from "../services/pipeline/processingEvents";
@@ -23,7 +23,7 @@ import { sessionToRecordingSubject } from "../services/pipeline/sessionProcessor
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
 import { colorForScore } from "../components/result/scoreColor";
 import { colorForCategory } from "../domain/categoryColor";
-import type { Session } from "../domain/sessionTypes";
+import type { Prompt, Session } from "../domain/sessionTypes";
 import { formatDuration } from "../utils/dateUtils";
 import { colors, spacing, typography } from "../theme/theme";
 
@@ -42,11 +42,6 @@ const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
   { key: "processing", label: "Processing" },
   { key: "error", label: "Failed" },
 ];
-
-// Free Recording is its own category (see data/topics.ts), so filtering by
-// category here naturally covers "prompted vs. free" too, without needing a
-// separate toggle for it.
-const CATEGORY_FILTERS = ["all", ...new Set(getAllPrompts().map((p) => p.category)), FREE_RECORD_PROMPT.category];
 
 type DurationFilter = "all" | "short" | "medium" | "long";
 
@@ -81,13 +76,33 @@ export function HistoryScreen() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [durationFilter, setDurationFilter] = useState<DurationFilter>("all");
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
+  // Free Recording is its own category (see data/topics.ts), so filtering by
+  // category here naturally covers "prompted vs. free" too, without needing a
+  // separate toggle for it. Refreshed on focus (not module-level) since
+  // prompts are DB-backed now and a just-added custom prompt needs to show
+  // up in the filter list immediately.
+  const [categoryFilters, setCategoryFilters] = useState<string[]>(["all", FREE_RECORD_PROMPT.category]);
+  const [promptsById, setPromptsById] = useState<Map<string, Prompt>>(new Map());
   const hasSecondaryFilters = categoryFilter !== "all" || durationFilter !== "all";
 
   const refresh = useCallback(() => {
     getAllSessionsWithScores().then(setSessions);
   }, []);
 
+  const refreshPrompts = useCallback(() => {
+    getAllPrompts().then((prompts) => {
+      setCategoryFilters(["all", ...new Set(prompts.map((p) => p.category)), FREE_RECORD_PROMPT.category]);
+      setPromptsById(new Map(prompts.map((p) => [p.id, p])));
+    });
+  }, []);
+
+  function resolvePrompt(promptId: string): Prompt | undefined {
+    if (promptId === FREE_RECORD_PROMPT.id) return FREE_RECORD_PROMPT;
+    return promptsById.get(promptId);
+  }
+
   useFocusEffect(refresh);
+  useFocusEffect(refreshPrompts);
 
   useEffect(() => subscribeToAllSessions(() => refresh()), [refresh]);
 
@@ -102,21 +117,22 @@ export function HistoryScreen() {
     return sessions.filter((session) => {
       if (statusFilter !== "all" && session.status !== statusFilter) return false;
       if (durationFilter !== "all" && durationBucket(session.durationSeconds) !== durationFilter) return false;
-      const prompt = getPrompt(session.promptId);
+      const prompt = resolvePrompt(session.promptId);
       if (categoryFilter !== "all" && prompt?.category !== categoryFilter) return false;
       if (!query) return true;
       const haystack = `${prompt?.text ?? ""} ${prompt?.category ?? ""}`.toLowerCase();
       return haystack.includes(query);
     });
-  }, [sessions, searchQuery, statusFilter, categoryFilter, durationFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessions, searchQuery, statusFilter, categoryFilter, durationFilter, promptsById]);
 
-  function openSession(session: Session) {
+  async function openSession(session: Session) {
     if (session.status === "done") {
       navigation.navigate("Result", { sessionId: session.id });
       return;
     }
 
-    const subject = sessionToRecordingSubject(session);
+    const subject = await sessionToRecordingSubject(session);
     if (!subject) return;
     navigation.navigate("Processing", {
       ...subject,
@@ -225,7 +241,7 @@ export function HistoryScreen() {
       <FilterSheet
         visible={filterSheetVisible}
         onClose={() => setFilterSheetVisible(false)}
-        categoryOptions={CATEGORY_FILTERS}
+        categoryOptions={categoryFilters}
         categoryValue={categoryFilter}
         onCategoryChange={setCategoryFilter}
         durationOptions={DURATION_FILTERS}
@@ -256,7 +272,7 @@ export function HistoryScreen() {
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.accent} />}
           renderItem={({ item }) => {
-            const prompt = getPrompt(item.promptId);
+            const prompt = resolvePrompt(item.promptId);
             const status = STATUS_META[item.status];
             return (
               <Pressable

@@ -17,6 +17,8 @@ import { ResultScreen } from "../screens/ResultScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
 import { TipsScreen } from "../screens/TipsScreen";
 import { ScriptLibraryScreen } from "../screens/ScriptLibraryScreen";
+import { PromptLibraryScreen } from "../screens/PromptLibraryScreen";
+import { AddPromptScreen } from "../screens/AddPromptScreen";
 import { navigationRef } from "./navigationRef";
 import { syncDailyReminder } from "../services/notifications/reminderScheduler";
 import { logger } from "../utils/logger";
@@ -37,6 +39,8 @@ export type RootStackParamList = {
   Tabs: NavigatorScreenParams<TabParamList> | undefined;
   Settings: undefined;
   ScriptLibrary: undefined;
+  PromptLibrary: undefined;
+  AddPrompt: undefined;
   Recording: RecordingSubject;
   Preview: RecordingSubject & { videoUri: string; durationSecondsLocal: number };
   Processing: RecordingSubject & {
@@ -215,6 +219,8 @@ export function AppNavigator() {
         <Stack.Screen name="Tabs" component={Tabs} />
         <Stack.Screen name="Settings" component={SettingsScreen} options={{ presentation: "modal" }} />
         <Stack.Screen name="ScriptLibrary" component={ScriptLibraryScreen} />
+        <Stack.Screen name="PromptLibrary" component={PromptLibraryScreen} />
+        <Stack.Screen name="AddPrompt" component={AddPromptScreen} options={{ presentation: "modal" }} />
         <Stack.Screen name="Recording" component={RecordingScreen} />
         <Stack.Screen name="Preview" component={PreviewScreen} />
         <Stack.Screen name="Processing" component={ProcessingScreen} />

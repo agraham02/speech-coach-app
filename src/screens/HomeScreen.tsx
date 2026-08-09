@@ -34,18 +34,30 @@ export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const tabBarInset = useTabBarBottomInset();
   const [prompt, setPrompt] = useState<Prompt | null>(null);
+  // Cached once per focus so rerollPrompt (called from a setState updater,
+  // which can't await) has a ready-to-use pool instead of re-fetching.
+  const [allPrompts, setAllPrompts] = useState<Prompt[]>([]);
   const [recentPromptIds, setRecentPromptIds] = useState<string[]>([]);
   const [alreadyPracticedToday, setAlreadyPracticedToday] = useState(false);
   const [streak, setStreak] = useState<StreakResult>(EMPTY_STREAK);
 
   useFocusEffect(
     useCallback(() => {
-      getRecentlyUsedPromptIds(AVOID_REPEAT_LAST_N)
-        .then((excludeIds) => {
+      (async () => {
+        try {
+          const [prompts, excludeIds] = await Promise.all([
+            getAllPrompts(),
+            getRecentlyUsedPromptIds(AVOID_REPEAT_LAST_N),
+          ]);
+          setAllPrompts(prompts);
           setRecentPromptIds(excludeIds);
-          setPrompt(pickTodaysPrompt(getAllPrompts(), excludeIds));
-        })
-        .catch(() => setPrompt(pickTodaysPrompt(getAllPrompts())));
+          setPrompt(pickTodaysPrompt(prompts, excludeIds));
+        } catch {
+          const prompts = await getAllPrompts();
+          setAllPrompts(prompts);
+          setPrompt(pickTodaysPrompt(prompts));
+        }
+      })();
 
       getTodaysSession()
         .then((session) => setAlreadyPracticedToday(session?.status === "done"))
@@ -63,7 +75,7 @@ export function HomeScreen() {
   function rerollPrompt() {
     setPrompt((current) => {
       const excludeIds = current ? [...recentPromptIds, current.id] : recentPromptIds;
-      return pickRandomPrompt(getAllPrompts(), excludeIds);
+      return pickRandomPrompt(allPrompts, excludeIds);
     });
   }
 
@@ -146,6 +158,11 @@ export function HomeScreen() {
           label="Practice a Script"
           variant="ghost"
           onPress={() => navigation.navigate("ScriptLibrary")}
+        />
+        <PrimaryButton
+          label="Browse Prompts"
+          variant="ghost"
+          onPress={() => navigation.navigate("PromptLibrary")}
         />
       </View>
     </ScreenContainer>

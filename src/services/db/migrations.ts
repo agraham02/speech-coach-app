@@ -1,7 +1,9 @@
 import type { SQLiteDatabase } from "expo-sqlite";
+import { TOPICS } from "../../data/topics";
+import { DIFFICULTY_OVERRIDES, defaultDifficultyTier } from "../../domain/promptDifficulty";
 
 // Bump this and add a new numbered migration when the schema changes.
-export const LATEST_DB_VERSION = 7;
+export const LATEST_DB_VERSION = 8;
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(
@@ -167,6 +169,45 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
       ALTER TABLE scores ADD COLUMN cue_compliance_notes TEXT;
     `);
     currentVersion = 7;
+  }
+
+  if (currentVersion < 8) {
+    // Prompts move from a static in-memory array to a real table so they can
+    // be browsed, filtered by difficulty, and user-authored (Prompt Library).
+    // No FK/CHECK to sessions.prompt_id — deliberately, matching every other
+    // column in this file that references an id — a later prompt edit/delete
+    // must never be able to orphan-break session history lookups.
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS prompts (
+        id TEXT PRIMARY KEY NOT NULL,
+        category TEXT NOT NULL,
+        text TEXT NOT NULL,
+        difficulty_tier TEXT NOT NULL,
+        is_user_created INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        deleted_at TEXT
+      );
+    `);
+
+    // Seed from the static curated bank so existing installs (whose sessions
+    // already reference t001..t140 in sessions.prompt_id) keep resolving,
+    // with zero network/AI dependency. INSERT OR IGNORE + the version gate
+    // above make this idempotent even if migrations were ever re-run after a
+    // partial failure. Bound params (rather than one hand-built literal SQL
+    // string) avoid manually escaping apostrophes in prompt text like "you've".
+    const seededAt = new Date().toISOString();
+    await db.withTransactionAsync(async () => {
+      for (const topic of TOPICS) {
+        const tier = DIFFICULTY_OVERRIDES[topic.id] ?? defaultDifficultyTier(topic.category, topic.text);
+        await db.runAsync(
+          `INSERT OR IGNORE INTO prompts (id, category, text, difficulty_tier, is_user_created, created_at, deleted_at)
+           VALUES (?, ?, ?, ?, 0, ?, NULL)`,
+          [topic.id, topic.category, topic.text, tier, seededAt],
+        );
+      }
+    });
+
+    currentVersion = 8;
   }
 
   await db.execAsync(`PRAGMA user_version = ${currentVersion}`);

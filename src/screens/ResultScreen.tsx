@@ -26,7 +26,7 @@ import { syncSessionToNotion, gradeExistingSession, sessionToGradingContext } fr
 import { describeGeminiError } from "../services/gemini/describeError";
 import { describeNotionError } from "../services/notion/describeError";
 import { colorForCategory } from "../domain/categoryColor";
-import type { Session, SessionScores } from "../domain/sessionTypes";
+import type { Prompt, Session, SessionScores } from "../domain/sessionTypes";
 import { formatDuration } from "../utils/dateUtils";
 import { colors, fontDisplay, spacing, typography } from "../theme/theme";
 
@@ -54,6 +54,7 @@ export function ResultScreen({ route, navigation }: Props) {
   const { sessionId } = route.params;
   const showToast = useToast();
   const [session, setSession] = useState<Session | null>(null);
+  const [prompt, setPrompt] = useState<Prompt | undefined>(undefined);
   const [scores, setScores] = useState<SessionScores | null>(null);
   const [previousOverallScore, setPreviousOverallScore] = useState<number | null>(null);
   const [tab, setTab] = useState<ResultTab>("overview");
@@ -66,6 +67,7 @@ export function ResultScreen({ route, navigation }: Props) {
     getSessionById(sessionId).then((s) => {
       setSession(s);
       if (s) getPreviousOverallScore(s.recordedAt).then(setPreviousOverallScore);
+      if (s && s.sessionType !== "script_practice") getPrompt(s.promptId).then(setPrompt);
     });
     getScoresBySessionId(sessionId).then(setScores);
   }, [sessionId]);
@@ -78,7 +80,6 @@ export function ResultScreen({ route, navigation }: Props) {
     );
   }
 
-  const prompt = session.sessionType === "script_practice" ? undefined : getPrompt(session.promptId);
   const script = session.sessionType === "script_practice" && session.scriptId ? getScriptById(session.scriptId) : undefined;
 
   // The Scores tab is only meaningful once grading has happened — the

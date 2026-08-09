@@ -1,5 +1,7 @@
 import type {
   Archetype,
+  DifficultyTier,
+  Prompt,
   Session,
   SessionScores,
   SessionStatus,
@@ -53,6 +55,25 @@ export function rowToSession(row: SessionRow): Session {
     sessionType: row.session_type as SessionType,
     scriptId: row.script_id,
     cuesEnabled: row.cues_enabled === null ? null : row.cues_enabled === 1,
+  };
+}
+
+export interface PromptRow {
+  id: string;
+  category: string;
+  text: string;
+  difficulty_tier: string;
+  is_user_created: number;
+  created_at: string;
+  deleted_at: string | null;
+}
+
+export function rowToPrompt(row: PromptRow): Prompt {
+  return {
+    id: row.id,
+    category: row.category,
+    text: row.text,
+    difficultyTier: row.difficulty_tier as DifficultyTier,
   };
 }
 

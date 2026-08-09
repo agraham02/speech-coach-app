@@ -1,7 +1,19 @@
 import type { Prompt } from "../domain/sessionTypes";
 
+// Seed shape only — deliberately narrower than the full `Prompt` domain type.
+// These 140 entries exist purely as one-time input to the `prompts` table
+// seed migration (see migrations.ts's v8 block, which computes each row's
+// difficultyTier via promptDifficulty.ts at seed time); once seeded, the
+// live source of truth is the DB, read back as real `Prompt` objects via
+// promptsRepo.ts. Nothing at runtime treats TOPICS entries as `Prompt`s.
+export interface SeedTopic {
+  id: string;
+  category: string;
+  text: string;
+}
+
 // Static curated topic bank (Phase 1 — no AI generation).
-export const TOPICS: Prompt[] = [
+export const TOPICS: SeedTopic[] = [
   { id: "t001", category: "Opinion", text: "Should schools teach financial literacy as a required subject?" },
   { id: "t002", category: "Personal", text: "Describe a habit you've built that changed how you work." },
   { id: "t003", category: "Explain", text: "Explain how a bill becomes a law, as if to a curious teenager." },
@@ -147,16 +159,13 @@ export const TOPICS: Prompt[] = [
   { id: "t140", category: "Spontaneous", text: "Junk drawers." },
 ];
 
-export function getPromptById(id: string): Prompt | undefined {
-  return TOPICS.find((t) => t.id === id);
-}
-
 // Deliberately not part of TOPICS — represents "Free Record" (no assigned
 // prompt), so it must never be picked by random prompt selection.
 export const FREE_RECORD_PROMPT: Prompt = {
   id: "free_record",
   category: "Free Recording",
   text: "Free recording — talk about whatever's on your mind.",
+  difficultyTier: null,
 };
 
 export function isFreeRecordPrompt(promptId: string): boolean {

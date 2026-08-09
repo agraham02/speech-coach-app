@@ -1,10 +1,15 @@
 import type { GeminiQuoteAnnotation } from "./transcriptAnnotations";
 import type { Script } from "./scriptTypes";
 
+export type DifficultyTier = "easy" | "medium" | "hard";
+
 export interface Prompt {
   id: string;
   category: string;
   text: string;
+  // null only for FREE_RECORD_PROMPT — it isn't a selectable curriculum item,
+  // so there's nothing meaningful to tag a difficulty on.
+  difficultyTier: DifficultyTier | null;
 }
 
 // What a recording is "about" — threaded from the Recording screen all the
