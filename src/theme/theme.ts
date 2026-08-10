@@ -21,6 +21,8 @@ export const colors = {
   pinkMuted: "rgba(236,72,153,0.18)",
   teal: "#14B8A6",
   tealMuted: "rgba(20,184,166,0.18)",
+  indigo: "#6366F1",
+  indigoMuted: "rgba(99,102,241,0.18)",
 } as const;
 
 // Transcript-annotation highlight colors — one per feedback category. All
@@ -28,7 +30,7 @@ export const colors = {
 // is reserved for "good outcome" semantics elsewhere in the app — status
 // badges, high scores, checkmarks).
 export const annotationColors: Record<
-  "filler" | "structure" | "delivery" | "presence" | "content" | "restated_point",
+  "filler" | "structure" | "delivery" | "presence" | "content" | "restated_point" | "repeated_words",
   string
 > = {
   filler: colors.warning,
@@ -40,6 +42,10 @@ export const annotationColors: Record<
   // complaint — a real flag on a real weakness, so it earns the danger red
   // rather than something more decorative.
   restated_point: colors.danger,
+  // A secondary, stutter-adjacent signal (literal word repetition, not the
+  // same idea rephrased) — deliberately a different hue from restated_point
+  // so the two never read as the same finding.
+  repeated_words: colors.indigo,
 };
 
 export const spacing = {

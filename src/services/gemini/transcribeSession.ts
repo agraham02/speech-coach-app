@@ -3,8 +3,10 @@ import {
   buildResponseSchemaWithCueCompliance,
   buildScriptSystemPrompt,
   buildSystemPrompt,
+  buildTranscriptCleanOnlySystemPrompt,
   buildTranscriptOnlySystemPrompt,
   RESPONSE_SCHEMA,
+  TRANSCRIPT_CLEAN_ONLY_SCHEMA,
   TRANSCRIPT_ONLY_SCHEMA,
 } from "./schema";
 import {
@@ -13,6 +15,7 @@ import {
   type GeminiSessionAnalysis,
   type GeminiTranscriptOnly,
   type TranscriptAnnotation,
+  type UploadedGeminiFile,
 } from "./types";
 import type { Script } from "../../domain/scriptTypes";
 import type { PlanText } from "../../domain/planYourPoint";
@@ -27,8 +30,13 @@ export type TranscribeProgressStep =
 // a fixed Script Practice script (with whatever cuesEnabled was chosen at
 // recording time). Determines which system prompt + response schema
 // transcribeSession uses.
+// groundingTranscript (prompt variant only — see schema.ts's decision not to
+// ground script sessions, whose text is already fully known in advance) is
+// an already-verified verbatim transcript from on-device Whisper or
+// AssemblyAI, passed to Gemini as ground truth rather than having it
+// re-transcribe from scratch. See sessionProcessor.ts for where it's sourced.
 export type GradingContext =
-  | { kind: "prompt"; promptText: string; planText?: PlanText }
+  | { kind: "prompt"; promptText: string; planText?: PlanText; groundingTranscript?: string }
   | { kind: "script"; script: Script; cuesEnabled: boolean };
 
 // Shared by transcribeSession and transcribeOnly: upload the recording to the
@@ -72,19 +80,28 @@ function extractTranscriptFields(
   };
 }
 
-export async function transcribeSession(
+// Exported separately from analyzeUploadedVideo (below) so sessionProcessor.ts
+// can start this upload — today's dominant latency cost — concurrently with
+// on-device ASR/AssemblyAI/DSP, instead of waiting for those to resolve
+// first. transcribeSession() (further below) composes the two sequentially
+// for callers that don't need the parallel-upload optimization (the
+// on-demand "Grade with Gemini" retry path).
+export async function uploadVideoForGrading(
   videoUri: string,
+  onProgress?: (step: TranscribeProgressStep) => void,
+): Promise<UploadedGeminiFile> {
+  return uploadAndWaitForActive(videoUri, onProgress);
+}
+
+export async function analyzeUploadedVideo(
+  uploaded: UploadedGeminiFile,
   context: GradingContext,
   onProgress?: (step: TranscribeProgressStep) => void,
 ): Promise<GeminiSessionAnalysis> {
-  logger.info(`[gemini] starting analysis for ${videoUri}`);
-
-  const uploaded = await uploadAndWaitForActive(videoUri, onProgress);
-
   const systemPrompt =
     context.kind === "script"
       ? buildScriptSystemPrompt(context.script, context.cuesEnabled)
-      : buildSystemPrompt(context.promptText, context.planText);
+      : buildSystemPrompt(context.promptText, context.planText, context.groundingTranscript);
   const showsCueCompliance =
     context.kind === "script" && context.cuesEnabled && context.script.cues.length > 0;
   const responseSchema = showsCueCompliance ? buildResponseSchemaWithCueCompliance() : RESPONSE_SCHEMA;
@@ -116,6 +133,16 @@ export async function transcribeSession(
       `archetype=${result.combined.archetype_detected}, overall=${result.combined.overall_score}/10`,
   );
   return result;
+}
+
+export async function transcribeSession(
+  videoUri: string,
+  context: GradingContext,
+  onProgress?: (step: TranscribeProgressStep) => void,
+): Promise<GeminiSessionAnalysis> {
+  logger.info(`[gemini] starting analysis for ${videoUri}`);
+  const uploaded = await uploadVideoForGrading(videoUri, onProgress);
+  return analyzeUploadedVideo(uploaded, context, onProgress);
 }
 
 // For sessions that don't want AI grading — just the two transcripts, no rubric.
@@ -155,6 +182,35 @@ export function parseTranscriptOnly(responseText: string): GeminiTranscriptOnly 
   }
 
   return extractTranscriptFields(parsed as Partial<GeminiTranscriptOnly>, parsed);
+}
+
+// Text-only call (no video ever uploaded) — rewrites an already-accurate
+// verbatim transcript (on-device or AssemblyAI) into clean journal prose.
+// Used when grading wasn't requested and a transcript source resolved, so
+// there's no reason to pay for/wait on a video upload just for this one
+// rewriting task. See sessionProcessor.ts.
+export async function cleanTranscriptOnly(rawTranscript: string): Promise<string> {
+  logger.info("[gemini] calling generateContent (transcript-clean-only, text-only)...");
+  const responseText = await generateContent({
+    systemPrompt: buildTranscriptCleanOnlySystemPrompt(rawTranscript),
+    responseSchema: TRANSCRIPT_CLEAN_ONLY_SCHEMA,
+  });
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(responseText);
+  } catch (error) {
+    throw new GeminiApiError(`Gemini response was not valid JSON: ${(error as Error).message}`);
+  }
+  const candidate = parsed as { transcript_clean?: unknown };
+  if (typeof candidate.transcript_clean !== "string") {
+    throw new GeminiApiError(
+      "Gemini response JSON did not match the expected schema (transcript_clean)",
+      undefined,
+      parsed,
+    );
+  }
+  return candidate.transcript_clean;
 }
 
 function isScoredNote(value: unknown): value is { score: number; notes: string } {

@@ -9,6 +9,7 @@ const KEYS = {
   geminiApiKey: "geminiApiKey",
   notionToken: "notionToken",
   notionPageId: "notionPageId",
+  assemblyAiApiKey: "assemblyAiApiKey",
 } as const;
 
 async function getSecret(key: string): Promise<string | null> {
@@ -48,4 +49,15 @@ export function getNotionPageId(): Promise<string | null> {
 
 export function setNotionPageId(value: string): Promise<void> {
   return setSecret(KEYS.notionPageId, value);
+}
+
+// Only ever read when the opt-in "Use cloud transcription" toggle is on
+// (see SettingsScreen.tsx / prefsStore.ts's assemblyAiEnabled) — this key
+// existing does not by itself turn on the paid path.
+export function getAssemblyAiApiKey(): Promise<string | null> {
+  return getSecret(KEYS.assemblyAiApiKey);
+}
+
+export function setAssemblyAiApiKey(value: string): Promise<void> {
+  return setSecret(KEYS.assemblyAiApiKey, value);
 }

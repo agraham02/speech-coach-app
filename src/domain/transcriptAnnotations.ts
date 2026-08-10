@@ -1,4 +1,14 @@
-export type AnnotationCategory = "filler" | "structure" | "delivery" | "presence" | "content" | "restated_point";
+// "repeated_words" is app-local only (like "filler") — Gemini never emits
+// it; see the Gemini-schema-constrained AnnotationCategory in
+// services/gemini/types.ts, which must NOT gain this value.
+export type AnnotationCategory =
+  | "filler"
+  | "structure"
+  | "delivery"
+  | "presence"
+  | "content"
+  | "restated_point"
+  | "repeated_words";
 
 export interface LocatedSpan {
   start: number;
@@ -66,9 +76,57 @@ export function computeFillerStats(verbatimTranscript: string, durationSeconds: 
   return { count, ratePerMinute, label: labelForRate(ratePerMinute) };
 }
 
+export interface RepeatedWordMatch {
+  quote: string; // e.g. "my my my", "the the" — resolved to a span via locateQuote (below)
+}
+
+function normalizeToken(token: string): string {
+  return token.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+}
+
+// Shared run-detection over any {text}[] token sequence — scans for runs of
+// >=2 consecutive tokens that are identical once lowercased/punctuation-
+// stripped (e.g. "my my my", "the the"). This is a secondary, stutter-
+// adjacent signal, distinct from (and not to be confused with) the semantic
+// idea-level repetition `restated_point` already flags — literal word
+// repetition and restating a point in different words are different
+// phenomena. Deliberately not called "stutter" anywhere in UI copy.
+function detectRepeatedRuns(tokens: { text: string }[]): RepeatedWordMatch[] {
+  const matches: RepeatedWordMatch[] = [];
+  let runStart = 0;
+  for (let i = 1; i <= tokens.length; i++) {
+    const prevNormalized = normalizeToken(tokens[i - 1].text);
+    const sameAsPrev = i < tokens.length && normalizeToken(tokens[i].text) === prevNormalized && prevNormalized.length > 0;
+    if (!sameAsPrev) {
+      if (i - runStart >= 2) {
+        matches.push({ quote: tokens.slice(runStart, i).map((t) => t.text).join(" ") });
+      }
+      runStart = i;
+    }
+  }
+  return matches;
+}
+
+// Preferred path — uses word-level tokens from on-device ASR or AssemblyAI
+// (see sessionProcessor.ts), which tokenize more reliably than a naive
+// whitespace split (handles punctuation attached to words correctly).
+export function detectRepeatedWordsFromWords(words: { text: string }[]): RepeatedWordMatch[] {
+  return detectRepeatedRuns(words);
+}
+
+// Last-resort fallback — whitespace-tokenized scan over raw transcript text,
+// used only when no word-level array is available (both on-device ASR and
+// AssemblyAI unavailable/failed, Gemini self-transcribed instead).
+export function detectRepeatedWordsFromText(text: string): RepeatedWordMatch[] {
+  const tokens = text.split(/\s+/).filter(Boolean);
+  return detectRepeatedRuns(tokens.map((t) => ({ text: t })));
+}
+
 export interface GeminiQuoteAnnotation {
   quote: string;
-  category: Exclude<AnnotationCategory, "filler">;
+  // Gemini can never emit "filler" or "repeated_words" — both are on-device-
+  // only categories (see the naming note on AnnotationCategory above).
+  category: Exclude<AnnotationCategory, "filler" | "repeated_words">;
   note: string;
 }
 
@@ -111,9 +169,14 @@ export function buildHighlightSegments(transcript: string, annotations: LocatedA
   const categoryPerChar: (AnnotationCategory | null)[] = new Array(transcript.length).fill(null);
   const notePerChar: (string | null)[] = new Array(transcript.length).fill(null);
 
+  // Deterministic, on-device categories (filler, repeated_words) claim their
+  // characters before Gemini's quote-based annotations, so a Gemini quote
+  // that happens to overlap a filler word or a repeated run doesn't fight it
+  // for color — the deterministic signal always wins the overlap.
+  const isDeterministic = (category: AnnotationCategory) => category === "filler" || category === "repeated_words";
   const sorted = [...annotations].sort((a, b) => {
-    if (a.category === "filler" && b.category !== "filler") return -1;
-    if (b.category === "filler" && a.category !== "filler") return 1;
+    if (isDeterministic(a.category) && !isDeterministic(b.category)) return -1;
+    if (isDeterministic(b.category) && !isDeterministic(a.category)) return 1;
     return a.start - b.start;
   });
 

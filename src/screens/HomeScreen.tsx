@@ -187,6 +187,7 @@ export function HomeScreen() {
           variant="ghost"
           onPress={() => navigation.navigate("PromptLibrary")}
         />
+        <PrimaryButton label="Tongue-Twister Drills" variant="ghost" onPress={() => navigation.navigate("Drills")} />
       </View>
     </ScreenContainer>
   );

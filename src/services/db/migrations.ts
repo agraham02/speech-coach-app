@@ -3,7 +3,7 @@ import { TOPICS } from "../../data/topics";
 import { DIFFICULTY_OVERRIDES, defaultDifficultyTier } from "../../domain/promptDifficulty";
 
 // Bump this and add a new numbered migration when the schema changes.
-export const LATEST_DB_VERSION = 9;
+export const LATEST_DB_VERSION = 11;
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(
@@ -225,6 +225,70 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
       ALTER TABLE sessions ADD COLUMN plan_example_text TEXT;
     `);
     currentVersion = 9;
+  }
+
+  if (currentVersion < 10) {
+    // Audio-first pipeline (Phase 2) — all nullable, populated in a
+    // follow-up write after transcription/analysis completes, independent
+    // of wants_grading (same convention as filler_word_count/v5).
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN transcript_words_json TEXT;
+    `);
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN wpm_curve_json TEXT;
+    `);
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN repeated_word_count INTEGER;
+    `);
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN assemblyai_transcript_id TEXT;
+    `);
+    // On-device DSP (pitch/volume) — dsp_status is NULL until a session
+    // actually attempts analysis (so it's distinguishable from a session
+    // that ran the analysis and got 'failed').
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN dsp_status TEXT;
+    `);
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN pitch_contour_json TEXT;
+    `);
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN volume_envelope_json TEXT;
+    `);
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN pitch_avg_hz REAL;
+    `);
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN pitch_min_hz REAL;
+    `);
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN pitch_max_hz REAL;
+    `);
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN volume_avg_dbfs REAL;
+    `);
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN volume_stddev_dbfs REAL;
+    `);
+    currentVersion = 10;
+  }
+
+  if (currentVersion < 11) {
+    // Tongue-Twister Drill mode (Phase 3) — separate from `sessions`
+    // entirely: drills have no video, no Gemini grading, no prompt_id. One
+    // row per completed attempt (including manual-timer-fallback attempts,
+    // which just have accuracy_percent = 0 — see drillScoring.ts).
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS drill_completions (
+        id TEXT PRIMARY KEY NOT NULL,
+        twister_id TEXT NOT NULL,
+        completed_at TEXT NOT NULL,
+        accuracy_percent REAL NOT NULL,
+        wpm REAL NOT NULL,
+        difficulty TEXT NOT NULL
+      );
+    `);
+    currentVersion = 11;
   }
 
   await db.execAsync(`PRAGMA user_version = ${currentVersion}`);

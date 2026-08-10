@@ -8,21 +8,27 @@ import { Card } from "../components/common/Card";
 import { LabeledSlider } from "../components/common/LabeledSlider";
 import { useToast } from "../components/common/ToastProvider";
 import {
+  getAssemblyAiEnabled,
   getConciseModeSeconds,
   getPlanYourPointEnabled,
   getPrepPhaseSettings,
   getRecordingDurationSettings,
   getReminderSettings,
+  getWarmUpEnabled,
+  setAssemblyAiEnabled,
   setConciseModeSeconds,
   setPlanYourPointEnabled,
   setPrepPhaseSettings,
   setRecordingDurationSettings,
   setReminderSettings,
+  setWarmUpEnabled,
 } from "../services/prefs/prefsStore";
 import {
+  getAssemblyAiApiKey,
   getGeminiApiKey,
   getNotionPageId,
   getNotionToken,
+  setAssemblyAiApiKey,
   setGeminiApiKey,
   setNotionPageId,
   setNotionToken,
@@ -100,24 +106,40 @@ export function SettingsScreen({ navigation }: Props) {
   const showToast = useToast();
   const [durationSettings, setDurationSettingsState] = useState(getRecordingDurationSettings());
   const [prepSettings, setPrepSettingsState] = useState(getPrepPhaseSettings());
+  const [warmUpEnabled, setWarmUpEnabledState] = useState(getWarmUpEnabled());
   const [reminderSettings, setReminderSettingsState] = useState(getReminderSettings());
   const [planYourPointEnabled, setPlanYourPointEnabledState] = useState(getPlanYourPointEnabled());
   const [conciseModeSeconds, setConciseModeSecondsState] = useState(getConciseModeSeconds());
   const [geminiKey, setGeminiKeyField] = useState("");
   const [notionToken, setNotionTokenField] = useState("");
   const [notionPageId, setNotionPageIdField] = useState("");
+  const [assemblyAiEnabled, setAssemblyAiEnabledState] = useState(getAssemblyAiEnabled());
+  const [assemblyAiKey, setAssemblyAiKeyField] = useState("");
 
   useEffect(() => {
-    Promise.all([getGeminiApiKey(), getNotionToken(), getNotionPageId()]).then(([gemini, token, pageId]) => {
-      setGeminiKeyField(gemini ?? "");
-      setNotionTokenField(token ?? "");
-      setNotionPageIdField(pageId ?? "");
-    });
+    Promise.all([getGeminiApiKey(), getNotionToken(), getNotionPageId(), getAssemblyAiApiKey()]).then(
+      ([gemini, token, pageId, assemblyAi]) => {
+        setGeminiKeyField(gemini ?? "");
+        setNotionTokenField(token ?? "");
+        setNotionPageIdField(pageId ?? "");
+        setAssemblyAiKeyField(assemblyAi ?? "");
+      },
+    );
   }, []);
+
+  function handleAssemblyAiToggle(enabled: boolean) {
+    setAssemblyAiEnabledState(enabled);
+    setAssemblyAiEnabled(enabled);
+  }
 
   function updateDuration(next: typeof durationSettings) {
     setDurationSettingsState(next);
     setRecordingDurationSettings(next);
+  }
+
+  function handleWarmUpToggle(enabled: boolean) {
+    setWarmUpEnabledState(enabled);
+    setWarmUpEnabled(enabled);
   }
 
   function updatePrep(next: typeof prepSettings) {
@@ -263,6 +285,22 @@ export function SettingsScreen({ navigation }: Props) {
       <Card style={styles.section}>
         <View style={styles.sectionHeaderRow}>
           <View style={styles.sectionHeaderText}>
+            <Text style={styles.sectionTitle}>Warm-up</Text>
+            <Text style={styles.sectionSubtitle}>
+              A guided breathing/easy-onset routine before recording — breathe, easy onset, lip trill.
+            </Text>
+          </View>
+          <Switch
+            value={warmUpEnabled}
+            onValueChange={handleWarmUpToggle}
+            trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
+          />
+        </View>
+      </Card>
+
+      <Card style={styles.section}>
+        <View style={styles.sectionHeaderRow}>
+          <View style={styles.sectionHeaderText}>
             <Text style={styles.sectionTitle}>Prep phase</Text>
             <Text style={styles.sectionSubtitle}>A countdown to brainstorm before recording starts.</Text>
           </View>
@@ -293,6 +331,32 @@ export function SettingsScreen({ navigation }: Props) {
               />
             </View>
           </>
+        ) : null}
+      </Card>
+
+      <Card style={styles.section}>
+        <View style={styles.sectionHeaderRow}>
+          <View style={styles.sectionHeaderText}>
+            <Text style={styles.sectionTitle}>Cloud transcription (AssemblyAI)</Text>
+            <Text style={styles.sectionSubtitle}>
+              Off by default — on-device transcription is free. Turning this on sends your recording's audio to
+              AssemblyAI (~$0.15/hr) for higher-accuracy transcription, especially on disfluencies.
+            </Text>
+          </View>
+          <Switch
+            value={assemblyAiEnabled}
+            onValueChange={handleAssemblyAiToggle}
+            trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
+          />
+        </View>
+        {assemblyAiEnabled ? (
+          <SecretField
+            label="AssemblyAI API key"
+            caption="From your AssemblyAI dashboard — required for cloud transcription to run."
+            value={assemblyAiKey}
+            onChangeText={setAssemblyAiKeyField}
+            onBlur={() => setAssemblyAiApiKey(assemblyAiKey)}
+          />
         ) : null}
       </Card>
 

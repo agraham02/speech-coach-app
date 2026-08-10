@@ -15,6 +15,7 @@ import { RecordBlindOverlay } from "../components/recording/RecordBlindOverlay";
 import { RecordBlindToggle } from "../components/recording/RecordBlindToggle";
 import { RecordButton } from "../components/recording/RecordButton";
 import { ScriptTeleprompterOverlay } from "../components/recording/ScriptTeleprompterOverlay";
+import { WarmUpOverlay } from "../components/recording/WarmUpOverlay";
 import { useCameraPermissions } from "../hooks/useCameraPermissions";
 import { useCountdownTimer } from "../hooks/useCountdownTimer";
 import { useFaceDetection } from "../hooks/useFaceDetection";
@@ -24,16 +25,18 @@ import {
   getPrepPhaseSettings,
   getRecordBlindPref,
   getRecordingDurationSettings,
+  getWarmUpEnabled,
   setRecordBlindPref,
 } from "../services/prefs/prefsStore";
 import { resolvePrepDurationSeconds, resolveRecordingDurationSeconds } from "../domain/recordingSettings";
+import { DEFAULT_WARM_UP_INTENSITY, getWarmUpSteps } from "../domain/warmUpRoutine";
 import { persistRecording } from "../services/storage/videoStorage";
 import { formatDuration } from "../utils/dateUtils";
 import { colors, spacing, typography } from "../theme/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Recording">;
 
-type Stage = "prep" | "idle" | "recording";
+type Stage = "warmup" | "prep" | "idle" | "recording";
 
 export function RecordingScreen({ route, navigation }: Props) {
   const subject = route.params;
@@ -50,6 +53,10 @@ export function RecordingScreen({ route, navigation }: Props) {
   const stoppingRef = useRef(false);
 
   const [prepSettings] = useState(() => getPrepPhaseSettings());
+  const [warmUpEnabled] = useState(() => getWarmUpEnabled());
+  // Phase 5 will drive this by curriculum level instead of a fixed default —
+  // see warmUpRoutine.ts's header comment.
+  const [warmUpSteps] = useState(() => getWarmUpSteps(DEFAULT_WARM_UP_INTENSITY));
   // Concise Mode's duration is already resolved (from prefs) by the time it
   // reaches here as subject.conciseSeconds — it bypasses the general
   // recording-duration setting entirely, same as Script Practice bypassing
@@ -63,7 +70,10 @@ export function RecordingScreen({ route, navigation }: Props) {
   const [prepDurationSeconds] = useState(() =>
     prepSettings.enabled ? resolvePrepDurationSeconds(prepSettings) : 0,
   );
-  const [stage, setStage] = useState<Stage>(prepSettings.enabled ? "prep" : "idle");
+  const [stage, setStage] = useState<Stage>(() => {
+    if (warmUpEnabled) return "warmup";
+    return prepSettings.enabled ? "prep" : "idle";
+  });
 
   useHapticFaceWarning(stage === "recording", faceDetected);
 
@@ -72,12 +82,23 @@ export function RecordingScreen({ route, navigation }: Props) {
     setRecordBlindPref(value);
   }
 
+  function advanceFromWarmUp() {
+    setStage(prepSettings.enabled ? "prep" : "idle");
+  }
+
   function beginRecording() {
     if (!cameraRef.current) return;
     stoppingRef.current = false;
     setStage("recording");
     start();
     cameraRef.current.startRecording({
+      // Forces a uniform mp4/H.264 container on both platforms (Android
+      // already defaults here; iOS defaults to .mov) — required so
+      // react-native-audio-api's decodeAudioData (used by the on-device DSP
+      // pipeline) can reliably decode the recording's audio track, since its
+      // documented format support is mp3/wav/mp4/m4a/aac, not mov.
+      fileType: "mp4",
+      videoCodec: "h264",
       onRecordingFinished: async (video) => {
         stop();
         setIsFinishing(true);
@@ -163,6 +184,15 @@ export function RecordingScreen({ route, navigation }: Props) {
         faceDetectionOptions={faceDetectionOptions}
       />
 
+      {stage === "warmup" && (
+        <WarmUpOverlay
+          steps={warmUpSteps}
+          onComplete={advanceFromWarmUp}
+          onClose={() => navigation.goBack()}
+          topInset={insets.top + spacing.sm}
+        />
+      )}
+
       {stage === "prep" && (
         <PrepOverlay
           promptText={prepText}
@@ -222,7 +252,7 @@ export function RecordingScreen({ route, navigation }: Props) {
         </View>
       )}
 
-      {stage !== "prep" && (
+      {stage !== "warmup" && stage !== "prep" && (
         <View style={[styles.bottomBar, { paddingBottom: insets.bottom + spacing.lg }]}>
           {stage === "idle" && !isScript && (
             <RecordBlindToggle value={recordBlind} onValueChange={handleToggleRecordBlind} />

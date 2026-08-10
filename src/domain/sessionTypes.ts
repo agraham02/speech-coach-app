@@ -13,6 +13,18 @@ export interface Prompt {
   difficultyTier: DifficultyTier | null;
 }
 
+// One completed Tongue-Twister Drill attempt (Phase 3) — deliberately not a
+// `Session`: no video, no Gemini grading, no prompt_id. accuracyPercent is 0
+// for manual-timer-fallback attempts (no STT transcript to compare against).
+export interface DrillCompletion {
+  id: string;
+  twisterId: string;
+  completedAt: string;
+  accuracyPercent: number;
+  wpm: number;
+  difficulty: DifficultyTier;
+}
+
 // What a recording is "about" — threaded from the Recording screen all the
 // way through Preview/Processing to sessionProcessor, so the DB insert and
 // the Gemini grading call both know whether this is a spontaneous/free-record
@@ -24,7 +36,26 @@ export type RecordingSubject =
   | { kind: "prompt"; prompt: Prompt; planText?: PlanText; conciseSeconds?: number }
   | { kind: "script"; script: Script; cuesEnabled: boolean };
 
-export type TranscriptionSource = "gemini" | "on_device";
+// 'whisper_ondevice' is the default free path (react-native-executorch,
+// Phase 2 — the plan originally targeted Moonshine, but the installed
+// package's speech-to-text module only ships Whisper; see plan.md's
+// correction note). 'assemblyai' is the opt-in paid upgrade. 'on_device' is
+// kept for pre-Phase-2 rows that used that generic value; 'gemini' is the
+// fallback when neither on-device nor AssemblyAI produced a transcript.
+export type TranscriptionSource = "gemini" | "on_device" | "whisper_ondevice" | "assemblyai";
+
+export interface TranscriptWord {
+  text: string;
+  startMs: number;
+  endMs: number;
+}
+
+export interface WpmPoint {
+  bucketStartSeconds: number;
+  wpm: number;
+}
+
+export type DspStatus = "complete" | "failed";
 
 export type SessionStatus =
   | "recording"
@@ -72,6 +103,27 @@ export interface Session {
   planPointText: string | null;
   planReasonText: string | null;
   planExampleText: string | null;
+  // Audio-first pipeline (Phase 2) — all nullable, populated in a follow-up
+  // write after transcription/analysis completes, independent of wantsGrading
+  // (same convention as fillerWordCount above). transcriptWords/wpmCurve come
+  // from whichever transcript engine actually ran (on-device ASR by default,
+  // AssemblyAI if opted in) — null if both that and the Gemini-fallback path
+  // were used instead (no word-level timestamps available in that case).
+  transcriptWords: TranscriptWord[] | null;
+  wpmCurve: WpmPoint[] | null;
+  repeatedWordCount: number | null;
+  assemblyaiTranscriptId: string | null;
+  // dspStatus null = never attempted (e.g. decode failed before analysis
+  // could even start); 'failed' = attempted and failed; 'complete' = the
+  // pitch/volume fields below are populated.
+  dspStatus: DspStatus | null;
+  pitchContourHz: (number | null)[] | null;
+  volumeEnvelopeDbfs: number[] | null;
+  pitchAvgHz: number | null;
+  pitchMinHz: number | null;
+  pitchMaxHz: number | null;
+  volumeAvgDbfs: number | null;
+  volumeStddevDbfs: number | null;
 }
 
 export type StructureUsed = "what/why/how" | "story arc" | "none detected" | "other";

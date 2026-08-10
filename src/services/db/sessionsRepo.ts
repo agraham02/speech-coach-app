@@ -1,6 +1,13 @@
 import { getDatabase } from "./database";
 import { rowToSession, type SessionRow } from "./mappers";
-import type { Session, SessionStatus } from "../../domain/sessionTypes";
+import type {
+  DspStatus,
+  Session,
+  SessionStatus,
+  TranscriptionSource,
+  TranscriptWord,
+  WpmPoint,
+} from "../../domain/sessionTypes";
 import { todayISODate } from "../../utils/dateUtils";
 
 export async function insertSession(session: Session): Promise<void> {
@@ -37,11 +44,60 @@ export async function updateSessionTranscripts(
   transcriptVerbatim: string,
   transcriptClean: string,
   durationSeconds: number,
+  transcriptionSource: TranscriptionSource,
 ): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    `UPDATE sessions SET transcript_verbatim = ?, transcript_clean = ?, duration_seconds = ? WHERE id = ?`,
-    [transcriptVerbatim, transcriptClean, durationSeconds, id],
+    `UPDATE sessions SET transcript_verbatim = ?, transcript_clean = ?, duration_seconds = ?, transcription_source = ? WHERE id = ?`,
+    [transcriptVerbatim, transcriptClean, durationSeconds, transcriptionSource, id],
+  );
+}
+
+// Audio-first pipeline (Phase 2) follow-up write — populated after
+// transcription/DSP analysis completes, independent of wants_grading (same
+// convention as updateSessionFillerStats below). Whichever fields the caller
+// doesn't have (e.g. DSP failed, or no word-level transcript was available)
+// are passed as null and stored as such, never silently omitted — a null
+// dsp_status specifically means "never attempted," distinct from a
+// 'failed' status that means "attempted and failed."
+export interface AudioAnalysisUpdate {
+  transcriptWords: TranscriptWord[] | null;
+  wpmCurve: WpmPoint[] | null;
+  repeatedWordCount: number | null;
+  assemblyaiTranscriptId: string | null;
+  dspStatus: DspStatus | null;
+  pitchContourHz: (number | null)[] | null;
+  volumeEnvelopeDbfs: number[] | null;
+  pitchAvgHz: number | null;
+  pitchMinHz: number | null;
+  pitchMaxHz: number | null;
+  volumeAvgDbfs: number | null;
+  volumeStddevDbfs: number | null;
+}
+
+export async function updateSessionAudioAnalysis(id: string, update: AudioAnalysisUpdate): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    `UPDATE sessions SET
+       transcript_words_json = ?, wpm_curve_json = ?, repeated_word_count = ?, assemblyai_transcript_id = ?,
+       dsp_status = ?, pitch_contour_json = ?, volume_envelope_json = ?,
+       pitch_avg_hz = ?, pitch_min_hz = ?, pitch_max_hz = ?, volume_avg_dbfs = ?, volume_stddev_dbfs = ?
+     WHERE id = ?`,
+    [
+      update.transcriptWords ? JSON.stringify(update.transcriptWords) : null,
+      update.wpmCurve ? JSON.stringify(update.wpmCurve) : null,
+      update.repeatedWordCount,
+      update.assemblyaiTranscriptId,
+      update.dspStatus,
+      update.pitchContourHz ? JSON.stringify(update.pitchContourHz) : null,
+      update.volumeEnvelopeDbfs ? JSON.stringify(update.volumeEnvelopeDbfs) : null,
+      update.pitchAvgHz,
+      update.pitchMinHz,
+      update.pitchMaxHz,
+      update.volumeAvgDbfs,
+      update.volumeStddevDbfs,
+      id,
+    ],
   );
 }
 

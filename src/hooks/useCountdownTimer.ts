@@ -19,24 +19,32 @@ export function useCountdownTimer(totalSeconds: number, onComplete: () => void, 
     if (!enabled) return clear;
 
     intervalRef.current = setInterval(() => {
-      setRemainingSeconds((prev) => {
-        if (prev <= 1) {
-          clear();
-          onCompleteRef.current();
-          return 0;
-        }
-        return prev - 1;
-      });
+      setRemainingSeconds((prev) => (prev <= 1 ? 0 : prev - 1));
     }, 1000);
 
     return clear;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]);
 
+  // Fires onComplete as its own effect once the count hits zero, rather than
+  // from inside the setRemainingSeconds updater above. A state updater is
+  // supposed to be a pure reducer — React Strict Mode double-invokes it to
+  // check that, and a caller whose onComplete sets a *different* component's
+  // state (WarmUpOverlay's step-advance, once WarmUpStepView started using
+  // this hook per-step) turns that double-invoke into a real "Cannot update
+  // a component while rendering a different component" crash. Confirmed
+  // live: reproduced this exact crash on WarmUpOverlay before this fix.
+  useEffect(() => {
+    if (enabled && remainingSeconds === 0) {
+      clear();
+      onCompleteRef.current();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remainingSeconds, enabled]);
+
   const skip = useCallback(() => {
     clear();
     setRemainingSeconds(0);
-    onCompleteRef.current();
   }, [clear]);
 
   return { remainingSeconds, skip };

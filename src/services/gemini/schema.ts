@@ -237,11 +237,23 @@ function planTextSection(planText?: PlanText): string {
   return `\nBefore recording, the speaker planned their point using the PREP framework:\n${lines.join("\n")}\n\nTreat this as their STATED INTENT. Judge relevance and coherence partly by whether the actual response executed on this plan — did they cover what they said they would, roughly in that order? If the response drifted from or contradicted their own stated plan, call that out specifically in relevance_notes or coherence_notes.\n`;
 }
 
-export function buildSystemPrompt(promptText: string, planText?: PlanText): string {
+// When present, gives Gemini an already-verified verbatim transcript (from
+// on-device Whisper or AssemblyAI — see sessionProcessor.ts) as grounding —
+// Gemini still produces its own transcript_verbatim/transcript_clean (so its
+// own evidence-quote annotations stay guaranteed-locatable within whatever
+// it returns), but is told to treat the provided text as ground truth rather
+// than re-transcribing from scratch, and to lean on it for coherence/
+// relevance judgment.
+function groundingSection(groundingTranscript?: string): string {
+  if (!groundingTranscript || !groundingTranscript.trim()) return "";
+  return `\nA dedicated speech-to-text system has already produced this verified verbatim transcript of the recording:\n"""\n${groundingTranscript.trim()}\n"""\nUse it as ground truth for what was actually said — your own transcript_verbatim should match it closely (word choice, filler words included) rather than re-transcribing independently, and use it to inform your coherence/relevance judgment.\n`;
+}
+
+export function buildSystemPrompt(promptText: string, planText?: PlanText, groundingTranscript?: string): string {
   return `You are a rigorous, critical speaking coach grading a personal daily speaking-practice session — not a supportive cheerleader. Analyze this video clip of someone responding, unscripted, to a prompt.
 
 The speaker was responding to this prompt: "${promptText}"
-${planTextSection(planText)}
+${planTextSection(planText)}${groundingSection(groundingTranscript)}
 GRADING PHILOSOPHY (read this before scoring anything):
 - Be honest and demanding. Most unrehearsed, spontaneous responses should land in the 4-7 range across dimensions. Reserve 8-10 for genuinely strong, polished delivery you'd hold up as an example. Do not round scores up out of politeness, and do not default to the middle just because you're uncertain — look for specific evidence either way.
 - Anchor every score against this band: 1-2 unacceptable (a real problem that undermines the response), 3-4 weak (noticeably holds the response back), 5-6 developing (competent but with clear, nameable flaws), 7-8 strong (few flaws, would need a specific stretch to reach 9-10), 9-10 exceptional (nothing meaningful to critique).
@@ -392,6 +404,35 @@ Produce two transcripts of what was said:
 2. transcript_clean: the same content rewritten as grammatically clean prose, with fillers and false starts removed, suitable for pasting directly into a personal journal. Preserve the speaker's meaning, tone, and word choice as much as possible — do not summarize or add content that wasn't said.
 
 Also report duration_seconds: the approximate duration of the recording in seconds.
+
+Respond only with JSON matching the provided schema.`;
+}
+
+// Text-only path (no video ever uploaded) — used when an on-device or
+// AssemblyAI transcript already exists and grading wasn't requested, so the
+// only thing still worth a Gemini call is rewriting the verbatim text into
+// clean journal prose. See sessionProcessor.ts's non-grading, transcript-
+// resolved branch.
+export const TRANSCRIPT_CLEAN_ONLY_SCHEMA = {
+  type: "object",
+  properties: {
+    transcript_clean: {
+      type: "string",
+      description: "Grammatically cleaned transcript, ready to paste into a journal.",
+    },
+  },
+  required: ["transcript_clean"],
+} as const;
+
+export function buildTranscriptCleanOnlySystemPrompt(rawTranscript: string): string {
+  return `You are cleaning up a transcript for a personal journal.
+
+Here is the verbatim transcript exactly as spoken, from a dedicated speech-to-text system:
+"""
+${rawTranscript}
+"""
+
+Rewrite it as grammatically clean prose, with filler words (um, uh, like) and false starts removed, suitable for pasting directly into a personal journal. Preserve the speaker's meaning, tone, and word choice as much as possible — do not summarize, and do not add or invent anything not present in the verbatim text above.
 
 Respond only with JSON matching the provided schema.`;
 }

@@ -17,6 +17,8 @@ const KEYS = {
   reminderSettings: "reminderSettings",
   planYourPointEnabled: "planYourPointEnabled",
   conciseModeSeconds: "conciseModeSeconds",
+  assemblyAiEnabled: "assemblyAiEnabled",
+  warmUpEnabled: "warmUpEnabled",
 } as const;
 
 export function getRecordBlindPref(): boolean {
@@ -83,4 +85,25 @@ export function getConciseModeSeconds(): number {
 
 export function setConciseModeSeconds(value: number): void {
   storage.set(KEYS.conciseModeSeconds, value);
+}
+
+// Off by default, same as Prep phase — an opt-in extra step, not a
+// surprise addition to the recording flow.
+export function getWarmUpEnabled(): boolean {
+  return storage.getBoolean(KEYS.warmUpEnabled) ?? false;
+}
+
+export function setWarmUpEnabled(value: boolean): void {
+  storage.set(KEYS.warmUpEnabled, value);
+}
+
+// Off by default — this is the only paid element in the audio pipeline
+// (AssemblyAI, ~$0.15-0.21/hr), so it must never turn on silently. See
+// SettingsScreen.tsx's "Cloud transcription" card.
+export function getAssemblyAiEnabled(): boolean {
+  return storage.getBoolean(KEYS.assemblyAiEnabled) ?? false;
+}
+
+export function setAssemblyAiEnabled(value: boolean): void {
+  storage.set(KEYS.assemblyAiEnabled, value);
 }

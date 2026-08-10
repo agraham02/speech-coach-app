@@ -1,6 +1,8 @@
 import type {
   Archetype,
   DifficultyTier,
+  DrillCompletion,
+  DspStatus,
   Prompt,
   Session,
   SessionScores,
@@ -8,6 +10,8 @@ import type {
   SessionType,
   StructureUsed,
   TranscriptionSource,
+  TranscriptWord,
+  WpmPoint,
 } from "../../domain/sessionTypes";
 import type { GeminiQuoteAnnotation } from "../../domain/transcriptAnnotations";
 import { logger } from "../../utils/logger";
@@ -35,6 +39,32 @@ export interface SessionRow {
   plan_point_text: string | null;
   plan_reason_text: string | null;
   plan_example_text: string | null;
+  transcript_words_json: string | null;
+  wpm_curve_json: string | null;
+  repeated_word_count: number | null;
+  assemblyai_transcript_id: string | null;
+  dsp_status: string | null;
+  pitch_contour_json: string | null;
+  volume_envelope_json: string | null;
+  pitch_avg_hz: number | null;
+  pitch_min_hz: number | null;
+  pitch_max_hz: number | null;
+  volume_avg_dbfs: number | null;
+  volume_stddev_dbfs: number | null;
+}
+
+// Generic nullable-JSON-column parser — logs and degrades to null rather
+// than throwing, since a malformed value here should never break loading the
+// rest of the session (mirrors parseAnnotationsJson's degrade-not-throw
+// philosophy below, just null-shaped instead of []-shaped).
+function parseNullableJson<T>(json: string | null, columnName: string): T | null {
+  if (json === null) return null;
+  try {
+    return JSON.parse(json) as T;
+  } catch (error) {
+    logger.warn(`[db] failed to parse ${columnName}, defaulting to null: ${(error as Error).message}`);
+    return null;
+  }
 }
 
 export function rowToSession(row: SessionRow): Session {
@@ -61,6 +91,18 @@ export function rowToSession(row: SessionRow): Session {
     planPointText: row.plan_point_text,
     planReasonText: row.plan_reason_text,
     planExampleText: row.plan_example_text,
+    transcriptWords: parseNullableJson<TranscriptWord[]>(row.transcript_words_json, "transcript_words_json"),
+    wpmCurve: parseNullableJson<WpmPoint[]>(row.wpm_curve_json, "wpm_curve_json"),
+    repeatedWordCount: row.repeated_word_count,
+    assemblyaiTranscriptId: row.assemblyai_transcript_id,
+    dspStatus: row.dsp_status as DspStatus | null,
+    pitchContourHz: parseNullableJson<(number | null)[]>(row.pitch_contour_json, "pitch_contour_json"),
+    volumeEnvelopeDbfs: parseNullableJson<number[]>(row.volume_envelope_json, "volume_envelope_json"),
+    pitchAvgHz: row.pitch_avg_hz,
+    pitchMinHz: row.pitch_min_hz,
+    pitchMaxHz: row.pitch_max_hz,
+    volumeAvgDbfs: row.volume_avg_dbfs,
+    volumeStddevDbfs: row.volume_stddev_dbfs,
   };
 }
 
@@ -164,5 +206,25 @@ export function rowToScores(row: ScoreRow): SessionScores {
     annotations: parseAnnotationsJson(row.annotations_json),
     cueComplianceScore: row.cue_compliance_score,
     cueComplianceNotes: row.cue_compliance_notes,
+  };
+}
+
+export interface DrillCompletionRow {
+  id: string;
+  twister_id: string;
+  completed_at: string;
+  accuracy_percent: number;
+  wpm: number;
+  difficulty: string;
+}
+
+export function rowToDrillCompletion(row: DrillCompletionRow): DrillCompletion {
+  return {
+    id: row.id,
+    twisterId: row.twister_id,
+    completedAt: row.completed_at,
+    accuracyPercent: row.accuracy_percent,
+    wpm: row.wpm,
+    difficulty: row.difficulty as DifficultyTier,
   };
 }

@@ -6,12 +6,15 @@ import {
   buildHighlightSegments,
   computeFillerStats,
   detectFillerWords,
+  detectRepeatedWordsFromText,
+  detectRepeatedWordsFromWords,
   labelForRate,
   locateQuote,
   type AnnotationCategory,
   type GeminiQuoteAnnotation,
   type LocatedAnnotation,
 } from "../../domain/transcriptAnnotations";
+import type { TranscriptWord } from "../../domain/sessionTypes";
 import { annotationColors, colors, radii, spacing, typography } from "../../theme/theme";
 
 interface AnnotatedTranscriptProps {
@@ -19,6 +22,12 @@ interface AnnotatedTranscriptProps {
   durationSeconds: number;
   fillerWordCount: number | null;
   fillerRatePerMinute: number | null;
+  // Word-level timestamps from on-device ASR/AssemblyAI, if available —
+  // preferred source for repeated-words detection (more reliable than a
+  // naive whitespace split); falls back to scanning transcriptVerbatim
+  // directly when null (Gemini self-transcribed, no word array exists).
+  transcriptWords: TranscriptWord[] | null;
+  repeatedWordCount: number | null;
   annotations: GeminiQuoteAnnotation[];
 }
 
@@ -34,6 +43,7 @@ const CATEGORY_LABELS: Record<AnnotationCategory, string> = {
   presence: "Presence",
   content: "Content",
   restated_point: "Restated point",
+  repeated_words: "Repeated speech pattern",
 };
 
 export function AnnotatedTranscript({
@@ -41,6 +51,8 @@ export function AnnotatedTranscript({
   durationSeconds,
   fillerWordCount,
   fillerRatePerMinute,
+  transcriptWords,
+  repeatedWordCount,
   annotations,
 }: AnnotatedTranscriptProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -56,6 +68,12 @@ export function AnnotatedTranscript({
       ? { count: fillerWordCount, ratePerMinute: fillerRatePerMinute, label: labelForRate(fillerRatePerMinute) }
       : computeFillerStats(transcriptVerbatim, durationSeconds);
 
+  const repeatedWordMatches =
+    transcriptWords && transcriptWords.length > 0
+      ? detectRepeatedWordsFromWords(transcriptWords)
+      : detectRepeatedWordsFromText(transcriptVerbatim);
+  const repeatedCount = repeatedWordCount ?? repeatedWordMatches.length;
+
   const located: LocatedAnnotation[] = [
     ...fillerMatches.map((match) => ({
       start: match.start,
@@ -63,6 +81,25 @@ export function AnnotatedTranscript({
       category: "filler" as AnnotationCategory,
       note: `Filler word ("${match.word}") — cut it or replace it with a deliberate pause.`,
     })),
+    ...(() => {
+      // Same "advance past claimed spans" tracking as the Gemini-annotation
+      // resolver below — a repeated run like "the the" could legitimately
+      // occur more than once in a transcript.
+      const nextSearchIndex = new Map<string, number>();
+      return repeatedWordMatches
+        .map((match): LocatedAnnotation | null => {
+          const key = match.quote.trim().toLowerCase();
+          const span = locateQuote(transcriptVerbatim, match.quote, nextSearchIndex.get(key) ?? 0);
+          if (!span) return null;
+          nextSearchIndex.set(key, span.end);
+          return {
+            ...span,
+            category: "repeated_words" as AnnotationCategory,
+            note: `Repeated speech pattern ("${match.quote}") — a secondary signal distinct from restated ideas; not a diagnosis.`,
+          };
+        })
+        .filter((a): a is NonNullable<typeof a> => a !== null);
+    })(),
     ...(() => {
       // Track where the search left off for each distinct quote string, so if
       // the same quote is annotated more than once, each occurrence resolves
@@ -113,6 +150,11 @@ export function AnnotatedTranscript({
       <Text style={styles.statLine}>
         {stats.count} filler word{stats.count === 1 ? "" : "s"} · {stats.ratePerMinute}/min · {stats.label}
       </Text>
+      {repeatedCount > 0 ? (
+        <Text style={styles.statLineSecondary}>
+          {repeatedCount} repeated speech pattern{repeatedCount === 1 ? "" : "s"}
+        </Text>
+      ) : null}
 
       {categoriesPresent.size > 0 ? (
         <View style={styles.legend}>
@@ -162,6 +204,7 @@ export function AnnotatedTranscript({
 const styles = StyleSheet.create({
   container: { gap: spacing.sm },
   statLine: { color: colors.warning, fontSize: typography.caption, fontWeight: "700" },
+  statLineSecondary: { color: colors.indigo, fontSize: typography.caption, fontWeight: "700" },
   legend: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
   legendItem: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   legendDot: { width: 9, height: 9, borderRadius: radii.pill },

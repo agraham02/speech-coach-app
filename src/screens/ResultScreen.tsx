@@ -16,6 +16,8 @@ import { colorForScore } from "../components/result/scoreColor";
 import { VideoPlayback } from "../components/result/VideoPlayback";
 import { AnnotatedTranscript } from "../components/result/AnnotatedTranscript";
 import { ScoreRadarChart } from "../components/result/ScoreRadarChart";
+import { WpmSparkline } from "../components/result/WpmSparkline";
+import { PitchVolumeChart } from "../components/result/PitchVolumeChart";
 import { useToast } from "../components/common/ToastProvider";
 import { getSessionById, deleteSession, deleteSessionVideo } from "../services/db/sessionsRepo";
 import { getPreviousOverallScore, getScoresBySessionId } from "../services/db/scoresRepo";
@@ -316,10 +318,16 @@ export function ResultScreen({ route, navigation }: Props) {
 
             <Text style={[styles.sectionLabel, styles.sectionSpacer]}>DELIVERY</Text>
             <ScoreBar label="Rate" score={scores.rateScore} notes={scores.rateNotes} suffix={`${scores.rateWpmAvg} wpm`} />
+            <WpmSparkline wpmCurve={session.wpmCurve} />
             <ScoreBar label="Volume" score={scores.volumeScore} notes={scores.volumeNotes} />
             <ScoreBar label="Pitch & Melody" score={scores.pitchMelodyScore} notes={scores.pitchMelodyNotes} />
             <ScoreBar label="Tonality" score={scores.tonalityScore} notes={scores.tonalityNotes} />
             <ScoreBar label="Pausing" score={scores.pausingScore} notes={scores.pausingNotes} />
+            <PitchVolumeChart
+              dspStatus={session.dspStatus}
+              pitchContourHz={session.pitchContourHz}
+              volumeEnvelopeDbfs={session.volumeEnvelopeDbfs}
+            />
 
             <Text style={[styles.sectionLabel, styles.sectionSpacer]}>PRESENCE</Text>
             <ScoreBar label="Eye Contact" score={scores.eyeContactScore} />
@@ -355,6 +363,8 @@ export function ResultScreen({ route, navigation }: Props) {
               durationSeconds={session.durationSeconds}
               fillerWordCount={session.fillerWordCount}
               fillerRatePerMinute={session.fillerRatePerMinute}
+              transcriptWords={session.transcriptWords}
+              repeatedWordCount={session.repeatedWordCount}
               annotations={scores?.annotations ?? []}
             />
           </Card>

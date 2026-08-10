@@ -115,31 +115,35 @@ export async function waitForFileActive(
   throw new GeminiApiError(`Timed out waiting for ${fileName} to become ACTIVE`);
 }
 
+// fileUri/mimeType are optional — omitting both fires a text-only call (no
+// video ever leaves the device), used for the grounded/no-grading path where
+// an on-device or AssemblyAI transcript already exists and Gemini is only
+// asked to produce transcript_clean (see transcribeSession.ts). mediaResolution
+// is only meaningful when actual media is attached, so it's omitted for
+// text-only calls rather than sent as a no-op.
 export async function generateContent(args: {
-  fileUri: string;
-  mimeType: string;
+  fileUri?: string;
+  mimeType?: string;
   systemPrompt: string;
   responseSchema: object;
   mediaResolution?: "MEDIA_RESOLUTION_LOW" | "MEDIA_RESOLUTION_MEDIUM";
 }): Promise<string> {
+  const hasMedia = !!args.fileUri && !!args.mimeType;
+  const parts: object[] = hasMedia
+    ? [{ file_data: { file_uri: args.fileUri, mime_type: args.mimeType } }, { text: args.systemPrompt }]
+    : [{ text: args.systemPrompt }];
+
   const response = await fetch(
     `${API_BASE}/v1beta/models/${MODEL}:generateContent?${await apiKeyQuery()}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { file_data: { file_uri: args.fileUri, mime_type: args.mimeType } },
-              { text: args.systemPrompt },
-            ],
-          },
-        ],
+        contents: [{ parts }],
         generationConfig: {
           responseMimeType: "application/json",
           responseSchema: args.responseSchema,
-          mediaResolution: args.mediaResolution ?? "MEDIA_RESOLUTION_LOW",
+          ...(hasMedia ? { mediaResolution: args.mediaResolution ?? "MEDIA_RESOLUTION_LOW" } : {}),
         },
       }),
     },

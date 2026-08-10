@@ -1,5 +1,12 @@
 import * as Haptics from "expo-haptics";
-import { transcribeOnly, transcribeSession, type GradingContext, type TranscribeProgressStep } from "../gemini/transcribeSession";
+import {
+  analyzeUploadedVideo,
+  cleanTranscriptOnly,
+  transcribeOnly,
+  uploadVideoForGrading,
+  type GradingContext,
+  type TranscribeProgressStep,
+} from "../gemini/transcribeSession";
 import { describeGeminiError } from "../gemini/describeError";
 import { appendTodayTranscript } from "../notion/appendTodayTranscript";
 import { describeNotionError } from "../notion/describeError";
@@ -7,11 +14,18 @@ import {
   getSessionById,
   insertSession,
   markSessionNotionSynced,
+  updateSessionAudioAnalysis,
   updateSessionFillerStats,
   updateSessionStatus,
   updateSessionTranscripts,
+  type AudioAnalysisUpdate,
 } from "../db/sessionsRepo";
-import { computeFillerStats } from "../../domain/transcriptAnnotations";
+import { computeFillerStats, detectRepeatedWordsFromWords } from "../../domain/transcriptAnnotations";
+import { decodeVideoAudio, analyzePitchVolume, type PitchVolumeAnalysis } from "../../domain/audioAnalysis";
+import { transcribeOnDevice } from "../onDeviceAsr/onDeviceAsrClient";
+import { transcribeWithAssemblyAi } from "../assemblyai/assemblyAiClient";
+import { getAssemblyAiEnabled } from "../prefs/prefsStore";
+import { computeWpmCurve } from "../../domain/wpmCurve";
 import { getCompletedSessionDates } from "../db/statsRepo";
 import { analysisToSessionScores, getScoresBySessionId, upsertScores } from "../db/scoresRepo";
 import { getPrompt } from "../db/promptsRepo";
@@ -25,7 +39,7 @@ import { syncDailyReminder } from "../notifications/reminderScheduler";
 import { navigationRef } from "../../navigation/navigationRef";
 import { computeStreaks, streakMilestoneReached } from "../../domain/streaks";
 import { logger } from "../../utils/logger";
-import type { RecordingSubject, Session, SessionType } from "../../domain/sessionTypes";
+import type { RecordingSubject, Session, SessionType, TranscriptWord, TranscriptionSource } from "../../domain/sessionTypes";
 
 function subjectToGradingContext(subject: RecordingSubject): GradingContext {
   return subject.kind === "script"
@@ -48,6 +62,9 @@ function subjectToSessionType(subject: RecordingSubject): SessionType {
 // Rebuilds a GradingContext for a previously-saved session (the "Grade with
 // Gemini" retry path from Result screen) — unlike the initial pipeline run,
 // there's no RecordingSubject from navigation params here, just the DB row.
+// Deliberately does NOT re-resolve a groundingTranscript from the session's
+// own stored transcriptWords (Gemini Files API entries expire after 48h, so
+// this is always a full fresh video upload+self-transcription regardless).
 export async function sessionToGradingContext(session: Session): Promise<GradingContext | null> {
   if (session.sessionType === "script_practice") {
     const script = session.scriptId ? getScriptById(session.scriptId) : undefined;
@@ -131,6 +148,115 @@ function progressStepToPhase(step: TranscribeProgressStep): ProcessingPhase {
   return "transcribing";
 }
 
+// ---------------------------------------------------------------------------
+// Audio-first pipeline (Phase 2): on-device ASR (default, free) + AssemblyAI
+// (opt-in) + on-device pitch/volume DSP. All independent of wants_grading —
+// see plan.md's Phase 2 for the full design/rationale.
+// ---------------------------------------------------------------------------
+
+interface ResolvedTranscriptSource {
+  text: string;
+  words: TranscriptWord[];
+  engine: Extract<TranscriptionSource, "whisper_ondevice" | "assemblyai">;
+  assemblyaiTranscriptId: string | null;
+  durationSeconds: number;
+}
+
+// Decodes the video's audio track once (shared by ASR + DSP), then runs
+// on-device ASR and (if opted in) AssemblyAI concurrently, plus DSP pitch/
+// volume analysis. Never throws — every leg degrades to null/failed on its
+// own so one failure never blocks the others or the overall session.
+async function resolveTranscriptAndAudio(videoUri: string): Promise<{
+  transcriptSource: ResolvedTranscriptSource | null;
+  dsp: PitchVolumeAnalysis | null;
+}> {
+  const decoded = await decodeVideoAudio(videoUri);
+  if (!decoded) {
+    logger.warn("[pipeline] audio decode failed — on-device ASR and DSP both unavailable for this session");
+  }
+
+  const [onDeviceResult, assemblyAiResult] = await Promise.all([
+    decoded
+      ? transcribeOnDevice(decoded.waveform).catch((error) => {
+          logger.error(`[pipeline] on-device ASR failed — ${(error as Error).message}`);
+          return null;
+        })
+      : Promise.resolve(null),
+    getAssemblyAiEnabled()
+      ? transcribeWithAssemblyAi(videoUri).catch((error) => {
+          logger.error(`[pipeline] AssemblyAI transcription failed — ${(error as Error).message}`);
+          return null;
+        })
+      : Promise.resolve(null),
+  ]);
+
+  const dsp = decoded ? analyzePitchVolume(decoded.waveform, decoded.sampleRate) : null;
+
+  // AssemblyAI takes priority when configured+succeeded (the reason to pay
+  // for it is higher accuracy); on-device otherwise; null means both legs
+  // failed/were unavailable, so the caller falls all the way back to Gemini
+  // self-transcription.
+  const transcriptSource: ResolvedTranscriptSource | null = assemblyAiResult
+    ? {
+        text: assemblyAiResult.text,
+        words: assemblyAiResult.words,
+        engine: "assemblyai",
+        assemblyaiTranscriptId: assemblyAiResult.id,
+        durationSeconds: assemblyAiResult.audioDurationSeconds,
+      }
+    : onDeviceResult
+      ? {
+          text: onDeviceResult.text,
+          words: onDeviceResult.words.map((w) => ({
+            text: w.text,
+            startMs: Math.round(w.startSeconds * 1000),
+            endMs: Math.round(w.endSeconds * 1000),
+          })),
+          engine: "whisper_ondevice",
+          assemblyaiTranscriptId: null,
+          durationSeconds: onDeviceResult.durationSeconds,
+        }
+      : null;
+
+  return { transcriptSource, dsp };
+}
+
+// Persists everything the audio-first pipeline produced, independent of
+// wants_grading — repeated-word count and the WPM curve both need
+// word-level timestamps, so they're null whenever no transcript source
+// resolved (full Gemini-fallback case), not zero/empty.
+async function persistAudioAnalysis(
+  sessionId: string,
+  transcriptSource: ResolvedTranscriptSource | null,
+  dsp: PitchVolumeAnalysis | null,
+): Promise<void> {
+  const update: AudioAnalysisUpdate = {
+    transcriptWords: transcriptSource?.words ?? null,
+    wpmCurve:
+      transcriptSource && transcriptSource.words.length > 0
+        ? computeWpmCurve(transcriptSource.words, transcriptSource.durationSeconds)
+        : null,
+    repeatedWordCount:
+      transcriptSource && transcriptSource.words.length > 0
+        ? detectRepeatedWordsFromWords(transcriptSource.words).length
+        : null,
+    assemblyaiTranscriptId: transcriptSource?.assemblyaiTranscriptId ?? null,
+    dspStatus: dsp?.status ?? null,
+    pitchContourHz: dsp?.pitchContourHz ?? null,
+    volumeEnvelopeDbfs: dsp?.volumeEnvelopeDbfs ?? null,
+    pitchAvgHz: dsp?.pitchAvgHz ?? null,
+    pitchMinHz: dsp?.pitchMinHz ?? null,
+    pitchMaxHz: dsp?.pitchMaxHz ?? null,
+    volumeAvgDbfs: dsp?.volumeAvgDbfs ?? null,
+    volumeStddevDbfs: dsp?.volumeStddevDbfs ?? null,
+  };
+  await updateSessionAudioAnalysis(sessionId, update);
+  logger.info(
+    `[pipeline] session ${sessionId}: audio analysis persisted ` +
+      `(transcriptSource=${transcriptSource?.engine ?? "none"}, dsp=${dsp?.status ?? "not attempted"})`,
+  );
+}
+
 // Appends the session's clean transcript to Notion and marks it synced. This
 // is the only path to Notion now — called automatically here when the
 // session was saved with "Sync to Notion" on, and also callable later as a
@@ -147,35 +273,71 @@ export async function syncSessionToNotion(sessionId: string): Promise<void> {
   logger.info(`[pipeline] session ${sessionId}: Notion sync complete`);
 }
 
+// Deterministic, on-device — runs for every session right after a transcript
+// exists, independent of whether Gemini's grading happened to notice
+// fillers. Prefers the audio-first transcript source's text (more reliably
+// preserves filler tokens than Gemini's own self-transcription) when one
+// resolved; the caller passes whichever text actually ended up being the
+// authoritative one for this session.
+async function persistFillerStats(sessionId: string, transcriptText: string, durationSeconds: number): Promise<void> {
+  const stats = computeFillerStats(transcriptText, durationSeconds);
+  await updateSessionFillerStats(sessionId, stats.count, stats.ratePerMinute);
+  logger.info(`[pipeline] session ${sessionId}: filler stats = ${stats.count} words, ${stats.ratePerMinute}/min (${stats.label})`);
+}
+
 // Runs the full grading rubric (upload -> transcribe -> score) and saves the
-// result. Shared by the on-demand "Grade with Gemini" retry path and the
-// initial pipeline run below so the two don't drift out of sync.
+// result. Shared by the on-demand "Grade with Gemini" retry path
+// (gradeExistingSession) and the initial pipeline run below so the two don't
+// drift out of sync. The retry path doesn't get the parallel-upload
+// optimization (audioAnalysis defaults to "not attempted") since Gemini
+// Files API entries expire after 48h anyway — a retry is always a fresh
+// video upload with nothing to parallelize against on the audio side.
 async function runGradingPass(
   sessionId: string,
   context: GradingContext,
   videoUri: string,
   emit: (phase: ProcessingPhase, extra?: Partial<{ errorMessage: string }>) => void,
+  audioAnalysis: { transcriptSource: ResolvedTranscriptSource | null; dsp: PitchVolumeAnalysis | null } = {
+    transcriptSource: null,
+    dsp: null,
+  },
 ): Promise<ReturnType<typeof analysisToSessionScores>> {
-  const analysis = await transcribeSession(videoUri, context, (step) => emit(progressStepToPhase(step)));
+  emit("uploading");
+  const uploaded = await uploadVideoForGrading(videoUri, (step) => emit(progressStepToPhase(step)));
+
+  const groundedContext: GradingContext =
+    context.kind === "prompt" && audioAnalysis.transcriptSource
+      ? { ...context, groundingTranscript: audioAnalysis.transcriptSource.text }
+      : context;
+
+  const analysis = await analyzeUploadedVideo(uploaded, groundedContext, (step) => emit(progressStepToPhase(step)));
+
+  // Gemini still produces the authoritative transcript_verbatim/transcript_clean
+  // (now grounded, so it should closely match the audio-first source) — this
+  // keeps Gemini's own evidence-quote annotations guaranteed-locatable within
+  // whatever it returns. The audio-first source's word-level data is stored
+  // separately (transcript_words_json etc.) and used for WPM/repeated-words.
   await updateSessionTranscripts(
     sessionId,
     analysis.transcript_verbatim,
     analysis.transcript_clean,
     analysis.duration_seconds,
+    "gemini",
   );
-  await persistFillerStats(sessionId, analysis.transcript_verbatim, analysis.duration_seconds);
+  // Filler detection prefers the audio-first transcript's text when
+  // available — it more reliably preserves filler tokens than Gemini's own
+  // self-transcription (see plan.md's Phase 2).
+  await persistFillerStats(
+    sessionId,
+    audioAnalysis.transcriptSource?.text ?? analysis.transcript_verbatim,
+    analysis.duration_seconds,
+  );
+  await persistAudioAnalysis(sessionId, audioAnalysis.transcriptSource, audioAnalysis.dsp);
+
   const scores = analysisToSessionScores(sessionId, analysis);
   await upsertScores(scores);
   logger.info(`[pipeline] session ${sessionId}: transcripts + scores saved locally`);
   return scores;
-}
-
-// Deterministic, on-device — runs for every session right after a transcript
-// exists, independent of whether Gemini's grading happened to notice fillers.
-async function persistFillerStats(sessionId: string, transcriptVerbatim: string, durationSeconds: number): Promise<void> {
-  const stats = computeFillerStats(transcriptVerbatim, durationSeconds);
-  await updateSessionFillerStats(sessionId, stats.count, stats.ratePerMinute);
-  logger.info(`[pipeline] session ${sessionId}: filler stats = ${stats.count} words, ${stats.ratePerMinute}/min (${stats.label})`);
 }
 
 // Runs the full grading rubric on a session that was saved without it (e.g. a
@@ -188,7 +350,6 @@ export async function gradeExistingSession(sessionId: string, context: GradingCo
     emitProcessingStatus({ sessionId, phase, ...extra });
 
   try {
-    emit("uploading");
     const scores = await runGradingPass(sessionId, context, videoUri, emit);
     logger.info(`[pipeline] session ${sessionId}: graded on demand`);
     emit("done");
@@ -246,6 +407,18 @@ export async function processSession(args: ProcessSessionArgs): Promise<void> {
         planPointText: planFields.point,
         planReasonText: planFields.reason,
         planExampleText: planFields.example,
+        transcriptWords: null,
+        wpmCurve: null,
+        repeatedWordCount: null,
+        assemblyaiTranscriptId: null,
+        dspStatus: null,
+        pitchContourHz: null,
+        volumeEnvelopeDbfs: null,
+        pitchAvgHz: null,
+        pitchMinHz: null,
+        pitchMaxHz: null,
+        volumeAvgDbfs: null,
+        volumeStddevDbfs: null,
       });
     } else {
       logger.info(`[pipeline] session ${sessionId}: found existing row (status=${existing.status}), retrying`);
@@ -266,17 +439,47 @@ export async function processSession(args: ProcessSessionArgs): Promise<void> {
 
     if (!alreadyHasRequiredArtifacts) {
       if (wantsGrading) {
-        await runGradingPass(sessionId, gradingContext, videoUri, emit);
+        // On-device ASR/AssemblyAI/DSP all start concurrently with Gemini's
+        // video upload (inside runGradingPass) — none of them block it.
+        const audioAnalysisPromise = resolveTranscriptAndAudio(videoUri);
+        const audioAnalysis = await audioAnalysisPromise;
+        await runGradingPass(sessionId, gradingContext, videoUri, emit, audioAnalysis);
       } else {
-        const transcript = await transcribeOnly(videoUri, (step) => emit(progressStepToPhase(step)));
-        await updateSessionTranscripts(
-          sessionId,
-          transcript.transcript_verbatim,
-          transcript.transcript_clean,
-          transcript.duration_seconds,
-        );
-        await persistFillerStats(sessionId, transcript.transcript_verbatim, transcript.duration_seconds);
-        logger.info(`[pipeline] session ${sessionId}: transcript-only saved locally`);
+        const audioAnalysis = await resolveTranscriptAndAudio(videoUri);
+        if (audioAnalysis.transcriptSource) {
+          // Free path — video never reaches Gemini. Only a lightweight
+          // text-only call for transcript_clean.
+          emit("transcribing");
+          const transcriptClean = await cleanTranscriptOnly(audioAnalysis.transcriptSource.text);
+          await updateSessionTranscripts(
+            sessionId,
+            audioAnalysis.transcriptSource.text,
+            transcriptClean,
+            audioAnalysis.transcriptSource.durationSeconds,
+            audioAnalysis.transcriptSource.engine,
+          );
+          await persistFillerStats(
+            sessionId,
+            audioAnalysis.transcriptSource.text,
+            audioAnalysis.transcriptSource.durationSeconds,
+          );
+          await persistAudioAnalysis(sessionId, audioAnalysis.transcriptSource, audioAnalysis.dsp);
+          logger.info(`[pipeline] session ${sessionId}: transcript-only saved locally (audio-first, no video upload)`);
+        } else {
+          // Full fallback — neither on-device ASR nor AssemblyAI produced a
+          // transcript, so Gemini self-transcribes from the video as before.
+          const transcript = await transcribeOnly(videoUri, (step) => emit(progressStepToPhase(step)));
+          await updateSessionTranscripts(
+            sessionId,
+            transcript.transcript_verbatim,
+            transcript.transcript_clean,
+            transcript.duration_seconds,
+            "gemini",
+          );
+          await persistFillerStats(sessionId, transcript.transcript_verbatim, transcript.duration_seconds);
+          await persistAudioAnalysis(sessionId, null, audioAnalysis.dsp);
+          logger.info(`[pipeline] session ${sessionId}: transcript-only saved locally (Gemini fallback)`);
+        }
       }
     } else {
       logger.info(`[pipeline] session ${sessionId}: reusing existing transcripts`);
