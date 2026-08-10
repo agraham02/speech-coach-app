@@ -33,6 +33,7 @@ function WarmUpStepView({ step, stepNumber, totalSteps, onStepDone }: WarmUpStep
           Step {stepNumber} of {totalSteps} · {step.label}
         </Text>
         <Text style={styles.instruction}>{step.instruction}</Text>
+        <Text style={styles.explain}>{step.explain}</Text>
       </View>
 
       <View style={styles.countdownWrap} pointerEvents="none">
@@ -66,15 +67,30 @@ export function WarmUpOverlay({ steps, onComplete, onClose, topInset }: WarmUpOv
 
   return (
     <View style={styles.container} pointerEvents="box-none">
-      <Pressable
-        onPress={onClose}
-        style={[styles.closeButton, { top: topInset }]}
-        hitSlop={12}
-        accessibilityRole="button"
-        accessibilityLabel="Close"
-      >
-        <Ionicons name="close" size={22} color={colors.textPrimary} />
-      </Pressable>
+      <View style={[styles.topRow, { top: topInset }]}>
+        <Pressable
+          onPress={onClose}
+          style={styles.closeButton}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+        >
+          <Ionicons name="close" size={22} color={colors.textPrimary} />
+        </Pressable>
+
+        {/* Distinct from ✕ on purpose — ✕ exits the whole recording screen
+            (confirmed live, worth keeping separate), this only dismisses the
+            warm-up and moves on to Prep/idle, same as finishing it normally. */}
+        <Pressable
+          onPress={onComplete}
+          style={styles.skipAllButton}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Skip warm-up"
+        >
+          <Text style={styles.skipAllText}>Skip warm-up</Text>
+        </Pressable>
+      </View>
 
       <WarmUpStepView
         key={stepIndex}
@@ -98,20 +114,36 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: spacing.xxl,
   },
-  closeButton: {
+  topRow: {
     position: "absolute",
     left: spacing.lg,
+    right: spacing.lg,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    zIndex: 1,
+  },
+  closeButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
     backgroundColor: "rgba(0,0,0,0.55)",
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 1,
   },
+  skipAllButton: {
+    backgroundColor: "rgba(0,0,0,0.55)",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radii.pill,
+  },
+  skipAllText: { color: colors.textPrimary, fontSize: typography.caption, fontWeight: "600" },
   top: { gap: spacing.sm, paddingHorizontal: spacing.xl, alignItems: "center", marginTop: spacing.xl },
   label: { color: colors.accent, fontSize: typography.caption, fontWeight: "700", letterSpacing: 1 },
   instruction: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "600", textAlign: "center" },
+  // Deliberately smaller/softer than `instruction` — the "why" belongs to
+  // this line now, not nested as jargon inside the instruction itself.
+  explain: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18, textAlign: "center" },
   countdownWrap: {
     width: 140,
     height: 140,

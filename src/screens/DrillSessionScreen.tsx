@@ -205,8 +205,8 @@ export function DrillSessionScreen({ route, navigation }: Props) {
               : `${result.accuracyPercent}% approximate match`}
           </Text>
           <View style={styles.resultActions}>
-            <PrimaryButton label="Retry" variant="secondary" onPress={handleRetry} />
-            <PrimaryButton label="Done" onPress={() => navigation.goBack()} />
+            <PrimaryButton label="Retry" variant="secondary" onPress={handleRetry} style={styles.resultButton} />
+            <PrimaryButton label="Done" onPress={() => navigation.goBack()} style={styles.resultButton} />
           </View>
         </Card>
       ) : (
@@ -247,5 +247,6 @@ const styles = StyleSheet.create({
   resultWpm: { color: colors.textPrimary, fontSize: typography.headline, fontWeight: "800" },
   resultAccuracy: { color: colors.textSecondary, fontSize: typography.body, textAlign: "center" },
   resultActions: { flexDirection: "row", gap: spacing.sm, width: "100%" },
+  resultButton: { flex: 1 },
   missingText: { color: colors.textMuted, fontSize: typography.body },
 });

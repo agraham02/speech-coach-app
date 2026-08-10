@@ -1,4 +1,4 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from "react-native";
 import { colors, radii, spacing, typography } from "../../theme/theme";
 
 interface PrimaryButtonProps {
@@ -7,9 +7,13 @@ interface PrimaryButtonProps {
   disabled?: boolean;
   loading?: boolean;
   variant?: "primary" | "danger" | "secondary" | "ghost";
+  // Escape hatch for layout only (e.g. `flex: 1` to split a row evenly) —
+  // merged after the variant styles, so it can't override the button's own
+  // color/appearance rules.
+  style?: StyleProp<ViewStyle>;
 }
 
-export function PrimaryButton({ label, onPress, disabled, loading, variant = "primary" }: PrimaryButtonProps) {
+export function PrimaryButton({ label, onPress, disabled, loading, variant = "primary", style }: PrimaryButtonProps) {
   const isDisabled = disabled || loading;
 
   return (
@@ -23,6 +27,7 @@ export function PrimaryButton({ label, onPress, disabled, loading, variant = "pr
         variant === "ghost" && styles.ghost,
         isDisabled && styles.disabled,
         pressed && !isDisabled && styles.pressed,
+        style,
       ]}
     >
       {loading ? (

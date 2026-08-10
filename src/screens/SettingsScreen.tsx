@@ -9,19 +9,11 @@ import { LabeledSlider } from "../components/common/LabeledSlider";
 import { useToast } from "../components/common/ToastProvider";
 import {
   getAssemblyAiEnabled,
-  getConciseModeSeconds,
   getPlanYourPointEnabled,
-  getPrepPhaseSettings,
-  getRecordingDurationSettings,
   getReminderSettings,
-  getWarmUpEnabled,
   setAssemblyAiEnabled,
-  setConciseModeSeconds,
   setPlanYourPointEnabled,
-  setPrepPhaseSettings,
-  setRecordingDurationSettings,
   setReminderSettings,
-  setWarmUpEnabled,
 } from "../services/prefs/prefsStore";
 import {
   getAssemblyAiApiKey,
@@ -33,31 +25,11 @@ import {
   setNotionPageId,
   setNotionToken,
 } from "../services/secrets/secretsStore";
-import {
-  CONCISE_DURATION_MAX_SECONDS,
-  CONCISE_DURATION_MIN_SECONDS,
-  CONCISE_DURATION_STEP_SECONDS,
-  PREP_DURATION_MAX_SECONDS,
-  PREP_DURATION_MIN_SECONDS,
-  PREP_DURATION_STEP_SECONDS,
-  RECORDING_DURATION_MAX_SECONDS,
-  RECORDING_DURATION_MIN_SECONDS,
-  RECORDING_DURATION_STEP_SECONDS,
-} from "../domain/recordingSettings";
 import { formatReminderHour, REMINDER_HOUR_MAX, REMINDER_HOUR_MIN } from "../domain/reminderSettings";
 import { cancelDailyReminder, requestNotificationPermission, syncDailyReminder } from "../services/notifications/reminderScheduler";
 import { colors, spacing, typography } from "../theme/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
-
-function minutesLabel(seconds: number): string {
-  const minutes = seconds / 60;
-  return `${minutes} min`;
-}
-
-function secondsLabel(seconds: number): string {
-  return `${seconds}s`;
-}
 
 interface SecretFieldProps {
   label: string;
@@ -104,12 +76,8 @@ function SecretField({ label, caption, value, onChangeText, onBlur }: SecretFiel
 
 export function SettingsScreen({ navigation }: Props) {
   const showToast = useToast();
-  const [durationSettings, setDurationSettingsState] = useState(getRecordingDurationSettings());
-  const [prepSettings, setPrepSettingsState] = useState(getPrepPhaseSettings());
-  const [warmUpEnabled, setWarmUpEnabledState] = useState(getWarmUpEnabled());
   const [reminderSettings, setReminderSettingsState] = useState(getReminderSettings());
   const [planYourPointEnabled, setPlanYourPointEnabledState] = useState(getPlanYourPointEnabled());
-  const [conciseModeSeconds, setConciseModeSecondsState] = useState(getConciseModeSeconds());
   const [geminiKey, setGeminiKeyField] = useState("");
   const [notionToken, setNotionTokenField] = useState("");
   const [notionPageId, setNotionPageIdField] = useState("");
@@ -132,29 +100,9 @@ export function SettingsScreen({ navigation }: Props) {
     setAssemblyAiEnabled(enabled);
   }
 
-  function updateDuration(next: typeof durationSettings) {
-    setDurationSettingsState(next);
-    setRecordingDurationSettings(next);
-  }
-
-  function handleWarmUpToggle(enabled: boolean) {
-    setWarmUpEnabledState(enabled);
-    setWarmUpEnabled(enabled);
-  }
-
-  function updatePrep(next: typeof prepSettings) {
-    setPrepSettingsState(next);
-    setPrepPhaseSettings(next);
-  }
-
   function handlePlanYourPointToggle(enabled: boolean) {
     setPlanYourPointEnabledState(enabled);
     setPlanYourPointEnabled(enabled);
-  }
-
-  function handleConciseModeSecondsChange(seconds: number) {
-    setConciseModeSecondsState(seconds);
-    setConciseModeSeconds(seconds);
   }
 
   async function handleReminderToggle(enabled: boolean) {
@@ -229,29 +177,10 @@ export function SettingsScreen({ navigation }: Props) {
         ) : null}
       </Card>
 
-      <Card style={styles.section}>
-        <Text style={styles.sectionTitle}>Recording length</Text>
-        <Text style={styles.sectionSubtitle}>How long you aim to speak for. You can always stop early.</Text>
-        <LabeledSlider
-          label="Length"
-          value={durationSettings.fixedSeconds}
-          minimumValue={RECORDING_DURATION_MIN_SECONDS}
-          maximumValue={RECORDING_DURATION_MAX_SECONDS}
-          step={RECORDING_DURATION_STEP_SECONDS}
-          formatValue={minutesLabel}
-          disabled={durationSettings.mode === "random"}
-          onChange={(fixedSeconds) => updateDuration({ mode: "fixed", fixedSeconds })}
-        />
-        <View style={styles.switchRow}>
-          <Text style={styles.switchLabel}>Randomize each session</Text>
-          <Switch
-            value={durationSettings.mode === "random"}
-            onValueChange={(isRandom) => updateDuration({ ...durationSettings, mode: isRandom ? "random" : "fixed" })}
-            trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
-          />
-        </View>
-      </Card>
-
+      {/* Recording length, Concise mode length, Warm-up, and Prep phase moved
+          to the Session options sheet on Home (opened from the icon button
+          next to Start Recording) — they only ever matter right before a
+          recording, not as standing app configuration like what's left here. */}
       <Card style={styles.section}>
         <View style={styles.sectionHeaderRow}>
           <View style={styles.sectionHeaderText}>
@@ -266,72 +195,6 @@ export function SettingsScreen({ navigation }: Props) {
             trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
           />
         </View>
-      </Card>
-
-      <Card style={styles.section}>
-        <Text style={styles.sectionTitle}>Concise mode length</Text>
-        <Text style={styles.sectionSubtitle}>How long the "Concise Mode" drill on Home gives you to make one point.</Text>
-        <LabeledSlider
-          label="Length"
-          value={conciseModeSeconds}
-          minimumValue={CONCISE_DURATION_MIN_SECONDS}
-          maximumValue={CONCISE_DURATION_MAX_SECONDS}
-          step={CONCISE_DURATION_STEP_SECONDS}
-          formatValue={secondsLabel}
-          onChange={handleConciseModeSecondsChange}
-        />
-      </Card>
-
-      <Card style={styles.section}>
-        <View style={styles.sectionHeaderRow}>
-          <View style={styles.sectionHeaderText}>
-            <Text style={styles.sectionTitle}>Warm-up</Text>
-            <Text style={styles.sectionSubtitle}>
-              A guided breathing/easy-onset routine before recording — breathe, easy onset, lip trill.
-            </Text>
-          </View>
-          <Switch
-            value={warmUpEnabled}
-            onValueChange={handleWarmUpToggle}
-            trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
-          />
-        </View>
-      </Card>
-
-      <Card style={styles.section}>
-        <View style={styles.sectionHeaderRow}>
-          <View style={styles.sectionHeaderText}>
-            <Text style={styles.sectionTitle}>Prep phase</Text>
-            <Text style={styles.sectionSubtitle}>A countdown to brainstorm before recording starts.</Text>
-          </View>
-          <Switch
-            value={prepSettings.enabled}
-            onValueChange={(enabled) => updatePrep({ ...prepSettings, enabled })}
-            trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
-          />
-        </View>
-        {prepSettings.enabled ? (
-          <>
-            <LabeledSlider
-              label="Prep time"
-              value={prepSettings.fixedSeconds}
-              minimumValue={PREP_DURATION_MIN_SECONDS}
-              maximumValue={PREP_DURATION_MAX_SECONDS}
-              step={PREP_DURATION_STEP_SECONDS}
-              formatValue={secondsLabel}
-              disabled={prepSettings.mode === "random"}
-              onChange={(fixedSeconds) => updatePrep({ ...prepSettings, mode: "fixed", fixedSeconds })}
-            />
-            <View style={styles.switchRow}>
-              <Text style={styles.switchLabel}>Randomize each session</Text>
-              <Switch
-                value={prepSettings.mode === "random"}
-                onValueChange={(isRandom) => updatePrep({ ...prepSettings, mode: isRandom ? "random" : "fixed" })}
-                trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
-              />
-            </View>
-          </>
-        ) : null}
       </Card>
 
       <Card style={styles.section}>

@@ -10,17 +10,30 @@ import { LoadingSpinner } from "../components/common/LoadingSpinner";
 import { HeroCard } from "../components/common/HeroCard";
 import { Badge } from "../components/common/Badge";
 import { Banner } from "../components/common/Banner";
+import { SessionOptionsSheet } from "../components/home/SessionOptionsSheet";
 import { AVOID_REPEAT_LAST_N, pickRandomPrompt, pickTodaysPrompt } from "../domain/pickTodaysPrompt";
 import { FREE_RECORD_PROMPT } from "../data/topics";
 import { computeStreaks, type StreakResult } from "../domain/streaks";
 import { colorForCategory } from "../domain/categoryColor";
+import type { PrepPhaseSettings, RecordingDurationSettings } from "../domain/recordingSettings";
+import { DEFAULT_PREP_PHASE_SETTINGS, DEFAULT_RECORDING_DURATION_SETTINGS } from "../domain/recordingSettings";
 import { getAllPrompts } from "../services/db/promptsRepo";
 import { getRecentlyUsedPromptIds, getTodaysSession } from "../services/db/sessionsRepo";
 import { getCompletedSessionDates } from "../services/db/statsRepo";
-import { getConciseModeSeconds, getPlanYourPointEnabled } from "../services/prefs/prefsStore";
+import {
+  getConciseModeSeconds,
+  getPlanYourPointEnabled,
+  getPrepPhaseSettings,
+  getRecordingDurationSettings,
+  getWarmUpEnabled,
+  setConciseModeSeconds,
+  setPrepPhaseSettings,
+  setRecordingDurationSettings,
+  setWarmUpEnabled,
+} from "../services/prefs/prefsStore";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
 import type { Prompt } from "../domain/sessionTypes";
-import { colors, fontDisplay, spacing, typography } from "../theme/theme";
+import { colors, fontDisplay, radii, spacing, typography } from "../theme/theme";
 
 const EMPTY_STREAK: StreakResult = { currentStreak: 0, longestStreak: 0 };
 
@@ -29,6 +42,29 @@ function getGreeting(): string {
   if (hour < 12) return "Good morning";
   if (hour < 18) return "Good afternoon";
   return "Good evening";
+}
+
+interface ShelfCardProps {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+}
+
+// Home's browsable-modes row — Script Practice / Prompt Library / Drills,
+// demoted below the one primary action instead of competing with it as
+// equal-weight buttons (see the old six-button stack this replaced).
+function ShelfCard({ icon, label, onPress }: ShelfCardProps) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.shelfCard, pressed && styles.shelfCardPressed]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <Ionicons name={icon} size={20} color={colors.textPrimary} />
+      <Text style={styles.shelfCardLabel}>{label}</Text>
+    </Pressable>
+  );
 }
 
 export function HomeScreen() {
@@ -41,6 +77,19 @@ export function HomeScreen() {
   const [recentPromptIds, setRecentPromptIds] = useState<string[]>([]);
   const [alreadyPracticedToday, setAlreadyPracticedToday] = useState(false);
   const [streak, setStreak] = useState<StreakResult>(EMPTY_STREAK);
+
+  // Session options — moved here from the general Settings screen (still
+  // persisted through the same prefsStore) since they only ever matter right
+  // before starting a recording, not as general app configuration.
+  const [sheetVisible, setSheetVisible] = useState(false);
+  const [durationSettings, setDurationSettings] = useState<RecordingDurationSettings>(DEFAULT_RECORDING_DURATION_SETTINGS);
+  const [prepSettings, setPrepSettings] = useState<PrepPhaseSettings>(DEFAULT_PREP_PHASE_SETTINGS);
+  const [warmUpEnabled, setWarmUpEnabledState] = useState(false);
+  const [conciseModeSeconds, setConciseModeSecondsState] = useState(45);
+  // Ephemeral, per-visit — unlike the settings above this isn't a standing
+  // preference, it's "make my next recording concise", so it isn't persisted
+  // and resets whenever Home regains focus.
+  const [conciseModeOn, setConciseModeOn] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -67,6 +116,12 @@ export function HomeScreen() {
       getCompletedSessionDates()
         .then((dates) => setStreak(computeStreaks(dates)))
         .catch(() => setStreak(EMPTY_STREAK));
+
+      setDurationSettings(getRecordingDurationSettings());
+      setPrepSettings(getPrepPhaseSettings());
+      setWarmUpEnabledState(getWarmUpEnabled());
+      setConciseModeSecondsState(getConciseModeSeconds());
+      setConciseModeOn(false);
     }, []),
   );
 
@@ -80,6 +135,26 @@ export function HomeScreen() {
     });
   }
 
+  function updateDurationSettings(next: RecordingDurationSettings) {
+    setDurationSettings(next);
+    setRecordingDurationSettings(next);
+  }
+
+  function updatePrepSettings(next: PrepPhaseSettings) {
+    setPrepSettings(next);
+    setPrepPhaseSettings(next);
+  }
+
+  function updateWarmUpEnabled(next: boolean) {
+    setWarmUpEnabledState(next);
+    setWarmUpEnabled(next);
+  }
+
+  function updateConciseModeSeconds(next: number) {
+    setConciseModeSecondsState(next);
+    setConciseModeSeconds(next);
+  }
+
   // Both "Start Recording" and "Free Record" go through this — when Plan
   // Your Point is enabled in Settings, detour through the planning screen
   // first; otherwise go straight to Recording as before.
@@ -91,6 +166,18 @@ export function HomeScreen() {
     }
   }
 
+  // The Concise chip bypasses Plan Your Point entirely, same as the old
+  // standalone "Concise Mode" button did — a quick constrained drill, not
+  // the kind of response worth planning first.
+  function handlePrimaryPress() {
+    if (!prompt) return;
+    if (conciseModeOn) {
+      navigation.navigate("Recording", { kind: "prompt", prompt, conciseSeconds: conciseModeSeconds });
+    } else {
+      startPromptRecording(prompt);
+    }
+  }
+
   if (!prompt) {
     return (
       <ScreenContainer style={styles.centered}>
@@ -98,6 +185,9 @@ export function HomeScreen() {
       </ScreenContainer>
     );
   }
+
+  const primaryLabelBase = alreadyPracticedToday ? "Practice Again" : "Start Recording";
+  const primaryLabel = conciseModeOn ? `${primaryLabelBase} · Concise ${conciseModeSeconds}s` : primaryLabelBase;
 
   return (
     <ScreenContainer style={styles.container} edges={["top", "left", "right"]}>
@@ -144,6 +234,22 @@ export function HomeScreen() {
             </Pressable>
           </View>
           <Text style={styles.promptText}>{prompt.text}</Text>
+
+          {/* Folds the old standalone "Concise Mode" button into the hero
+              card as a toggle chip — flips what the primary button below
+              does instead of competing with it for attention. */}
+          <Pressable
+            onPress={() => setConciseModeOn((on) => !on)}
+            style={[styles.conciseChip, conciseModeOn && styles.conciseChipOn]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: conciseModeOn }}
+            accessibilityLabel={`Concise mode, ${conciseModeSeconds} seconds, ${conciseModeOn ? "on" : "off"}`}
+          >
+            <Ionicons name="timer-outline" size={14} color={conciseModeOn ? "white" : colors.textSecondary} />
+            <Text style={[styles.conciseChipText, conciseModeOn && styles.conciseChipTextOn]}>
+              Concise · {conciseModeSeconds}s
+            </Text>
+          </Pressable>
         </HeroCard>
 
         {alreadyPracticedToday ? (
@@ -157,38 +263,47 @@ export function HomeScreen() {
       </View>
 
       <View style={[styles.actions, { paddingBottom: tabBarInset }]}>
-        <PrimaryButton
-          label={alreadyPracticedToday ? "Practice Again" : "Start Recording"}
-          onPress={() => startPromptRecording(prompt)}
-        />
-        <PrimaryButton
-          label="Free Record (no prompt)"
-          variant="ghost"
+        <View style={styles.primaryRow}>
+          <PrimaryButton label={primaryLabel} onPress={handlePrimaryPress} style={styles.primaryButton} />
+          <Pressable
+            onPress={() => setSheetVisible(true)}
+            style={styles.sessionOptionsButton}
+            accessibilityRole="button"
+            accessibilityLabel="Session options"
+          >
+            <Ionicons name="options-outline" size={20} color={colors.textSecondary} />
+          </Pressable>
+        </View>
+
+        <Pressable
           onPress={() => startPromptRecording(FREE_RECORD_PROMPT)}
-        />
-        <PrimaryButton
-          label="Concise Mode"
-          variant="ghost"
-          onPress={() =>
-            navigation.navigate("Recording", {
-              kind: "prompt",
-              prompt,
-              conciseSeconds: getConciseModeSeconds(),
-            })
-          }
-        />
-        <PrimaryButton
-          label="Practice a Script"
-          variant="ghost"
-          onPress={() => navigation.navigate("ScriptLibrary")}
-        />
-        <PrimaryButton
-          label="Browse Prompts"
-          variant="ghost"
-          onPress={() => navigation.navigate("PromptLibrary")}
-        />
-        <PrimaryButton label="Tongue-Twister Drills" variant="ghost" onPress={() => navigation.navigate("Drills")} />
+          style={styles.freeLinkWrap}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Free record, no prompt"
+        >
+          <Text style={styles.freeLinkText}>Free Record instead →</Text>
+        </Pressable>
+
+        <View style={styles.shelf}>
+          <ShelfCard icon="document-text-outline" label="Script Practice" onPress={() => navigation.navigate("ScriptLibrary")} />
+          <ShelfCard icon="library-outline" label="Prompt Library" onPress={() => navigation.navigate("PromptLibrary")} />
+          <ShelfCard icon="flash-outline" label="Tongue-Twister Drills" onPress={() => navigation.navigate("Drills")} />
+        </View>
       </View>
+
+      <SessionOptionsSheet
+        visible={sheetVisible}
+        onClose={() => setSheetVisible(false)}
+        warmUpEnabled={warmUpEnabled}
+        onWarmUpEnabledChange={updateWarmUpEnabled}
+        prepSettings={prepSettings}
+        onPrepSettingsChange={updatePrepSettings}
+        durationSettings={durationSettings}
+        onDurationSettingsChange={updateDurationSettings}
+        conciseModeSeconds={conciseModeSeconds}
+        onConciseModeSecondsChange={updateConciseModeSeconds}
+      />
     </ScreenContainer>
   );
 }
@@ -209,4 +324,50 @@ const styles = StyleSheet.create({
   promptCard: { gap: spacing.md },
   promptText: { color: colors.textPrimary, fontSize: typography.headline, fontWeight: "600", lineHeight: 36 },
   hint: { color: colors.textMuted, fontSize: typography.body, textAlign: "center" },
+
+  conciseChip: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
+  conciseChipOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  conciseChipText: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "700" },
+  conciseChipTextOn: { color: "white" },
+
+  primaryRow: { flexDirection: "row", gap: spacing.sm, alignItems: "stretch" },
+  primaryButton: { flex: 1 },
+  sessionOptionsButton: {
+    width: 54,
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  freeLinkWrap: { alignSelf: "center", paddingVertical: spacing.xs },
+  freeLinkText: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "600", textDecorationLine: "underline" },
+
+  shelf: { flexDirection: "row", gap: spacing.sm },
+  shelfCard: {
+    flex: 1,
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.xs,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  shelfCardPressed: { opacity: 0.7 },
+  shelfCardLabel: { color: colors.textPrimary, fontSize: typography.caption - 1, fontWeight: "700", textAlign: "center", lineHeight: 15 },
 });

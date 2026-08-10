@@ -12,6 +12,7 @@ import { HeroCard } from "../components/common/HeroCard";
 import { ProgressRing } from "../components/common/ProgressRing";
 import { SegmentedControl } from "../components/common/SegmentedControl";
 import { ScoreBar } from "../components/result/ScoreBar";
+import { AccordionSection } from "../components/result/AccordionSection";
 import { colorForScore } from "../components/result/scoreColor";
 import { VideoPlayback } from "../components/result/VideoPlayback";
 import { AnnotatedTranscript } from "../components/result/AnnotatedTranscript";
@@ -34,6 +35,13 @@ import { colors, fontDisplay, spacing, typography } from "../theme/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Result">;
 type ResultTab = "overview" | "scores" | "transcript";
+
+// Rounds to 1 decimal — used for an accordion category's collapsed-header
+// summary number, averaged from that category's individual ScoreBars since
+// the grading model doesn't emit a per-category composite score itself.
+function avgScore(...scores: number[]): number {
+  return Math.round((scores.reduce((sum, s) => sum + s, 0) / scores.length) * 10) / 10;
+}
 
 function ScoreDelta({ current, previous }: { current: number; previous: number | null }) {
   if (previous === null) return null;
@@ -302,21 +310,31 @@ export function ResultScreen({ route, navigation }: Props) {
 
       {tab === "scores" && scores ? (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <Card style={styles.scoresCard}>
+          <Card style={styles.radarCard}>
             <ScoreRadarChart scores={scores} />
+          </Card>
 
-            <Text style={styles.sectionLabel}>STRUCTURE</Text>
+          {/* Structure starts open since it's the first thing most people read;
+              every other category starts collapsed — the radar chart above
+              already gives the at-a-glance summary, so this replaces what used
+              to be all ~9 factors expanded in one long scroll (confirmed live). */}
+          <AccordionSection title="Structure" scoreLabel={`${scores.structureScore}/10`} defaultOpen>
             <ScoreBar
               label={scores.structureUsed === "none detected" ? "No clear structure" : scores.structureUsed}
               score={scores.structureScore}
               notes={scores.structureNotes}
             />
+          </AccordionSection>
 
-            <Text style={[styles.sectionLabel, styles.sectionSpacer]}>CONTENT</Text>
+          <AccordionSection title="Content" scoreLabel={`${avgScore(scores.relevanceScore, scores.coherenceScore)}/10`}>
             <ScoreBar label="Relevance to prompt" score={scores.relevanceScore} notes={scores.relevanceNotes} />
             <ScoreBar label="Coherence & storytelling" score={scores.coherenceScore} notes={scores.coherenceNotes} />
+          </AccordionSection>
 
-            <Text style={[styles.sectionLabel, styles.sectionSpacer]}>DELIVERY</Text>
+          <AccordionSection
+            title="Delivery"
+            scoreLabel={`${avgScore(scores.rateScore, scores.volumeScore, scores.pitchMelodyScore, scores.tonalityScore, scores.pausingScore)}/10`}
+          >
             <ScoreBar label="Rate" score={scores.rateScore} notes={scores.rateNotes} suffix={`${scores.rateWpmAvg} wpm`} />
             <WpmSparkline wpmCurve={session.wpmCurve} />
             <ScoreBar label="Volume" score={scores.volumeScore} notes={scores.volumeNotes} />
@@ -328,26 +346,27 @@ export function ResultScreen({ route, navigation }: Props) {
               pitchContourHz={session.pitchContourHz}
               volumeEnvelopeDbfs={session.volumeEnvelopeDbfs}
             />
+          </AccordionSection>
 
-            <Text style={[styles.sectionLabel, styles.sectionSpacer]}>PRESENCE</Text>
+          <AccordionSection title="Presence" scoreLabel={`${avgScore(scores.eyeContactScore, scores.facialExpressivenessScore)}/10`}>
             <ScoreBar label="Eye Contact" score={scores.eyeContactScore} />
             <ScoreBar label="Facial Expressiveness" score={scores.facialExpressivenessScore} />
             <Text style={styles.bodyLanguageNotes}>{scores.bodyLanguageNotes}</Text>
+          </AccordionSection>
 
-            <Text style={[styles.sectionLabel, styles.sectionSpacer]}>FACE-VOICE CONGRUENCE</Text>
+          <AccordionSection title="Face-Voice Congruence" scoreLabel={`${scores.faceVoiceCongruenceScore}/10`}>
             <ScoreBar label="Congruence" score={scores.faceVoiceCongruenceScore} />
+          </AccordionSection>
 
-            {scores.cueComplianceScore !== null ? (
-              <>
-                <Text style={[styles.sectionLabel, styles.sectionSpacer]}>CUE COMPLIANCE</Text>
-                <ScoreBar
-                  label="Followed the on-screen cues"
-                  score={scores.cueComplianceScore}
-                  notes={scores.cueComplianceNotes ?? undefined}
-                />
-              </>
-            ) : null}
-          </Card>
+          {scores.cueComplianceScore !== null ? (
+            <AccordionSection title="Cue Compliance" scoreLabel={`${scores.cueComplianceScore}/10`}>
+              <ScoreBar
+                label="Followed the on-screen cues"
+                score={scores.cueComplianceScore}
+                notes={scores.cueComplianceNotes ?? undefined}
+              />
+            </AccordionSection>
+          ) : null}
         </ScrollView>
       ) : null}
 
@@ -433,6 +452,6 @@ const styles = StyleSheet.create({
   drillBox: { backgroundColor: colors.accentMuted, borderRadius: 10, padding: spacing.md, gap: spacing.xs, marginTop: spacing.xs },
   drillLabel: { color: colors.accent, fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 1 },
   drillText: { color: colors.textPrimary, fontSize: typography.body, lineHeight: 20 },
-  scoresCard: { gap: spacing.md },
-  bodyLanguageNotes: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17, marginTop: -spacing.xs },
+  radarCard: { alignItems: "center" },
+  bodyLanguageNotes: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },
 });
