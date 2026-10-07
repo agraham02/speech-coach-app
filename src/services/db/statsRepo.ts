@@ -68,3 +68,41 @@ export async function getCompletedSessionDates(): Promise<string[]> {
   );
   return rows.map((row) => row.recorded_at);
 }
+
+export interface SessionMetricPoint {
+  recordedAt: string;
+  wpm: number | null;
+  fillerRate: number | null;
+  eyeContact: number | null;
+}
+
+// On-device measurements per finished impromptu session, oldest first —
+// the Progress charts. Uses SQLite's JSON functions so the full word list
+// never has to be loaded into JS.
+export async function getSessionMetricSeries(limit = 30): Promise<SessionMetricPoint[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{
+    recorded_at: string;
+    duration_seconds: number;
+    word_count: number | null;
+    filler_rate_per_minute: number | null;
+    eye_contact: number | null;
+  }>(
+    `SELECT * FROM (
+       SELECT s.recorded_at, s.duration_seconds, s.filler_rate_per_minute,
+              json_array_length(s.transcript_words_json) AS word_count,
+              json_extract(a.json, '$.eyeContactPercent') AS eye_contact
+       FROM sessions s
+       LEFT JOIN session_artifacts a ON a.session_id = s.id AND a.kind = 'presence'
+       WHERE s.status = 'done' AND s.deleted_at IS NULL AND s.session_type IN ('spontaneous', 'concise', 'free_record')
+       ORDER BY s.recorded_at DESC LIMIT ?
+     ) ORDER BY recorded_at ASC`,
+    [limit],
+  );
+  return rows.map((r) => ({
+    recordedAt: r.recorded_at,
+    wpm: r.word_count && r.duration_seconds > 0 ? Math.round(r.word_count / (r.duration_seconds / 60)) : null,
+    fillerRate: r.filler_rate_per_minute,
+    eyeContact: r.eye_contact,
+  }));
+}

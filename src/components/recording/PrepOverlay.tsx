@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, radii, spacing, typography } from "../../theme/theme";
+import { darkColors as colors, radii, spacing, typography } from "../../theme/theme";
 
 interface PrepOverlayProps {
   promptText: string;

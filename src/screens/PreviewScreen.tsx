@@ -123,7 +123,7 @@ export function PreviewScreen({ route, navigation }: Props) {
             <Switch
               value={wantsCloudReview}
               onValueChange={setWantsCloudReview}
-              trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
+              trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
             />
           </View>
           <View style={styles.row}>
@@ -134,7 +134,7 @@ export function PreviewScreen({ route, navigation }: Props) {
             <Switch
               value={wantsNotionSync}
               onValueChange={setWantsNotionSync}
-              trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
+              trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
             />
           </View>
           <Text style={styles.hint}>You can add either of these later from the session.</Text>

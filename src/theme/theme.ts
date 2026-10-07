@@ -1,29 +1,51 @@
-export const colors = {
-  background: "#0B0B0F",
-  surface: "#15161C",
-  surfaceRaised: "#1C1E27",
-  border: "rgba(255,255,255,0.08)",
-  textPrimary: "#F5F6FA",
-  textSecondary: "#9AA0AE",
-  textMuted: "#6B7280",
-  accent: "#4F7CFF",
-  accentMuted: "rgba(79,124,255,0.15)",
-  success: "#3DD68C",
-  successMuted: "rgba(61,214,140,0.15)",
-  warning: "#F5A524",
-  warningMuted: "rgba(245,165,36,0.15)",
-  danger: "#E5484D",
-  dangerMuted: "rgba(229,72,77,0.15)",
-  overlayScrim: "rgba(11,11,15,0.75)",
-  violet: "#8B5CF6",
-  violetMuted: "rgba(139,92,246,0.18)",
-  pink: "#EC4899",
-  pinkMuted: "rgba(236,72,153,0.18)",
-  teal: "#14B8A6",
-  tealMuted: "rgba(20,184,166,0.18)",
-  indigo: "#6366F1",
-  indigoMuted: "rgba(99,102,241,0.18)",
-} as const;
+import { Appearance } from "react-native";
+import { darkPalette, lightPalette, type Palette } from "./tokens";
+
+// The system appearance when the app launched. Screens that still use the
+// static `colors` below (via StyleSheet.create at module load) render in
+// this scheme; ThemeProvider uses the same value so old and new screens
+// always match. Changing the system appearance applies on next launch.
+export const launchScheme: "light" | "dark" = Appearance.getColorScheme() === "light" ? "light" : "dark";
+
+function legacyColors(p: Palette, scheme: "light" | "dark") {
+  const light = scheme === "light";
+  return {
+    background: p.background,
+    surface: p.surface,
+    surfaceRaised: p.surfaceRaised,
+    border: p.border,
+    textPrimary: p.textPrimary,
+    textSecondary: p.textSecondary,
+    textMuted: p.textMuted,
+    accent: p.accent,
+    accentMuted: p.accentMuted,
+    onAccent: p.onAccent,
+    success: p.success,
+    successMuted: p.successMuted,
+    warning: p.warning,
+    warningMuted: p.warningMuted,
+    danger: p.danger,
+    dangerMuted: p.dangerMuted,
+    overlayScrim: p.overlayScrim,
+    switchTrackOff: p.switchTrackOff,
+    subtleFill: light ? "rgba(15,18,30,0.05)" : "rgba(255,255,255,0.06)",
+    heroBorder: light ? "rgba(15,18,30,0.10)" : "rgba(255,255,255,0.14)",
+    violet: light ? "#6D28D9" : "#8B5CF6",
+    violetMuted: light ? "rgba(109,40,217,0.12)" : "rgba(139,92,246,0.18)",
+    pink: light ? "#BE185D" : "#EC4899",
+    pinkMuted: light ? "rgba(190,24,93,0.12)" : "rgba(236,72,153,0.18)",
+    teal: light ? "#0F766E" : "#14B8A6",
+    tealMuted: light ? "rgba(15,118,110,0.12)" : "rgba(20,184,166,0.18)",
+    indigo: light ? "#4338CA" : "#6366F1",
+    indigoMuted: light ? "rgba(67,56,202,0.12)" : "rgba(99,102,241,0.18)",
+  };
+}
+
+export const colors = legacyColors(launchScheme === "light" ? lightPalette : darkPalette, launchScheme);
+
+// Always-dark colors for camera screens (recording overlays sit on top of
+// live video, so they stay light-on-dark in both modes).
+export const darkColors = legacyColors(darkPalette, "dark");
 
 // Transcript-annotation highlight colors — one per feedback category. All
 // represent "worth noticing/improving" flags, so none reuse `success` (green

@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useCountdownTimer } from "../../hooks/useCountdownTimer";
 import type { WarmUpStep } from "../../domain/warmUpRoutine";
-import { colors, radii, spacing, typography } from "../../theme/theme";
+import { darkColors as colors, radii, spacing, typography } from "../../theme/theme";
 
 interface WarmUpOverlayProps {
   steps: WarmUpStep[];

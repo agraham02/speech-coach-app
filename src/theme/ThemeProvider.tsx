@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
-import { StyleSheet, useColorScheme } from "react-native";
+import { StyleSheet } from "react-native";
+import { launchScheme } from "./theme";
 import { darkPalette, lightPalette, radius, space, typeScale, type Palette } from "./tokens";
 
 export type SchemeName = "light" | "dark";
@@ -12,10 +13,8 @@ export interface Theme {
   radius: typeof radius;
 }
 
-// Light mode is held back until every screen reads colors from the theme —
-// screens still on the static dark `colors` would be unreadable on a light
-// background. Flip to `null` (follow the system) once the migration is done.
-const FORCED_SCHEME: SchemeName | null = "dark";
+// Follows the system appearance as of launch, matching the static legacy
+// `colors` (theme.ts) so every screen agrees. A change applies next launch.
 
 function buildTheme(scheme: SchemeName): Theme {
   return { scheme, colors: scheme === "dark" ? darkPalette : lightPalette, type: typeScale, space, radius };
@@ -26,9 +25,7 @@ const LIGHT_THEME = buildTheme("light");
 const ThemeContext = createContext<Theme>(DARK_THEME);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const system = useColorScheme();
-  const scheme: SchemeName = FORCED_SCHEME ?? (system === "light" ? "light" : "dark");
-  const theme = scheme === "dark" ? DARK_THEME : LIGHT_THEME;
+  const theme = launchScheme === "dark" ? DARK_THEME : LIGHT_THEME;
   return <ThemeContext.Provider value={theme}>{children}</ThemeContext.Provider>;
 }
 

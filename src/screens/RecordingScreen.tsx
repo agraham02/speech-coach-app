@@ -40,9 +40,10 @@ import {
 import { getEffectiveCurriculumLevel } from "../services/db/curriculumRepo";
 import { persistRecording } from "../services/storage/videoStorage";
 import { logger } from "../utils/logger";
+import { StatusBar } from "expo-status-bar";
 import { stashPresenceTimeline } from "../services/pipeline/presenceTimelineStore";
 import { formatDuration } from "../utils/dateUtils";
-import { colors, spacing, typography } from "../theme/theme";
+import { darkColors as colors, spacing, typography } from "../theme/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Recording">;
 
@@ -240,6 +241,8 @@ export function RecordingScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
+      {/* Camera is always dark, so keep the status bar light. */}
+      <StatusBar style="light" />
       <CameraPreview
         cameraRef={cameraRef}
         isActive

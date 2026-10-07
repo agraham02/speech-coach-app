@@ -9,6 +9,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { HomeScreen } from "../screens/HomeScreen";
 import { TodayScreen } from "../screens/TodayScreen";
 import { LearnScreen } from "../screens/LearnScreen";
+import { ProgressScreen } from "../screens/ProgressScreen";
 import { LessonScreen } from "../screens/LessonScreen";
 import { DailySessionScreen } from "../screens/DailySessionScreen";
 import { DrillRunnerScreen } from "../screens/DrillRunnerScreen";
@@ -44,8 +45,8 @@ export { navigationRef };
 export type TabParamList = {
   Today: undefined;
   Learn: undefined;
-  History: undefined;
-  Trends: undefined;
+  Progress: undefined;
+  Library: undefined;
   Dev: undefined;
 };
 
@@ -64,6 +65,7 @@ export type RootStackParamList = {
   DailySession: undefined;
   Practice: undefined;
   Frameworks: undefined;
+  Trends: undefined;
   Curriculum: undefined;
   Recording: RecordingSubject;
   Preview: RecordingSubject & { videoUri: string; durationSecondsLocal: number };
@@ -111,17 +113,17 @@ function JSTabs() {
         }}
       />
       <JSTab.Screen
-        name="History"
-        component={HistoryScreen}
+        name="Progress"
+        component={ProgressScreen}
         options={{
-          tabBarIcon: ({ color, size }) => <Ionicons name="time-outline" size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <Ionicons name="stats-chart-outline" size={size} color={color} />,
         }}
       />
       <JSTab.Screen
-        name="Trends"
-        component={TrendsScreen}
+        name="Library"
+        component={HistoryScreen}
         options={{
-          tabBarIcon: ({ color, size }) => <Ionicons name="stats-chart-outline" size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <Ionicons name="albums-outline" size={size} color={color} />,
         }}
       />
       {__DEV__ ? (
@@ -181,17 +183,17 @@ function NativeTabs() {
         }}
       />
       <NativeTab.Screen
-        name="History"
-        component={HistoryScreen}
+        name="Progress"
+        component={ProgressScreen}
         options={{
-          tabBarIcon: ({ focused }) => ({ sfSymbol: focused ? "clock.fill" : "clock" }),
+          tabBarIcon: ({ focused }) => ({ sfSymbol: focused ? "chart.bar.fill" : "chart.bar" }),
         }}
       />
       <NativeTab.Screen
-        name="Trends"
-        component={TrendsScreen}
+        name="Library"
+        component={HistoryScreen}
         options={{
-          tabBarIcon: ({ focused }) => ({ sfSymbol: focused ? "chart.bar.fill" : "chart.bar" }),
+          tabBarIcon: ({ focused }) => ({ sfSymbol: focused ? "square.stack.fill" : "square.stack" }),
         }}
       />
       {__DEV__ ? (
@@ -246,6 +248,7 @@ export function AppNavigator() {
         <Stack.Screen name="AsrLab" component={AsrLabScreen} />
         <Stack.Screen name="Practice" component={HomeScreen} />
         <Stack.Screen name="Frameworks" component={TipsScreen} />
+        <Stack.Screen name="Trends" component={TrendsScreen} />
         <Stack.Screen name="Drill" component={DrillRunnerScreen} />
         <Stack.Screen name="Guided" component={GuidedScreen} />
         <Stack.Screen name="Lesson" component={LessonScreen} />

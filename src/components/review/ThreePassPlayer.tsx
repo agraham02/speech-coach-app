@@ -112,7 +112,7 @@ export function ThreePassPlayer({
               <Ionicons
                 name={completed.has(p.key) ? "checkmark-circle" : p.icon}
                 size={16}
-                color={completed.has(p.key) ? colors.success : selected ? "white" : colors.textSecondary}
+                color={completed.has(p.key) ? colors.success : selected ? colors.onAccent : colors.textSecondary}
               />
               <Text style={[styles.passChipText, selected && styles.passChipTextSelected]}>{p.label}</Text>
             </Pressable>
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
   },
   passChipSelected: { backgroundColor: colors.accent },
   passChipText: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "600" },
-  passChipTextSelected: { color: "white" },
+  passChipTextSelected: { color: colors.onAccent },
   videoWrap: { borderRadius: radii.lg, overflow: "hidden", backgroundColor: "black" },
   video: { width: "100%", height: 360 },
   listenPanel: {

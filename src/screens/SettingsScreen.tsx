@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
+import { isAppleModelAvailable } from "../services/onDeviceLlm/onDeviceCoach";
 import { Card } from "../components/common/Card";
 import { LabeledSlider } from "../components/common/LabeledSlider";
 import { useToast } from "../components/common/ToastProvider";
@@ -53,6 +54,11 @@ function SecretField({ label, caption, value, onChangeText, onBlur }: SecretFiel
           value={value}
           onChangeText={onChangeText}
           onBlur={onBlur}
+          // Also save when editing ends or the keyboard's return is pressed —
+          // blur alone isn't reliable when leaving the screen.
+          onEndEditing={onBlur}
+          onSubmitEditing={onBlur}
+          returnKeyType="done"
           placeholder="Not set"
           placeholderTextColor={colors.textMuted}
           secureTextEntry={!visible}
@@ -136,6 +142,16 @@ export function SettingsScreen({ navigation }: Props) {
     }
   }
 
+  const [appleCoach] = useState(() => isAppleModelAvailable());
+  const [onDeviceRecognition] = useState(() => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      return require("expo-speech-recognition").ExpoSpeechRecognitionModule.supportsOnDeviceRecognition() as boolean;
+    } catch {
+      return false;
+    }
+  });
+
   return (
     <ScreenContainer style={styles.container}>
       <View style={styles.header}>
@@ -147,6 +163,7 @@ export function SettingsScreen({ navigation }: Props) {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <Text style={styles.groupLabel}>PRACTICE</Text>
       <Card style={styles.section}>
         <View style={styles.sectionHeaderRow}>
           <View style={styles.sectionHeaderText}>
@@ -156,7 +173,7 @@ export function SettingsScreen({ navigation }: Props) {
           <Switch
             value={reminderSettings.enabled}
             onValueChange={handleReminderToggle}
-            trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
+            trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
           />
         </View>
         {reminderSettings.enabled ? (
@@ -192,11 +209,37 @@ export function SettingsScreen({ navigation }: Props) {
           <Switch
             value={planYourPointEnabled}
             onValueChange={handlePlanYourPointToggle}
-            trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
+            trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
           />
         </View>
       </Card>
 
+      <Pressable onPress={() => navigation.navigate("Curriculum")} accessibilityRole="button">
+        <Card style={styles.linkCard}>
+          <View style={styles.sectionHeaderText}>
+            <Text style={styles.sectionTitle}>Level & difficulty</Text>
+            <Text style={styles.sectionSubtitle}>See your impromptu level, or pin it manually.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </Card>
+      </Pressable>
+
+      <Text style={styles.groupLabel}>ON-DEVICE AI</Text>
+      <Card style={styles.section}>
+        <StatusLine label="Coaching" value={appleCoach ? "Apple Intelligence (on-device)" : "Built-in rules (on-device)"} ok />
+        <StatusLine label="Live recognition" value={onDeviceRecognition ? "On-device" : "System recognizer"} ok={onDeviceRecognition} />
+        <StatusLine label="Transcription" value="Whisper base.en (on-device)" ok />
+        <Text style={styles.sectionSubtitle}>
+          Everything above runs on this phone. Nothing leaves it unless you ask for a deep review or Notion sync.
+        </Text>
+        {__DEV__ ? (
+          <Pressable onPress={() => navigation.navigate("AsrLab")}>
+            <Text style={styles.linkText}>Compare transcription engines (ASR Lab)</Text>
+          </Pressable>
+        ) : null}
+      </Card>
+
+      <Text style={styles.groupLabel}>CLOUD (OPTIONAL)</Text>
       <Card style={styles.section}>
         <View style={styles.sectionHeaderRow}>
           <View style={styles.sectionHeaderText}>
@@ -209,7 +252,7 @@ export function SettingsScreen({ navigation }: Props) {
           <Switch
             value={assemblyAiEnabled}
             onValueChange={handleAssemblyAiToggle}
-            trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
+            trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
           />
         </View>
         {assemblyAiEnabled ? (
@@ -224,10 +267,9 @@ export function SettingsScreen({ navigation }: Props) {
       </Card>
 
       <Card style={styles.section}>
-        <Text style={styles.sectionTitle}>API keys</Text>
+        <Text style={styles.sectionTitle}>Deep review (Gemini)</Text>
         <Text style={styles.sectionSubtitle}>
-          Stored on this device only — never compiled into the app itself. Grading and Notion sync fail with a
-          reminder here if you try to use them before adding the relevant key.
+          Keys are stored on this device only. Deep reviews are always opt-in, per session.
         </Text>
         <SecretField
           label="Gemini API key"
@@ -236,6 +278,10 @@ export function SettingsScreen({ navigation }: Props) {
           onChangeText={setGeminiKeyField}
           onBlur={() => setGeminiApiKey(geminiKey)}
         />
+      </Card>
+
+      <Text style={styles.groupLabel}>NOTION JOURNAL</Text>
+      <Card style={styles.section}>
         <SecretField
           label="Notion token"
           caption="A Notion integration token — share your journal page with the integration in Notion's UI, or sync will 404."
@@ -256,7 +302,22 @@ export function SettingsScreen({ navigation }: Props) {
   );
 }
 
+function StatusLine({ label, value, ok }: { label: string; value: string; ok?: boolean }) {
+  return (
+    <View style={styles.statusLine}>
+      <Ionicons name={ok ? "checkmark-circle" : "ellipse-outline"} size={16} color={ok ? colors.success : colors.textMuted} />
+      <Text style={styles.statusLabel}>{label}</Text>
+      <Text style={styles.statusValue}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  groupLabel: { color: colors.textMuted, fontSize: 11, fontWeight: "700", letterSpacing: 0.8, marginTop: spacing.sm },
+  linkCard: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  statusLine: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  statusLabel: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "600", flex: 1 },
+  statusValue: { color: colors.textSecondary, fontSize: typography.caption },
   container: { gap: spacing.lg },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   headerSpacer: { width: 26 },

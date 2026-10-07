@@ -350,7 +350,7 @@ export function HomeScreen() {
             accessibilityState={{ selected: conciseModeOn }}
             accessibilityLabel={`Concise mode, ${conciseModeSeconds} seconds, ${conciseModeOn ? "on" : "off"}`}
           >
-            <Ionicons name="timer-outline" size={14} color={conciseModeOn ? "white" : colors.textSecondary} />
+            <Ionicons name="timer-outline" size={14} color={conciseModeOn ? colors.onAccent : colors.textSecondary} />
             <Text style={[styles.conciseChipText, conciseModeOn && styles.conciseChipTextOn]}>
               Concise · {conciseModeSeconds}s
             </Text>
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: colors.subtleFill,
   },
   levelChipText: { color: colors.textSecondary, fontSize: typography.caption - 1, fontWeight: "700" },
   eyebrow: { color: colors.textSecondary, fontSize: typography.body },
@@ -456,11 +456,11 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: "rgba(255,255,255,0.04)",
+    backgroundColor: colors.subtleFill,
   },
   conciseChipOn: { backgroundColor: colors.accent, borderColor: colors.accent },
   conciseChipText: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "700" },
-  conciseChipTextOn: { color: "white" },
+  conciseChipTextOn: { color: colors.onAccent },
 
   primaryRow: { flexDirection: "row", gap: spacing.sm, alignItems: "stretch" },
   primaryButton: { flex: 1 },

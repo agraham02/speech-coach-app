@@ -155,5 +155,5 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     alignItems: "center",
   },
-  doneButtonText: { color: "white", fontSize: typography.bodyLarge, fontWeight: "600" },
+  doneButtonText: { color: colors.onAccent, fontSize: typography.bodyLarge, fontWeight: "600" },
 });

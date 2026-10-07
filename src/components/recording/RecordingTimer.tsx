@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
-import { colors, radii, spacing } from "../../theme/theme";
+import { darkColors as colors, radii, spacing } from "../../theme/theme";
 import { formatDuration } from "../../utils/dateUtils";
 
 interface RecordingTimerProps {

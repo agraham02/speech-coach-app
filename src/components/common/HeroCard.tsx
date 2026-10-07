@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderColor: colors.heroBorder,
     backgroundColor: colors.surface,
     overflow: "hidden",
   },

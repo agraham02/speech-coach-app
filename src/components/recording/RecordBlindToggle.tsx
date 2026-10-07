@@ -1,5 +1,5 @@
 import { StyleSheet, Switch, Text, View } from "react-native";
-import { colors, radii, spacing, typography } from "../../theme/theme";
+import { darkColors as colors, radii, spacing, typography } from "../../theme/theme";
 
 interface RecordBlindToggleProps {
   value: boolean;

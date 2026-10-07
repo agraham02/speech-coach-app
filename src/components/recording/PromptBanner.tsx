@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
-import { colors, radii, spacing, typography } from "../../theme/theme";
+import { darkColors as colors, radii, spacing, typography } from "../../theme/theme";
 
 export function PromptBanner({ text }: { text: string }) {
   return (

@@ -138,8 +138,13 @@ export function TrendsScreen() {
   const hasScoredSessions = recentPoints.length > 0;
 
   return (
-    <ScreenContainer style={styles.container} edges={["top", "left", "right"]}>
-      <Text style={styles.title}>Trends</Text>
+    <ScreenContainer style={styles.container}>
+      <View style={styles.titleRow}>
+        <Pressable onPress={() => navigation.goBack()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
+          <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
+        </Pressable>
+        <Text style={styles.title}>Deep review trends</Text>
+      </View>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: spacing.lg + tabBarInset }]}
@@ -250,6 +255,7 @@ export function TrendsScreen() {
 }
 
 const styles = StyleSheet.create({
+  titleRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   // paddingBottom: 0 overrides ScreenContainer's default bottom padding —
   // this screen's own ScrollView already reserves breathing room via
   // scrollContent's paddingBottom, and the tab bar sits directly below with

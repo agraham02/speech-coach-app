@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
   },
   chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
   chipText: { color: colors.textSecondary, fontSize: typography.body, fontWeight: "700" },
-  chipTextActive: { color: "white" },
+  chipTextActive: { color: colors.onAccent },
   historyRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.xs },
   historyText: { flex: 1, gap: 2 },
   historyLevel: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "700" },

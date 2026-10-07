@@ -7,7 +7,7 @@ import Animated, {
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
-import { colors } from "../../theme/theme";
+import { darkColors as colors } from "../../theme/theme";
 
 interface RecordButtonProps {
   isRecording: boolean;

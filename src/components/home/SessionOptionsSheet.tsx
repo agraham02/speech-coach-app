@@ -114,7 +114,7 @@ export function SessionOptionsSheet({
             <Switch
               value={warmUpEnabled}
               onValueChange={onWarmUpEnabledChange}
-              trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
+              trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
             />
           </View>
 
@@ -126,7 +126,7 @@ export function SessionOptionsSheet({
             <Switch
               value={prepSettings.enabled}
               onValueChange={(enabled) => onPrepSettingsChange({ ...prepSettings, enabled })}
-              trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
+              trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
             />
           </View>
           {prepSettings.enabled ? (
@@ -156,7 +156,7 @@ export function SessionOptionsSheet({
                   onValueChange={(isRandom) =>
                     onPrepSettingsChange({ ...prepSettings, mode: isRandom ? "random" : "fixed" })
                   }
-                  trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
+                  trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
                 />
               </View>
               {prepManuallySet ? (
@@ -198,7 +198,7 @@ export function SessionOptionsSheet({
                 onValueChange={(isRandom) =>
                   onDurationSettingsChange({ ...durationSettings, mode: isRandom ? "random" : "fixed" })
                 }
-                trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
+                trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
               />
             </View>
             {durationManuallySet ? (

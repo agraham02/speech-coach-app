@@ -65,6 +65,14 @@ function formatSessionDate(isoDatetime: string): string {
     date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
+const COLLECTIONS: { route: "Practice" | "PromptLibrary" | "ScriptLibrary" | "Drills" | "Frameworks"; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { route: "Practice", label: "Free practice", icon: "mic-outline" },
+  { route: "PromptLibrary", label: "Prompts", icon: "library-outline" },
+  { route: "ScriptLibrary", label: "Scripts", icon: "document-text-outline" },
+  { route: "Drills", label: "Twisters", icon: "flash-outline" },
+  { route: "Frameworks", label: "Frameworks", icon: "book-outline" },
+];
+
 export function HistoryScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const showToast = useToast();
@@ -184,7 +192,24 @@ export function HistoryScreen() {
 
   return (
     <ScreenContainer style={styles.container} edges={["top", "left", "right"]}>
-      <Text style={styles.title}>History</Text>
+      <Text style={styles.title}>Library</Text>
+
+      {/* Everything you can practice outside the daily plan. */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.collections} style={styles.collectionsScroll}>
+        {COLLECTIONS.map((c) => (
+          <Pressable
+            key={c.route}
+            onPress={() => navigation.navigate(c.route)}
+            style={styles.collection}
+            accessibilityRole="button"
+            accessibilityLabel={c.label}
+          >
+            <Ionicons name={c.icon} size={22} color={colors.accent} />
+            <Text style={styles.collectionText}>{c.label}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+      <Text style={styles.sectionLabel}>YOUR RECORDINGS</Text>
 
       {hasAnySessions ? (
         <View style={styles.filters}>
@@ -308,6 +333,20 @@ export function HistoryScreen() {
 }
 
 const styles = StyleSheet.create({
+  collectionsScroll: { flexGrow: 0 },
+  collections: { gap: spacing.sm, paddingRight: spacing.md },
+  collection: {
+    width: 92,
+    paddingVertical: spacing.md,
+    alignItems: "center",
+    gap: spacing.xs,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  collectionText: { color: colors.textPrimary, fontSize: typography.caption, fontWeight: "600" },
+  sectionLabel: { color: colors.textMuted, fontSize: 11, fontWeight: "700", letterSpacing: 0.8 },
   // See TrendsScreen.tsx for why paddingBottom: 0 — overrides
   // ScreenContainer's default bottom padding, since the list's own
   // listContent already reserves end-of-content breathing room.

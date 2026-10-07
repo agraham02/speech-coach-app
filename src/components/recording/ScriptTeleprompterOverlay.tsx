@@ -6,7 +6,7 @@ import { BlurView } from "expo-blur";
 import MaskedView from "@react-native-masked-view/masked-view";
 import { tokenizeScript, type Script, type ScriptCue } from "../../domain/scriptTypes";
 import { withAlpha } from "../../utils/color";
-import { colors, radii, spacing, typography } from "../../theme/theme";
+import { darkColors as colors, radii, spacing, typography } from "../../theme/theme";
 import { logger } from "../../utils/logger";
 
 // expo-blur and @react-native-masked-view/masked-view are NATIVE modules —

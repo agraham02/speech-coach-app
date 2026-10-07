@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 import { RecordingTimer } from "./RecordingTimer";
-import { colors, spacing, typography } from "../../theme/theme";
+import { darkColors as colors, spacing, typography } from "../../theme/theme";
 
 interface RecordBlindOverlayProps {
   promptText: string;

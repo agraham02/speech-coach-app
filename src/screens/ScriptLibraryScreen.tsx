@@ -78,7 +78,7 @@ export function ScriptLibraryScreen({ navigation }: Props) {
             <Switch
               value={cuesEnabled}
               onValueChange={setCuesEnabled}
-              trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
+              trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
             />
           </View>
           <PrimaryButton label={`Start "${selected.title}"`} onPress={handleStart} />

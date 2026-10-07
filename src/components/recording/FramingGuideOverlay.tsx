@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 import type { FramingStatus } from "../../hooks/useFaceDetection";
-import { colors, radii, spacing, typography } from "../../theme/theme";
+import { darkColors as colors, radii, spacing, typography } from "../../theme/theme";
 
 const STATUS_COPY: Record<FramingStatus, string> = {
   none: "Move into frame",
