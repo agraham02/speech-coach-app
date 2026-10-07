@@ -1,5 +1,5 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from "react-native";
-import { colors, radii, spacing, typography } from "../../theme/theme";
+import { ActivityIndicator, Pressable, Text, type StyleProp, type ViewStyle } from "react-native";
+import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 interface PrimaryButtonProps {
   label: string;
@@ -15,6 +15,8 @@ interface PrimaryButtonProps {
 
 export function PrimaryButton({ label, onPress, disabled, loading, variant = "primary", style }: PrimaryButtonProps) {
   const isDisabled = disabled || loading;
+  const styles = useStyles();
+  const { colors } = useTheme();
 
   return (
     <Pressable
@@ -31,7 +33,7 @@ export function PrimaryButton({ label, onPress, disabled, loading, variant = "pr
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={variant === "secondary" || variant === "ghost" ? colors.accent : "white"} />
+        <ActivityIndicator color={variant === "secondary" || variant === "ghost" ? colors.accent : colors.onAccent} />
       ) : (
         <Text
           style={[
@@ -46,20 +48,20 @@ export function PrimaryButton({ label, onPress, disabled, loading, variant = "pr
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   button: {
-    backgroundColor: colors.accent,
-    paddingVertical: spacing.md,
-    borderRadius: radii.md,
+    backgroundColor: t.colors.accent,
+    paddingVertical: t.space.md,
+    borderRadius: t.radius.md,
     alignItems: "center",
     justifyContent: "center",
     minHeight: 54,
   },
-  danger: { backgroundColor: colors.danger },
-  secondary: { backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.border },
+  danger: { backgroundColor: t.colors.danger },
+  secondary: { backgroundColor: t.colors.surfaceRaised, borderWidth: 1, borderColor: t.colors.border },
   ghost: { backgroundColor: "transparent" },
   disabled: { opacity: 0.4 },
   pressed: { opacity: 0.85 },
-  label: { color: "white", fontSize: typography.bodyLarge, fontWeight: "600" },
-  labelMuted: { color: colors.accent },
-});
+  label: { color: t.colors.onAccent, ...t.type.headline, fontSize: 17 },
+  labelMuted: { color: t.colors.accent },
+}));

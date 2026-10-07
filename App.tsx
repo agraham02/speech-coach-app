@@ -8,6 +8,7 @@ import { AppNavigator } from "./src/navigation";
 import { ToastProvider } from "./src/components/common/ToastProvider";
 import { LoadingSpinner } from "./src/components/common/LoadingSpinner";
 import { colors, spacing } from "./src/theme/theme";
+import { ThemeProvider, useTheme } from "./src/theme/ThemeProvider";
 
 // Must run before anything touches react-native-executorch — the on-device
 // ASR pipeline (onDeviceAsrClient.ts) loads its model from a background
@@ -36,12 +37,19 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <ToastProvider>
-        <AppNavigator />
-        <StatusBar style="light" />
-      </ToastProvider>
+      <ThemeProvider>
+        <ToastProvider>
+          <AppNavigator />
+          <ThemedStatusBar />
+        </ToastProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
+}
+
+function ThemedStatusBar() {
+  const { scheme } = useTheme();
+  return <StatusBar style={scheme === "dark" ? "light" : "dark"} />;
 }
 
 const styles = StyleSheet.create({
