@@ -7,6 +7,9 @@ export default (): ExpoConfig => ({
     version: "1.0.0",
     scheme: "speechcoach",
     orientation: "portrait",
+    // Follows the system light/dark setting (needs expo-system-ui on
+    // Android). The JS ThemeProvider decides what the app actually renders.
+    userInterfaceStyle: "automatic",
     icon: "./assets/icon.png",
     ios: {
         bundleIdentifier: "com.ahmadgraham.speechcoach",

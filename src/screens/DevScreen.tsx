@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { RootStackParamList } from "../navigation";
 import { FlatList, Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenContainer } from "../components/common/ScreenContainer";
@@ -23,6 +26,7 @@ function formatTime(isoTimestamp: string): string {
 export function DevScreen() {
   const tabBarInset = useTabBarBottomInset();
   const [logs, setLogs] = useState<LogEntry[]>(getLogs());
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   useEffect(() => subscribeLogs(setLogs), []);
 
@@ -31,6 +35,14 @@ export function DevScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Dev Log</Text>
         <View style={styles.headerActions}>
+          <Pressable
+            onPress={() => navigation.navigate("AsrLab")}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Open ASR Lab"
+          >
+            <Ionicons name="flask-outline" size={22} color={colors.textSecondary} />
+          </Pressable>
           <Pressable
             onPress={() => Share.share({ message: formatLogsForSharing() })}
             hitSlop={12}

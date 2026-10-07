@@ -7,6 +7,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeBottomTabNavigator } from "@bottom-tabs/react-navigation";
 import { Ionicons } from "@expo/vector-icons";
 import { HomeScreen } from "../screens/HomeScreen";
+import { AsrLabScreen } from "../screens/AsrLabScreen";
 import { reconcileOnLaunch } from "../services/pipeline/reconcile";
 import { HistoryScreen } from "../screens/HistoryScreen";
 import { TrendsScreen } from "../screens/TrendsScreen";
@@ -56,6 +57,7 @@ export type RootStackParamList = {
   // still land somewhere sensible.
   Processing: { sessionId: string };
   Result: { sessionId: string };
+  AsrLab: undefined;
 };
 
 const JSTab = createBottomTabNavigator<TabParamList>();
@@ -229,6 +231,7 @@ export function AppNavigator() {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Tabs" component={Tabs} />
         <Stack.Screen name="Settings" component={SettingsScreen} options={{ presentation: "modal" }} />
+        <Stack.Screen name="AsrLab" component={AsrLabScreen} />
         <Stack.Screen name="ScriptLibrary" component={ScriptLibraryScreen} />
         <Stack.Screen name="PromptLibrary" component={PromptLibraryScreen} />
         <Stack.Screen name="AddPrompt" component={AddPromptScreen} options={{ presentation: "modal" }} />

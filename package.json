@@ -5,12 +5,14 @@
   "dependencies": {
     "@bottom-tabs/react-navigation": "^1.4.0",
     "@expo/vector-icons": "^15.0.2",
+    "@react-native-ai/apple": "^0.12.0",
     "@react-native-community/slider": "5.2.0",
     "@react-native-masked-view/masked-view": "0.3.2",
     "@react-navigation/bottom-tabs": "^7.18.14",
     "@react-navigation/native": "^7.3.14",
     "@react-navigation/native-stack": "^7.18.6",
     "@shopify/react-native-skia": "2.6.2",
+    "ai": "^6.0.302",
     "expo": "~57.0.12",
     "expo-asset": "^57.0.10",
     "expo-blur": "~57.0.2",
@@ -23,9 +25,11 @@
     "expo-linear-gradient": "~57.0.1",
     "expo-notifications": "~57.0.10",
     "expo-secure-store": "~57.0.1",
+    "expo-speech": "~57.0.1",
     "expo-speech-recognition": "^57.1.0",
     "expo-sqlite": "~57.0.1",
     "expo-status-bar": "~57.0.1",
+    "expo-system-ui": "~57.0.2",
     "expo-video": "~57.0.2",
     "pitchfinder": "^2.3.4",
     "react": "19.2.3",
@@ -44,7 +48,8 @@
     "react-native-vision-camera": "^4.7.3",
     "react-native-vision-camera-face-detector": "^1.10.2",
     "react-native-worklets": "0.10.1",
-    "react-native-worklets-core": "^1.6.3"
+    "react-native-worklets-core": "^1.6.3",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@expo/ngrok": "^4.1.3",
