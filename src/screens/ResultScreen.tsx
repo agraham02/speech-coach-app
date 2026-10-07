@@ -17,6 +17,8 @@ import { colorForScore } from "../components/result/scoreColor";
 import { ThreePassPlayer } from "../components/review/ThreePassPlayer";
 import { AnalysisStepsCard } from "../components/result/AnalysisStepsCard";
 import { CoachCard } from "../components/result/CoachCard";
+import { ComparisonCard } from "../components/result/ComparisonCard";
+import { getPromptComparison } from "../services/db/statsRepo";
 import type { CoachOutput } from "../domain/coach/ruleCoach";
 import { AnnotatedTranscript } from "../components/result/AnnotatedTranscript";
 import { ScoreRadarChart } from "../components/result/ScoreRadarChart";
@@ -89,6 +91,7 @@ export function ResultScreen({ route, navigation }: Props) {
   const [subjectSummary, setSubjectSummary] = useState<SessionSubjectSummary | null>(null);
   const [cloudTranscript, setCloudTranscript] = useState<CloudTranscriptArtifact | null>(null);
   const [coach, setCoach] = useState<CoachOutput | null>(null);
+  const [comparison, setComparison] = useState<Awaited<ReturnType<typeof getPromptComparison>>>(null);
 
   // Reloaded whenever an analysis step finishes, so results fill in live.
   const loadAll = useCallback(() => {
@@ -102,6 +105,7 @@ export function ResultScreen({ route, navigation }: Props) {
     getScoresBySessionId(sessionId).then(setScores);
     getArtifact<CloudTranscriptArtifact>(sessionId, "cloud_transcript").then(setCloudTranscript);
     getArtifact<CoachOutput>(sessionId, "coach").then(setCoach);
+    getPromptComparison(sessionId).then(setComparison);
   }, [sessionId]);
 
   useEffect(() => {
@@ -270,6 +274,8 @@ export function ResultScreen({ route, navigation }: Props) {
           )}
 
           {coach ? <CoachCard coach={coach} onAnswerFollowUp={handleAnswerFollowUp} /> : null}
+
+          {comparison ? <ComparisonCard current={comparison.current} previous={comparison.previous} /> : null}
 
           {prompt ? (
             <Card style={styles.promptCard}>

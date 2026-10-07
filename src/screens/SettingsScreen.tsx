@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
+import { deleteOldVideos, exportPracticeData, formatBytes, getVideoStorageBytes } from "../services/data/dataExport";
 import { isAppleModelAvailable } from "../services/onDeviceLlm/onDeviceCoach";
 import { Card } from "../components/common/Card";
 import { LabeledSlider } from "../components/common/LabeledSlider";
@@ -143,6 +144,30 @@ export function SettingsScreen({ navigation }: Props) {
   }
 
   const [appleCoach] = useState(() => isAppleModelAvailable());
+  const [videoBytes, setVideoBytes] = useState(() => getVideoStorageBytes());
+
+  async function handleExport() {
+    try {
+      await exportPracticeData();
+    } catch (error) {
+      Alert.alert("Export failed", (error as Error).message);
+    }
+  }
+
+  function handleDeleteOldVideos() {
+    Alert.alert("Delete videos older than 30 days?", "Transcripts, analysis and scores are kept. This can't be undone.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          const n = await deleteOldVideos(30);
+          setVideoBytes(getVideoStorageBytes());
+          Alert.alert("Done", `Removed ${n} video${n === 1 ? "" : "s"}.`);
+        },
+      },
+    ]);
+  }
   const [onDeviceRecognition] = useState(() => {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -296,6 +321,18 @@ export function SettingsScreen({ navigation }: Props) {
           onChangeText={setNotionPageIdField}
           onBlur={() => setNotionPageId(notionPageId)}
         />
+      </Card>
+
+      <Text style={styles.groupLabel}>DATA</Text>
+      <Card style={styles.section}>
+        <Text style={styles.sectionTitle}>Your data stays on this phone</Text>
+        <Text style={styles.sectionSubtitle}>Videos use {formatBytes(videoBytes)}.</Text>
+        <Pressable onPress={handleExport} accessibilityRole="button">
+          <Text style={styles.linkText}>Export practice data (share sheet)</Text>
+        </Pressable>
+        <Pressable onPress={handleDeleteOldVideos} accessibilityRole="button">
+          <Text style={styles.linkText}>Delete videos older than 30 days</Text>
+        </Pressable>
       </Card>
       </ScrollView>
     </ScreenContainer>

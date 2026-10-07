@@ -27,7 +27,7 @@ export function claimRecordingForSession(previewUri: string, sessionId: string):
   const fileName = `${sessionId}.mp4`;
   const destination = new File(getSessionsDirectory(), fileName);
   if (source.exists && source.uri !== destination.uri) {
-    source.move(destination);
+    source.moveSync(destination);
   }
   return { fileName, uri: destination.uri };
 }

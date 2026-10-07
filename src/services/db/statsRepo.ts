@@ -106,3 +106,73 @@ export async function getSessionMetricSeries(limit = 30): Promise<SessionMetricP
     eyeContact: r.eye_contact,
   }));
 }
+
+// The same on-device measurements for one session, and for your previous
+// take of the same prompt — the Result screen's before/after comparison.
+export async function getPromptComparison(
+  sessionId: string,
+): Promise<{ current: SessionMetricPoint; previous: SessionMetricPoint } | null> {
+  const db = await getDatabase();
+  type Row = { recorded_at: string; duration_seconds: number; word_count: number | null; filler_rate_per_minute: number | null; eye_contact: number | null };
+  const select = `SELECT s.recorded_at, s.duration_seconds, s.filler_rate_per_minute,
+                         json_array_length(s.transcript_words_json) AS word_count,
+                         json_extract(a.json, '$.eyeContactPercent') AS eye_contact
+                  FROM sessions s
+                  LEFT JOIN session_artifacts a ON a.session_id = s.id AND a.kind = 'presence'`;
+  const current = await db.getFirstAsync<Row & { prompt_id: string }>(`${select.replace("SELECT ", "SELECT s.prompt_id, ")} WHERE s.id = ?`, [sessionId]);
+  if (!current) return null;
+  const previous = await db.getFirstAsync<Row>(
+    `${select} WHERE s.prompt_id = ? AND s.id != ? AND s.deleted_at IS NULL AND s.status = 'done' AND s.recorded_at < ?
+     ORDER BY s.recorded_at DESC LIMIT 1`,
+    [current.prompt_id, sessionId, current.recorded_at],
+  );
+  if (!previous) return null;
+  const toPoint = (r: Row): SessionMetricPoint => ({
+    recordedAt: r.recorded_at,
+    wpm: r.word_count && r.duration_seconds > 0 ? Math.round(r.word_count / (r.duration_seconds / 60)) : null,
+    fillerRate: r.filler_rate_per_minute,
+    eyeContact: r.eye_contact,
+  });
+  return { current: toPoint(current), previous: toPoint(previous) };
+}
+
+export interface WeekSummary {
+  practiceDays: number;
+  reps: number;
+  drills: number;
+  avgDrillScore: number | null; // 0-100
+}
+
+function weekStart(offsetWeeks: number): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7) - offsetWeeks * 7);
+  return d;
+}
+
+async function summarizeWeek(offsetWeeks: number): Promise<WeekSummary> {
+  const db = await getDatabase();
+  const from = weekStart(offsetWeeks).toISOString();
+  const to = weekStart(offsetWeeks - 1).toISOString();
+  const reps = await db.getFirstAsync<{ n: number; days: number }>(
+    `SELECT COUNT(*) AS n, COUNT(DISTINCT substr(recorded_at, 1, 10)) AS days FROM sessions
+     WHERE status = 'done' AND deleted_at IS NULL AND recorded_at >= ? AND recorded_at < ?`,
+    [from, to],
+  );
+  const drills = await db.getFirstAsync<{ n: number; avg: number | null; days: number }>(
+    `SELECT COUNT(*) AS n, AVG(score) AS avg, COUNT(DISTINCT substr(started_at, 1, 10)) AS days FROM drill_attempts
+     WHERE started_at >= ? AND started_at < ?`,
+    [from, to],
+  );
+  return {
+    practiceDays: Math.max(reps?.days ?? 0, drills?.days ?? 0),
+    reps: reps?.n ?? 0,
+    drills: drills?.n ?? 0,
+    avgDrillScore: drills?.avg != null ? Math.round(drills.avg * 100) : null,
+  };
+}
+
+export async function getWeeklySummaries(): Promise<{ thisWeek: WeekSummary; lastWeek: WeekSummary }> {
+  const [thisWeek, lastWeek] = await Promise.all([summarizeWeek(0), summarizeWeek(1)]);
+  return { thisWeek, lastWeek };
+}

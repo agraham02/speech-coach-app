@@ -14,7 +14,7 @@ import { MetricChart } from "../components/common/MetricChart";
 import { StatTile } from "../components/common/StatTile";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
 import { getAllDrillLevels, getPracticeDates, getRecentDrillAttempts, getSkillStates } from "../services/db/progressRepo";
-import { getSessionMetricSeries, type SessionMetricPoint } from "../services/db/statsRepo";
+import { getSessionMetricSeries, getWeeklySummaries, type SessionMetricPoint, type WeekSummary } from "../services/db/statsRepo";
 import { computeStreaks } from "../domain/streaks";
 import { DRILL_SKILL, DRILL_TITLES, type DrillType } from "../domain/drills/drillSpecs";
 import { SKILL_LABELS, type SkillId } from "../theme/tokens";
@@ -41,6 +41,7 @@ export function ProgressScreen() {
   const [series, setSeries] = useState<SessionMetricPoint[]>([]);
   const [practiceDays, setPracticeDays] = useState<Set<string>>(new Set());
   const [streak, setStreak] = useState({ current: 0, longest: 0 });
+  const [weeks2, setWeeks2] = useState<{ thisWeek: WeekSummary; lastWeek: WeekSummary } | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -62,6 +63,7 @@ export function ProgressScreen() {
         ),
       );
       getSessionMetricSeries(30).then(setSeries);
+      getWeeklySummaries().then(setWeeks2);
       getPracticeDates().then((dates) => {
         const s = computeStreaks(dates);
         setStreak({ current: s.currentStreak, longest: s.longestStreak });
@@ -127,6 +129,26 @@ export function ProgressScreen() {
             ))}
           </View>
         </Card>
+
+        {weeks2 ? (
+          <Card style={styles.card}>
+            <Txt variant="caption2" tone="muted" uppercase>
+              This week vs last week
+            </Txt>
+            <View style={styles.row}>
+              <StatTile value={`${weeks2.thisWeek.practiceDays}`} label={`days (last: ${weeks2.lastWeek.practiceDays})`} />
+              <StatTile value={`${weeks2.thisWeek.reps}`} label={`reps (last: ${weeks2.lastWeek.reps})`} />
+              <StatTile value={`${weeks2.thisWeek.drills}`} label={`drills (last: ${weeks2.lastWeek.drills})`} />
+            </View>
+            {weeks2.thisWeek.avgDrillScore != null ? (
+              <Txt variant="footnote" tone="secondary">
+                Average drill score {weeks2.thisWeek.avgDrillScore}%
+                {weeks2.lastWeek.avgDrillScore != null ? ` (last week ${weeks2.lastWeek.avgDrillScore}%)` : ""} — drills get harder as you
+                improve, so a steady score means you're climbing.
+              </Txt>
+            ) : null}
+          </Card>
+        ) : null}
 
         <ChipGroup scroll options={SKILLS.map((s) => ({ key: s, label: SKILL_LABELS[s] }))} value={skill} onChange={setSkill} />
         <Card style={styles.card}>
