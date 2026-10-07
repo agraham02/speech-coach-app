@@ -148,6 +148,20 @@ export interface Session {
   geminiFileName: string | null;
   geminiFileUri: string | null;
   geminiFileUploadedAt: string | null; // ISO datetime
+  // Migration v14. videoFile is the file name inside Documents/sessions —
+  // resolve it with videoStorage.resolveVideoUri() rather than trusting
+  // videoPath, because the iOS app-container path changes between builds.
+  videoFile: string | null;
+  lastError: string | null;
+  updatedAt: string | null;
+  subjectExtras: SessionSubjectExtras | null;
+  notionBlockId: string | null;
+}
+
+// Recording-context details with no dedicated column, kept so "Practice
+// this prompt again" / Retake can rebuild the exact same subject.
+export interface SessionSubjectExtras {
+  conciseSeconds?: number;
 }
 
 export type StructureUsed = "what/why/how" | "story arc" | "none detected" | "other";

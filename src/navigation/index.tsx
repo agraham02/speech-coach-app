@@ -7,6 +7,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeBottomTabNavigator } from "@bottom-tabs/react-navigation";
 import { Ionicons } from "@expo/vector-icons";
 import { HomeScreen } from "../screens/HomeScreen";
+import { reconcileOnLaunch } from "../services/pipeline/reconcile";
 import { HistoryScreen } from "../screens/HistoryScreen";
 import { TrendsScreen } from "../screens/TrendsScreen";
 import { DevScreen } from "../screens/DevScreen";
@@ -51,13 +52,9 @@ export type RootStackParamList = {
   Curriculum: undefined;
   Recording: RecordingSubject;
   Preview: RecordingSubject & { videoUri: string; durationSecondsLocal: number };
-  Processing: RecordingSubject & {
-    sessionId: string;
-    videoUri: string;
-    durationSecondsLocal: number;
-    wantsGrading: boolean;
-    wantsNotionSync: boolean;
-  };
+  // Kept only as a redirect to Result, so older notification/deep links
+  // still land somewhere sensible.
+  Processing: { sessionId: string };
   Result: { sessionId: string };
 };
 
@@ -217,6 +214,12 @@ export function AppNavigator() {
   // A one-shot reminder (see reminderScheduler.syncDailyReminder) only covers
   // the single moment it was armed for — re-syncing on every launch is what
   // re-arms it after it fires, or after a day passed with the app never open.
+  // Resume analysis the app was killed in the middle of, and clean up
+  // abandoned video files (see pipeline/reconcile.ts).
+  useEffect(() => {
+    reconcileOnLaunch();
+  }, []);
+
   useEffect(() => {
     syncDailyReminder().catch((err) => logger.error(`[reminders] launch resync failed — ${(err as Error).message}`));
   }, []);

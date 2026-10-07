@@ -17,9 +17,9 @@ import {
 } from "../services/db/sessionsRepo";
 import { getAllPrompts } from "../services/db/promptsRepo";
 import { FREE_RECORD_PROMPT } from "../data/topics";
-import { deleteRecording } from "../services/storage/videoStorage";
+import { deleteRecording, resolveVideoUri } from "../services/storage/videoStorage";
 import { subscribeToAllSessions } from "../services/pipeline/processingEvents";
-import { sessionToRecordingSubject } from "../services/pipeline/sessionProcessor";
+import { getScriptById } from "../services/db/scriptsRepo";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
 import { colorForScore } from "../components/result/scoreColor";
 import { colorForCategory } from "../domain/categoryColor";
@@ -96,7 +96,13 @@ export function HistoryScreen() {
     });
   }, []);
 
-  function resolvePrompt(promptId: string): Prompt | undefined {
+  // What a row is about. Script sessions store the script id in prompt_id,
+  // which used to fail the prompt lookup and show "Unknown prompt".
+  function resolvePrompt(promptId: string, session?: Session): Pick<Prompt, "text" | "category"> | undefined {
+    if (session?.sessionType === "script_practice") {
+      const script = session.scriptId ? getScriptById(session.scriptId) : undefined;
+      return script ? { text: script.title, category: script.category } : { text: "Script practice", category: "Script" };
+    }
     if (promptId === FREE_RECORD_PROMPT.id) return FREE_RECORD_PROMPT;
     return promptsById.get(promptId);
   }
@@ -117,7 +123,7 @@ export function HistoryScreen() {
     return sessions.filter((session) => {
       if (statusFilter !== "all" && session.status !== statusFilter) return false;
       if (durationFilter !== "all" && durationBucket(session.durationSeconds) !== durationFilter) return false;
-      const prompt = resolvePrompt(session.promptId);
+      const prompt = resolvePrompt(session.promptId, session);
       if (categoryFilter !== "all" && prompt?.category !== categoryFilter) return false;
       if (!query) return true;
       const haystack = `${prompt?.text ?? ""} ${prompt?.category ?? ""}`.toLowerCase();
@@ -126,27 +132,15 @@ export function HistoryScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessions, searchQuery, statusFilter, categoryFilter, durationFilter, promptsById]);
 
-  async function openSession(session: Session) {
-    if (session.status === "done") {
-      navigation.navigate("Result", { sessionId: session.id });
-      return;
-    }
-
-    const subject = await sessionToRecordingSubject(session);
-    if (!subject) return;
-    navigation.navigate("Processing", {
-      ...subject,
-      sessionId: session.id,
-      videoUri: session.videoPath,
-      durationSecondsLocal: session.durationSeconds,
-      wantsGrading: session.wantsGrading,
-      wantsNotionSync: session.wantsNotionSync,
-    });
+  // Every session opens on Result — progress, retries and every later
+  // action (deep review, Notion, practice again) live there.
+  function openSession(session: Session) {
+    navigation.navigate("Result", { sessionId: session.id });
   }
 
   async function handleDeleteVideo(session: Session) {
     await deleteSessionVideo(session.id);
-    deleteRecording(session.videoPath);
+    deleteRecording(resolveVideoUri(session));
     setSessions((prev) =>
       prev.map((s) => (s.id === session.id ? { ...s, videoDeletedAt: new Date().toISOString() } : s)),
     );
@@ -155,17 +149,14 @@ export function HistoryScreen() {
 
   async function handleDeleteSession(session: Session) {
     await deleteSession(session.id);
-    deleteRecording(session.videoPath);
+    deleteRecording(resolveVideoUri(session));
     setSessions((prev) => prev.filter((s) => s.id !== session.id));
     showToast("Session deleted", "success");
   }
 
   function confirmDelete(session: SessionWithScore) {
     const buttons: Parameters<typeof Alert.alert>[2] = [{ text: "Cancel", style: "cancel" }];
-    // Deleting just the video only makes sense once grading is done and the
-    // video isn't there already — grading/retry needs the local file since
-    // Gemini's Files API entries expire after 48h (see sessionProcessor.ts).
-    if (session.status === "done" && !session.videoDeletedAt) {
+    if (!session.videoDeletedAt) {
       buttons.push({
         text: "Delete Video",
         style: "destructive",
@@ -180,7 +171,7 @@ export function HistoryScreen() {
 
     Alert.alert(
       "Delete this session?",
-      "Delete Video frees up space but keeps the transcript and scores. Delete Session removes it from History entirely (it's kept for Trends stats, just hidden here).",
+      "Delete Video frees up space but keeps the transcript and scores (a deep review won't be possible afterwards). Delete Session removes it everywhere, including your stats.",
       buttons,
     );
   }
@@ -272,7 +263,7 @@ export function HistoryScreen() {
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.accent} />}
           renderItem={({ item }) => {
-            const prompt = resolvePrompt(item.promptId);
+            const prompt = resolvePrompt(item.promptId, item);
             const status = STATUS_META[item.status];
             return (
               <Pressable

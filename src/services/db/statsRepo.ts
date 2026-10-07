@@ -42,7 +42,9 @@ function toSummary(row: ScoredSessionRow): ScoredSessionSummary {
   };
 }
 
-// All graded sessions (done + has a scores row), oldest first — used for trend/synthesis math.
+// All graded, non-deleted impromptu sessions, oldest first — used for trend
+// math. Script readings are excluded: their structure/content scores are a
+// fixed 7 and would skew the averages.
 export async function getScoredSessionSummaries(): Promise<ScoredSessionSummary[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<ScoredSessionRow>(
@@ -51,7 +53,7 @@ export async function getScoredSessionSummaries(): Promise<ScoredSessionSummary[
             sc.archetype_detected, sc.annotations_json
      FROM sessions s
      JOIN scores sc ON sc.session_id = s.id
-     WHERE s.status = 'done'
+     WHERE s.status = 'done' AND s.deleted_at IS NULL AND s.session_type != 'script_practice'
      ORDER BY s.recorded_at ASC`,
   );
   return rows.map(toSummary);
@@ -62,7 +64,7 @@ export async function getScoredSessionSummaries(): Promise<ScoredSessionSummary[
 export async function getCompletedSessionDates(): Promise<string[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<{ recorded_at: string }>(
-    `SELECT recorded_at FROM sessions WHERE status = 'done' ORDER BY recorded_at ASC`,
+    `SELECT recorded_at FROM sessions WHERE status = 'done' AND deleted_at IS NULL ORDER BY recorded_at ASC`,
   );
   return rows.map((row) => row.recorded_at);
 }

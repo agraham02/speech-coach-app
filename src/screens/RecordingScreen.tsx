@@ -39,6 +39,7 @@ import {
 } from "../domain/curriculum";
 import { getEffectiveCurriculumLevel } from "../services/db/curriculumRepo";
 import { persistRecording } from "../services/storage/videoStorage";
+import { logger } from "../utils/logger";
 import { formatDuration } from "../utils/dateUtils";
 import { colors, spacing, typography } from "../theme/theme";
 
@@ -59,6 +60,9 @@ export function RecordingScreen({ route, navigation }: Props) {
   const [recordBlind, setRecordBlind] = useState(!isScript && getRecordBlindPref());
   const [isFinishing, setIsFinishing] = useState(false);
   const stoppingRef = useRef(false);
+  // Set while a take is being thrown away via "Restart" — the cancel
+  // surfaces as a recording error, which shouldn't alert in that case.
+  const restartingRef = useRef(false);
 
   // The curriculum's level-driven prep applies unless the user has
   // explicitly configured their own prep phase in the Session Options sheet
@@ -150,9 +154,29 @@ export function RecordingScreen({ route, navigation }: Props) {
       onRecordingError: (error) => {
         setStage("idle");
         stop();
+        if (restartingRef.current) {
+          restartingRef.current = false;
+          return;
+        }
         Alert.alert("Recording error", error.message);
       },
     });
+  }
+
+  // Throws the current take away and goes back to "ready" (no warm-up or
+  // prep again) — a bad start no longer means finishing and discarding.
+  async function handleRestartTake() {
+    if (!cameraRef.current || stoppingRef.current) return;
+    restartingRef.current = true;
+    stoppingRef.current = true;
+    try {
+      await cameraRef.current.cancelRecording();
+    } catch (error) {
+      restartingRef.current = false;
+      logger.error(`[recording] restart failed — ${(error as Error).message}`);
+    }
+    stop();
+    setStage("idle");
   }
 
   async function handleStop() {
@@ -285,6 +309,18 @@ export function RecordingScreen({ route, navigation }: Props) {
           {stage === "idle" && !isScript && (
             <RecordBlindToggle value={recordBlind} onValueChange={handleToggleRecordBlind} />
           )}
+          {stage === "recording" && !isFinishing ? (
+            <Pressable
+              onPress={handleRestartTake}
+              style={styles.restartButton}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Restart take"
+            >
+              <Ionicons name="refresh" size={20} color={colors.textPrimary} />
+              <Text style={styles.restartText}>Restart</Text>
+            </Pressable>
+          ) : null}
           <View style={styles.recordButtonGroup}>
             {/* The ring only appears once recording starts (and blind mode isn't
                 hiding it), so it never reads as decoration on the idle button —
@@ -363,6 +399,18 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   recordButtonGroup: { alignItems: "center", gap: spacing.sm },
+  restartButton: {
+    position: "absolute",
+    left: spacing.lg,
+    bottom: spacing.xxl + spacing.lg,
+    alignItems: "center",
+    gap: 2,
+    padding: spacing.sm,
+    borderRadius: 999,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    zIndex: 2,
+  },
+  restartText: { color: colors.textPrimary, fontSize: typography.caption - 1, fontWeight: "600" },
   recordHint: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "600" },
   recordHintUrgent: { color: colors.danger, fontWeight: "700" },
 });

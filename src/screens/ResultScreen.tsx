@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
@@ -14,7 +14,8 @@ import { SegmentedControl } from "../components/common/SegmentedControl";
 import { ScoreBar } from "../components/result/ScoreBar";
 import { AccordionSection } from "../components/result/AccordionSection";
 import { colorForScore } from "../components/result/scoreColor";
-import { VideoPlayback } from "../components/result/VideoPlayback";
+import { ThreePassPlayer } from "../components/review/ThreePassPlayer";
+import { AnalysisStepsCard } from "../components/result/AnalysisStepsCard";
 import { AnnotatedTranscript } from "../components/result/AnnotatedTranscript";
 import { ScoreRadarChart } from "../components/result/ScoreRadarChart";
 import { WpmSparkline } from "../components/result/WpmSparkline";
@@ -24,10 +25,14 @@ import { getSessionById, deleteSession, deleteSessionVideo } from "../services/d
 import { getPreviousOverallScore, getScoresBySessionId } from "../services/db/scoresRepo";
 import { getPrompt } from "../services/db/promptsRepo";
 import { getScriptById } from "../services/db/scriptsRepo";
-import { deleteRecording } from "../services/storage/videoStorage";
-import { syncSessionToNotion, gradeExistingSession, sessionToGradingContext } from "../services/pipeline/sessionProcessor";
-import { describeGeminiError } from "../services/gemini/describeError";
-import { describeNotionError } from "../services/notion/describeError";
+import { deleteRecording, resolveVideoUri, videoExists } from "../services/storage/videoStorage";
+import { requestStep } from "../services/pipeline/sessionPipeline";
+import { getArtifact } from "../services/db/artifactsRepo";
+import { describeSessionSubject, subjectFromSession, type SessionSubjectSummary } from "../services/sessions/sessionSubject";
+import { useSessionSteps } from "../hooks/useSessionSteps";
+import type { CloudTranscriptArtifact } from "../services/pipeline/steps/cloudReviewStep";
+import type { SessionStep } from "../domain/sessionSteps";
+import { logger } from "../utils/logger";
 import { colorForCategory } from "../domain/categoryColor";
 import type { Prompt, Session, SessionScores } from "../domain/sessionTypes";
 import { formatDuration } from "../utils/dateUtils";
@@ -60,6 +65,15 @@ function ScoreDelta({ current, previous }: { current: number; previous: number |
   );
 }
 
+function NumberTile({ value, label }: { value: string; label: string }) {
+  return (
+    <View style={styles.tile}>
+      <Text style={styles.tileValue}>{value}</Text>
+      <Text style={styles.tileLabel}>{label}</Text>
+    </View>
+  );
+}
+
 export function ResultScreen({ route, navigation }: Props) {
   const { sessionId } = route.params;
   const showToast = useToast();
@@ -69,18 +83,27 @@ export function ResultScreen({ route, navigation }: Props) {
   const [previousOverallScore, setPreviousOverallScore] = useState<number | null>(null);
   const [tab, setTab] = useState<ResultTab>("overview");
   const [showClean, setShowClean] = useState(false);
-  const [showVideo, setShowVideo] = useState(false);
-  const [isSyncingNotion, setIsSyncingNotion] = useState(false);
-  const [isGrading, setIsGrading] = useState(false);
+  const [subjectSummary, setSubjectSummary] = useState<SessionSubjectSummary | null>(null);
+  const [cloudTranscript, setCloudTranscript] = useState<CloudTranscriptArtifact | null>(null);
 
-  useEffect(() => {
+  // Reloaded whenever an analysis step finishes, so results fill in live.
+  const loadAll = useCallback(() => {
     getSessionById(sessionId).then((s) => {
       setSession(s);
-      if (s) getPreviousOverallScore(s.recordedAt).then(setPreviousOverallScore);
-      if (s && s.sessionType !== "script_practice") getPrompt(s.promptId).then(setPrompt);
+      if (!s) return;
+      getPreviousOverallScore(s.recordedAt).then(setPreviousOverallScore);
+      if (s.sessionType !== "script_practice") getPrompt(s.promptId).then(setPrompt);
+      describeSessionSubject(s).then(setSubjectSummary);
     });
     getScoresBySessionId(sessionId).then(setScores);
+    getArtifact<CloudTranscriptArtifact>(sessionId, "cloud_transcript").then(setCloudTranscript);
   }, [sessionId]);
+
+  useEffect(() => {
+    loadAll();
+  }, [loadAll]);
+
+  const { steps } = useSessionSteps(sessionId, loadAll);
 
   if (!session) {
     return (
@@ -107,79 +130,72 @@ export function ResultScreen({ route, navigation }: Props) {
         { key: "transcript", label: "Transcript" },
       ];
 
-  async function handleNotionToggle(value: boolean) {
-    if (!value || session!.notionSyncedAt) return;
-    setIsSyncingNotion(true);
-    try {
-      await syncSessionToNotion(sessionId);
-      const updated = await getSessionById(sessionId);
-      setSession(updated);
-      showToast("Saved to Notion", "success");
-    } catch (error) {
-      showToast(`Couldn't sync to Notion — ${describeNotionError(error)}`, "error");
-    } finally {
-      setIsSyncingNotion(false);
-    }
+  function handleRunStep(step: SessionStep) {
+    requestStep(sessionId, step).catch((error) => {
+      logger.error(`[result] ${step} failed to start — ${(error as Error).message}`);
+      showToast("Couldn't start that — try again", "error");
+    });
   }
 
-  async function handleGrade() {
-    if (!session) return;
-    const context = await sessionToGradingContext(session);
-    if (!context) return;
-    setIsGrading(true);
-    try {
-      await gradeExistingSession(sessionId, context, session.videoPath);
-      const [updatedSession, updatedScores] = await Promise.all([
-        getSessionById(sessionId),
-        getScoresBySessionId(sessionId),
-      ]);
-      setSession(updatedSession);
-      setScores(updatedScores);
-      showToast("Grading complete", "success");
-    } catch (error) {
-      showToast(`Grading failed — ${describeGeminiError(error)}`, "error");
-    } finally {
-      setIsGrading(false);
+  async function handlePracticeAgain() {
+    const subject = session ? await subjectFromSession(session) : null;
+    if (!subject) {
+      showToast("Couldn't find this prompt anymore", "error");
+      return;
     }
+    navigation.navigate("Recording", subject);
   }
 
   async function handleDeleteVideo() {
     await deleteSessionVideo(sessionId);
-    deleteRecording(session!.videoPath);
+    deleteRecording(resolveVideoUri(session!));
     setSession((prev) => (prev ? { ...prev, videoDeletedAt: new Date().toISOString() } : prev));
     showToast("Video deleted — transcript and scores kept", "success");
   }
 
   async function handleDeleteSession() {
     await deleteSession(sessionId);
-    deleteRecording(session!.videoPath);
+    deleteRecording(resolveVideoUri(session!));
     navigation.popToTop();
   }
 
   function handleDelete() {
     const buttons: Parameters<typeof Alert.alert>[2] = [{ text: "Cancel", style: "cancel" }];
-    // Same rationale as HistoryScreen.tsx's confirmDelete: only offer once
-    // grading is done and the video hasn't already been removed — grading
-    // retry needs the local file since Gemini's Files API entries expire
-    // after 48h (see sessionProcessor.ts).
-    if (session!.status === "done" && !session!.videoDeletedAt) {
+    if (!session!.videoDeletedAt) {
       buttons.push({ text: "Delete Video", style: "destructive", onPress: handleDeleteVideo });
     }
     buttons.push({ text: "Delete Session", style: "destructive", onPress: handleDeleteSession });
 
     Alert.alert(
       "Delete this session?",
-      "Delete Video frees up space but keeps the transcript and scores. Delete Session removes it from History entirely (it's kept for Trends stats, just hidden here).",
+      "Delete Video frees up space but keeps the transcript and scores (a deep review won't be possible afterwards). Delete Session removes it everywhere, including your stats.",
       buttons,
     );
   }
 
-  const notionSynced = !!session.notionSyncedAt;
+  const videoUri = resolveVideoUri(session);
+  const hasVideo = !session.videoDeletedAt && videoExists(videoUri);
+  const deepReviewBlocked = !hasVideo ? "Needs the video, which has been deleted." : undefined;
+  const avgWpm =
+    session.transcriptWords && session.transcriptWords.length > 0 && session.durationSeconds > 0
+      ? Math.round(session.transcriptWords.length / (session.durationSeconds / 60))
+      : null;
+  const pitchRange =
+    session.pitchMaxHz != null && session.pitchMinHz != null ? Math.round(session.pitchMaxHz - session.pitchMinHz) : null;
+  // Deep-review annotations quote Gemini's own transcript, so show that one
+  // when annotating; otherwise the on-device transcript.
+  const annotatedTranscript =
+    scores && scores.annotations.length > 0 && cloudTranscript ? cloudTranscript.verbatim : session.transcriptVerbatim ?? "";
 
   return (
     <ScreenContainer style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.headerSpacer} />
+        <View style={styles.headerText}>
+          <Text style={styles.headerType}>{subjectSummary?.typeLabel.toUpperCase() ?? ""}</Text>
+          <Text style={styles.headerTitle} numberOfLines={2}>
+            {subjectSummary?.title ?? ""}
+          </Text>
+        </View>
         <Pressable
           onPress={handleDelete}
           hitSlop={12}
@@ -194,23 +210,6 @@ export function ResultScreen({ route, navigation }: Props) {
 
       {tab === "overview" ? (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <Card style={styles.notionCard}>
-            <View style={styles.row}>
-              <View style={styles.rowText}>
-                <Text style={styles.rowTitle}>Sync to Notion</Text>
-                <Text style={styles.rowSubtitle}>
-                  {notionSynced ? "Saved to your journal" : isSyncingNotion ? "Syncing…" : "Not sent yet"}
-                </Text>
-              </View>
-              <Switch
-                value={notionSynced}
-                onValueChange={handleNotionToggle}
-                disabled={notionSynced || isSyncingNotion}
-                trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
-              />
-            </View>
-          </Card>
-
           {scores ? (
             <HeroCard
               contentStyle={styles.scoreHeroContent}
@@ -235,12 +234,17 @@ export function ResultScreen({ route, navigation }: Props) {
               <Text style={styles.scoreHeroFit}>{scores.archetypeFitForTopic}</Text>
             </HeroCard>
           ) : (
-            <Card style={styles.gradeCard}>
-              <View style={styles.rowText}>
-                <Text style={styles.rowTitle}>No AI feedback yet</Text>
-                <Text style={styles.rowSubtitle}>Get structure, delivery, presence, and coaching scores.</Text>
+            <Card style={styles.numbersCard}>
+              <Text style={styles.numbersLabel}>YOUR NUMBERS</Text>
+              <View style={styles.numbersRow}>
+                <NumberTile value={avgWpm != null ? `${avgWpm}` : "—"} label="words / min" />
+                <NumberTile
+                  value={session.fillerRatePerMinute != null ? `${session.fillerRatePerMinute}` : "—"}
+                  label="fillers / min"
+                />
+                <NumberTile value={pitchRange != null ? `${pitchRange} Hz` : "—"} label="pitch range" />
               </View>
-              <PrimaryButton label="Grade with Gemini" onPress={handleGrade} loading={isGrading} />
+              <Text style={styles.rowSubtitle}>Measured on this phone. A deep review adds structure and presence scores.</Text>
             </Card>
           )}
 
@@ -261,25 +265,20 @@ export function ResultScreen({ route, navigation }: Props) {
             </Card>
           ) : null}
 
-          {session.videoDeletedAt ? (
+          {hasVideo ? (
+            <ThreePassPlayer
+              videoUri={videoUri}
+              transcriptWords={session.transcriptWords}
+              transcriptText={session.transcriptClean}
+            />
+          ) : (
             <View style={styles.videoRemovedRow}>
               <Ionicons name="trash-outline" size={16} color={colors.textMuted} />
               <Text style={styles.videoRemovedText}>Video removed to save space</Text>
             </View>
-          ) : (
-            <>
-              <Pressable
-                style={styles.verbatimToggle}
-                onPress={() => setShowVideo((v) => !v)}
-                accessibilityRole="button"
-                accessibilityLabel={showVideo ? "Hide recording" : "Watch recording"}
-              >
-                <Ionicons name={showVideo ? "chevron-up" : "play-circle-outline"} size={18} color={colors.accent} />
-                <Text style={styles.verbatimToggleText}>{showVideo ? "Hide recording" : "Watch recording"}</Text>
-              </Pressable>
-              {showVideo ? <VideoPlayback videoUri={session.videoPath} /> : null}
-            </>
           )}
+
+          <AnalysisStepsCard steps={steps} onRun={handleRunStep} disabledReason={{ cloud_review: deepReviewBlocked }} />
 
           {scores ? (
             <Card style={styles.coachingCard}>
@@ -305,6 +304,8 @@ export function ResultScreen({ route, navigation }: Props) {
               </View>
             </Card>
           ) : null}
+
+          <PrimaryButton label="Practice this prompt again" variant="secondary" onPress={handlePracticeAgain} />
         </ScrollView>
       ) : null}
 
@@ -378,7 +379,7 @@ export function ResultScreen({ route, navigation }: Props) {
           </View>
           <Card>
             <AnnotatedTranscript
-              transcriptVerbatim={session.transcriptVerbatim ?? ""}
+              transcriptVerbatim={annotatedTranscript}
               durationSeconds={session.durationSeconds}
               fillerWordCount={session.fillerWordCount}
               fillerRatePerMinute={session.fillerRatePerMinute}
@@ -408,8 +409,16 @@ export function ResultScreen({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   container: { gap: spacing.md },
   centered: { alignItems: "center", justifyContent: "center" },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  headerSpacer: { width: 22 },
+  header: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: spacing.md },
+  headerText: { flex: 1, gap: 2 },
+  headerType: { color: colors.textMuted, fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 1 },
+  headerTitle: { color: colors.textPrimary, fontSize: typography.bodyLarge, fontWeight: "700", lineHeight: 22 },
+  numbersCard: { gap: spacing.md },
+  numbersLabel: { color: colors.textMuted, fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 1 },
+  numbersRow: { flexDirection: "row", gap: spacing.sm },
+  tile: { flex: 1, alignItems: "center", gap: 2, paddingVertical: spacing.sm, borderRadius: 12, backgroundColor: colors.surfaceRaised },
+  tileValue: { color: colors.textPrimary, fontFamily: fontDisplay.bold, fontSize: 22 },
+  tileLabel: { color: colors.textMuted, fontSize: typography.caption - 1 },
   scroll: { flex: 1 },
   scrollContent: { gap: spacing.md, paddingBottom: spacing.lg },
   notionCard: { gap: spacing.sm },

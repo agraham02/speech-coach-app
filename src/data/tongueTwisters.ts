@@ -9,6 +9,10 @@ export interface TongueTwister {
   // How many times to repeat the phrase in one attempt — mirrors the
   // clinical daily-practice protocols' "short reps, not one long read".
   repeatCount: number;
+  // Unusual words the recognizer may not know, passed as recognition hints.
+  // Deliberately never common words: biasing toward the target's ordinary
+  // words would make a genuine mispronunciation "match" anyway.
+  contextWords?: string[];
 }
 
 // 28 public-domain tongue twisters (9 easy, 9 medium, 10 hard). Difficulty
@@ -36,6 +40,7 @@ export const TONGUE_TWISTERS: TongueTwister[] = [
     difficulty: "easy",
     focusSounds: ["w", "ch"],
     repeatCount: 3,
+    contextWords: ["woodchuck"],
   },
   {
     id: "tt_e04",
@@ -43,6 +48,7 @@ export const TONGUE_TWISTERS: TongueTwister[] = [
     difficulty: "easy",
     focusSounds: ["z", "w"],
     repeatCount: 3,
+    contextWords: ["Fuzzy Wuzzy"],
   },
   {
     id: "tt_e05",
@@ -50,6 +56,7 @@ export const TONGUE_TWISTERS: TongueTwister[] = [
     difficulty: "easy",
     focusSounds: ["b", "t"],
     repeatCount: 3,
+    contextWords: ["Betty Botter"],
   },
   {
     id: "tt_e06",
@@ -64,6 +71,7 @@ export const TONGUE_TWISTERS: TongueTwister[] = [
     difficulty: "easy",
     focusSounds: ["th", "s"],
     repeatCount: 3,
+    contextWords: ["thistle"],
   },
   {
     id: "tt_e08",
@@ -71,6 +79,7 @@ export const TONGUE_TWISTERS: TongueTwister[] = [
     difficulty: "easy",
     focusSounds: ["r", "l"],
     repeatCount: 3,
+    contextWords: ["lorry"],
   },
   {
     id: "tt_e09",
@@ -152,6 +161,7 @@ export const TONGUE_TWISTERS: TongueTwister[] = [
     difficulty: "hard",
     focusSounds: ["s", "sh"],
     repeatCount: 3,
+    contextWords: ["sheikh", "sheikh's"],
   },
   {
     id: "tt_h02",
@@ -187,6 +197,7 @@ export const TONGUE_TWISTERS: TongueTwister[] = [
     difficulty: "hard",
     focusSounds: ["s", "sl"],
     repeatCount: 3,
+    contextWords: ["seaward"],
   },
   {
     id: "tt_h07",
@@ -194,6 +205,7 @@ export const TONGUE_TWISTERS: TongueTwister[] = [
     difficulty: "hard",
     focusSounds: ["sk", "st", "th"],
     repeatCount: 2,
+    contextWords: ["thunk"],
   },
   {
     id: "tt_h08",
@@ -201,6 +213,7 @@ export const TONGUE_TWISTERS: TongueTwister[] = [
     difficulty: "hard",
     focusSounds: ["m", "n", "g"],
     repeatCount: 2,
+    contextWords: ["menagerie"],
   },
   {
     id: "tt_h09",

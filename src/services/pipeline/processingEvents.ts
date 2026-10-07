@@ -1,48 +1,38 @@
-export type ProcessingPhase =
-  | "saving_locally"
-  | "uploading"
-  | "processing"
-  | "transcribing"
-  | "saving_notion"
-  | "done"
-  | "error";
+import type { SessionStep, StepStatus } from "../../domain/sessionSteps";
 
-export interface ProcessingStatus {
+// A step of one session changed status. Screens subscribe for live updates;
+// the DB (session_steps) stays the source of truth, so a screen opened after
+// a restart reads the persisted state and doesn't depend on these events.
+export interface SessionStepEvent {
   sessionId: string;
-  phase: ProcessingPhase;
-  errorMessage?: string;
+  step: SessionStep;
+  status: StepStatus;
+  errorMessage?: string | null;
 }
 
-type Listener = (status: ProcessingStatus) => void;
+type Listener = (event: SessionStepEvent) => void;
 
 const sessionListeners = new Map<string, Set<Listener>>();
 const wildcardListeners = new Set<Listener>();
 
-// Caches the most recent status per session, since a screen that subscribes
-// mid-pipeline (e.g. opened from History after processing already started)
-// would otherwise only see whatever event fires *next* — appearing stuck on
-// whatever the initial default was until then.
-const lastStatusBySession = new Map<string, ProcessingStatus>();
-
-export function emitProcessingStatus(status: ProcessingStatus): void {
-  lastStatusBySession.set(status.sessionId, status);
-  sessionListeners.get(status.sessionId)?.forEach((listener) => listener(status));
-  wildcardListeners.forEach((listener) => listener(status));
+export function emitStepEvent(event: SessionStepEvent): void {
+  sessionListeners.get(event.sessionId)?.forEach((listener) => listener(event));
+  wildcardListeners.forEach((listener) => listener(event));
 }
 
-export function getLastProcessingStatus(sessionId: string): ProcessingStatus | undefined {
-  return lastStatusBySession.get(sessionId);
-}
-
-// Subscribe to updates for one specific session (used by the Processing/Result viewer).
+// Updates for one session (Result screen).
 export function subscribeToSession(sessionId: string, listener: Listener): () => void {
   if (!sessionListeners.has(sessionId)) sessionListeners.set(sessionId, new Set());
   sessionListeners.get(sessionId)!.add(listener);
-  return () => sessionListeners.get(sessionId)?.delete(listener);
+  return () => {
+    sessionListeners.get(sessionId)?.delete(listener);
+  };
 }
 
-// Subscribe to updates for ANY session (used by History to refresh its list live).
+// Updates for any session (History/Trends refresh their lists).
 export function subscribeToAllSessions(listener: Listener): () => void {
   wildcardListeners.add(listener);
-  return () => wildcardListeners.delete(listener);
+  return () => {
+    wildcardListeners.delete(listener);
+  };
 }

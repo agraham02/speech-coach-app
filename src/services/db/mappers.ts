@@ -8,6 +8,7 @@ import type {
   Session,
   SessionScores,
   SessionStatus,
+  SessionSubjectExtras,
   SessionType,
   StructureUsed,
   TranscriptionSource,
@@ -55,6 +56,11 @@ export interface SessionRow {
   gemini_file_name: string | null;
   gemini_file_uri: string | null;
   gemini_file_uploaded_at: string | null;
+  video_file: string | null;
+  last_error: string | null;
+  updated_at: string | null;
+  subject_json: string | null;
+  notion_block_id: string | null;
 }
 
 // Generic nullable-JSON-column parser — logs and degrades to null rather
@@ -110,6 +116,11 @@ export function rowToSession(row: SessionRow): Session {
     geminiFileName: row.gemini_file_name,
     geminiFileUri: row.gemini_file_uri,
     geminiFileUploadedAt: row.gemini_file_uploaded_at,
+    videoFile: row.video_file ?? null,
+    lastError: row.last_error ?? null,
+    updatedAt: row.updated_at ?? null,
+    subjectExtras: parseNullableJson<SessionSubjectExtras>(row.subject_json ?? null, "subject_json"),
+    notionBlockId: row.notion_block_id ?? null,
   };
 }
 

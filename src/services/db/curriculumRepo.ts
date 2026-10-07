@@ -38,8 +38,8 @@ interface CurriculumSessionSummaryRow {
 // All eligible (status='done', non-script_practice) spontaneous sessions'
 // curriculum signal, oldest first — a separate query from statsRepo.ts's
 // getScoredSessionSummaries() so that Trends-chart consumer stays
-// undisturbed. Does not filter deleted_at — deleted sessions still count
-// toward the signal, same precedent as streaks/trend averages.
+// undisturbed. Deleted sessions are excluded — deleting a bad take
+// removes it from your stats.
 export async function getCurriculumSessionSummaries(): Promise<CurriculumSessionSignal[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<CurriculumSessionSummaryRow>(
@@ -48,7 +48,7 @@ export async function getCurriculumSessionSummaries(): Promise<CurriculumSession
             s.dsp_status, s.pitch_avg_hz, s.pitch_min_hz, s.pitch_max_hz, s.volume_stddev_dbfs
      FROM sessions s
      JOIN scores sc ON sc.session_id = s.id
-     WHERE s.status = 'done' AND s.session_type != 'script_practice'
+     WHERE s.status = 'done' AND s.deleted_at IS NULL AND s.session_type != 'script_practice'
      ORDER BY s.recorded_at ASC`,
   );
   return rows.map((row) => ({

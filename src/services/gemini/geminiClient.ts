@@ -1,6 +1,7 @@
 import { File } from "expo-file-system";
 import { getGeminiApiKey } from "../secrets/secretsStore";
 import { GeminiApiError, type UploadedGeminiFile } from "./types";
+import { fetchWithTimeout, withDeadline } from "../../utils/fetchWithTimeout";
 
 const API_BASE = "https://generativelanguage.googleapis.com";
 const MODEL = "gemini-flash-latest";
@@ -20,7 +21,7 @@ async function startResumableUpload(
   mimeType: string,
   displayName: string,
 ): Promise<string> {
-  const response = await fetch(`${API_BASE}/upload/v1beta/files?${await apiKeyQuery()}`, {
+  const response = await fetchWithTimeout(`${API_BASE}/upload/v1beta/files?${await apiKeyQuery()}`, {
     method: "POST",
     headers: {
       "X-Goog-Upload-Protocol": "resumable",
@@ -30,7 +31,7 @@ async function startResumableUpload(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ file: { display_name: displayName } }),
-  });
+  }, 30_000, "Starting the Gemini upload");
 
   if (!response.ok) {
     throw new GeminiApiError(
@@ -55,14 +56,14 @@ async function uploadBytes(
   mimeType: string,
 ): Promise<UploadedGeminiFile> {
   const file = new File(fileUri);
-  const result = await file.upload(uploadUrl, {
+  const result = await withDeadline(file.upload(uploadUrl, {
     httpMethod: "POST",
     mimeType,
     headers: {
       "X-Goog-Upload-Command": "upload, finalize",
       "X-Goog-Upload-Offset": "0",
     },
-  });
+  }), 10 * 60_000, "Uploading the video to Gemini");
 
   if (result.status < 200 || result.status >= 300) {
     throw new GeminiApiError(
@@ -95,7 +96,7 @@ export async function waitForFileActive(
   const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {
-    const response = await fetch(`${API_BASE}/v1beta/${fileName}?${await apiKeyQuery()}`);
+    const response = await fetchWithTimeout(`${API_BASE}/v1beta/${fileName}?${await apiKeyQuery()}`, {}, 15_000, "Checking the Gemini upload");
     if (!response.ok) {
       throw new GeminiApiError(
         `Failed to poll file status (${response.status})`,
@@ -123,7 +124,7 @@ export async function waitForFileActive(
 // upload instead of surfacing a reuse-check failure as a session-level error.
 export async function checkExistingFileActive(fileName: string): Promise<boolean> {
   try {
-    const response = await fetch(`${API_BASE}/v1beta/${fileName}?${await apiKeyQuery()}`);
+    const response = await fetchWithTimeout(`${API_BASE}/v1beta/${fileName}?${await apiKeyQuery()}`, {}, 15_000, "Checking the Gemini upload");
     if (!response.ok) return false;
     const data = (await response.json()) as UploadedGeminiFile;
     return data.state === "ACTIVE";
@@ -150,7 +151,7 @@ export async function generateContent(args: {
     ? [{ file_data: { file_uri: args.fileUri, mime_type: args.mimeType } }, { text: args.systemPrompt }]
     : [{ text: args.systemPrompt }];
 
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `${API_BASE}/v1beta/models/${MODEL}:generateContent?${await apiKeyQuery()}`,
     {
       method: "POST",
@@ -164,6 +165,8 @@ export async function generateContent(args: {
         },
       }),
     },
+    hasMedia ? 180_000 : 45_000,
+    "Gemini analysis",
   );
 
   if (!response.ok) {

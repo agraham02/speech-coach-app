@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenContainer } from "../components/common/ScreenContainer";
-import { clearLogs, getLogs, subscribeLogs, type LogEntry } from "../services/logs/logStore";
+import { clearLogs, formatLogsForSharing, getLogs, subscribeLogs, type LogEntry } from "../services/logs/logStore";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
 import { colors, spacing, typography } from "../theme/theme";
 
@@ -30,9 +30,19 @@ export function DevScreen() {
     <ScreenContainer style={styles.container} edges={["top", "left", "right"]}>
       <View style={styles.header}>
         <Text style={styles.title}>Dev Log</Text>
-        <Pressable onPress={clearLogs} hitSlop={12} accessibilityRole="button" accessibilityLabel="Clear logs">
-          <Ionicons name="trash-outline" size={22} color={colors.textSecondary} />
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            onPress={() => Share.share({ message: formatLogsForSharing() })}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Share logs"
+          >
+            <Ionicons name="share-outline" size={22} color={colors.textSecondary} />
+          </Pressable>
+          <Pressable onPress={clearLogs} hitSlop={12} accessibilityRole="button" accessibilityLabel="Clear logs">
+            <Ionicons name="trash-outline" size={22} color={colors.textSecondary} />
+          </Pressable>
+        </View>
       </View>
 
       {logs.length === 0 ? (
@@ -68,6 +78,7 @@ const styles = StyleSheet.create({
   // listContent already reserves end-of-content breathing room.
   container: { gap: spacing.md, paddingBottom: 0 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  headerActions: { flexDirection: "row", gap: spacing.lg },
   title: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
   list: { flex: 1 },
   listContent: { gap: spacing.sm, paddingBottom: spacing.lg },

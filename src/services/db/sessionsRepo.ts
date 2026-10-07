@@ -14,8 +14,8 @@ export async function insertSession(session: Session): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
     `INSERT INTO sessions
-      (id, prompt_id, recorded_at, video_path, duration_seconds, transcription_source, transcript_verbatim, transcript_clean, status, notion_synced_at, wants_grading, wants_notion_sync, session_type, script_id, cues_enabled, plan_point_text, plan_reason_text, plan_example_text)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, prompt_id, recorded_at, video_path, duration_seconds, transcription_source, transcript_verbatim, transcript_clean, status, notion_synced_at, wants_grading, wants_notion_sync, session_type, script_id, cues_enabled, plan_point_text, plan_reason_text, plan_example_text, video_file, subject_json, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       session.id,
       session.promptId,
@@ -35,36 +35,47 @@ export async function insertSession(session: Session): Promise<void> {
       session.planPointText,
       session.planReasonText,
       session.planExampleText,
+      session.videoFile,
+      session.subjectExtras ? JSON.stringify(session.subjectExtras) : null,
+      new Date().toISOString(),
     ],
   );
 }
 
-export async function updateSessionTranscripts(
-  id: string,
-  transcriptVerbatim: string,
-  transcriptClean: string,
-  durationSeconds: number,
-  transcriptionSource: TranscriptionSource,
-): Promise<void> {
+// --- Narrow, step-scoped writers --------------------------------------------
+// Each analysis step writes only its own columns, so re-running one step
+// (e.g. requesting a deep review later) can never wipe another step's
+// results — the old shared writer nulled the WPM curve and pitch/volume data
+// whenever grading ran after the fact.
+
+export interface TranscriptFields {
+  verbatim: string;
+  clean: string;
+  durationSeconds: number;
+  source: TranscriptionSource;
+  words: TranscriptWord[] | null;
+  assemblyaiTranscriptId: string | null;
+}
+
+export async function updateTranscriptFields(id: string, fields: TranscriptFields): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    `UPDATE sessions SET transcript_verbatim = ?, transcript_clean = ?, duration_seconds = ?, transcription_source = ? WHERE id = ?`,
-    [transcriptVerbatim, transcriptClean, durationSeconds, transcriptionSource, id],
+    `UPDATE sessions SET transcript_verbatim = ?, transcript_clean = ?, duration_seconds = ?, transcription_source = ?,
+       transcript_words_json = ?, assemblyai_transcript_id = ?
+     WHERE id = ?`,
+    [
+      fields.verbatim,
+      fields.clean,
+      fields.durationSeconds,
+      fields.source,
+      fields.words ? JSON.stringify(fields.words) : null,
+      fields.assemblyaiTranscriptId,
+      id,
+    ],
   );
 }
 
-// Audio-first pipeline (Phase 2) follow-up write — populated after
-// transcription/DSP analysis completes, independent of wants_grading (same
-// convention as updateSessionFillerStats below). Whichever fields the caller
-// doesn't have (e.g. DSP failed, or no word-level transcript was available)
-// are passed as null and stored as such, never silently omitted — a null
-// dsp_status specifically means "never attempted," distinct from a
-// 'failed' status that means "attempted and failed."
-export interface AudioAnalysisUpdate {
-  transcriptWords: TranscriptWord[] | null;
-  wpmCurve: WpmPoint[] | null;
-  repeatedWordCount: number | null;
-  assemblyaiTranscriptId: string | null;
+export interface AudioMetricFields {
   dspStatus: DspStatus | null;
   pitchContourHz: (number | null)[] | null;
   volumeEnvelopeDbfs: number[] | null;
@@ -73,46 +84,66 @@ export interface AudioAnalysisUpdate {
   pitchMaxHz: number | null;
   volumeAvgDbfs: number | null;
   volumeStddevDbfs: number | null;
+  wpmCurve: WpmPoint[] | null;
+  repeatedWordCount: number | null;
+  fillerWordCount: number | null;
+  fillerRatePerMinute: number | null;
 }
 
-export async function updateSessionAudioAnalysis(id: string, update: AudioAnalysisUpdate): Promise<void> {
+export async function updateAudioMetricFields(id: string, f: AudioMetricFields): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
     `UPDATE sessions SET
-       transcript_words_json = ?, wpm_curve_json = ?, repeated_word_count = ?, assemblyai_transcript_id = ?,
        dsp_status = ?, pitch_contour_json = ?, volume_envelope_json = ?,
-       pitch_avg_hz = ?, pitch_min_hz = ?, pitch_max_hz = ?, volume_avg_dbfs = ?, volume_stddev_dbfs = ?
+       pitch_avg_hz = ?, pitch_min_hz = ?, pitch_max_hz = ?, volume_avg_dbfs = ?, volume_stddev_dbfs = ?,
+       wpm_curve_json = ?, repeated_word_count = ?, filler_word_count = ?, filler_rate_per_minute = ?
      WHERE id = ?`,
     [
-      update.transcriptWords ? JSON.stringify(update.transcriptWords) : null,
-      update.wpmCurve ? JSON.stringify(update.wpmCurve) : null,
-      update.repeatedWordCount,
-      update.assemblyaiTranscriptId,
-      update.dspStatus,
-      update.pitchContourHz ? JSON.stringify(update.pitchContourHz) : null,
-      update.volumeEnvelopeDbfs ? JSON.stringify(update.volumeEnvelopeDbfs) : null,
-      update.pitchAvgHz,
-      update.pitchMinHz,
-      update.pitchMaxHz,
-      update.volumeAvgDbfs,
-      update.volumeStddevDbfs,
+      f.dspStatus,
+      f.pitchContourHz ? JSON.stringify(f.pitchContourHz) : null,
+      f.volumeEnvelopeDbfs ? JSON.stringify(f.volumeEnvelopeDbfs) : null,
+      f.pitchAvgHz,
+      f.pitchMinHz,
+      f.pitchMaxHz,
+      f.volumeAvgDbfs,
+      f.volumeStddevDbfs,
+      f.wpmCurve ? JSON.stringify(f.wpmCurve) : null,
+      f.repeatedWordCount,
+      f.fillerWordCount,
+      f.fillerRatePerMinute,
       id,
     ],
   );
 }
 
-// Computed on-device from transcript_verbatim right after transcription
-// succeeds — independent of whether grading was requested for this session.
-export async function updateSessionFillerStats(
-  id: string,
-  fillerWordCount: number,
-  fillerRatePerMinute: number,
-): Promise<void> {
+export async function updateSessionDerivedStatus(id: string, status: SessionStatus, lastError: string | null): Promise<void> {
   const db = await getDatabase();
-  await db.runAsync(
-    `UPDATE sessions SET filler_word_count = ?, filler_rate_per_minute = ? WHERE id = ?`,
-    [fillerWordCount, fillerRatePerMinute, id],
+  await db.runAsync(`UPDATE sessions SET status = ?, last_error = ?, updated_at = ? WHERE id = ?`, [
+    status,
+    lastError,
+    new Date().toISOString(),
+    id,
+  ]);
+}
+
+export async function updateSessionWants(id: string, wants: { grading?: boolean; notion?: boolean }): Promise<void> {
+  const db = await getDatabase();
+  if (wants.grading !== undefined) {
+    await db.runAsync(`UPDATE sessions SET wants_grading = ? WHERE id = ?`, [wants.grading ? 1 : 0, id]);
+  }
+  if (wants.notion !== undefined) {
+    await db.runAsync(`UPDATE sessions SET wants_notion_sync = ? WHERE id = ?`, [wants.notion ? 1 : 0, id]);
+  }
+}
+
+// Video files still referenced by a live session — anything else in the
+// sessions folder is an orphan (abandoned preview, deleted session).
+export async function getReferencedVideoFiles(): Promise<Set<string>> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{ video_file: string | null }>(
+    `SELECT video_file FROM sessions WHERE deleted_at IS NULL AND video_deleted_at IS NULL`,
   );
+  return new Set(rows.map((r) => r.video_file).filter((f): f is string => !!f));
 }
 
 export interface GeminiFileRef {
@@ -232,11 +263,9 @@ export async function deleteSessionVideo(id: string): Promise<void> {
   ]);
 }
 
-// Soft-deletes a session: hides it from History (getAllSessions/
-// getAllSessionsWithScores/getTodaysSession all filter on deleted_at) and
-// marks its video gone, but never actually removes the sessions/scores rows
-// — so Trends' streaks and averages keep counting it forever. The caller is
-// still responsible for deleting the actual video file, same as before.
+// Soft-deletes a session: the row stays (so the delete is recoverable), but
+// it's excluded from History, Trends, streaks and the curriculum. The caller
+// deletes the video file itself (reconcile.ts also sweeps leftovers).
 export async function deleteSession(id: string): Promise<void> {
   const db = await getDatabase();
   const now = new Date().toISOString();

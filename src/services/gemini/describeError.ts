@@ -1,4 +1,5 @@
 import { GeminiApiError } from "./types";
+import { TimeoutError } from "../../utils/fetchWithTimeout";
 
 // Turns a raw GeminiApiError/network failure into a message worth showing a
 // user, instead of the internal technical string (e.g. "Gemini
@@ -17,6 +18,9 @@ export function describeGeminiError(error: unknown): string {
     if (error.status !== undefined && error.status >= 400) {
       return "Gemini couldn't process this recording — it may be too long or an unsupported format. Try again or re-record.";
     }
+  }
+  if (error instanceof TimeoutError) {
+    return `${error.message}. Check your connection and retry.`;
   }
   if (error instanceof TypeError) {
     return "Couldn't reach Gemini — check your internet connection and try again.";

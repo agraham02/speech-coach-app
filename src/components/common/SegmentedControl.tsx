@@ -18,7 +18,7 @@ const TRACK_PADDING = 3;
 
 // A hand-rolled tab row with a sliding indicator — matches the codebase's
 // preference for small Reanimated-based UI over pulling in a tab-bar
-// dependency (see ToastProvider.tsx, StepList.tsx).
+// dependency (see ToastProvider.tsx).
 export function SegmentedControl<T extends string>({ options, value, onChange }: SegmentedControlProps<T>) {
   const [trackWidth, setTrackWidth] = useState(0);
   const indicatorX = useSharedValue(0);

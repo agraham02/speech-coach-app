@@ -1,9 +1,11 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 import { TOPICS } from "../../data/topics";
 import { DIFFICULTY_OVERRIDES, defaultDifficultyTier } from "../../domain/promptDifficulty";
+import { inferLegacySteps, type LegacySessionSignals } from "../../domain/sessionSteps";
+import type { SessionStatus } from "../../domain/sessionTypes";
 
 // Bump this and add a new numbered migration when the schema changes.
-export const LATEST_DB_VERSION = 13;
+export const LATEST_DB_VERSION = 14;
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(
@@ -26,7 +28,7 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
         notion_synced_at TEXT
       );
     `);
-    currentVersion = 1;
+    currentVersion = await commitVersion(db, 1);
   }
 
   if (currentVersion < 2) {
@@ -53,7 +55,7 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
         recommended_drill TEXT NOT NULL
       );
     `);
-    currentVersion = 2;
+    currentVersion = await commitVersion(db, 2);
   }
 
   if (currentVersion < 3) {
@@ -78,7 +80,7 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
     await db.execAsync(`
       ALTER TABLE scores ADD COLUMN overall_score INTEGER NOT NULL DEFAULT 0;
     `);
-    currentVersion = 3;
+    currentVersion = await commitVersion(db, 3);
   }
 
   if (currentVersion < 4) {
@@ -96,7 +98,7 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
     await db.execAsync(`
       ALTER TABLE sessions ADD COLUMN wants_notion_sync INTEGER NOT NULL DEFAULT 1;
     `);
-    currentVersion = 4;
+    currentVersion = await commitVersion(db, 4);
   }
 
   if (currentVersion < 5) {
@@ -126,7 +128,7 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
     await db.execAsync(`
       ALTER TABLE scores ADD COLUMN annotations_json TEXT NOT NULL DEFAULT '[]';
     `);
-    currentVersion = 5;
+    currentVersion = await commitVersion(db, 5);
   }
 
   if (currentVersion < 6) {
@@ -141,7 +143,7 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
     await db.execAsync(`
       ALTER TABLE sessions ADD COLUMN deleted_at TEXT;
     `);
-    currentVersion = 6;
+    currentVersion = await commitVersion(db, 6);
   }
 
   if (currentVersion < 7) {
@@ -168,7 +170,7 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
     await db.execAsync(`
       ALTER TABLE scores ADD COLUMN cue_compliance_notes TEXT;
     `);
-    currentVersion = 7;
+    currentVersion = await commitVersion(db, 7);
   }
 
   if (currentVersion < 8) {
@@ -207,7 +209,7 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
       }
     });
 
-    currentVersion = 8;
+    currentVersion = await commitVersion(db, 8);
   }
 
   if (currentVersion < 9) {
@@ -224,7 +226,7 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
     await db.execAsync(`
       ALTER TABLE sessions ADD COLUMN plan_example_text TEXT;
     `);
-    currentVersion = 9;
+    currentVersion = await commitVersion(db, 9);
   }
 
   if (currentVersion < 10) {
@@ -270,7 +272,7 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
     await db.execAsync(`
       ALTER TABLE sessions ADD COLUMN volume_stddev_dbfs REAL;
     `);
-    currentVersion = 10;
+    currentVersion = await commitVersion(db, 10);
   }
 
   if (currentVersion < 11) {
@@ -288,7 +290,7 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
         difficulty TEXT NOT NULL
       );
     `);
-    currentVersion = 11;
+    currentVersion = await commitVersion(db, 11);
   }
 
   if (currentVersion < 12) {
@@ -308,7 +310,7 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
         reason_code TEXT NOT NULL
       );
     `);
-    currentVersion = 12;
+    currentVersion = await commitVersion(db, 12);
   }
 
   if (currentVersion < 13) {
@@ -327,8 +329,122 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
     await db.execAsync(`
       ALTER TABLE sessions ADD COLUMN gemini_file_uploaded_at TEXT;
     `);
-    currentVersion = 13;
+    currentVersion = await commitVersion(db, 13);
   }
 
-  await db.execAsync(`PRAGMA user_version = ${currentVersion}`);
+  if (currentVersion < 14) {
+    // Session lifecycle redesign: per-step state (so any piece of analysis
+    // can be retried or resumed on its own), JSON artifacts for new
+    // analysis outputs, a relative video file name (iOS app-container paths
+    // change between builds), and a generalized drill_attempts table whose
+    // accuracy is nullable (manual-timer attempts used to store 0, which
+    // dragged the curriculum's drill score down).
+    await db.withTransactionAsync(async () => {
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS session_steps (
+          session_id TEXT NOT NULL,
+          step TEXT NOT NULL,
+          status TEXT NOT NULL,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          last_error TEXT,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (session_id, step)
+        );
+        CREATE INDEX IF NOT EXISTS idx_session_steps_status ON session_steps(status);
+        CREATE TABLE IF NOT EXISTS session_artifacts (
+          session_id TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          version INTEGER NOT NULL DEFAULT 1,
+          json TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (session_id, kind)
+        );
+        CREATE TABLE IF NOT EXISTS drill_attempts (
+          id TEXT PRIMARY KEY NOT NULL,
+          drill_type TEXT NOT NULL,
+          content_id TEXT,
+          difficulty TEXT,
+          started_at TEXT NOT NULL,
+          mode TEXT NOT NULL DEFAULT 'live',
+          accuracy_percent REAL,
+          clean_word_percent REAL,
+          wpm REAL,
+          metrics_json TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_drill_attempts_started ON drill_attempts(started_at);
+      `);
+      await addColumnIfMissing(db, "sessions", "video_file", "TEXT");
+      await addColumnIfMissing(db, "sessions", "last_error", "TEXT");
+      await addColumnIfMissing(db, "sessions", "updated_at", "TEXT");
+      await addColumnIfMissing(db, "sessions", "subject_json", "TEXT");
+      await addColumnIfMissing(db, "sessions", "notion_block_id", "TEXT");
+
+      // Historical manual-timer attempts were saved with accuracy 0.
+      await db.execAsync(`
+        INSERT OR IGNORE INTO drill_attempts (id, drill_type, content_id, difficulty, started_at, mode, accuracy_percent, wpm)
+        SELECT id, 'twister', twister_id, difficulty, completed_at,
+               CASE WHEN accuracy_percent = 0 THEN 'manual' ELSE 'live' END,
+               CASE WHEN accuracy_percent = 0 THEN NULL ELSE accuracy_percent END,
+               wpm
+        FROM drill_completions;
+      `);
+
+      const sessions = await db.getAllAsync<{
+        id: string;
+        video_path: string;
+        status: string;
+        transcript_clean: string | null;
+        dsp_status: string | null;
+        notion_synced_at: string | null;
+        wants_grading: number;
+        wants_notion_sync: number;
+        has_scores: number;
+      }>(`
+        SELECT s.id, s.video_path, s.status, s.transcript_clean, s.dsp_status, s.notion_synced_at,
+               s.wants_grading, s.wants_notion_sync,
+               CASE WHEN sc.session_id IS NULL THEN 0 ELSE 1 END AS has_scores
+        FROM sessions s LEFT JOIN scores sc ON sc.session_id = s.id
+      `);
+      const now = new Date().toISOString();
+      for (const row of sessions) {
+        const fileName = row.video_path.split("/").pop() ?? null;
+        await db.runAsync(`UPDATE sessions SET video_file = COALESCE(video_file, ?), updated_at = COALESCE(updated_at, ?) WHERE id = ?`, [
+          fileName,
+          now,
+          row.id,
+        ]);
+        const signals: LegacySessionSignals = {
+          status: row.status as SessionStatus,
+          hasTranscript: !!row.transcript_clean,
+          dspStatus: row.dsp_status,
+          hasScores: row.has_scores === 1,
+          notionSyncedAt: row.notion_synced_at,
+          wantsGrading: row.wants_grading === 1,
+          wantsNotionSync: row.wants_notion_sync === 1,
+        };
+        for (const step of inferLegacySteps(signals)) {
+          await db.runAsync(
+            `INSERT OR IGNORE INTO session_steps (session_id, step, status, attempts, last_error, updated_at) VALUES (?, ?, ?, 0, ?, ?)`,
+            [row.id, step.step, step.status, step.lastError, now],
+          );
+        }
+      }
+    });
+    currentVersion = await commitVersion(db, 14);
+  }
+}
+
+// Commits each migration's version as soon as that migration finishes.
+// Previously user_version was only written once at the very end, so a
+// failure partway through re-ran already-applied ALTER TABLEs next launch
+// and failed forever on "duplicate column".
+async function commitVersion(db: SQLiteDatabase, version: number): Promise<number> {
+  await db.execAsync(`PRAGMA user_version = ${version}`);
+  return version;
+}
+
+async function addColumnIfMissing(db: SQLiteDatabase, table: string, column: string, type: string): Promise<void> {
+  const columns = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`);
+  if (columns.some((c) => c.name === column)) return;
+  await db.execAsync(`ALTER TABLE ${table} ADD COLUMN ${column} ${type};`);
 }
