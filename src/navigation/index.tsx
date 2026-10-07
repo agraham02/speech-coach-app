@@ -7,8 +7,16 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeBottomTabNavigator } from "@bottom-tabs/react-navigation";
 import { Ionicons } from "@expo/vector-icons";
 import { HomeScreen } from "../screens/HomeScreen";
+import { TodayScreen } from "../screens/TodayScreen";
+import { LearnScreen } from "../screens/LearnScreen";
+import { LessonScreen } from "../screens/LessonScreen";
+import { DailySessionScreen } from "../screens/DailySessionScreen";
+import { DrillRunnerScreen } from "../screens/DrillRunnerScreen";
+import { GuidedScreen } from "../screens/GuidedScreen";
 import { AsrLabScreen } from "../screens/AsrLabScreen";
 import { reconcileOnLaunch } from "../services/pipeline/reconcile";
+import type { PracticeContext } from "../domain/practice";
+import type { DrillType } from "../domain/drills/drillSpecs";
 import { HistoryScreen } from "../screens/HistoryScreen";
 import { TrendsScreen } from "../screens/TrendsScreen";
 import { DevScreen } from "../screens/DevScreen";
@@ -34,10 +42,10 @@ import { colors } from "../theme/theme";
 export { navigationRef };
 
 export type TabParamList = {
-  Home: undefined;
+  Today: undefined;
+  Learn: undefined;
   History: undefined;
   Trends: undefined;
-  Tips: undefined;
   Dev: undefined;
 };
 
@@ -49,14 +57,20 @@ export type RootStackParamList = {
   AddPrompt: undefined;
   PlanYourPoint: { prompt: Prompt };
   Drills: undefined;
-  DrillSession: { twisterId: string };
+  DrillSession: { twisterId?: string; practice?: PracticeContext };
+  Drill: { drill: DrillType; contentId?: string; practice?: PracticeContext };
+  Guided: { guidedId?: string; warmupId?: string; practice?: PracticeContext };
+  Lesson: { lessonId: string };
+  DailySession: undefined;
+  Practice: undefined;
+  Frameworks: undefined;
   Curriculum: undefined;
   Recording: RecordingSubject;
   Preview: RecordingSubject & { videoUri: string; durationSecondsLocal: number };
   // Kept only as a redirect to Result, so older notification/deep links
   // still land somewhere sensible.
   Processing: { sessionId: string };
-  Result: { sessionId: string };
+  Result: { sessionId: string; practice?: PracticeContext };
   AsrLab: undefined;
 };
 
@@ -83,11 +97,17 @@ function JSTabs() {
       }}
     >
       <JSTab.Screen
-        name="Home"
-        component={HomeScreen}
+        name="Today"
+        component={TodayScreen}
         options={{
-          title: "Today",
-          tabBarIcon: ({ color, size }) => <Ionicons name="mic-outline" size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <Ionicons name="sunny-outline" size={size} color={color} />,
+        }}
+      />
+      <JSTab.Screen
+        name="Learn"
+        component={LearnScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <Ionicons name="school-outline" size={size} color={color} />,
         }}
       />
       <JSTab.Screen
@@ -102,13 +122,6 @@ function JSTabs() {
         component={TrendsScreen}
         options={{
           tabBarIcon: ({ color, size }) => <Ionicons name="stats-chart-outline" size={size} color={color} />,
-        }}
-      />
-      <JSTab.Screen
-        name="Tips"
-        component={TipsScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => <Ionicons name="bulb-outline" size={size} color={color} />,
         }}
       />
       {__DEV__ ? (
@@ -154,11 +167,17 @@ function NativeTabs() {
       }}
     >
       <NativeTab.Screen
-        name="Home"
-        component={HomeScreen}
+        name="Today"
+        component={TodayScreen}
         options={{
-          title: "Today",
-          tabBarIcon: ({ focused }) => ({ sfSymbol: focused ? "mic.fill" : "mic" }),
+          tabBarIcon: ({ focused }) => ({ sfSymbol: focused ? "sun.max.fill" : "sun.max" }),
+        }}
+      />
+      <NativeTab.Screen
+        name="Learn"
+        component={LearnScreen}
+        options={{
+          tabBarIcon: ({ focused }) => ({ sfSymbol: focused ? "graduationcap.fill" : "graduationcap" }),
         }}
       />
       <NativeTab.Screen
@@ -173,13 +192,6 @@ function NativeTabs() {
         component={TrendsScreen}
         options={{
           tabBarIcon: ({ focused }) => ({ sfSymbol: focused ? "chart.bar.fill" : "chart.bar" }),
-        }}
-      />
-      <NativeTab.Screen
-        name="Tips"
-        component={TipsScreen}
-        options={{
-          tabBarIcon: ({ focused }) => ({ sfSymbol: focused ? "lightbulb.fill" : "lightbulb" }),
         }}
       />
       {__DEV__ ? (
@@ -232,6 +244,12 @@ export function AppNavigator() {
         <Stack.Screen name="Tabs" component={Tabs} />
         <Stack.Screen name="Settings" component={SettingsScreen} options={{ presentation: "modal" }} />
         <Stack.Screen name="AsrLab" component={AsrLabScreen} />
+        <Stack.Screen name="Practice" component={HomeScreen} />
+        <Stack.Screen name="Frameworks" component={TipsScreen} />
+        <Stack.Screen name="Drill" component={DrillRunnerScreen} />
+        <Stack.Screen name="Guided" component={GuidedScreen} />
+        <Stack.Screen name="Lesson" component={LessonScreen} />
+        <Stack.Screen name="DailySession" component={DailySessionScreen} />
         <Stack.Screen name="ScriptLibrary" component={ScriptLibraryScreen} />
         <Stack.Screen name="PromptLibrary" component={PromptLibraryScreen} />
         <Stack.Screen name="AddPrompt" component={AddPromptScreen} options={{ presentation: "modal" }} />

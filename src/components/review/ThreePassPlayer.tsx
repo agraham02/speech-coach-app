@@ -5,6 +5,7 @@ import { useEvent } from "expo";
 import { useVideoPlayer, VideoView } from "expo-video";
 import type { TranscriptWord } from "../../domain/sessionTypes";
 import { colors, radii, spacing, typography } from "../../theme/theme";
+import { getReviewPasses, markReviewPass } from "../../services/db/progressRepo";
 
 // Vinh Giang's self-review method: watch the same take three times, each
 // time paying attention to one channel. Watching with the sound off exposes
@@ -36,10 +37,12 @@ const PASSES: { key: Pass; label: string; icon: keyof typeof Ionicons.glyphMap; 
 const RATES = [1, 1.25, 1.5];
 
 export function ThreePassPlayer({
+  sessionId,
   videoUri,
   transcriptWords,
   transcriptText,
 }: {
+  sessionId: string;
   videoUri: string;
   transcriptWords: TranscriptWord[] | null;
   transcriptText: string | null;
@@ -47,6 +50,10 @@ export function ThreePassPlayer({
   const [pass, setPass] = useState<Pass>("watch");
   const [rate, setRate] = useState(1);
   const [completed, setCompleted] = useState<Set<Pass>>(new Set());
+
+  useEffect(() => {
+    getReviewPasses(sessionId).then((passes) => setCompleted(new Set(passes)));
+  }, [sessionId]);
   const player = useVideoPlayer(videoUri, (p) => {
     p.loop = false;
     p.timeUpdateEventInterval = 0.25;
@@ -60,7 +67,7 @@ export function ThreePassPlayer({
 
   useEffect(() => {
     player.muted = pass === "watch";
-  }, [player, pass]);
+  }, [player, pass, sessionId]);
 
   useEffect(() => {
     player.playbackRate = rate;
@@ -70,6 +77,7 @@ export function ThreePassPlayer({
   useEffect(() => {
     const sub = player.addListener("playToEnd", () => {
       setCompleted((prev) => new Set(prev).add(pass));
+      markReviewPass(sessionId, pass).catch(() => undefined);
     });
     return () => sub.remove();
   }, [player, pass]);

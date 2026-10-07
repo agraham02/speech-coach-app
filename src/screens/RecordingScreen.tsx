@@ -72,10 +72,15 @@ export function RecordingScreen({ route, navigation }: Props) {
   // is new; Level 3+ shrinks and randomizes it (see curriculum.ts's
   // LEVEL_PREP_RANGE) since less-rehearsed, spontaneous speaking is the
   // point of leveling up.
-  const [prepEnabled] = useState(() =>
-    getPrepSettingsManuallySet() ? getPrepPhaseSettings().enabled : true,
-  );
-  const [warmUpEnabled] = useState(() => getWarmUpEnabled());
+  // Lesson / daily-plan reps carry their own prep and length (from the
+  // adaptive difficulty), and their plan already includes a warm-up.
+  const fromPractice = subject.kind === "prompt" && !!subject.practice;
+  const lessonPrep = subject.kind === "prompt" ? subject.prepSeconds : undefined;
+  const [prepEnabled] = useState(() => {
+    if (lessonPrep != null) return lessonPrep > 0;
+    return getPrepSettingsManuallySet() ? getPrepPhaseSettings().enabled : true;
+  });
+  const [warmUpEnabled] = useState(() => !fromPractice && getWarmUpEnabled());
   // Warm-up length scales with curriculum level — harder levels get a
   // longer, more thorough warm-up (see curriculum.ts's LEVEL_WARM_UP_INTENSITY
   // table and its judgment-call note).
@@ -88,6 +93,7 @@ export function RecordingScreen({ route, navigation }: Props) {
   const [targetDurationSeconds] = useState(() => {
     if (isScript) return subject.script.targetDurationSeconds;
     if (subject.kind === "prompt" && subject.conciseSeconds) return subject.conciseSeconds;
+    if (subject.kind === "prompt" && subject.targetSeconds) return subject.targetSeconds;
     // The curriculum's level-driven duration applies unless the user has
     // explicitly set their own recording length in the Session Options
     // sheet — an explicit manual choice always wins over the auto
@@ -100,6 +106,7 @@ export function RecordingScreen({ route, navigation }: Props) {
   });
   const [prepDurationSeconds] = useState(() => {
     if (!prepEnabled) return 0;
+    if (lessonPrep != null) return lessonPrep;
     if (getPrepSettingsManuallySet()) return resolvePrepDurationSeconds(getPrepPhaseSettings());
     return curriculumLevelToPrepSeconds(getEffectiveCurriculumLevel().level);
   });

@@ -68,6 +68,13 @@ export interface LiveSpeechStartOptions {
   keepAlive?: boolean;
   maxRestarts?: number;
   volumeMeter?: boolean;
+  // Milliseconds between volume readings when volumeMeter is on.
+  volumeIntervalMs?: number;
+}
+
+export interface VolumeSample {
+  tMs: number; // since the attempt started
+  value: number; // -2..10, <= 0 is silence
 }
 
 export interface LiveSpeechClock {
@@ -100,6 +107,10 @@ export class LiveSpeechSession {
   private restartTimer: unknown = null;
   private taskStartedAt = 0;
   private fastFails = 0;
+  // Volume history for pause/projection drills. Kept outside the snapshot
+  // so 10 readings a second don't re-render the screen.
+  private volumeSamples: VolumeSample[] = [];
+  private attemptStartedAt = 0;
 
   constructor(
     private readonly native: SpeechNative | null,
@@ -133,6 +144,10 @@ export class LiveSpeechSession {
     this.listeners.forEach((l) => l());
   }
 
+  getVolumeSamples(): VolumeSample[] {
+    return this.volumeSamples;
+  }
+
   // --- lifecycle -----------------------------------------------------------
 
   async prepare(): Promise<"ready" | "denied" | "unavailable"> {
@@ -161,7 +176,10 @@ export class LiveSpeechSession {
       keepAlive: options.keepAlive ?? true,
       maxRestarts: options.maxRestarts ?? DEFAULT_MAX_RESTARTS,
       volumeMeter: options.volumeMeter ?? false,
+      volumeIntervalMs: options.volumeIntervalMs ?? 200,
     };
+    this.volumeSamples = [];
+    this.attemptStartedAt = this.clock.now();
     this.active = true;
     this.stopRequested = false;
     this.stopPromise = null;
@@ -259,7 +277,9 @@ export class LiveSpeechSession {
         addsPunctuation: false,
         requiresOnDeviceRecognition: this.options.preferOnDevice,
         contextualStrings: this.options.contextualStrings,
-        ...(this.options.volumeMeter ? { volumeChangeEventOptions: { enabled: true, intervalMillis: 200 } } : {}),
+        ...(this.options.volumeMeter
+          ? { volumeChangeEventOptions: { enabled: true, intervalMillis: this.options.volumeIntervalMs } }
+          : {}),
       });
     } catch (error) {
       this.active = false;
@@ -287,6 +307,7 @@ export class LiveSpeechSession {
       });
     });
     on("volumechange", (event: { value: number }) => {
+      if (this.active) this.volumeSamples.push({ tMs: this.clock.now() - this.attemptStartedAt, value: event.value });
       this.update({ volume: event.value });
     });
     on("error", (event: { error: string; message?: string }) => this.handleError(event.error, event.message));

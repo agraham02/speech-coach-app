@@ -5,7 +5,7 @@ import { inferLegacySteps, type LegacySessionSignals } from "../../domain/sessio
 import type { SessionStatus } from "../../domain/sessionTypes";
 
 // Bump this and add a new numbered migration when the schema changes.
-export const LATEST_DB_VERSION = 14;
+export const LATEST_DB_VERSION = 15;
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(
@@ -431,6 +431,79 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
       }
     });
     currentVersion = await commitVersion(db, 14);
+  }
+
+  if (currentVersion < 15) {
+    // Curriculum v2: per-skill mastery, per-drill adaptive difficulty,
+    // lesson progress with spaced review, daily plans, and three-pass
+    // review completion.
+    await db.withTransactionAsync(async () => {
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS skill_mastery (
+          skill TEXT PRIMARY KEY NOT NULL,
+          rating REAL NOT NULL,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          last_practiced_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS drill_difficulty (
+          drill_type TEXT PRIMARY KEY NOT NULL,
+          level REAL NOT NULL,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          successes INTEGER NOT NULL DEFAULT 0,
+          updated_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS lesson_progress (
+          lesson_id TEXT PRIMARY KEY NOT NULL,
+          done INTEGER NOT NULL DEFAULT 0,
+          completed_at TEXT,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          last_score REAL,
+          review_interval_days INTEGER,
+          next_review_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS daily_plans (
+          date TEXT PRIMARY KEY NOT NULL,
+          plan_json TEXT NOT NULL,
+          completed_steps_json TEXT NOT NULL DEFAULT '[]',
+          completed_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS review_passes (
+          session_id TEXT NOT NULL,
+          pass TEXT NOT NULL,
+          completed_at TEXT NOT NULL,
+          PRIMARY KEY (session_id, pass)
+        );
+      `);
+      await addColumnIfMissing(db, "drill_attempts", "skill", "TEXT");
+      await addColumnIfMissing(db, "drill_attempts", "lesson_id", "TEXT");
+      await addColumnIfMissing(db, "drill_attempts", "drill_level", "REAL");
+      await addColumnIfMissing(db, "drill_attempts", "score", "REAL");
+      await addColumnIfMissing(db, "drill_attempts", "success", "INTEGER");
+      await db.execAsync(`UPDATE drill_attempts SET skill = 'articulation' WHERE drill_type = 'twister' AND skill IS NULL;`);
+
+      // Seed the impromptu-rep difficulty from the v1 curriculum level (1-5
+      // maps onto the 1-10 scale), so existing progress isn't thrown away.
+      const v1 = await db.getFirstAsync<{ level: number }>(`SELECT level FROM curriculum_state ORDER BY changed_at DESC LIMIT 1`);
+      const now = new Date().toISOString();
+      const repLevel = v1 ? Math.max(1, v1.level * 2 - 1) : 1;
+      await db.runAsync(
+        `INSERT OR IGNORE INTO drill_difficulty (drill_type, level, attempts, successes, updated_at) VALUES ('rep', ?, 0, 0, ?)`,
+        [repLevel, now],
+      );
+      // Twister history seeds articulation: the mean of recent live scores.
+      const twister = await db.getFirstAsync<{ avg: number | null; n: number; last: string | null }>(
+        `SELECT AVG(accuracy_percent) AS avg, COUNT(*) AS n, MAX(started_at) AS last FROM drill_attempts WHERE drill_type = 'twister' AND accuracy_percent IS NOT NULL`,
+      );
+      if (twister && twister.n > 0 && twister.avg != null) {
+        await db.runAsync(
+          `INSERT OR IGNORE INTO skill_mastery (skill, rating, attempts, last_practiced_at) VALUES ('articulation', ?, ?, ?)`,
+          // Never below the default start: early history can include
+          // junk 0% attempts (e.g. a muted mic).
+          [Math.round(Math.max(25, Math.min(60, twister.avg * 0.5))), Math.min(twister.n, 10), twister.last],
+        );
+      }
+    });
+    currentVersion = await commitVersion(db, 15);
   }
 }
 

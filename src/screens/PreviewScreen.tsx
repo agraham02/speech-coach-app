@@ -11,6 +11,7 @@ import { isFreeRecordPrompt } from "../data/topics";
 import { deleteRecording } from "../services/storage/videoStorage";
 import { createSessionFromTake } from "../services/pipeline/sessionPipeline";
 import { logger } from "../utils/logger";
+import { completePracticeStep } from "../services/practice/practiceEvents";
 import { colors, spacing, typography } from "../theme/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Preview">;
@@ -90,6 +91,8 @@ export function PreviewScreen({ route, navigation }: Props) {
         wantsCloudReview,
         wantsNotionSync,
       });
+      // A lesson / daily-plan rep counts as done once the take is kept.
+      if (subject.kind === "prompt") completePracticeStep(subject.practice, null);
       markResolved(() => navigation.replace("Result", { sessionId }));
     } catch (error) {
       logger.error(`[preview] save failed — ${(error as Error).message}`);

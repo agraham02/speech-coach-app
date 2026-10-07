@@ -276,11 +276,14 @@ export function HomeScreen() {
   const primaryLabel = conciseModeOn ? `${primaryLabelBase} · Concise ${conciseModeSeconds}s` : primaryLabelBase;
 
   return (
-    <ScreenContainer style={styles.container} edges={["top", "left", "right"]}>
+    <ScreenContainer style={styles.container}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.eyebrow}>{getGreeting()}</Text>
-          <Text style={styles.appName}>Speech Coach</Text>
+          <Pressable onPress={() => navigation.goBack()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back" style={styles.back}>
+            <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
+          </Pressable>
+          <Text style={styles.eyebrow}>Practice anything</Text>
+          <Text style={styles.appName}>Free practice</Text>
           {streak.currentStreak > 0 ? (
             <View style={styles.streakRow}>
               <Ionicons name="flame" size={14} color={colors.warning} />
@@ -434,6 +437,7 @@ const styles = StyleSheet.create({
   levelChipText: { color: colors.textSecondary, fontSize: typography.caption - 1, fontWeight: "700" },
   eyebrow: { color: colors.textSecondary, fontSize: typography.body },
   appName: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
+  back: { marginLeft: -6, marginBottom: spacing.xs },
   streakRow: { flexDirection: "row", alignItems: "baseline", gap: spacing.xs, marginTop: spacing.xs },
   streakNumber: { color: colors.warning, fontSize: typography.body, fontFamily: fontDisplay.bold },
   streakText: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "600" },

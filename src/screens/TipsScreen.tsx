@@ -1,4 +1,6 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { ScreenContainer } from "../components/common/ScreenContainer";
 import { Card } from "../components/common/Card";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
@@ -84,10 +86,14 @@ const FRAMEWORKS: Framework[] = [
 
 export function TipsScreen() {
   const tabBarInset = useTabBarBottomInset();
+  const navigation = useNavigation();
   return (
-    <ScreenContainer style={styles.container} edges={["top", "left", "right"]}>
+    <ScreenContainer style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Tips & Frameworks</Text>
+        <Pressable onPress={() => navigation.goBack()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
+          <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
+        </Pressable>
+        <Text style={styles.title}>Frameworks</Text>
         <Text style={styles.subtitle}>The coaching models behind your scores — and how to practice them.</Text>
       </View>
 

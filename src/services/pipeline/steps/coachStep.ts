@@ -6,6 +6,8 @@ import type { PauseAnalysis } from "../../../domain/dsp/pauses";
 import type { PresenceMetrics } from "../../../domain/presenceMetrics";
 import type { FrameworkId } from "../../../domain/coach/structureHeuristics";
 import { StepError } from "../stepRunner";
+import { recordRepOutcome } from "../../db/progressRepo";
+import { showGlobalToast } from "../../../components/common/ToastProvider";
 import { coachWithOnDeviceModel } from "../../onDeviceLlm/onDeviceCoach";
 
 // On-device coaching: measured signals -> one strength, one tip, a focus
@@ -42,4 +44,15 @@ export async function coachStep(sessionId: string): Promise<void> {
   const rules = ruleCoach(input);
   const output: CoachOutput = (await coachWithOnDeviceModel(input, rules)) ?? rules;
   await putArtifact(sessionId, "coach", output);
+
+  // Impromptu reps move skill mastery — once per session, so re-running the
+  // coach can't count the same rep twice.
+  const countsTowardProgress = session.sessionType === "spontaneous" || session.sessionType === "concise";
+  if (countsTowardProgress && !(await getArtifact(sessionId, "progress"))) {
+    const changes = await recordRepOutcome(output);
+    await putArtifact(sessionId, "progress", changes);
+    if (changes.some((c) => c.leveledUp)) {
+      showGlobalToast("Level up — your impromptu reps just got a little harder.", "success");
+    }
+  }
 }

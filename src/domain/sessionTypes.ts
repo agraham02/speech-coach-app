@@ -1,6 +1,7 @@
 import type { GeminiQuoteAnnotation } from "./transcriptAnnotations";
 import type { Script } from "./scriptTypes";
 import type { PlanText } from "./planYourPoint";
+import type { PracticeContext } from "./practice";
 
 export type DifficultyTier = "easy" | "medium" | "hard";
 
@@ -57,6 +58,9 @@ export type RecordingSubject =
       lessonId?: string;
       targetFramework?: string;
       targetSeconds?: number;
+      prepSeconds?: number;
+      // Plan/lesson step this rep completes (not persisted with the session).
+      practice?: PracticeContext;
     }
   | { kind: "script"; script: Script; cuesEnabled: boolean };
 

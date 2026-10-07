@@ -1,10 +1,11 @@
 import { getDatabase } from "./database";
+import { getDrillLevel } from "./progressRepo";
+import { legacyLevelFromDifficulty } from "../../domain/mastery";
 import { rowToCurriculumState, type CurriculumStateRow } from "./mappers";
 import { getRecentDrillCompletions } from "./drillsRepo";
 import {
   computeRichDeliveryScore,
   DEFAULT_CURRICULUM_LEVEL,
-  evaluateCurriculum,
   type CurriculumComponent,
   type CurriculumDecision,
   type CurriculumLevel,
@@ -147,12 +148,22 @@ export async function recomputeCurriculumLevel(): Promise<CurriculumEvaluationRe
     };
   }
 
-  const decision = evaluateCurriculum({
-    currentLevel: currentState.level as CurriculumLevel,
-    spontaneousSessions: sessions,
-    recentDrillsFirst: recentDrills.map((d) => ({ accuracyPercent: d.accuracyPercent })),
-    spontaneousSessionCountAtLastChange: currentState.spontaneousSessionCount,
-  });
+  // Curriculum v2: the 1-5 level (prompt tier, rep length, prep) now
+  // follows the adaptive difficulty of impromptu reps, which moves with
+  // on-device measurements on a staircase (see mastery.ts) — no cloud
+  // grading needed, and no unreachable thresholds.
+  const repLevel = legacyLevelFromDifficulty(await getDrillLevel("rep"));
+  const current = currentState.level as CurriculumLevel;
+  const decision: CurriculumDecision = {
+    level: repLevel,
+    direction: repLevel > current ? "up" : repLevel < current ? "down" : "none",
+    component: null,
+    componentScore: null,
+    reason: repLevel !== current ? "changed" : "stable",
+    spontaneousComposite: null,
+    drillComposite: null,
+    spontaneousSessionCount: sessions.length,
+  };
 
   setCurriculumAutoLevel(decision.level);
 

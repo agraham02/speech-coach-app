@@ -35,6 +35,7 @@ import { useSessionSteps } from "../hooks/useSessionSteps";
 import type { CloudTranscriptArtifact } from "../services/pipeline/steps/cloudReviewStep";
 import type { SessionStep } from "../domain/sessionSteps";
 import { logger } from "../utils/logger";
+import { completePracticeStep } from "../services/practice/practiceEvents";
 import { colorForCategory } from "../domain/categoryColor";
 import { makeAdhocPrompt, type Prompt, type Session, type SessionScores } from "../domain/sessionTypes";
 import { formatDuration } from "../utils/dateUtils";
@@ -139,6 +140,17 @@ export function ResultScreen({ route, navigation }: Props) {
       logger.error(`[result] ${step} failed to start — ${(error as Error).message}`);
       showToast("Couldn't start that — try again", "error");
     });
+  }
+
+  // Back to wherever this was opened from (daily session, History, a
+  // library). Only a Plan-Your-Point screen underneath is skipped — that
+  // take is finished.
+  async function handleDone() {
+    if (route.params.practice) await completePracticeStep(route.params.practice, null);
+    const routes = navigation.getState().routes;
+    const below = routes[routes.length - 2]?.name;
+    if (!below || below === "PlanYourPoint") navigation.popToTop();
+    else navigation.goBack();
   }
 
   // Answering the coach's follow-up out loud is a fresh impromptu rep.
@@ -278,6 +290,7 @@ export function ResultScreen({ route, navigation }: Props) {
 
           {hasVideo ? (
             <ThreePassPlayer
+              sessionId={sessionId}
               videoUri={videoUri}
               transcriptWords={session.transcriptWords}
               transcriptText={session.transcriptClean}
@@ -412,7 +425,7 @@ export function ResultScreen({ route, navigation }: Props) {
         </ScrollView>
       ) : null}
 
-      <PrimaryButton label="Done" onPress={() => navigation.popToTop()} />
+      <PrimaryButton label="Done" onPress={handleDone} />
     </ScreenContainer>
   );
 }

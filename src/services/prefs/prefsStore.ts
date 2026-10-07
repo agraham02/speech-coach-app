@@ -168,3 +168,15 @@ export function getPrepSettingsManuallySet(): boolean {
 export function setPrepSettingsManuallySet(value: boolean): void {
   storage.set(KEYS.prepSettingsManuallySet, value);
 }
+
+// Daily plan length (Today screen): 5 / 8 / 12 minutes.
+const PLAN_MINUTES_KEY = "plan_minutes";
+
+export function getPlanMinutes(): 5 | 8 | 12 {
+  const value = storage.getNumber(PLAN_MINUTES_KEY);
+  return value === 5 || value === 12 ? value : 8;
+}
+
+export function setPlanMinutes(minutes: 5 | 8 | 12): void {
+  storage.set(PLAN_MINUTES_KEY, minutes);
+}

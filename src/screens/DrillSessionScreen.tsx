@@ -6,7 +6,7 @@ import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
 import { Card } from "../components/common/Card";
 import { PrimaryButton } from "../components/common/PrimaryButton";
-import { getTongueTwister } from "../data/tongueTwisters";
+import { getTongueTwister, TONGUE_TWISTERS } from "../data/tongueTwisters";
 import { tokenizeHeard } from "../domain/speech/normalize";
 import { fullText } from "../domain/speech/liveTranscript";
 import {
@@ -22,6 +22,10 @@ import {
   type WordStatus,
 } from "../domain/speech/speechAlignment";
 import { insertDrillCompletion } from "../services/db/drillsRepo";
+import { getDrillLevel, recordDrillOutcome } from "../services/db/progressRepo";
+import { paramsFor, scoreAccuracy, type DrillOutcome } from "../domain/drills/drillSpecs";
+import { completePracticeStep } from "../services/practice/practiceEvents";
+import { showGlobalToast } from "../components/common/ToastProvider";
 import { useLiveSpeech } from "../hooks/useLiveSpeech";
 import { useRecordingTimer } from "../hooks/useRecordingTimer";
 import { logger } from "../utils/logger";
@@ -47,8 +51,27 @@ const FIRST_RESULT_LATENCY_MS = 400;
 const EXPECTED_WPM = 150;
 const MIN_CAP_MS = 60_000;
 
+// Picks a twister at the adaptive level when a lesson didn't name one.
+function pickTwisterForLevel(level: number): string {
+  const tier = paramsFor("twister", level).tier;
+  const pool = TONGUE_TWISTERS.filter((t) => t.difficulty === tier);
+  return pool[Math.floor(Math.random() * pool.length)]?.id ?? TONGUE_TWISTERS[0].id;
+}
+
 export function DrillSessionScreen({ route, navigation }: Props) {
-  const twister = getTongueTwister(route.params.twisterId);
+  const practice = route.params.practice;
+  const [level, setLevel] = useState<number | null>(null);
+  const [twisterId, setTwisterId] = useState<string | undefined>(route.params.twisterId);
+  const twister = twisterId ? getTongueTwister(twisterId) : undefined;
+  const targetWpm = level != null ? paramsFor("twister", level).targetWpm : undefined;
+  const [lastOutcome, setLastOutcome] = useState<DrillOutcome | null>(null);
+
+  useEffect(() => {
+    getDrillLevel("twister").then((l) => {
+      setLevel(l);
+      setTwisterId((current) => current ?? pickTwisterForLevel(l));
+    });
+  }, []);
   const [stage, setStage] = useState<Stage>("idle");
   const [result, setResult] = useState<AttemptResult | null>(null);
   const speech = useLiveSpeech();
@@ -93,6 +116,14 @@ export function DrillSessionScreen({ route, navigation }: Props) {
     return () => clearTimeout(handle);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, target.length]);
+
+  if (!twisterId || level == null) {
+    return (
+      <ScreenContainer style={styles.container}>
+        <Text style={styles.missingText}>Loading…</Text>
+      </ScreenContainer>
+    );
+  }
 
   if (!twister) {
     return (
@@ -154,14 +185,20 @@ export function DrillSessionScreen({ route, navigation }: Props) {
           ? transcript.lastResultAtMs - transcript.firstResultAtMs + FIRST_RESULT_LATENCY_MS
           : now - attemptStartedAtRef.current;
       const score = scoreAlignment(target, tokens, ops, { speakingMs }, twister.focusSounds);
-      await insertDrillCompletion({
-        twisterId: twister.id,
+      const outcome = scoreAccuracy(score.accuracyPercent, score.wpm, targetWpm);
+      const change = await recordDrillOutcome({
+        drillType: "twister",
+        outcome,
+        level: level ?? 1,
+        contentId: twister.id,
+        lessonId: practice?.lessonId,
         accuracyPercent: score.accuracyPercent,
-        cleanWordPercent: score.cleanWordPercent,
         wpm: score.wpm,
-        difficulty: twister.difficulty,
         metrics: { misses: score.misses, perRep: score.perRep, focusSounds: score.focusSounds, extraWords: score.extraWords },
       });
+      setLevel(change.levelAfter);
+      setLastOutcome(outcome);
+      if (change.leveledUp) showGlobalToast("Level up — twisters get a little harder now.", "success");
       setResult({ kind: "live", score, statuses: statusesFromAlignment(target, ops) });
     } catch (error) {
       logger.error(`[drill] finishing attempt failed — ${(error as Error).message}`);
@@ -182,6 +219,11 @@ export function DrillSessionScreen({ route, navigation }: Props) {
     setStage("result");
   }
 
+  async function handleDone() {
+    await completePracticeStep(practice, lastOutcome?.score ?? null);
+    navigation.goBack();
+  }
+
   function handleRetry() {
     setResult(null);
     finishingRef.current = false;
@@ -198,7 +240,9 @@ export function DrillSessionScreen({ route, navigation }: Props) {
           <Ionicons name="close" size={24} color={colors.textPrimary} />
         </Pressable>
         <Text style={styles.repeatHint}>
-          {listening ? `Rep ${Math.min(currentRep + 1, twister.repeatCount)} of ${twister.repeatCount}` : `Say it ×${twister.repeatCount}`}
+          {listening
+            ? `Rep ${Math.min(currentRep + 1, twister.repeatCount)} of ${twister.repeatCount}`
+            : `Say it ×${twister.repeatCount}${targetWpm ? ` · ${targetWpm}+ wpm` : ""}`}
         </Text>
       </View>
 
@@ -267,7 +311,7 @@ export function DrillSessionScreen({ route, navigation }: Props) {
         {stage === "result" ? (
           <View style={styles.resultActions}>
             <PrimaryButton label="Try again" variant="secondary" onPress={handleRetry} style={styles.resultButton} />
-            <PrimaryButton label="Done" onPress={() => navigation.goBack()} style={styles.resultButton} />
+            <PrimaryButton label="Done" onPress={handleDone} style={styles.resultButton} />
           </View>
         ) : null}
       </View>
