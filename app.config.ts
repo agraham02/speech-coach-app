@@ -64,7 +64,16 @@ export default (): ExpoConfig => ({
         [
             "expo-build-properties",
             {
-                ios: { deploymentTarget: "16.4" },
+                // 17.0, not 16.4 — react-native-executorch's podspec pins
+                // `s.platforms = { :ios => '17.0' }` (needed for on-device
+                // Whisper ASR, Phase 2/3), the highest floor among this
+                // project's native deps. Confirmed via EAS build failure:
+                // "Specs satisfying the react-native-executorch dependency
+                // were found, but they required a higher minimum deployment
+                // target." Every other native dep here (VisionCamera 12.4,
+                // face-detector 15.5, Skia 14.0, audio-api 14.0) is well
+                // under this, so 17.0 is the actual constraint, not a guess.
+                ios: { deploymentTarget: "17.0" },
                 android: { minSdkVersion: 26 },
             },
         ],

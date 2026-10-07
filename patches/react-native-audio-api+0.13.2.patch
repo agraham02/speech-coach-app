@@ -1,0 +1,70 @@
+diff --git a/node_modules/react-native-audio-api/RNAudioAPI.podspec b/node_modules/react-native-audio-api/RNAudioAPI.podspec
+index 39b3191..79facac 100644
+--- a/node_modules/react-native-audio-api/RNAudioAPI.podspec
++++ b/node_modules/react-native-audio-api/RNAudioAPI.podspec
+@@ -33,7 +33,51 @@ Pod::Spec.new do |s|
+ 
+   s.subspec "audioapi" do |ss|
+     ss.source_files = "common/cpp/audioapi/**/*.{cpp,c,h,hpp}"
+-    ss.exclude_files = $RN_AUDIO_API_FFMPEG_DISABLED ? ["common/cpp/audioapi/libs/ffmpeg/**"] : []
++    # PATCH (patch-package, see patches/react-native-audio-api+*.patch): without
++    # the external/**/*.h exclusion, every header under external/ (vendored
++    # FFmpeg + opus/vorbis, none of which any consumer should ever import
++    # directly) becomes a header *of this CocoaPods target* — symlinked into
++    # Pods/Headers/{Public,Private}/RNAudioAPI regardless of public/private
++    # (tried private_header_files first; didn't help — see below). This repo
++    # sets USE_HEADERMAP+DEFINES_MODULE on this pod, so Xcode's explicit-module
++    # build generates a Pods-wide `all-product-headers.yaml` VFS overlay for
++    # resolving #import inside precompiled Clang modules — built from the
++    # *entire* Pods header store, not filtered by per-pod dependency edges the
++    # way normal HEADER_SEARCH_PATHS visibility is. A generically-named vendored
++    # header here can silently shadow an unrelated pod's own header of the same
++    # name through that overlay on a case-insensitive filesystem (macOS
++    # default), independent of Public/Private classification. Confirmed live
++    # via two EAS iOS builds: react-native-vision-camera's own `Frame.h` (its
++    # camera-frame class) resolved to *this* pod's
++    # `external/include_ffmpeg/libavutil/frame.h` (FFmpeg's AVFrame header)
++    # instead — first still reproduced after marking these `private_header_files`
++    # (confirmed via the build log that the patch applied correctly, yet the
++    # exact same failure recurred), which is what proves visibility-classification
++    # alone doesn't stop the leak. Excluding them from `source_files` entirely
++    # is the actual fix: CocoaPods never symlinks them into Headers/Public or
++    # Headers/Private at all, so they can never enter that overlay — this pod's
++    # own compilation still finds them fine via the raw `-I` HEADER_SEARCH_PATHS
++    # entry below (`external_dir_relative/include_ffmpeg`), which points at the
++    # source directory directly and never depended on the symlink step.
++    # PATCH (patch-package): common/cpp/audioapi/jsi/*.h has the exact same
++    # leak risk as external/ above, but for a different reason — these three
++    # filenames (RuntimeLifecycleMonitor.h, RuntimeAwareCache.h,
++    # JsiHostObject.h) are a shared JSI-wrapper pattern that react-native-executorch
++    # ALSO vendors verbatim, and whose own podspec documents (in its own words)
++    # "headers in jsi/ collide with react-native-skia" — a pod also in this
++    # project's dependency tree — and had already excluded its copies for
++    # exactly that reason before this patch ever touched this file. Excluding
++    # audio-api's copies here too, pre-emptively, rather than waiting for a
++    # third failed EAS build to prove it. Unlike external/, this pod's OWN
++    # source references these via the header_dir-namespaced
++    # `#include <audioapi/jsi/X.h>` (not a bare/raw-path include), which only
++    # resolves through CocoaPods' Public/Private symlink — the same mechanism
++    # this exclusion removes them from — so excluding them requires *also*
++    # adding a raw HEADER_SEARCH_PATHS entry that makes that exact namespaced
++    # form resolvable a different way. See the added
++    # "$(PODS_TARGET_SRCROOT)/common/cpp" entry below (common/cpp/audioapi/jsi/X.h
++    # relative to common/cpp/ is exactly audioapi/jsi/X.h).
++    ss.exclude_files = ($RN_AUDIO_API_FFMPEG_DISABLED ? ["common/cpp/audioapi/libs/ffmpeg/**"] : []) + ["common/cpp/audioapi/external/**/*.h", "common/cpp/audioapi/jsi/*.{h,hpp}"]
+     ss.header_dir = "audioapi"
+     ss.header_mappings_dir = "common/cpp/audioapi"
+ 
+@@ -86,6 +130,12 @@ Pod::Spec.new do |s|
+     "HEADER_SEARCH_PATHS" => [
+       '"$(PODS_TARGET_SRCROOT)/ReactCommon"',
+       '"$(PODS_TARGET_SRCROOT)"',
++      # PATCH (patch-package): resolves the now-excluded common/cpp/audioapi/jsi/*.h
++      # via the same `#include <audioapi/jsi/X.h>` path this pod's own source
++      # already uses (see the exclude_files comment above) — common/cpp/ is
++      # the root that makes that namespaced form line up with the real file
++      # location on disk.
++      '"$(PODS_TARGET_SRCROOT)/common/cpp"',
+       '"$(PODS_ROOT)/RCT-Folly"',
+       '"$(PODS_ROOT)/boost"',
+       '"$(PODS_ROOT)/boost-for-react-native"',

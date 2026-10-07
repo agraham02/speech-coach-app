@@ -1,0 +1,35 @@
+diff --git a/node_modules/react-native-executorch/react-native-executorch.podspec b/node_modules/react-native-executorch/react-native-executorch.podspec
+index 0bd1168..7df3ec8 100644
+--- a/node_modules/react-native-executorch/react-native-executorch.podspec
++++ b/node_modules/react-native-executorch/react-native-executorch.podspec
+@@ -82,11 +82,29 @@ Pod::Spec.new do |s|
+   s.exclude_files = [
+     "common/rnexecutorch/tests/**/*",
+     "common/rnexecutorch/jsi/*.{h,hpp}",
++    # PATCH (patch-package, see patches/react-native-executorch+*.patch): same
++    # collision class as the jsi/ exclusion above (see this file's own comment
++    # a few lines up), just a second instance the maintainers hadn't caught —
++    # confirmed live via an EAS iOS build: react-native-vision-camera's own
++    # `ios/FrameProcessors/FrameProcessor.h` (its frame-processor plugin base
++    # class) resolved to *this* pod's `common/rnexecutorch/utils/FrameProcessor.h`
++    # instead (a same-name, same-case collision — not even a case-sensitivity
++    # quirk this time), which then failed because it `#include <jsi/jsi.h>` →
++    # `#include <cassert>` outside the Objective-C++ compilation context this
++    # file expects, surfacing as "'cassert' file not found" + "could not build
++    # Objective-C module 'VisionCamera'", nowhere near this pod's own target.
++    # Same fix as jsi/: exclude from source_files (stops CocoaPods from
++    # symlinking it into Headers/Public|Private and therefore from ever
++    # entering the Pods-wide all-product-headers.yaml VFS overlay used for
++    # Xcode's explicit-module builds), preserved via preserve_paths below so
++    # this pod's own HEADER_SEARCH_PATHS (which already includes "common/"
++    # directly) can still reach it for its own compilation.
++    "common/rnexecutorch/utils/FrameProcessor.h",
+     "third-party/common/phonemis/src/phonemis/main.cpp" # Exclude the phonemis runner
+   ]
+   s.header_mappings_dir = "common/rnexecutorch"
+   s.header_dir = "rnexecutorch"
+-  s.preserve_paths = "common/rnexecutorch/jsi/*.{h,hpp}"
++  s.preserve_paths = ["common/rnexecutorch/jsi/*.{h,hpp}", "common/rnexecutorch/utils/FrameProcessor.h"]
+ 
+   s.dependency "opencv-rne", "~> 4.11.0"
+ 
