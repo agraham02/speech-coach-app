@@ -16,6 +16,8 @@ import { AccordionSection } from "../components/result/AccordionSection";
 import { colorForScore } from "../components/result/scoreColor";
 import { ThreePassPlayer } from "../components/review/ThreePassPlayer";
 import { AnalysisStepsCard } from "../components/result/AnalysisStepsCard";
+import { CoachCard } from "../components/result/CoachCard";
+import type { CoachOutput } from "../domain/coach/ruleCoach";
 import { AnnotatedTranscript } from "../components/result/AnnotatedTranscript";
 import { ScoreRadarChart } from "../components/result/ScoreRadarChart";
 import { WpmSparkline } from "../components/result/WpmSparkline";
@@ -34,7 +36,7 @@ import type { CloudTranscriptArtifact } from "../services/pipeline/steps/cloudRe
 import type { SessionStep } from "../domain/sessionSteps";
 import { logger } from "../utils/logger";
 import { colorForCategory } from "../domain/categoryColor";
-import type { Prompt, Session, SessionScores } from "../domain/sessionTypes";
+import { makeAdhocPrompt, type Prompt, type Session, type SessionScores } from "../domain/sessionTypes";
 import { formatDuration } from "../utils/dateUtils";
 import { colors, fontDisplay, spacing, typography } from "../theme/theme";
 
@@ -85,6 +87,7 @@ export function ResultScreen({ route, navigation }: Props) {
   const [showClean, setShowClean] = useState(false);
   const [subjectSummary, setSubjectSummary] = useState<SessionSubjectSummary | null>(null);
   const [cloudTranscript, setCloudTranscript] = useState<CloudTranscriptArtifact | null>(null);
+  const [coach, setCoach] = useState<CoachOutput | null>(null);
 
   // Reloaded whenever an analysis step finishes, so results fill in live.
   const loadAll = useCallback(() => {
@@ -97,6 +100,7 @@ export function ResultScreen({ route, navigation }: Props) {
     });
     getScoresBySessionId(sessionId).then(setScores);
     getArtifact<CloudTranscriptArtifact>(sessionId, "cloud_transcript").then(setCloudTranscript);
+    getArtifact<CoachOutput>(sessionId, "coach").then(setCoach);
   }, [sessionId]);
 
   useEffect(() => {
@@ -135,6 +139,11 @@ export function ResultScreen({ route, navigation }: Props) {
       logger.error(`[result] ${step} failed to start — ${(error as Error).message}`);
       showToast("Couldn't start that — try again", "error");
     });
+  }
+
+  // Answering the coach's follow-up out loud is a fresh impromptu rep.
+  function handleAnswerFollowUp(question: string) {
+    navigation.navigate("Recording", { kind: "prompt", prompt: makeAdhocPrompt(question, "Follow-up") });
   }
 
   async function handlePracticeAgain() {
@@ -233,7 +242,7 @@ export function ResultScreen({ route, navigation }: Props) {
               <ScoreDelta current={scores.overallScore} previous={previousOverallScore} />
               <Text style={styles.scoreHeroFit}>{scores.archetypeFitForTopic}</Text>
             </HeroCard>
-          ) : (
+          ) : coach ? null : (
             <Card style={styles.numbersCard}>
               <Text style={styles.numbersLabel}>YOUR NUMBERS</Text>
               <View style={styles.numbersRow}>
@@ -247,6 +256,8 @@ export function ResultScreen({ route, navigation }: Props) {
               <Text style={styles.rowSubtitle}>Measured on this phone. A deep review adds structure and presence scores.</Text>
             </Card>
           )}
+
+          {coach ? <CoachCard coach={coach} onAnswerFollowUp={handleAnswerFollowUp} /> : null}
 
           {prompt ? (
             <Card style={styles.promptCard}>

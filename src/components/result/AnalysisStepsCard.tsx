@@ -4,9 +4,7 @@ import { Card } from "../common/Card";
 import { STEP_LABELS, type SessionStep, type StepState } from "../../domain/sessionSteps";
 import { colors, radii, spacing, typography } from "../../theme/theme";
 
-// Steps the user can see and act on. Presence and coaching arrive in
-// Phase 2; until then they're hidden rather than shown as "skipped".
-const VISIBLE_STEPS: SessionStep[] = ["transcribe", "audio_metrics", "cloud_review", "notion"];
+const VISIBLE_STEPS: SessionStep[] = ["transcribe", "audio_metrics", "presence", "coach", "cloud_review", "notion"];
 
 const OPTIONAL_DESCRIPTIONS: Partial<Record<SessionStep, string>> = {
   cloud_review: "Gemini scores structure, delivery and presence. Uploads the video.",
@@ -28,6 +26,9 @@ export function AnalysisStepsCard({ steps, onRun, disabledReason = {} }: Props) 
       {VISIBLE_STEPS.map((step) => {
         const state = byStep.get(step);
         if (!state) return null;
+        // No face timeline was captured (older take, or a drill): there's
+        // nothing a video analysis could run on, so don't offer it.
+        if (step === "presence" && state.status === "skipped") return null;
         return <StepRow key={step} state={state} onRun={() => onRun(step)} disabledReason={disabledReason[step]} />;
       })}
     </Card>
@@ -45,7 +46,7 @@ function StepRow({ state, onRun, disabledReason }: { state: StepState; onRun: ()
   switch (status) {
     case "done":
       detail = step === "notion" ? "Sent to your journal" : "Done";
-      action = step === "transcribe" || step === "audio_metrics" ? "Re-run" : step === "cloud_review" ? "Run again" : null;
+      action = step === "cloud_review" ? "Run again" : step === "notion" ? null : "Re-run";
       icon = "checkmark-circle";
       tint = colors.success;
       break;

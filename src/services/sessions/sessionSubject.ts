@@ -2,7 +2,7 @@ import type { GradingContext } from "../gemini/transcribeSession";
 import { getPrompt } from "../db/promptsRepo";
 import { getScriptById } from "../db/scriptsRepo";
 import type { PlanText } from "../../domain/planYourPoint";
-import type { RecordingSubject, Session } from "../../domain/sessionTypes";
+import { ADHOC_PROMPT_PREFIX, type Prompt, type RecordingSubject, type Session } from "../../domain/sessionTypes";
 
 // Rebuilds everything about what a saved session was "about" from its DB
 // row, in one place. History, Result, Notion, Retake/"Practice again" and
@@ -25,14 +25,26 @@ export async function subjectFromSession(session: Session): Promise<RecordingSub
     if (!script) return null;
     return { kind: "script", script, cuesEnabled: session.cuesEnabled ?? false };
   }
-  const prompt = await getPrompt(session.promptId);
+  const prompt = await resolvePrompt(session);
   if (!prompt) return null;
+  const extras = session.subjectExtras;
   return {
     kind: "prompt",
     prompt,
     planText: planTextFor(session),
-    conciseSeconds: session.sessionType === "concise" ? session.subjectExtras?.conciseSeconds : undefined,
+    conciseSeconds: session.sessionType === "concise" ? extras?.conciseSeconds : undefined,
+    lessonId: extras?.lessonId,
+    targetFramework: extras?.targetFramework,
   };
+}
+
+async function resolvePrompt(session: Session): Promise<Prompt | undefined> {
+  if (session.promptId.startsWith(ADHOC_PROMPT_PREFIX)) {
+    const extras = session.subjectExtras;
+    if (!extras?.promptText) return undefined;
+    return { id: session.promptId, category: extras.promptCategory ?? "Practice", text: extras.promptText, difficultyTier: null };
+  }
+  return getPrompt(session.promptId);
 }
 
 export async function gradingContextFromSession(session: Session): Promise<GradingContext | null> {
@@ -63,6 +75,6 @@ export async function describeSessionSubject(session: Session): Promise<SessionS
     const script = session.scriptId ? getScriptById(session.scriptId) : undefined;
     return { title: script?.title ?? "Script practice", category: script?.category ?? null, typeLabel };
   }
-  const prompt = await getPrompt(session.promptId);
+  const prompt = await resolvePrompt(session);
   return { title: prompt?.text ?? "Practice session", category: prompt?.category ?? null, typeLabel };
 }

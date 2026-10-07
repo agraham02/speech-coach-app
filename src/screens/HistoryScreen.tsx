@@ -104,6 +104,9 @@ export function HistoryScreen() {
       return script ? { text: script.title, category: script.category } : { text: "Script practice", category: "Script" };
     }
     if (promptId === FREE_RECORD_PROMPT.id) return FREE_RECORD_PROMPT;
+    if (session?.subjectExtras?.promptText) {
+      return { text: session.subjectExtras.promptText, category: session.subjectExtras.promptCategory ?? "Practice" };
+    }
     return promptsById.get(promptId);
   }
 

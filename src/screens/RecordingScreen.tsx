@@ -40,6 +40,7 @@ import {
 import { getEffectiveCurriculumLevel } from "../services/db/curriculumRepo";
 import { persistRecording } from "../services/storage/videoStorage";
 import { logger } from "../utils/logger";
+import { stashPresenceTimeline } from "../services/pipeline/presenceTimelineStore";
 import { formatDuration } from "../utils/dateUtils";
 import { colors, spacing, typography } from "../theme/theme";
 
@@ -55,7 +56,7 @@ export function RecordingScreen({ route, navigation }: Props) {
   const cameraRef = useRef<VisionCamera>(null);
   const { hasAllPermissions, hasCameraPermission, hasMicrophonePermission, requestCameraPermission, requestMicrophonePermission } =
     useCameraPermissions();
-  const { faceDetected, framingStatus, onFacesDetected, faceDetectionOptions } = useFaceDetection();
+  const { faceDetected, framingStatus, onFacesDetected, faceDetectionOptions, startTimeline, stopTimeline } = useFaceDetection();
   const { elapsedSeconds, start, stop } = useRecordingTimer();
   const [recordBlind, setRecordBlind] = useState(!isScript && getRecordBlindPref());
   const [isFinishing, setIsFinishing] = useState(false);
@@ -123,6 +124,7 @@ export function RecordingScreen({ route, navigation }: Props) {
     stoppingRef.current = false;
     setStage("recording");
     start();
+    startTimeline();
     cameraRef.current.startRecording({
       // Forces a uniform mp4/H.264 container on both platforms (Android
       // already defaults here; iOS defaults to .mov) — required so
@@ -139,6 +141,7 @@ export function RecordingScreen({ route, navigation }: Props) {
           // Persisted under a temp name (not a session id yet — nothing's
           // saved to the DB until the user confirms on the Preview screen).
           const persistedUri = await persistRecording(videoUri, `preview-${Date.now()}`);
+          stashPresenceTimeline(persistedUri, stopTimeline());
           const durationSecondsLocal = Math.round(video.duration);
 
           navigation.replace("Preview", {
@@ -154,6 +157,7 @@ export function RecordingScreen({ route, navigation }: Props) {
       onRecordingError: (error) => {
         setStage("idle");
         stop();
+        stopTimeline();
         if (restartingRef.current) {
           restartingRef.current = false;
           return;

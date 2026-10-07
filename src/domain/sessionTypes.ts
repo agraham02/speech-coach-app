@@ -48,7 +48,16 @@ export interface CurriculumStateEntry {
 // are both optional, independent, prompt-only add-ons — a session could
 // technically use either, both, or neither.
 export type RecordingSubject =
-  | { kind: "prompt"; prompt: Prompt; planText?: PlanText; conciseSeconds?: number }
+  | {
+      kind: "prompt";
+      prompt: Prompt;
+      planText?: PlanText;
+      conciseSeconds?: number;
+      // Set when the rep belongs to a lesson / daily plan (Phase 3).
+      lessonId?: string;
+      targetFramework?: string;
+      targetSeconds?: number;
+    }
   | { kind: "script"; script: Script; cuesEnabled: boolean };
 
 // 'whisper_ondevice' is the default free path (react-native-executorch,
@@ -162,6 +171,19 @@ export interface Session {
 // this prompt again" / Retake can rebuild the exact same subject.
 export interface SessionSubjectExtras {
   conciseSeconds?: number;
+  // Curriculum context (Phase 3): which lesson/framework this rep was for.
+  lessonId?: string;
+  targetFramework?: string;
+  // For ad-hoc prompts (id starts with ADHOC_PROMPT_PREFIX) that aren't in
+  // the prompt library — follow-up questions, generated drill prompts.
+  promptText?: string;
+  promptCategory?: string;
+}
+
+export const ADHOC_PROMPT_PREFIX = "adhoc_";
+
+export function makeAdhocPrompt(text: string, category: string): Prompt {
+  return { id: `${ADHOC_PROMPT_PREFIX}${Date.now().toString(36)}`, category, text, difficultyTier: null };
 }
 
 export type StructureUsed = "what/why/how" | "story arc" | "none detected" | "other";

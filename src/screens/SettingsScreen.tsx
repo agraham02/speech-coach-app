@@ -231,7 +231,7 @@ export function SettingsScreen({ navigation }: Props) {
         </Text>
         <SecretField
           label="Gemini API key"
-          caption="From Google AI Studio — used to transcribe and grade your sessions."
+          caption="From Google AI Studio — only used for optional deep reviews (the cloud upload you choose per session)."
           value={geminiKey}
           onChangeText={setGeminiKeyField}
           onBlur={() => setGeminiApiKey(geminiKey)}

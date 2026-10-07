@@ -10,6 +10,10 @@ import { transcribeStep } from "./steps/transcribeStep";
 import { audioMetricsStep } from "./steps/audioMetricsStep";
 import { cloudReviewStep } from "./steps/cloudReviewStep";
 import { notionStep } from "./steps/notionStep";
+import { presenceStep } from "./steps/presenceStep";
+import { coachStep } from "./steps/coachStep";
+import { putArtifact } from "../db/artifactsRepo";
+import { takePresenceTimeline } from "./presenceTimelineStore";
 import { clearDecodedAudio } from "./steps/decodedAudioCache";
 import { runExclusive } from "./jobQueue";
 import { showGlobalToast } from "../../components/common/ToastProvider";
@@ -20,7 +24,7 @@ import { computeStreaks, streakMilestoneReached } from "../../domain/streaks";
 import { planTextToNullableFields } from "../../domain/planYourPoint";
 import { isFreeRecordPrompt } from "../../data/topics";
 import type { SessionStep, StepStatus } from "../../domain/sessionSteps";
-import type { RecordingSubject, SessionType } from "../../domain/sessionTypes";
+import { ADHOC_PROMPT_PREFIX, type RecordingSubject, type SessionSubjectExtras, type SessionType } from "../../domain/sessionTypes";
 import { generateId } from "../../utils/generateId";
 import { logger } from "../../utils/logger";
 
@@ -32,8 +36,8 @@ import { logger } from "../../utils/logger";
 const STEP_RUNNERS: Record<SessionStep, ((sessionId: string) => Promise<void>) | null> = {
   transcribe: transcribeStep,
   audio_metrics: audioMetricsStep,
-  presence: null, // Phase 2
-  coach: null, // Phase 2
+  presence: presenceStep,
+  coach: coachStep,
   cloud_review: cloudReviewStep,
   notion: notionStep,
 };
@@ -47,6 +51,18 @@ function subjectToSessionType(subject: RecordingSubject): SessionType {
   if (subject.kind === "script") return "script_practice";
   if (subject.conciseSeconds) return "concise";
   return isFreeRecordPrompt(subject.prompt.id) ? "free_record" : "spontaneous";
+}
+
+function promptExtras(subject: Extract<RecordingSubject, { kind: "prompt" }>): SessionSubjectExtras | null {
+  const adhoc = subject.prompt.id.startsWith(ADHOC_PROMPT_PREFIX);
+  const extras: SessionSubjectExtras = {
+    conciseSeconds: subject.conciseSeconds,
+    lessonId: subject.lessonId,
+    targetFramework: subject.targetFramework,
+    promptText: adhoc ? subject.prompt.text : undefined,
+    promptCategory: adhoc ? subject.prompt.category : undefined,
+  };
+  return Object.values(extras).some((v) => v !== undefined) ? extras : null;
 }
 
 export interface NewTake {
@@ -106,15 +122,18 @@ export async function createSessionFromTake(take: NewTake): Promise<string> {
     geminiFileUploadedAt: null,
     lastError: null,
     updatedAt: null,
-    subjectExtras: subject.kind === "prompt" && subject.conciseSeconds ? { conciseSeconds: subject.conciseSeconds } : null,
+    subjectExtras: subject.kind === "prompt" ? promptExtras(subject) : null,
     notionBlockId: null,
   });
+
+  const timeline = takePresenceTimeline(take.previewUri);
+  if (timeline) await putArtifact(sessionId, "presence_timeline", timeline);
 
   const initial: Record<SessionStep, StepStatus> = {
     transcribe: "pending",
     audio_metrics: "pending",
-    presence: "skipped",
-    coach: "skipped",
+    presence: timeline && timeline.length >= 3 ? "pending" : "skipped",
+    coach: "pending",
     cloud_review: take.wantsCloudReview ? "pending" : "skipped",
     notion: take.wantsNotionSync ? "pending" : "skipped",
   };
@@ -132,13 +151,21 @@ export async function createSessionFromTake(take: NewTake): Promise<string> {
 export function runPendingSteps(sessionId: string): Promise<void> {
   return runExclusive(`${sessionId}:run`, async () => {
     let ranCloudReview = false;
-    for (const step of STEP_ORDER) {
-      const runner = STEP_RUNNERS[step];
-      if (!runner) continue;
-      const state = (await getSessionSteps(sessionId)).find((s) => s.step === step);
-      if (!state || (state.status !== "pending" && state.status !== "interrupted")) continue;
-      const ok = await runStep(sessionId, step, () => runner(sessionId));
-      if (step === "cloud_review" && ok) ranCloudReview = true;
+    // A step can queue earlier steps again (a deep review that supplies the
+    // missing transcript re-queues voice analysis and coaching), so keep
+    // passing until nothing is left — bounded so a bug can't loop forever.
+    for (let pass = 0; pass < 3; pass++) {
+      let ranAny = false;
+      for (const step of STEP_ORDER) {
+        const runner = STEP_RUNNERS[step];
+        if (!runner) continue;
+        const state = (await getSessionSteps(sessionId)).find((s) => s.step === step);
+        if (!state || (state.status !== "pending" && state.status !== "interrupted")) continue;
+        ranAny = true;
+        const ok = await runStep(sessionId, step, () => runner(sessionId));
+        if (step === "cloud_review" && ok) ranCloudReview = true;
+      }
+      if (!ranAny) break;
     }
     clearDecodedAudio();
     await refreshSessionStatus(sessionId);
@@ -153,10 +180,13 @@ export async function requestStep(sessionId: string, step: SessionStep): Promise
   if (step === "notion") await updateSessionWants(sessionId, { notion: true });
   await setStepStatus(sessionId, step, "pending");
   emitStepEvent({ sessionId, step, status: "pending" });
-  // Re-running the transcript means the voice analysis should follow it.
-  if (step === "transcribe") {
-    await setStepStatus(sessionId, "audio_metrics", "pending");
-    emitStepEvent({ sessionId, step: "audio_metrics", status: "pending" });
+  // Downstream steps follow whatever they depend on: voice analysis uses
+  // the transcript; coaching uses everything measured.
+  const followers: SessionStep[] =
+    step === "transcribe" ? ["audio_metrics", "coach"] : step === "audio_metrics" || step === "presence" ? ["coach"] : [];
+  for (const follower of followers) {
+    await setStepStatus(sessionId, follower, "pending");
+    emitStepEvent({ sessionId, step: follower, status: "pending" });
   }
   await refreshSessionStatus(sessionId);
   await runPendingSteps(sessionId);

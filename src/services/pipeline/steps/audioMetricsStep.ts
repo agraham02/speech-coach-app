@@ -4,6 +4,8 @@ import { analyzePitchVolume } from "../../../domain/audioAnalysis";
 import { computeFillerStats, detectRepeatedWordsFromText, detectRepeatedWordsFromWords } from "../../../domain/transcriptAnnotations";
 import { computeWpmCurve } from "../../../domain/wpmCurve";
 import { StepError } from "../stepRunner";
+import { putArtifact } from "../../db/artifactsRepo";
+import { detectPauses } from "../../../domain/dsp/pauses";
 import { getDecodedAudio } from "./decodedAudioCache";
 
 // Voice analysis: pitch/volume from the audio itself, plus fillers,
@@ -24,6 +26,10 @@ export async function audioMetricsStep(sessionId: string): Promise<void> {
 
   const fillers = verbatim ? computeFillerStats(verbatim, session.durationSeconds) : null;
   const repeated = words && words.length > 0 ? detectRepeatedWordsFromWords(words) : verbatim ? detectRepeatedWordsFromText(verbatim) : null;
+
+  if (decoded) {
+    await putArtifact(sessionId, "pauses", detectPauses(decoded.waveform, decoded.sampleRate, words));
+  }
 
   await updateAudioMetricFields(sessionId, {
     dspStatus: dsp?.status ?? (decoded ? "failed" : null),

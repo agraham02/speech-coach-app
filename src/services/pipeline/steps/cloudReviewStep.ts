@@ -64,5 +64,10 @@ export async function cloudReviewStep(sessionId: string): Promise<void> {
     });
     await setStepStatus(sessionId, "transcribe", "done");
     emitStepEvent({ sessionId, step: "transcribe", status: "done" });
+    // Fillers, pace and coaching can now use this transcript.
+    for (const step of ["audio_metrics", "coach"] as const) {
+      await setStepStatus(sessionId, step, "pending");
+      emitStepEvent({ sessionId, step, status: "pending" });
+    }
   }
 }
