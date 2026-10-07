@@ -1,3 +1,5 @@
+> **Superseded (Oct 2026):** this v3 draft is historical. The current roadmap lives outside the repo at `C:/Users/acgra/.claude/plans/pasted-content-id-0d6b-we-re-mainly-recursive-prism.md`.
+
 # Speaking Practice App — Project Plan
 
 *A personal, unpublished React Native app for daily 1–5 minute speaking practice on random topics — recorded, transcribed to a journal, and graded on delivery and structure using Vinh Giang's and Matt Abrahams' speaking frameworks.*
