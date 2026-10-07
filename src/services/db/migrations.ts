@@ -3,7 +3,7 @@ import { TOPICS } from "../../data/topics";
 import { DIFFICULTY_OVERRIDES, defaultDifficultyTier } from "../../domain/promptDifficulty";
 
 // Bump this and add a new numbered migration when the schema changes.
-export const LATEST_DB_VERSION = 11;
+export const LATEST_DB_VERSION = 13;
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(
@@ -289,6 +289,45 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
       );
     `);
     currentVersion = 11;
+  }
+
+  if (currentVersion < 12) {
+    // Adaptive Curriculum Engine (Phase 5) — one row per *actual* level
+    // change (not per evaluation), so this stays tiny. spontaneous_session_count
+    // is the cooldown checkpoint curriculum.ts's evaluateCurriculum() counts
+    // new eligible sessions from; direction is 'up' | 'down' | 'initial'.
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS curriculum_state (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        changed_at TEXT NOT NULL,
+        level INTEGER NOT NULL,
+        direction TEXT NOT NULL,
+        spontaneous_composite REAL,
+        drill_composite REAL,
+        spontaneous_session_count INTEGER NOT NULL,
+        reason_code TEXT NOT NULL
+      );
+    `);
+    currentVersion = 12;
+  }
+
+  if (currentVersion < 13) {
+    // Lets a retry after a failed *analysis* step (upload succeeded,
+    // generateContent or schema parsing failed) skip re-uploading the video
+    // and reuse the still-valid Gemini file instead — see
+    // transcribeSession.ts's resolveUploadForGrading. All nullable: null
+    // means "no upload on record" (never attempted yet, or the stored
+    // reference turned out to be expired/gone and wasn't reused).
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN gemini_file_name TEXT;
+    `);
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN gemini_file_uri TEXT;
+    `);
+    await db.execAsync(`
+      ALTER TABLE sessions ADD COLUMN gemini_file_uploaded_at TEXT;
+    `);
+    currentVersion = 13;
   }
 
   await db.execAsync(`PRAGMA user_version = ${currentVersion}`);

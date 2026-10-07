@@ -2,8 +2,8 @@ import * as Haptics from "expo-haptics";
 import {
   analyzeUploadedVideo,
   cleanTranscriptOnly,
+  resolveUploadForGrading,
   transcribeOnly,
-  uploadVideoForGrading,
   type GradingContext,
   type TranscribeProgressStep,
 } from "../gemini/transcribeSession";
@@ -16,6 +16,7 @@ import {
   markSessionNotionSynced,
   updateSessionAudioAnalysis,
   updateSessionFillerStats,
+  updateSessionGeminiFile,
   updateSessionStatus,
   updateSessionTranscripts,
   type AudioAnalysisUpdate,
@@ -63,8 +64,9 @@ function subjectToSessionType(subject: RecordingSubject): SessionType {
 // Gemini" retry path from Result screen) — unlike the initial pipeline run,
 // there's no RecordingSubject from navigation params here, just the DB row.
 // Deliberately does NOT re-resolve a groundingTranscript from the session's
-// own stored transcriptWords (Gemini Files API entries expire after 48h, so
-// this is always a full fresh video upload+self-transcription regardless).
+// own stored transcriptWords — this path always re-transcribes via Gemini
+// itself rather than grounding against the audio-first transcript, whether
+// or not the video upload underneath it gets reused (see runGradingPass).
 export async function sessionToGradingContext(session: Session): Promise<GradingContext | null> {
   if (session.sessionType === "script_practice") {
     const script = session.scriptId ? getScriptById(session.scriptId) : undefined;
@@ -289,9 +291,11 @@ async function persistFillerStats(sessionId: string, transcriptText: string, dur
 // result. Shared by the on-demand "Grade with Gemini" retry path
 // (gradeExistingSession) and the initial pipeline run below so the two don't
 // drift out of sync. The retry path doesn't get the parallel-upload
-// optimization (audioAnalysis defaults to "not attempted") since Gemini
-// Files API entries expire after 48h anyway — a retry is always a fresh
-// video upload with nothing to parallelize against on the audio side.
+// optimization (audioAnalysis defaults to "not attempted") since there's
+// nothing to parallelize against on the audio side — but it CAN skip the
+// upload itself: if a still-fresh, still-ACTIVE upload from a previous
+// attempt is on record (analysis failed after a successful upload),
+// resolveUploadForGrading reuses it instead of re-uploading the video.
 async function runGradingPass(
   sessionId: string,
   context: GradingContext,
@@ -303,7 +307,17 @@ async function runGradingPass(
   },
 ): Promise<ReturnType<typeof analysisToSessionScores>> {
   emit("uploading");
-  const uploaded = await uploadVideoForGrading(videoUri, (step) => emit(progressStepToPhase(step)));
+  const existing = await getSessionById(sessionId);
+  const existingUpload =
+    existing?.geminiFileName && existing.geminiFileUri && existing.geminiFileUploadedAt
+      ? { name: existing.geminiFileName, uri: existing.geminiFileUri, uploadedAt: existing.geminiFileUploadedAt }
+      : null;
+  const { uploaded, reused } = await resolveUploadForGrading(videoUri, existingUpload, (step) =>
+    emit(progressStepToPhase(step)),
+  );
+  if (!reused) {
+    await updateSessionGeminiFile(sessionId, { name: uploaded.name, uri: uploaded.uri, uploadedAt: new Date().toISOString() });
+  }
 
   const groundedContext: GradingContext =
     context.kind === "prompt" && audioAnalysis.transcriptSource
@@ -341,10 +355,12 @@ async function runGradingPass(
 }
 
 // Runs the full grading rubric on a session that was saved without it (e.g. a
-// free recording, or any session where "Get AI feedback" was left off).
-// Necessarily re-uploads the video — Gemini Files API entries expire after
-// 48h (plan.md §10), so there's nothing from an earlier transcript-only call
-// to reuse. Emits phase updates via processingEvents so a screen can show progress.
+// free recording, or any session where "Get AI feedback" was left off), or
+// retries one whose grading previously failed. Re-uploads the video unless a
+// still-fresh, still-ACTIVE upload from an earlier attempt is on record (see
+// runGradingPass/resolveUploadForGrading) — Gemini Files API entries expire
+// after 48h (plan.md §10), so anything older always gets a fresh upload.
+// Emits phase updates via processingEvents so a screen can show progress.
 export async function gradeExistingSession(sessionId: string, context: GradingContext, videoUri: string): Promise<void> {
   const emit = (phase: ProcessingPhase, extra?: Partial<{ errorMessage: string }>) =>
     emitProcessingStatus({ sessionId, phase, ...extra });
@@ -419,9 +435,18 @@ export async function processSession(args: ProcessSessionArgs): Promise<void> {
         pitchMaxHz: null,
         volumeAvgDbfs: null,
         volumeStddevDbfs: null,
+        geminiFileName: null,
+        geminiFileUri: null,
+        geminiFileUploadedAt: null,
       });
     } else {
       logger.info(`[pipeline] session ${sessionId}: found existing row (status=${existing.status}), retrying`);
+      // A retry's status otherwise stays stuck on "error" (or whatever it
+      // was) in the DB for the entire retry attempt — nothing set it back to
+      // "processing" here before. Harmless if the attempt is genuinely fast,
+      // but misleading in History if it's slow or hangs: the row would keep
+      // reading "Failed" while a retry was actually in flight.
+      await updateSessionStatus(sessionId, "processing");
     }
 
     // For a retry, don't just check that a transcript exists — if grading was

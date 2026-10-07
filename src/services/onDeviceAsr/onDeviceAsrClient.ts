@@ -1,5 +1,6 @@
 import { SpeechToTextModule, WHISPER_BASE_EN } from "react-native-executorch";
 import { logger } from "../../utils/logger";
+import { withTimeout } from "../../utils/withTimeout";
 
 // react-native-executorch's speech-to-text module — chosen as the default,
 // free, on-device transcription engine (see plan.md's Phase 2). Note: the
@@ -46,6 +47,16 @@ function getModule(onDownloadProgress?: (progress: number) => void): Promise<Spe
   return modulePromise;
 }
 
+// Covers both model load (first-run download, ~100-200MB for WHISPER_BASE_EN
+// over a slow connection) and the transcribe() call itself. Exists because
+// the underlying native bridge has been observed to hang indefinitely
+// (never resolving OR rejecting) rather than reject cleanly when the
+// ResourceFetcher adapter is misconfigured — see withTimeout.ts and
+// sessionProcessor.ts's resolveTranscriptAndAudio, which otherwise froze the
+// whole session pipeline at "Save your recording" with no error shown and
+// no way to recover short of force-quitting.
+const TRANSCRIBE_TIMEOUT_MS = 90_000;
+
 // Transcribes an already-decoded 16kHz mono waveform on-device. Free, no API
 // key, no per-session cost — the default transcription source for every
 // session (see sessionProcessor.ts). `verbose: true` is required to get
@@ -55,8 +66,17 @@ export async function transcribeOnDevice(
   waveform: Float32Array,
   onDownloadProgress?: (progress: number) => void,
 ): Promise<OnDeviceTranscriptResult> {
-  const model = await getModule(onDownloadProgress);
-  const result = await model.transcribe(waveform, { verbose: true });
+  const result = await withTimeout(
+    (async () => {
+      const model = await getModule(onDownloadProgress);
+      return model.transcribe(waveform, { verbose: true });
+    })(),
+    TRANSCRIBE_TIMEOUT_MS,
+    null,
+  );
+  if (!result) {
+    throw new Error(`on-device ASR timed out after ${TRANSCRIBE_TIMEOUT_MS}ms`);
+  }
 
   const words: OnDeviceTranscriptWord[] = (result.segments ?? [])
     .flatMap((segment) => segment.words ?? [])

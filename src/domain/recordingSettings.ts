@@ -40,7 +40,11 @@ export const DEFAULT_PREP_PHASE_SETTINGS: PrepPhaseSettings = {
 };
 
 // Picks a uniformly-random value within [min, max], snapped to step.
-function randomStepValue(min: number, max: number, step: number): number {
+// Exported so curriculum.ts can draw a level-scaled prep duration from its
+// own (narrower, level-dependent) range without duplicating this math —
+// degenerates cleanly to a constant when min === max, which is what a
+// "fixed" curriculum level relies on (see curriculumLevelToPrepSeconds).
+export function randomStepValue(min: number, max: number, step: number): number {
   const stepCount = Math.round((max - min) / step);
   const randomStepIndex = Math.floor(Math.random() * (stepCount + 1));
   return min + randomStepIndex * step;

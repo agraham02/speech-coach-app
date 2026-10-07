@@ -22,6 +22,7 @@ import { AddPromptScreen } from "../screens/AddPromptScreen";
 import { PlanYourPointScreen } from "../screens/PlanYourPointScreen";
 import { DrillsScreen } from "../screens/DrillsScreen";
 import { DrillSessionScreen } from "../screens/DrillSessionScreen";
+import { CurriculumScreen } from "../screens/CurriculumScreen";
 import { navigationRef } from "./navigationRef";
 import { syncDailyReminder } from "../services/notifications/reminderScheduler";
 import { logger } from "../utils/logger";
@@ -47,6 +48,7 @@ export type RootStackParamList = {
   PlanYourPoint: { prompt: Prompt };
   Drills: undefined;
   DrillSession: { twisterId: string };
+  Curriculum: undefined;
   Recording: RecordingSubject;
   Preview: RecordingSubject & { videoUri: string; durationSecondsLocal: number };
   Processing: RecordingSubject & {
@@ -230,6 +232,7 @@ export function AppNavigator() {
         <Stack.Screen name="PlanYourPoint" component={PlanYourPointScreen} />
         <Stack.Screen name="Drills" component={DrillsScreen} />
         <Stack.Screen name="DrillSession" component={DrillSessionScreen} />
+        <Stack.Screen name="Curriculum" component={CurriculumScreen} />
         <Stack.Screen name="Recording" component={RecordingScreen} />
         <Stack.Screen name="Preview" component={PreviewScreen} />
         <Stack.Screen name="Processing" component={ProcessingScreen} />

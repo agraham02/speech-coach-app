@@ -24,8 +24,18 @@ interface SessionOptionsSheetProps {
   onWarmUpEnabledChange: (value: boolean) => void;
   prepSettings: PrepPhaseSettings;
   onPrepSettingsChange: (value: PrepPhaseSettings) => void;
+  // Same "auto vs. explicit choice" distinction as durationManuallySet below,
+  // for the Prep phase length/randomize controls.
+  prepManuallySet: boolean;
+  onResetPrepToAuto: () => void;
   durationSettings: RecordingDurationSettings;
   onDurationSettingsChange: (value: RecordingDurationSettings) => void;
+  // Whether the length below is the curriculum's auto-computed value or a
+  // choice the user explicitly made — see curriculum.ts's plan notes on
+  // "auto duration" vs. "I picked my own" being mutually exclusive.
+  durationManuallySet: boolean;
+  onResetDurationToAuto: () => void;
+  curriculumLevel: number;
   conciseModeSeconds: number;
   onConciseModeSecondsChange: (value: number) => void;
 }
@@ -52,8 +62,13 @@ export function SessionOptionsSheet({
   onWarmUpEnabledChange,
   prepSettings,
   onPrepSettingsChange,
+  prepManuallySet,
+  onResetPrepToAuto,
   durationSettings,
   onDurationSettingsChange,
+  durationManuallySet,
+  onResetDurationToAuto,
+  curriculumLevel,
   conciseModeSeconds,
   onConciseModeSecondsChange,
 }: SessionOptionsSheetProps) {
@@ -116,8 +131,16 @@ export function SessionOptionsSheet({
           </View>
           {prepSettings.enabled ? (
             <View style={styles.subSection}>
+              <View style={styles.row}>
+                <Text style={styles.rowTitle}>Prep time</Text>
+                {!prepManuallySet ? (
+                  <View style={styles.autoBadge}>
+                    <Text style={styles.autoBadgeText}>Auto · Level {curriculumLevel}</Text>
+                  </View>
+                ) : null}
+              </View>
               <LabeledSlider
-                label="Prep time"
+                label="Length"
                 value={prepSettings.fixedSeconds}
                 minimumValue={PREP_DURATION_MIN_SECONDS}
                 maximumValue={PREP_DURATION_MAX_SECONDS}
@@ -136,11 +159,28 @@ export function SessionOptionsSheet({
                   trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
                 />
               </View>
+              {prepManuallySet ? (
+                <Pressable onPress={onResetPrepToAuto} hitSlop={8}>
+                  <Text style={styles.linkText}>Reset to auto (matches your curriculum level)</Text>
+                </Pressable>
+              ) : (
+                <Text style={styles.rowSubtitle}>
+                  Matches your current curriculum level — shrinks and randomizes as you level up. Adjusting below
+                  sets your own prep time instead.
+                </Text>
+              )}
             </View>
           ) : null}
 
           <View style={[styles.subSection, styles.divider]}>
-            <Text style={styles.rowTitle}>Recording length</Text>
+            <View style={styles.row}>
+              <Text style={styles.rowTitle}>Recording length</Text>
+              {!durationManuallySet ? (
+                <View style={styles.autoBadge}>
+                  <Text style={styles.autoBadgeText}>Auto · Level {curriculumLevel}</Text>
+                </View>
+              ) : null}
+            </View>
             <LabeledSlider
               label="Length"
               value={durationSettings.fixedSeconds}
@@ -161,6 +201,15 @@ export function SessionOptionsSheet({
                 trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
               />
             </View>
+            {durationManuallySet ? (
+              <Pressable onPress={onResetDurationToAuto} hitSlop={8}>
+                <Text style={styles.linkText}>Reset to auto (matches your curriculum level)</Text>
+              </Pressable>
+            ) : (
+              <Text style={styles.rowSubtitle}>
+                Matches your current curriculum level — adjusting below sets your own length instead.
+              </Text>
+            )}
           </View>
 
           <View style={[styles.subSection, styles.divider]}>
@@ -214,4 +263,12 @@ const styles = StyleSheet.create({
   divider: { paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
   switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   switchLabel: { color: colors.textSecondary, fontSize: typography.body },
+  autoBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radii.pill,
+    backgroundColor: colors.accentMuted,
+  },
+  autoBadgeText: { color: colors.accent, fontSize: typography.caption - 1, fontWeight: "700" },
+  linkText: { color: colors.accent, fontSize: typography.caption, fontWeight: "600" },
 });

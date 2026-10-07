@@ -11,6 +11,8 @@ import { SegmentedControl } from "../components/common/SegmentedControl";
 import { TONGUE_TWISTERS } from "../data/tongueTwisters";
 import { computeStreaks, type StreakResult } from "../domain/streaks";
 import { getDrillCompletionDates } from "../services/db/drillsRepo";
+import { getEffectiveCurriculumLevel } from "../services/db/curriculumRepo";
+import { levelToDifficultyTier } from "../domain/curriculum";
 import type { DifficultyTier } from "../domain/sessionTypes";
 import { colors, spacing, typography } from "../theme/theme";
 
@@ -34,7 +36,11 @@ const DIFFICULTY_COLOR: Record<DifficultyTier, string> = {
 const EMPTY_STREAK: StreakResult = { currentStreak: 0, longestStreak: 0 };
 
 export function DrillsScreen({ navigation }: Props) {
-  const [difficultyFilter, setDifficultyFilter] = useState<DifficultyFilter>("all");
+  // Soft default, not a hard gate — pre-selects the curriculum-implied tier
+  // (with a "Recommended for you" hint) but the user can freely browse
+  // other tiers ad hoc, same as any other SegmentedControl choice.
+  const [recommendedTier] = useState<DifficultyTier>(() => levelToDifficultyTier(getEffectiveCurriculumLevel().level));
+  const [difficultyFilter, setDifficultyFilter] = useState<DifficultyFilter>(recommendedTier);
   const [streak, setStreak] = useState<StreakResult>(EMPTY_STREAK);
 
   useFocusEffect(
@@ -76,6 +82,9 @@ export function DrillsScreen({ navigation }: Props) {
       </Card>
 
       <SegmentedControl options={DIFFICULTY_FILTERS} value={difficultyFilter} onChange={setDifficultyFilter} />
+      {difficultyFilter === recommendedTier ? (
+        <Text style={styles.recommendedHint}>★ Recommended for you, based on your curriculum level</Text>
+      ) : null}
 
       <FlatList
         data={filteredTwisters}
@@ -106,6 +115,7 @@ const styles = StyleSheet.create({
   streakTextGroup: { flex: 1, gap: 2 },
   streakNumber: { color: colors.textPrimary, fontSize: typography.bodyLarge, fontWeight: "700" },
   streakSubtext: { color: colors.textMuted, fontSize: typography.caption },
+  recommendedHint: { color: colors.accent, fontSize: typography.caption - 1, fontWeight: "600" },
   list: { gap: spacing.sm, paddingBottom: spacing.lg },
   twisterCard: { gap: spacing.xs },
   twisterCardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },

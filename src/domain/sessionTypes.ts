@@ -25,6 +25,21 @@ export interface DrillCompletion {
   difficulty: DifficultyTier;
 }
 
+// One row per actual curriculum level change (Phase 5) — not per
+// evaluation, keeping the table tiny. spontaneousSessionCount is the
+// cooldown checkpoint: the next change is only considered once this many
+// *new* eligible spontaneous sessions have landed since.
+export interface CurriculumStateEntry {
+  id: number;
+  changedAt: string;
+  level: number;
+  direction: string; // 'up' | 'down' | 'initial'
+  spontaneousComposite: number | null;
+  drillComposite: number | null;
+  spontaneousSessionCount: number;
+  reasonCode: string;
+}
+
 // What a recording is "about" — threaded from the Recording screen all the
 // way through Preview/Processing to sessionProcessor, so the DB insert and
 // the Gemini grading call both know whether this is a spontaneous/free-record
@@ -124,6 +139,15 @@ export interface Session {
   pitchMaxHz: number | null;
   volumeAvgDbfs: number | null;
   volumeStddevDbfs: number | null;
+  // A successfully-uploaded-but-not-yet-(or-no-longer)-graded Gemini Files
+  // API entry — set right after upload succeeds, independent of whether the
+  // grading call after it succeeds. Lets a retry after a failed analysis
+  // reuse the same upload instead of re-uploading the video (see
+  // transcribeSession.ts's resolveUploadForGrading). All null together, or
+  // all set together — never a partial combination.
+  geminiFileName: string | null;
+  geminiFileUri: string | null;
+  geminiFileUploadedAt: string | null; // ISO datetime
 }
 
 export type StructureUsed = "what/why/how" | "story arc" | "none detected" | "other";

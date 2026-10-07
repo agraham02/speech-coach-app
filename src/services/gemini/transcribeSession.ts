@@ -1,4 +1,4 @@
-import { generateContent, uploadVideoFile, waitForFileActive } from "./geminiClient";
+import { checkExistingFileActive, generateContent, uploadVideoFile, waitForFileActive } from "./geminiClient";
 import {
   buildResponseSchemaWithCueCompliance,
   buildScriptSystemPrompt,
@@ -91,6 +91,45 @@ export async function uploadVideoForGrading(
   onProgress?: (step: TranscribeProgressStep) => void,
 ): Promise<UploadedGeminiFile> {
   return uploadAndWaitForActive(videoUri, onProgress);
+}
+
+export interface ExistingGeminiUpload {
+  name: string;
+  uri: string;
+  uploadedAt: string; // ISO datetime
+}
+
+// Gemini Files API entries expire 48h after upload — a 1h safety margin
+// keeps a slow retry from reusing a reference that expires mid-request.
+const FILE_REUSE_WINDOW_MS = 47 * 60 * 60 * 1000;
+
+// Resolves an UploadedGeminiFile for grading — reuses a still-fresh,
+// still-ACTIVE upload from a previous attempt when one exists (skipping the
+// re-upload entirely), falling back to a normal fresh upload otherwise.
+// This is what makes "upload succeeded, analysis failed, retry" cheap: only
+// the failed analysis step re-runs, not the (usually much slower) video
+// upload. `reused: false` tells the caller to persist the freshly-uploaded
+// file's reference for next time; `reused: true` means the stored one is
+// still good, nothing new to persist.
+export async function resolveUploadForGrading(
+  videoUri: string,
+  existingUpload: ExistingGeminiUpload | null,
+  onProgress?: (step: TranscribeProgressStep) => void,
+): Promise<{ uploaded: UploadedGeminiFile; reused: boolean }> {
+  const isFresh = existingUpload && Date.now() - Date.parse(existingUpload.uploadedAt) < FILE_REUSE_WINDOW_MS;
+  if (existingUpload && isFresh && (await checkExistingFileActive(existingUpload.name))) {
+    logger.info(`[gemini] reusing previously-uploaded file ${existingUpload.name} — skipping re-upload`);
+    onProgress?.("processing");
+    return {
+      uploaded: { name: existingUpload.name, uri: existingUpload.uri, mimeType: "video/mp4", state: "ACTIVE" },
+      reused: true,
+    };
+  }
+  if (existingUpload) {
+    logger.info(`[gemini] previously-uploaded file ${existingUpload.name} is no longer usable — uploading fresh`);
+  }
+  const uploaded = await uploadAndWaitForActive(videoUri, onProgress);
+  return { uploaded, reused: false };
 }
 
 export async function analyzeUploadedVideo(

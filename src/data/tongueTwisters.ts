@@ -11,9 +11,9 @@ export interface TongueTwister {
   repeatCount: number;
 }
 
-// 24 public-domain tongue twisters, 8 per tier. Difficulty is driven by
-// syllable density, alliteration overlap (sounds that are easy to swap:
-// s/sh, r/w), and sentence length — not by obscurity of vocabulary.
+// 28 public-domain tongue twisters (9 easy, 9 medium, 10 hard). Difficulty
+// is driven by syllable density, alliteration overlap (sounds that are easy
+// to swap: s/sh, r/w), and sentence length — not by obscurity of vocabulary.
 export const TONGUE_TWISTERS: TongueTwister[] = [
   // Easy — short, single dominant sound, minimal sound-swapping risk.
   {
@@ -68,6 +68,13 @@ export const TONGUE_TWISTERS: TongueTwister[] = [
   {
     id: "tt_e08",
     text: "Red lorry, yellow lorry.",
+    difficulty: "easy",
+    focusSounds: ["r", "l"],
+    repeatCount: 3,
+  },
+  {
+    id: "tt_e09",
+    text: "Red leather, yellow leather.",
     difficulty: "easy",
     focusSounds: ["r", "l"],
     repeatCount: 3,
@@ -130,6 +137,13 @@ export const TONGUE_TWISTERS: TongueTwister[] = [
     focusSounds: ["c", "k"],
     repeatCount: 3,
   },
+  {
+    id: "tt_m09",
+    text: "A big black bug bit the big black bear, and the big black bear bled blue blood.",
+    difficulty: "medium",
+    focusSounds: ["b", "bl"],
+    repeatCount: 3,
+  },
 
   // Hard — dense alliteration overlap, near-homophone traps, longest lines.
   {
@@ -186,6 +200,20 @@ export const TONGUE_TWISTERS: TongueTwister[] = [
     text: "Imagine an imaginary menagerie manager managing an imaginary menagerie.",
     difficulty: "hard",
     focusSounds: ["m", "n", "g"],
+    repeatCount: 2,
+  },
+  {
+    id: "tt_h09",
+    text: "If two witches were watching two watches, which witch would watch which watch?",
+    difficulty: "hard",
+    focusSounds: ["w", "wh"],
+    repeatCount: 2,
+  },
+  {
+    id: "tt_h10",
+    text: "One-one was a race horse, two-two was one too. One-one won one race, two-two won one too.",
+    difficulty: "hard",
+    focusSounds: ["w", "t"],
     repeatCount: 2,
   },
 ];

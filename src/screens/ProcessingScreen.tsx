@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useIsFocused } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -8,6 +8,7 @@ import { ScreenContainer } from "../components/common/ScreenContainer";
 import { PrimaryButton } from "../components/common/PrimaryButton";
 import { Card } from "../components/common/Card";
 import { StepList, type Step } from "../components/processing/StepList";
+import { VideoPlayback } from "../components/result/VideoPlayback";
 import { useSessionProcessingStatus } from "../hooks/useSessionProcessingStatus";
 import { processSession } from "../services/pipeline/sessionProcessor";
 import type { ProcessingPhase } from "../services/pipeline/processingEvents";
@@ -47,6 +48,12 @@ export function ProcessingScreen({ route, navigation }: Props) {
   const { sessionId, videoUri, durationSecondsLocal, wantsGrading, wantsNotionSync, ...subject } = route.params;
   const { phase, errorMessage } = useSessionProcessingStatus(sessionId);
   const isFocused = useIsFocused();
+  // Off by default, same as Result's "Watch recording" toggle (VideoPlayback
+  // is only mounted while expanded — see that component's note on why).
+  // Preview replaces itself with this screen on Save (navigation.replace),
+  // so without this the just-recorded video was otherwise unreachable from
+  // here until processing finished and Result opened.
+  const [showVideo, setShowVideo] = useState(false);
 
   const steps = buildSteps(wantsGrading, wantsNotionSync);
   const phaseToStepIndex = buildPhaseToStepIndex(wantsNotionSync);
@@ -69,40 +76,65 @@ export function ProcessingScreen({ route, navigation }: Props) {
     navigation.popToTop();
   }
 
+  const watchToggle = (
+    <>
+      <Pressable
+        onPress={() => setShowVideo((v) => !v)}
+        style={styles.watchToggle}
+        accessibilityRole="button"
+        accessibilityLabel={showVideo ? "Hide recording" : "Watch recording"}
+      >
+        <Ionicons name={showVideo ? "chevron-up" : "play-circle-outline"} size={18} color={colors.accent} />
+        <Text style={styles.watchToggleText}>{showVideo ? "Hide recording" : "Watch recording"}</Text>
+      </Pressable>
+      {showVideo ? <VideoPlayback videoUri={videoUri} /> : null}
+    </>
+  );
+
   if (phase === "error") {
     return (
-      <ScreenContainer style={styles.centered}>
-        <View style={styles.errorIconWrap}>
-          <Ionicons name="alert-circle-outline" size={40} color={colors.danger} />
-        </View>
-        <Text style={styles.errorTitle}>Processing failed</Text>
-        <Card style={styles.stepsCard}>
-          <StepList steps={steps} currentIndex={phaseToStepIndex[phase]} />
-        </Card>
-        <Card style={styles.errorCard}>
-          <Text style={styles.errorMessage}>{errorMessage}</Text>
-        </Card>
-        <View style={styles.errorActions}>
-          <PrimaryButton label="Retry" onPress={retry} />
-        </View>
+      <ScreenContainer style={styles.container}>
+        <ScrollView contentContainerStyle={styles.centered} showsVerticalScrollIndicator={false}>
+          <View style={styles.errorIconWrap}>
+            <Ionicons name="alert-circle-outline" size={40} color={colors.danger} />
+          </View>
+          <Text style={styles.errorTitle}>Processing failed</Text>
+          <Card style={styles.stepsCard}>
+            <StepList steps={steps} currentIndex={phaseToStepIndex[phase]} />
+          </Card>
+          <Card style={styles.errorCard}>
+            <Text style={styles.errorMessage}>{errorMessage}</Text>
+          </Card>
+          {watchToggle}
+          <View style={styles.errorActions}>
+            <PrimaryButton label="Retry" onPress={retry} />
+          </View>
+        </ScrollView>
       </ScreenContainer>
     );
   }
 
   return (
-    <ScreenContainer style={styles.centered}>
-      <Text style={styles.title}>Processing your session</Text>
-      <Card style={styles.stepsCard}>
-        <StepList steps={steps} currentIndex={phaseToStepIndex[phase]} />
-      </Card>
-      <Text style={styles.hint}>This keeps running in the background — feel free to leave.</Text>
-      <PrimaryButton label="Continue in background" variant="ghost" onPress={continueInBackground} />
+    <ScreenContainer style={styles.container}>
+      <ScrollView contentContainerStyle={styles.centered} showsVerticalScrollIndicator={false}>
+        <Text style={styles.title}>Processing your session</Text>
+        <Card style={styles.stepsCard}>
+          <StepList steps={steps} currentIndex={phaseToStepIndex[phase]} />
+        </Card>
+        {watchToggle}
+        <Text style={styles.hint}>This keeps running in the background — feel free to leave.</Text>
+        <PrimaryButton label="Continue in background" variant="ghost" onPress={continueInBackground} />
+      </ScrollView>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  centered: { alignItems: "center", justifyContent: "center", gap: spacing.lg },
+  container: { padding: 0 },
+  // flexGrow (not flex) on a ScrollView's contentContainerStyle — keeps
+  // content centered when it's short (the common case) while still letting
+  // it scroll instead of clipping once "Watch recording" adds ~360px.
+  centered: { flexGrow: 1, alignItems: "center", justifyContent: "center", gap: spacing.lg, padding: spacing.lg },
   title: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
   stepsCard: { width: "100%" },
   hint: { color: colors.textMuted, fontSize: typography.caption, textAlign: "center" },
@@ -111,4 +143,6 @@ const styles = StyleSheet.create({
   errorCard: { width: "100%" },
   errorMessage: { color: colors.textSecondary, fontSize: typography.body, textAlign: "center", lineHeight: 20 },
   errorActions: { width: "100%" },
+  watchToggle: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, paddingVertical: spacing.xs },
+  watchToggleText: { color: colors.accent, fontSize: typography.body, fontWeight: "600" },
 });

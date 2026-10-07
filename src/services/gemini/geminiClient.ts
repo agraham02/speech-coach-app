@@ -115,6 +115,23 @@ export async function waitForFileActive(
   throw new GeminiApiError(`Timed out waiting for ${fileName} to become ACTIVE`);
 }
 
+// A single-shot re-use check for a *previously* uploaded file, as opposed to
+// waitForFileActive's polling loop (which assumes the file is expected to
+// still be actively processing and throws if it isn't). Returns false for
+// anything other than a confirmed ACTIVE state — expired, deleted, failed,
+// or a network error — so callers can always safely fall through to a fresh
+// upload instead of surfacing a reuse-check failure as a session-level error.
+export async function checkExistingFileActive(fileName: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE}/v1beta/${fileName}?${await apiKeyQuery()}`);
+    if (!response.ok) return false;
+    const data = (await response.json()) as UploadedGeminiFile;
+    return data.state === "ACTIVE";
+  } catch {
+    return false;
+  }
+}
+
 // fileUri/mimeType are optional — omitting both fires a text-only call (no
 // video ever leaves the device), used for the grounded/no-grading path where
 // an on-device or AssemblyAI transcript already exists and Gemini is only

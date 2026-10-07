@@ -115,6 +115,24 @@ export async function updateSessionFillerStats(
   );
 }
 
+export interface GeminiFileRef {
+  name: string;
+  uri: string;
+  uploadedAt: string; // ISO datetime
+}
+
+// Persisted right after a successful Gemini Files API upload — independent
+// of whether the analysis call after it succeeds, so a failed analysis can
+// retry against the same uploaded file instead of re-uploading (see
+// transcribeSession.ts's resolveUploadForGrading). Pass null to clear.
+export async function updateSessionGeminiFile(id: string, file: GeminiFileRef | null): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    `UPDATE sessions SET gemini_file_name = ?, gemini_file_uri = ?, gemini_file_uploaded_at = ? WHERE id = ?`,
+    [file?.name ?? null, file?.uri ?? null, file?.uploadedAt ?? null, id],
+  );
+}
+
 export async function updateSessionStatus(
   id: string,
   status: SessionStatus,

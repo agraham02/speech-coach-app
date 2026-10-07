@@ -23,13 +23,21 @@ import { useHapticFaceWarning } from "../hooks/useHapticFaceWarning";
 import { useRecordingTimer } from "../hooks/useRecordingTimer";
 import {
   getPrepPhaseSettings,
+  getPrepSettingsManuallySet,
   getRecordBlindPref,
+  getRecordingDurationManuallySet,
   getRecordingDurationSettings,
   getWarmUpEnabled,
   setRecordBlindPref,
 } from "../services/prefs/prefsStore";
 import { resolvePrepDurationSeconds, resolveRecordingDurationSeconds } from "../domain/recordingSettings";
-import { DEFAULT_WARM_UP_INTENSITY, getWarmUpSteps } from "../domain/warmUpRoutine";
+import { getWarmUpSteps } from "../domain/warmUpRoutine";
+import {
+  curriculumLevelToDurationSeconds,
+  curriculumLevelToPrepSeconds,
+  curriculumLevelToWarmUpIntensity,
+} from "../domain/curriculum";
+import { getEffectiveCurriculumLevel } from "../services/db/curriculumRepo";
 import { persistRecording } from "../services/storage/videoStorage";
 import { formatDuration } from "../utils/dateUtils";
 import { colors, spacing, typography } from "../theme/theme";
@@ -52,11 +60,21 @@ export function RecordingScreen({ route, navigation }: Props) {
   const [isFinishing, setIsFinishing] = useState(false);
   const stoppingRef = useRef(false);
 
-  const [prepSettings] = useState(() => getPrepPhaseSettings());
+  // The curriculum's level-driven prep applies unless the user has
+  // explicitly configured their own prep phase in the Session Options sheet
+  // — same manual-always-wins precedent as targetDurationSeconds below. Auto
+  // prep is always "on": Level 1-2 give a full, fixed window while the habit
+  // is new; Level 3+ shrinks and randomizes it (see curriculum.ts's
+  // LEVEL_PREP_RANGE) since less-rehearsed, spontaneous speaking is the
+  // point of leveling up.
+  const [prepEnabled] = useState(() =>
+    getPrepSettingsManuallySet() ? getPrepPhaseSettings().enabled : true,
+  );
   const [warmUpEnabled] = useState(() => getWarmUpEnabled());
-  // Phase 5 will drive this by curriculum level instead of a fixed default —
-  // see warmUpRoutine.ts's header comment.
-  const [warmUpSteps] = useState(() => getWarmUpSteps(DEFAULT_WARM_UP_INTENSITY));
+  // Warm-up length scales with curriculum level — harder levels get a
+  // longer, more thorough warm-up (see curriculum.ts's LEVEL_WARM_UP_INTENSITY
+  // table and its judgment-call note).
+  const [warmUpSteps] = useState(() => getWarmUpSteps(curriculumLevelToWarmUpIntensity(getEffectiveCurriculumLevel().level)));
   // Concise Mode's duration is already resolved (from prefs) by the time it
   // reaches here as subject.conciseSeconds — it bypasses the general
   // recording-duration setting entirely, same as Script Practice bypassing
@@ -65,14 +83,24 @@ export function RecordingScreen({ route, navigation }: Props) {
   const [targetDurationSeconds] = useState(() => {
     if (isScript) return subject.script.targetDurationSeconds;
     if (subject.kind === "prompt" && subject.conciseSeconds) return subject.conciseSeconds;
+    // The curriculum's level-driven duration applies unless the user has
+    // explicitly set their own recording length in the Session Options
+    // sheet — an explicit manual choice always wins over the auto
+    // suggestion (see curriculum.ts's plan notes; matches how a manual
+    // curriculum-level override also always wins over the auto level).
+    if (!getRecordingDurationManuallySet()) {
+      return curriculumLevelToDurationSeconds(getEffectiveCurriculumLevel().level);
+    }
     return resolveRecordingDurationSeconds(getRecordingDurationSettings());
   });
-  const [prepDurationSeconds] = useState(() =>
-    prepSettings.enabled ? resolvePrepDurationSeconds(prepSettings) : 0,
-  );
+  const [prepDurationSeconds] = useState(() => {
+    if (!prepEnabled) return 0;
+    if (getPrepSettingsManuallySet()) return resolvePrepDurationSeconds(getPrepPhaseSettings());
+    return curriculumLevelToPrepSeconds(getEffectiveCurriculumLevel().level);
+  });
   const [stage, setStage] = useState<Stage>(() => {
     if (warmUpEnabled) return "warmup";
-    return prepSettings.enabled ? "prep" : "idle";
+    return prepEnabled ? "prep" : "idle";
   });
 
   useHapticFaceWarning(stage === "recording", faceDetected);
@@ -83,7 +111,7 @@ export function RecordingScreen({ route, navigation }: Props) {
   }
 
   function advanceFromWarmUp() {
-    setStage(prepSettings.enabled ? "prep" : "idle");
+    setStage(prepEnabled ? "prep" : "idle");
   }
 
   function beginRecording() {

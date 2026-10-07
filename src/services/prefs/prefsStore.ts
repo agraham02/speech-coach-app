@@ -7,6 +7,7 @@ import {
   type RecordingDurationSettings,
 } from "../../domain/recordingSettings";
 import { DEFAULT_REMINDER_SETTINGS, type ReminderSettings } from "../../domain/reminderSettings";
+import { DEFAULT_CURRICULUM_LEVEL } from "../../domain/curriculum";
 
 const storage = createMMKV({ id: "speech-coach-prefs" });
 
@@ -19,6 +20,10 @@ const KEYS = {
   conciseModeSeconds: "conciseModeSeconds",
   assemblyAiEnabled: "assemblyAiEnabled",
   warmUpEnabled: "warmUpEnabled",
+  curriculumOverride: "curriculumOverride",
+  curriculumAutoLevel: "curriculumAutoLevel",
+  recordingDurationManuallySet: "recordingDurationManuallySet",
+  prepSettingsManuallySet: "prepSettingsManuallySet",
 } as const;
 
 export function getRecordBlindPref(): boolean {
@@ -106,4 +111,60 @@ export function getAssemblyAiEnabled(): boolean {
 
 export function setAssemblyAiEnabled(value: boolean): void {
   storage.set(KEYS.assemblyAiEnabled, value);
+}
+
+// The manual curriculum pin — `null` means "Auto" (the computed level
+// applies). Distinct from curriculumAutoLevel below: this is a user choice,
+// that's a read-through cache of the engine's own computation. See
+// curriculum.ts / curriculumRepo.ts's getEffectiveCurriculumLevel().
+export function getCurriculumOverride(): number | null {
+  return storage.contains(KEYS.curriculumOverride) ? (storage.getNumber(KEYS.curriculumOverride) ?? null) : null;
+}
+
+export function setCurriculumOverride(level: number | null): void {
+  if (level === null) {
+    storage.remove(KEYS.curriculumOverride);
+  } else {
+    storage.set(KEYS.curriculumOverride, level);
+  }
+}
+
+// Cache of the last computed auto (non-override) curriculum level — written
+// only by curriculumRepo.ts's recomputeCurriculumLevel() after it reads the
+// DB, read synchronously everywhere else (RecordingScreen's mount,
+// DrillsScreen's default tier, HomeScreen's prompt filter) that needs
+// "today's level" without a DB round-trip on every read. curriculum_state
+// in SQLite stays the source of truth for history; this is purely a
+// read-through cache of its latest value.
+export function getCurriculumAutoLevel(): number {
+  return storage.getNumber(KEYS.curriculumAutoLevel) ?? DEFAULT_CURRICULUM_LEVEL;
+}
+
+export function setCurriculumAutoLevel(level: number): void {
+  storage.set(KEYS.curriculumAutoLevel, level);
+}
+
+// Whether the user has ever explicitly touched the recording-length control
+// in the Session Options sheet — distinguishes "never touched, so the
+// curriculum's level-driven duration applies" from "explicitly set to
+// something (even if it happens to match a curriculum value)." See
+// RecordingScreen.tsx's duration resolution.
+export function getRecordingDurationManuallySet(): boolean {
+  return storage.getBoolean(KEYS.recordingDurationManuallySet) ?? false;
+}
+
+export function setRecordingDurationManuallySet(value: boolean): void {
+  storage.set(KEYS.recordingDurationManuallySet, value);
+}
+
+// Same "never touched, so the curriculum's level-driven value applies"
+// precedent as recordingDurationManuallySet above, but for the Prep phase
+// controls — see curriculum.ts's curriculumLevelToPrepMode/Seconds and
+// RecordingScreen.tsx's prep resolution.
+export function getPrepSettingsManuallySet(): boolean {
+  return storage.getBoolean(KEYS.prepSettingsManuallySet) ?? false;
+}
+
+export function setPrepSettingsManuallySet(value: boolean): void {
+  storage.set(KEYS.prepSettingsManuallySet, value);
 }

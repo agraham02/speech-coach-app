@@ -1,5 +1,6 @@
 import type {
   Archetype,
+  CurriculumStateEntry,
   DifficultyTier,
   DrillCompletion,
   DspStatus,
@@ -51,6 +52,9 @@ export interface SessionRow {
   pitch_max_hz: number | null;
   volume_avg_dbfs: number | null;
   volume_stddev_dbfs: number | null;
+  gemini_file_name: string | null;
+  gemini_file_uri: string | null;
+  gemini_file_uploaded_at: string | null;
 }
 
 // Generic nullable-JSON-column parser — logs and degrades to null rather
@@ -103,6 +107,9 @@ export function rowToSession(row: SessionRow): Session {
     pitchMaxHz: row.pitch_max_hz,
     volumeAvgDbfs: row.volume_avg_dbfs,
     volumeStddevDbfs: row.volume_stddev_dbfs,
+    geminiFileName: row.gemini_file_name,
+    geminiFileUri: row.gemini_file_uri,
+    geminiFileUploadedAt: row.gemini_file_uploaded_at,
   };
 }
 
@@ -226,5 +233,29 @@ export function rowToDrillCompletion(row: DrillCompletionRow): DrillCompletion {
     accuracyPercent: row.accuracy_percent,
     wpm: row.wpm,
     difficulty: row.difficulty as DifficultyTier,
+  };
+}
+
+export interface CurriculumStateRow {
+  id: number;
+  changed_at: string;
+  level: number;
+  direction: string;
+  spontaneous_composite: number | null;
+  drill_composite: number | null;
+  spontaneous_session_count: number;
+  reason_code: string;
+}
+
+export function rowToCurriculumState(row: CurriculumStateRow): CurriculumStateEntry {
+  return {
+    id: row.id,
+    changedAt: row.changed_at,
+    level: row.level,
+    direction: row.direction,
+    spontaneousComposite: row.spontaneous_composite,
+    drillComposite: row.drill_composite,
+    spontaneousSessionCount: row.spontaneous_session_count,
+    reasonCode: row.reason_code,
   };
 }
