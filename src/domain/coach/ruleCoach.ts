@@ -128,11 +128,13 @@ export function ruleCoach(input: CoachInput): CoachOutput {
     } else {
       wins.push({ weight: 4, text: `Clear structure (${FRAMEWORK_LABELS[structure.framework]}).` });
     }
-    if (structure.pointUpFront) wins.push({ weight: 2, text: "You led with your point." });
-
     // Rambling cues become tips only, not observations, so they don't
     // change how a rep moves mastery.
     const rambling = ramblingMetrics({ transcript, durationSeconds: input.durationSeconds });
+    // A throat-clearing opener ("That's a good question. Let me think.")
+    // can look like a short first sentence, so the praise also needs no
+    // warm-up sentences — otherwise it contradicts the tip below.
+    if (structure.pointUpFront && rambling.sentencesBeforePoint === 0) wins.push({ weight: 2, text: "You led with your point." });
     if (rambling.sentencesBeforePoint >= 2) {
       findings.push({ skill: "impromptu", severity: 4.5, tip: `Your answer started after ${rambling.sentencesBeforePoint} warm-up sentences. Lead with the point — the context can come after.` });
     }

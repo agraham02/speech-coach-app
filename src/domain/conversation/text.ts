@@ -28,17 +28,30 @@ export function words(text: string): string[] {
   return tokenizeHeard(text).tokens.map((t) => t.norm);
 }
 
-// A crude stem so "dispatching"/"dispatched"/"dispatches" match "dispatch".
-// Good enough for spotting a picked-up topic word; not a linguistic stemmer.
+// A crude stem so a picked-up topic word matches across inflections:
+// singular and plural must land on the same key ("vintage"/"vintages",
+// "address"/"addresses", "movie"/"movies", "gum"/"gums"), as must
+// "dispatch"/"dispatching"/"dispatched". Not a linguistic stemmer — only
+// ever compared with another stem().
 export function stem(norm: string): string {
-  if (norm.length <= 4) return norm;
-  for (const suffix of ["ing", "ies", "ed", "es", "s"]) {
-    if (norm.endsWith(suffix) && norm.length - suffix.length >= 3) {
-      const base = norm.slice(0, -suffix.length);
-      return suffix === "ies" ? `${base}y` : base;
+  let w = norm;
+  if (w.length <= 3) return w;
+  // Plurals.
+  if (w.endsWith("ies") && w.length > 4) w = w.slice(0, -2); // movies -> movi, candies -> candi
+  else if (w.endsWith("es") && /(s|x|z|ch|sh)es$/.test(w)) w = w.slice(0, -2); // addresses, dispatches
+  else if (w.endsWith("s") && !w.endsWith("ss") && !w.endsWith("us") && !w.endsWith("is")) w = w.slice(0, -1);
+  // Verb endings, then an undoubled consonant ("running" -> "run").
+  for (const suffix of ["ing", "ed"]) {
+    if (w.endsWith(suffix) && w.length - suffix.length >= 3) {
+      w = w.slice(0, -suffix.length);
+      if (/([b-df-hj-np-rtv-z])\1$/.test(w) && !/(ll|ss|zz)$/.test(w)) w = w.slice(0, -1);
+      break;
     }
   }
-  return norm;
+  // Final y/e so "candy"/"candi" and "vintage"/"vintag" agree.
+  if (w.length > 3 && w.endsWith("y")) w = `${w.slice(0, -1)}i`;
+  else if (w.length > 3 && w.endsWith("e")) w = w.slice(0, -1);
+  return w;
 }
 
 export function contentWords(text: string): string[] {

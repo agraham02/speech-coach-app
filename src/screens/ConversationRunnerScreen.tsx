@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import * as Speech from "expo-speech";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
@@ -21,7 +21,7 @@ import type { ConversationMetrics } from "../domain/conversation/attemptMetrics"
 import type { DrillOutcome } from "../domain/drills/drillSpecs";
 import type { PartnerVoice } from "../content/conversationContent";
 import { getDrillLevel, recordDrillOutcome } from "../services/db/progressRepo";
-import { getBlankMoment, getBlankMoments, markBlankMomentPracticed } from "../services/db/socialRepo";
+import { deleteBlankMoment, getBlankMoment, getBlankMoments, markBlankMomentPracticed } from "../services/db/socialRepo";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { showGlobalToast } from "../components/common/ToastProvider";
 import { logger } from "../utils/logger";
@@ -64,6 +64,7 @@ export function ConversationRunnerScreen({ route, navigation }: Props) {
   const listenStartAtRef = useRef(0);
   const endingRef = useRef(false);
   const cancelledRef = useRef(false);
+  const startingRef = useRef(false);
   const seedRef = useRef(Math.floor(Math.random() * 100_000));
 
   // --- setup -------------------------------------------------------------
@@ -175,19 +176,29 @@ export function ConversationRunnerScreen({ route, navigation }: Props) {
   async function endTurn() {
     if (!setup || endingRef.current) return;
     endingRef.current = true;
+    // Every turn gets a slot, even a failed one, so measurement i always
+    // lines up with turn i when scoring.
+    const empty: TurnMeasurement = {
+      transcript: "",
+      partnerEndAt: partnerEndAtRef.current,
+      listenStartAt: listenStartAtRef.current,
+      volume: [],
+      firstResultAt: null,
+      lastResultAt: null,
+    };
     try {
       const transcript = await speech.session.stop();
       measurementsRef.current[turnIndex] = {
+        ...empty,
         transcript: fullText(transcript),
         segments: transcript.committed.map((u) => u.text),
-        partnerEndAt: partnerEndAtRef.current,
-        listenStartAt: listenStartAtRef.current,
         volume: [...speech.session.getVolumeSamples()],
         firstResultAt: transcript.firstResultAtMs,
         lastResultAt: transcript.lastResultAtMs,
       };
     } catch (error) {
       logger.error(`[conversation] stopping recognition failed — ${(error as Error).message}`);
+      measurementsRef.current[turnIndex] = empty;
     }
     if (cancelledRef.current) return;
     if (turnIndex + 1 < setup.turns.length) {
@@ -198,7 +209,9 @@ export function ConversationRunnerScreen({ route, navigation }: Props) {
   }
 
   async function start() {
-    if (!setup) return;
+    // A double tap would start two partner chains and two recognizers.
+    if (!setup || startingRef.current) return;
+    startingRef.current = true;
     measurementsRef.current = [];
     setResult(null);
     setHeardNothing(false);
@@ -206,6 +219,7 @@ export function ConversationRunnerScreen({ route, navigation }: Props) {
     setSelfRating(null);
     const ready = await speech.session.prepare();
     if (ready !== "ready") {
+      startingRef.current = false;
       showGlobalToast(ready === "denied" ? "Microphone permission is needed for this drill." : "Speech recognition isn't available.", "error");
       return;
     }
@@ -216,8 +230,9 @@ export function ConversationRunnerScreen({ route, navigation }: Props) {
 
   async function finish() {
     if (!setup) return;
+    startingRef.current = false;
     setStage("saving");
-    const measurements = measurementsRef.current.filter(Boolean);
+    const measurements = measurementsRef.current;
     // Nothing recognized in any turn: a mic problem or a blank — either way
     // it isn't scored, so it can't make anything harder or easier.
     if (measurements.length === 0 || measurements.every((m) => !m.transcript.trim())) {
@@ -251,12 +266,20 @@ export function ConversationRunnerScreen({ route, navigation }: Props) {
   }
 
   function tryAgain() {
+    startingRef.current = false;
     seedRef.current += 1;
     setSetup(null);
     setStage("intro");
     setResult(null);
     setHeardNothing(false);
     load(seedRef.current);
+  }
+
+  async function removeMoment() {
+    if (!replay) return;
+    await deleteBlankMoment(replay.id).catch(() => undefined);
+    showGlobalToast("Removed.", "success");
+    navigation.goBack();
   }
 
   function skipReply() {
@@ -304,6 +327,19 @@ export function ConversationRunnerScreen({ route, navigation }: Props) {
             <Txt variant="callout" tone="secondary">
               {setup.instructions}
             </Txt>
+            {replay ? (
+              <Card style={styles.card}>
+                <Txt variant="caption1" weight="700" color={colors.skill.conversation.fg}>
+                  The moment
+                </Txt>
+                <Txt variant="callout">“{replay.text}”</Txt>
+                <Pressable onPress={removeMoment} hitSlop={8} accessibilityRole="button" accessibilityLabel="Remove this moment">
+                  <Txt variant="footnote" tone="muted">
+                    Remove this moment
+                  </Txt>
+                </Pressable>
+              </Card>
+            ) : null}
             <Card style={styles.card}>
               <Txt variant="headline">Right now, how much of your attention is on yourself?</Txt>
               <ScaleChips value={selfFocusBefore} onChange={setSelfFocusBefore} lowLabel="On them" highLabel="On me" accessibilityLabel="Attention on yourself, 0 to 10" />
@@ -376,9 +412,7 @@ export function ConversationRunnerScreen({ route, navigation }: Props) {
           </>
         ) : null}
 
-        {stage === "result" && result ? (
-          <ResultView setup={setup} result={result} />
-        ) : null}
+        {stage === "result" && result ? renderResult(result) : null}
         {stage === "result" && heardNothing ? (
           <Card style={styles.card}>
             <Txt variant="headline">Didn't catch a reply.</Txt>
@@ -405,8 +439,9 @@ export function ConversationRunnerScreen({ route, navigation }: Props) {
     </ScreenContainer>
   );
 
-  function ResultView({ setup, result }: { setup: ConversationSetup; result: { outcome: DrillOutcome; details: ConversationDetails } }) {
-    const { outcome, details } = result;
+  // A render helper, not a nested component, so re-renders don't remount it.
+  function renderResult({ outcome, details }: { outcome: DrillOutcome; details: ConversationDetails }) {
+    if (!setup) return null;
     return (
       <>
         <Card style={styles.card}>

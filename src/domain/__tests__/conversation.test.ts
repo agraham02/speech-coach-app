@@ -62,11 +62,32 @@ describe("question detection (no punctuation)", () => {
 });
 
 describe("text helpers", () => {
-  it("stems common endings", () => {
-    expect(stem("dispatching")).toBe("dispatch");
-    expect(stem("dispatched")).toBe("dispatch");
-    expect(stem("candies")).toBe("candy");
+  it.each([
+    ["dispatching", "dispatch"],
+    ["dispatched", "dispatch"],
+    ["dispatches", "dispatch"],
+    ["vintages", "vintage"],
+    ["offices", "office"],
+    ["addresses", "address"],
+    ["movies", "movie"],
+    ["candies", "candy"],
+    ["gums", "gum"],
+    ["running", "run"],
+    ["climbing", "climb"],
+    ["baked", "bake"],
+  ])("stems %p and %p to the same key", (a, b) => {
+    expect(stem(a)).toBe(stem(b));
+  });
+
+  it("leaves short and -ss/-us words alone", () => {
     expect(stem("gas")).toBe("gas");
+    expect(stem("glass")).toBe("glass");
+    expect(stem("bonus")).toBe("bonus");
+  });
+
+  it("matches a thread word in either number", () => {
+    expect(mentions("what makes a cool vintage age better", "vintages")).toBe(true);
+    expect(mentions("which offices are you converting", "office")).toBe(true);
   });
 
   it("finds a topic word or phrase across inflections", () => {
@@ -104,10 +125,14 @@ describe("rambling metrics", () => {
 
   it("counts detours and restarts", () => {
     const m = ramblingMetrics({
-      transcript: "We went to Lisbon. By the way the flight was awful. Anyway, I mean, let me start over. Lisbon was great.",
+      transcript: "We went to Lisbon. By the way the flight was awful. Anyway, what I mean is, let me start over. Lisbon was great.",
     });
     expect(m.tangentMarkers).toBe(2);
     expect(m.restarts).toBe(2);
+  });
+
+  it("doesn't count an everyday 'I mean' as a restart", () => {
+    expect(ramblingMetrics({ transcript: "It was fine. I mean, the food was good. I mean it." }).restarts).toBe(0);
   });
 
   it("reports length against the budget", () => {

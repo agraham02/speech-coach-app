@@ -15,15 +15,6 @@ export interface PartnerLine {
 
 export type Scenario = "work" | "party" | "outsider" | "friends" | "date" | "group";
 
-export const SCENARIO_LABELS: Record<Scenario, string> = {
-  work: "At work",
-  party: "Party small talk",
-  outsider: "A field you don't know",
-  friends: "Friends",
-  date: "A first date",
-  group: "A group",
-};
-
 export interface PartnerItem {
   id: string;
   scenario: Exclude<Scenario, "group">;

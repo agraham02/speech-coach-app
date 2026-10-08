@@ -1,4 +1,5 @@
 import { summarizeVolume, type VolumeReading } from "../dsp/volumePauses";
+import { FIRST_RESULT_LATENCY_MS } from "../speech/liveTranscript";
 import { ramblingMetrics, type RamblingMetrics } from "../coach/ramblingMetrics";
 import { outcome, scoreSelfRating, type DrillOutcome } from "../drills/drillSpecs";
 import { countQuestions } from "./questions";
@@ -10,8 +11,6 @@ import type { ConversationSetup, ConversationTurn } from "./prepareConversation"
 // the reply was. That's deliberate: the point of this skill is to lower the
 // pressure to perform, so nothing here grades wit or quality. Pure.
 
-// Recognition reports words a little after they're spoken.
-export const FIRST_RESULT_LATENCY_MS = 400;
 const MIN_REPLY_WORDS = 3;
 // Inside this many ms after the partner stops, a reply reads as a natural,
 // unhurried beat.
@@ -205,9 +204,10 @@ export function evaluateConversation(
       const last = measurements[measurements.length - 1]?.transcript ?? "";
       const short = new Set(contentWords(last).map(stem));
       const long = new Set(contentWords(first).map(stem));
+      // Share of the short take's content words that came from the first
+      // telling: high means it's the same story, minus the detours.
       const kept = [...short].filter((w) => long.has(w)).length;
-      const retention = short.size ? Math.round((kept / Math.min(short.size, 8)) * 100) / 100 : 0;
-      details.retention = Math.min(1, retention);
+      details.retention = short.size ? Math.round((kept / short.size) * 100) / 100 : 0;
       const target = setup.params.retentionTarget ?? 0.3;
       const within = turns.filter((t) => t.withinBudget).length;
       const score = 0.6 * (within / Math.max(turns.length, 1)) + 0.4 * Math.min(1, details.retention / target);

@@ -160,7 +160,10 @@ async function summarizeWeek(offsetWeeks: number): Promise<WeekSummary> {
     [from, to],
   );
   const drills = await db.getFirstAsync<{ n: number; avg: number | null; days: number }>(
-    `SELECT COUNT(*) AS n, AVG(score) AS avg, COUNT(DISTINCT substr(started_at, 1, 10)) AS days FROM drill_attempts
+    // Conversation drills count as practice but stay out of the average:
+    // their scores measure process, not quality.
+    `SELECT COUNT(*) AS n, AVG(CASE WHEN skill IS NULL OR skill != 'conversation' THEN score END) AS avg,
+            COUNT(DISTINCT substr(started_at, 1, 10)) AS days FROM drill_attempts
      WHERE started_at >= ? AND started_at < ?`,
     [from, to],
   );

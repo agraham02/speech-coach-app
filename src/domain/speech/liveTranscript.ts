@@ -12,6 +12,10 @@
 // the exact same words on purpose, and any prefix heuristic would silently
 // delete a genuine second repetition.
 
+// Recognition reports a word roughly this long after it's spoken, so a
+// result timestamp is shifted back by it to estimate when speech happened.
+export const FIRST_RESULT_LATENCY_MS = 400;
+
 export interface Utterance {
   text: string;
   taskId: number;

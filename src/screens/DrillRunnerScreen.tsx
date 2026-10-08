@@ -12,7 +12,7 @@ import { PrimaryButton } from "../components/common/PrimaryButton";
 import { ProgressRing } from "../components/common/ProgressRing";
 import { StatTile } from "../components/common/StatTile";
 import { useLiveSpeech } from "../hooks/useLiveSpeech";
-import { fullText } from "../domain/speech/liveTranscript";
+import { FIRST_RESULT_LATENCY_MS, fullText } from "../domain/speech/liveTranscript";
 import { tokenizeHeard } from "../domain/speech/normalize";
 import { buildTarget, followLive, type WordStatus } from "../domain/speech/speechAlignment";
 import { prepareDrill, type DrillSetup } from "../domain/drills/prepareDrill";
@@ -27,8 +27,6 @@ import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Drill">;
 type Stage = "intro" | "model" | "prep" | "listening" | "finalizing" | "result";
-
-const FIRST_RESULT_LATENCY_MS = 400;
 
 // One screen for every live-speech drill (pace and pause reading, minimal
 // pairs, shadowing, fluency sprints, random-word story, Just a Minute,

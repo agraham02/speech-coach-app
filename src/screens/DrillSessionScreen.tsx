@@ -8,7 +8,7 @@ import { Card } from "../components/common/Card";
 import { PrimaryButton } from "../components/common/PrimaryButton";
 import { getTongueTwister, TONGUE_TWISTERS } from "../data/tongueTwisters";
 import { tokenizeHeard } from "../domain/speech/normalize";
-import { fullText } from "../domain/speech/liveTranscript";
+import { FIRST_RESULT_LATENCY_MS, fullText } from "../domain/speech/liveTranscript";
 import {
   alignFinal,
   buildTarget,
@@ -44,9 +44,6 @@ type AttemptResult =
 // Once every target word has been resolved, the attempt completes on its own
 // after this much quiet — no need to reach for Stop.
 const AUTO_COMPLETE_QUIET_MS = 1500;
-// Typical recognizer latency between speaking a word and its first partial;
-// subtracted so WPM measures speaking time, not recognition delay.
-const FIRST_RESULT_LATENCY_MS = 400;
 // Safety cap on an attempt's length — generous, since people often pause
 // before starting: the larger of a minute or 4x the expected reading time.
 const EXPECTED_WPM = 150;

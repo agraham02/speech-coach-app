@@ -143,8 +143,11 @@ export function buildDailyPlan(input: PlanInput): DailyPlan {
   // impromptu rep: the lesson's own, or a framework rep.
   const lessonRep = lesson.steps.find((s): s is Extract<LessonStep, { kind: "rep" }> => s.kind === "rep");
   if (focusSkill === "conversation") {
+    // The lesson's own drill comes first — a short plan may have kept only
+    // its guided step, and finishing the plan marks the lesson done.
     const used = new Set(steps.map((s) => (s.lessonStep?.kind === "drill" ? s.lessonStep.drill : null)));
-    push({ kind: "drill", drill: CONVERSATION_APPLY.find((d) => !used.has(d)) ?? "conv_reply" });
+    const lessonDrill = practice.find((s): s is Extract<LessonStep, { kind: "drill" }> => s.kind === "drill" && !used.has(s.drill));
+    push(lessonDrill ?? { kind: "drill", drill: CONVERSATION_APPLY.find((d) => !used.has(d)) ?? "conv_reply" });
     // No video rep to review on a conversation day.
     return { date: input.date, minutes: input.minutes, focusSkill, lessonId: lesson.id, isReview, steps };
   }

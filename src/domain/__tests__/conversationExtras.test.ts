@@ -33,6 +33,15 @@ describe("rep coach rambling tips", () => {
     expect(withDetours.tip).toMatch(/detours/);
     expect(withDetours.observations.map((o) => o.label)).toEqual(clean.observations.map((o) => o.label));
   });
+
+  it("doesn't praise 'led with your point' after a throat-clearing opener", () => {
+    // No pace/filler/pitch inputs, so nothing outranks the point-first win.
+    const quiet = { durationSeconds: 30, wpmAvg: null, fillerRatePerMinute: null, pauses: null, presence: null, pitchRangeHz: null };
+    const opener = ruleCoach({ ...quiet, transcript: "Okay, so, that's a good question. Let me think. I'd pick Lisbon because the food is great." });
+    expect(opener.strength).not.toMatch(/led with your point/);
+    const direct = ruleCoach({ ...quiet, transcript: "I would pick Lisbon for a trip. The food is great." });
+    expect(direct.strength).toMatch(/led with your point/);
+  });
 });
 
 // WCAG contrast of a hex color against another.

@@ -34,8 +34,10 @@ const TANGENTS = [
   "long story short",
 ];
 
-// Self-corrections that restart the thought.
-const RESTARTS = ["let me start over", "let me rephrase", "what i mean is", "i mean", "actually no", "wait no", "scratch that"];
+// Self-corrections that restart the thought. Plain "I mean" is left out: it's
+// an everyday filler, and as a substring of "what I mean is" it would count
+// one restart twice.
+const RESTARTS = ["let me start over", "let me rephrase", "what i mean is", "actually no", "wait no", "scratch that"];
 
 export interface RamblingMetrics {
   wordCount: number;

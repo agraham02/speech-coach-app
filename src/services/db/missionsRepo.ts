@@ -37,12 +37,3 @@ export async function resetMission(date: string, missionId: string): Promise<voi
   const db = await getDatabase();
   await db.runAsync(`DELETE FROM mission_log WHERE date = ? AND mission_id = ?`, [date, missionId]);
 }
-
-export async function getMissionDaysCompleted(limit = 60): Promise<number> {
-  const db = await getDatabase();
-  const row = await db.getFirstAsync<{ n: number }>(
-    `SELECT COUNT(DISTINCT date) AS n FROM (SELECT date FROM mission_log WHERE completed_at IS NOT NULL ORDER BY date DESC LIMIT ?)`,
-    [limit],
-  );
-  return row?.n ?? 0;
-}

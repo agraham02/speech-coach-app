@@ -70,6 +70,15 @@ describe("daily plan", () => {
     expect(last?.kind === "drill" && DRILL_SKILL[last.drill]).toBe("conversation");
   });
 
+  it("keeps the lesson's own drill in a 5-minute conversation plan", () => {
+    const skills = { ...input().skills, conversation: { rating: 5, lastPracticedAt: null } };
+    const plan = buildDailyPlan(input({ skills, minutes: 5 }));
+    const lesson = LESSONS.find((l) => l.id === plan.lessonId)!;
+    const lessonDrills = lesson.steps.filter((s) => s.kind === "drill").map((s) => (s.kind === "drill" ? s.drill : null));
+    const planDrills = plan.steps.map((s) => (s.lessonStep?.kind === "drill" ? s.lessonStep.drill : null));
+    for (const d of lessonDrills) expect(planDrills).toContain(d);
+  });
+
   it("keeps the 5-minute plan short", () => {
     const plan = buildDailyPlan(input({ minutes: 5 }));
     expect(plan.steps.length).toBeLessThanOrEqual(3);

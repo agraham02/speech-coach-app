@@ -121,12 +121,6 @@ export async function getOpenEvents(): Promise<SocialEvent[]> {
   return rows.map(toEvent);
 }
 
-export async function getEvent(id: string): Promise<SocialEvent | null> {
-  const db = await getDatabase();
-  const row = await db.getFirstAsync<EventRow>(`SELECT * FROM social_events WHERE id = ?`, [id]);
-  return row ? toEvent(row) : null;
-}
-
 // Saves a debrief — onto a primed event, or as a new event when there was
 // no Prime. Blank moments are stored alongside for replay practice.
 export async function saveDebrief(input: {
@@ -172,12 +166,6 @@ export async function getPredictionPairs(limit = 30): Promise<(PredictionPair & 
     [limit],
   );
   return rows.reverse().map((r) => ({ predicted: r.predicted_awkward, actual: r.actual_awkward, at: r.completed_at }));
-}
-
-export async function getDebriefCount(): Promise<number> {
-  const db = await getDatabase();
-  const row = await db.getFirstAsync<{ n: number }>(`SELECT COUNT(*) AS n FROM social_events WHERE completed_at IS NOT NULL`);
-  return row?.n ?? 0;
 }
 
 interface BlankRow {
