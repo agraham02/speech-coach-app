@@ -12,10 +12,12 @@ import { ChipGroup } from "../components/common/Chip";
 import { PrimaryButton } from "../components/common/PrimaryButton";
 import { SkillRings } from "../components/common/SkillRings";
 import { ListRow } from "../components/common/ListRow";
+import { ConversationTodayCard } from "../components/conversation/ConversationTodayCard";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
 import { getSkillStates, getTodaysPlan, getPracticeDates, type StoredPlan } from "../services/db/progressRepo";
 import { getPlanMinutes, setPlanMinutes } from "../services/prefs/prefsStore";
 import { computeStreaks } from "../domain/streaks";
+import { SKILLS } from "../domain/mastery";
 import { getLesson } from "../content/lessons";
 import { SKILL_LABELS, type SkillId } from "../theme/tokens";
 import type { PlanStepKind } from "../domain/dailyPlan";
@@ -48,14 +50,7 @@ export function TodayScreen() {
   const load = useCallback(
     (m = minutes) => {
       getTodaysPlan(m).then(setStored);
-      getSkillStates().then((s) =>
-        setMastery({
-          articulation: s.articulation.rating,
-          cadence: s.cadence.rating,
-          impromptu: s.impromptu.rating,
-          confidence: s.confidence.rating,
-        }),
-      );
+      getSkillStates().then((s) => setMastery(Object.fromEntries(SKILLS.map((k) => [k, s[k].rating])) as Record<SkillId, number>));
       getPracticeDates().then((dates) => setStreak(computeStreaks(dates).currentStreak));
     },
     [minutes],
@@ -159,6 +154,8 @@ export function TodayScreen() {
             ) : null}
           </Card>
         ) : null}
+
+        <ConversationTodayCard />
 
         {mastery ? (
           <Card style={styles.card}>

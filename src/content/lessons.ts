@@ -49,6 +49,10 @@ export const UNITS: Unit[] = [
   { id: "con_nerves", skill: "confidence", title: "Reframe the nerves", summary: "Turn adrenaline into energy instead of fighting it." },
   { id: "con_authority", skill: "confidence", title: "Voice of authority", summary: "Volume, statements, and endings that land." },
   { id: "con_presence", skill: "confidence", title: "Eye contact and face", summary: "Talk to a person, not a phone." },
+  { id: "conv_attention", skill: "conversation", title: "Outward attention", summary: "Spend your attention on them, not on watching yourself." },
+  { id: "conv_moves", skill: "conversation", title: "Moves", summary: "Small, reliable replies — so you're never stuck for something to say." },
+  { id: "conv_straight", skill: "conversation", title: "Say it straight", summary: "Point first, one reason, then stop — no more rambling." },
+  { id: "conv_wit", skill: "conversation", title: "Wit and warmth", summary: "Reactions, callbacks and play — the parts of humor anyone can learn." },
 ];
 
 export const LESSONS: Lesson[] = [
@@ -416,6 +420,296 @@ export const LESSONS: Lesson[] = [
     },
     steps: [{ kind: "guided", guidedId: "gd_emotion_read" }, { kind: "rep", focus: "Let your expression match your words.", seconds: 60 }],
   },
+
+  // ---------------- Conversation ----------------
+  // Scored on process only (did you reply, ask, pick up their words, stop),
+  // never on how good the reply was — see domain/conversation.
+  {
+    id: "conv_1_check",
+    skill: "conversation",
+    unitId: "conv_attention",
+    title: "Where's my attention?",
+    minutes: 4,
+    teach: {
+      why: "When you watch yourself mid-conversation — judging how you sound, rehearsing the next line — there's less of you left to listen, and blanks get more likely. You can't stop it by force, but you can notice it, and noticing is the first win.",
+      how: ["Name it: “I'm watching myself”", "Move your attention to one thing about them", "Rate it again afterwards — that number is what we're moving"],
+      source: "Clark & Wells cognitive model of social anxiety; self-focused attention studies",
+    },
+    steps: [{ kind: "guided", guidedId: "gd_attention_check" }, { kind: "drill", drill: "conv_reply" }],
+  },
+  {
+    id: "conv_2_spark",
+    skill: "conversation",
+    unitId: "conv_attention",
+    title: "Listen for the spark",
+    minutes: 4,
+    teach: {
+      why: "Your job isn't to be impressive — it's to find the most interesting thing they said and be curious about it. People who ask follow-up questions are consistently better liked, and most of us don't realize it.",
+      how: ["Catch the one word that lights them up", "Make it your thread", "Ask about it"],
+      source: "Huang et al. (2017), question-asking and liking; Van Edwards, conversation sparks",
+    },
+    steps: [{ kind: "guided", guidedId: "gd_spark" }, { kind: "drill", drill: "conv_thread" }],
+  },
+  {
+    id: "conv_3_safety",
+    skill: "conversation",
+    unitId: "conv_attention",
+    title: "Set down the rehearsal",
+    minutes: 4,
+    teach: {
+      why: "Silently scripting your next line feels safe, but it keeps your attention on you — you miss what they're saying, and the line you prepared often no longer fits. Listening to the end of their sentence gives you better material than any script.",
+      how: ["Notice when you start scripting", "Let the script go", "Listen to the very end of their sentence"],
+      source: "Safety behaviours in social anxiety (Clark & Wells)",
+    },
+    steps: [{ kind: "guided", guidedId: "gd_drop_rehearsal" }, { kind: "drill", drill: "conv_reply" }],
+  },
+  {
+    id: "conv_4_gap",
+    skill: "conversation",
+    unitId: "conv_attention",
+    title: "People like you more than you think",
+    minutes: 3,
+    teach: {
+      why: "After a conversation, people reliably underestimate how much the other person liked them. Observers watching the same conversation can see the liking — we're just too busy judging ourselves to notice it.",
+      how: ["Before: predict how awkward it'll be", "Have the conversation", "After: rate how it went, and compare"],
+      source: "Boothby, Cooney, Sandstrom & Clark (2018), the liking gap",
+    },
+    steps: [{ kind: "guided", guidedId: "gd_liking_gap" }, { kind: "drill", drill: "conv_beat" }],
+  },
+  {
+    id: "conv_5_enough",
+    skill: "conversation",
+    unitId: "conv_attention",
+    title: "Good enough is the goal",
+    minutes: 3,
+    teach: {
+      why: "A small, honest reply beats a perfect line you never say. Conversations are built from ordinary sentences — “No way, how did that happen?” is a complete, excellent contribution.",
+      how: ["Aim for a real reply, not a great one", "Say the plain thing out loud", "Let the other person carry some of it"],
+      source: "Matt Abrahams — connection over perfection",
+    },
+    steps: [{ kind: "guided", guidedId: "gd_good_enough" }, { kind: "drill", drill: "conv_reply" }],
+  },
+  {
+    id: "conv_6_echo",
+    skill: "conversation",
+    unitId: "conv_moves",
+    title: "Echo – Ask – Add",
+    minutes: 4,
+    teach: {
+      why: "When your mind goes blank, you don't need an idea — you need a move. Repeating their key words, asking one thing, and adding a line of your own works in almost any conversation.",
+      how: ["Echo: “Portugal, huh?”", "Ask: “What was the best thing you ate?”", "Add: one sentence of your own"],
+      source: "Active-listening practice; Huang et al. (2017)",
+    },
+    steps: [{ kind: "drill", drill: "conv_echo" }, { kind: "drill", drill: "conv_thread" }],
+  },
+  {
+    id: "conv_7_thread",
+    skill: "conversation",
+    unitId: "conv_moves",
+    title: "Ask about the last thing",
+    minutes: 4,
+    teach: {
+      why: "The last thing someone said is always a valid place to go next. Asking about it means there's nothing to plan and nothing to remember — the material is right there.",
+      how: ["Listen to the end", "Grab a word from their last sentence", "Ask how, what or why about it"],
+      source: "Conversational turn-taking (Stivers et al., 2009); follow-up questions",
+    },
+    steps: [{ kind: "drill", drill: "conv_thread" }, { kind: "drill", drill: "conv_thread" }],
+  },
+  {
+    id: "conv_8_story",
+    skill: "conversation",
+    unitId: "conv_moves",
+    title: "Questions that bring out a story",
+    minutes: 4,
+    teach: {
+      why: "“Did you like it?” gets a yes. “What was the best part?” gets a story — and stories give you threads to follow. Ask for the story behind the fact.",
+      how: ["Swap yes/no questions for “what” and “how”", "Ask for the best, worst or most surprising part", "Follow up on the story you get"],
+      source: "Vanessa Van Edwards — conversation sparks",
+    },
+    steps: [{ kind: "guided", guidedId: "gd_story_questions" }, { kind: "drill", drill: "conv_thread" }],
+  },
+  {
+    id: "conv_9_metoo",
+    skill: "conversation",
+    unitId: "conv_moves",
+    title: "The one-sentence “me too”",
+    minutes: 4,
+    teach: {
+      why: "Relating builds connection — but a long story of your own can take the conversation away from them. One sentence of “me too”, then hand it back with a question.",
+      how: ["Relate in one sentence", "Hand it back: “What about you?”", "Let them keep the spotlight"],
+      source: "Van Edwards — 'me too' moments; active listening",
+    },
+    steps: [{ kind: "guided", guidedId: "gd_me_too" }, { kind: "drill", drill: "conv_echo" }],
+  },
+  {
+    id: "conv_10_hold",
+    skill: "conversation",
+    unitId: "conv_moves",
+    title: "Hold one word",
+    minutes: 4,
+    teach: {
+      why: "Thinking of a question while they talk, then losing it on your turn, is a working-memory problem — worry takes up the space. Carry one keyword instead of a whole sentence, and go back to listening.",
+      how: ["Pick one word to ask about", "Let the rest of the sentence go", "When it's your turn, build the question from the word"],
+      source: "Attentional control theory (Eysenck et al., 2007)",
+    },
+    steps: [{ kind: "drill", drill: "conv_held" }, { kind: "drill", drill: "conv_held" }],
+  },
+  {
+    id: "conv_11_recover",
+    skill: "conversation",
+    unitId: "conv_moves",
+    title: "When you blank",
+    minutes: 3,
+    teach: {
+      why: "Everyone blanks sometimes. The fix isn't to never blank — it's having a plain way through it. Buying a second, or saying you lost the thought, costs far less than it feels like it does.",
+      how: ["Buy time: “Good question — give me a second.”", "Lost it: “I lost my thought — go on.”", "Or take a breath and ask about the last thing"],
+      source: "Liking-gap research; Abrahams on reducing the pressure to perform",
+    },
+    steps: [{ kind: "guided", guidedId: "gd_recover" }, { kind: "drill", drill: "conv_beat" }],
+  },
+  {
+    id: "conv_12_outsider",
+    skill: "conversation",
+    unitId: "conv_moves",
+    title: "The curious outsider",
+    minutes: 4,
+    teach: {
+      why: "When people talk about a field you don't know, it's easy to go quiet. But not knowing is an advantage: people love explaining their work to someone genuinely curious.",
+      how: ["Don't fake knowing", "Ask how it works, or what's hard about it", "Follow the answer with another why"],
+      source: "Huang et al. (2017); Van Edwards — ask for the story",
+    },
+    steps: [{ kind: "drill", drill: "conv_outsider" }, { kind: "drill", drill: "conv_outsider" }],
+  },
+  {
+    id: "conv_13_group",
+    skill: "conversation",
+    unitId: "conv_moves",
+    title: "Join the group",
+    minutes: 5,
+    teach: {
+      why: "Groups move fast, and waiting for the perfect moment means waiting forever. A short reaction or one question is enough to be part of it — you don't need a speech.",
+      how: ["React first: a laugh, a “no way”", "Then one question or one line", "It's fine to overlap a little — that's how groups talk"],
+      source: "Turn-taking research (Stivers et al., 2009)",
+    },
+    steps: [{ kind: "drill", drill: "conv_group" }],
+  },
+  {
+    id: "conv_14_headline",
+    skill: "conversation",
+    unitId: "conv_straight",
+    title: "Headline first",
+    minutes: 4,
+    teach: {
+      why: "Rambling usually means you found your point while talking. Say the point first — in one sentence — and everything after it has somewhere to go.",
+      how: ["Answer in your first sentence", "Add one reason or example", "Stop"],
+      source: "Bottom-line-up-front; Abrahams, structured spontaneity",
+    },
+    steps: [{ kind: "drill", drill: "land_plane" }, { kind: "drill", drill: "land_plane" }],
+  },
+  {
+    id: "conv_15_land",
+    skill: "conversation",
+    unitId: "conv_straight",
+    title: "Land the plane",
+    minutes: 4,
+    teach: {
+      why: "Endings that trail off — “so yeah, I don't know” — make a clear answer sound unsure. A final line and then silence sounds like you meant it.",
+      how: ["Know your last line", "Say it", "Stop, and let the silence sit for a beat"],
+      source: "Toastmasters; Abrahams",
+    },
+    steps: [{ kind: "drill", drill: "land_plane" }],
+  },
+  {
+    id: "conv_16_squeeze",
+    skill: "conversation",
+    unitId: "conv_straight",
+    title: "Squeeze it",
+    minutes: 5,
+    teach: {
+      why: "Telling the same story in sixty, thirty, then fifteen seconds shows you which parts are the heart and which are detours. Do it a few times and your everyday stories get tighter on their own.",
+      how: ["Tell it long", "Tell it in half the time", "Then the fifteen-second version"],
+      source: "Speaking-coach compression drills",
+    },
+    steps: [{ kind: "drill", drill: "squeeze" }],
+  },
+  {
+    id: "conv_17_detours",
+    skill: "conversation",
+    unitId: "conv_straight",
+    title: "Cut the detours",
+    minutes: 4,
+    teach: {
+      why: "“By the way…”, “that reminds me…”, “anyway…” — each usually marks a side trip. Noticing them is most of the cure.",
+      how: ["Hear yourself say “by the way”", "Skip the side trip, or save it", "Get back to the point in one sentence"],
+      source: "Speaking-coach practice",
+    },
+    steps: [{ kind: "guided", guidedId: "gd_detours" }, { kind: "drill", drill: "land_plane" }],
+  },
+  {
+    id: "conv_18_offer",
+    skill: "conversation",
+    unitId: "conv_straight",
+    title: "Offer more, don't add more",
+    minutes: 3,
+    teach: {
+      why: "When you're not sure if you've said enough, the urge is to keep going. Instead, give the short version and offer the rest — they'll ask if they want it.",
+      how: ["Give the short version", "Offer: “Want the long version?”", "Let them choose"],
+      source: "Speaking-coach practice",
+    },
+    steps: [{ kind: "guided", guidedId: "gd_offer_more" }, { kind: "drill", drill: "land_plane" }],
+  },
+  {
+    id: "conv_19_react",
+    skill: "conversation",
+    unitId: "conv_wit",
+    title: "React out loud",
+    minutes: 3,
+    teach: {
+      why: "People rated funniest in conversations often aren't the ones making jokes — they're the ones laughing and reacting. Showing you heard something is most of what makes talk feel fun.",
+      how: ["Let the reaction out: a laugh, a “no way”", "Say what struck you", "Don't hunt for a punchline"],
+      source: "Brooks, TALK (levity); humor research",
+    },
+    steps: [{ kind: "drill", drill: "conv_react" }, { kind: "drill", drill: "conv_react" }],
+  },
+  {
+    id: "conv_20_callback",
+    skill: "conversation",
+    unitId: "conv_wit",
+    title: "Notice and call back",
+    minutes: 4,
+    teach: {
+      why: "A callback — bringing back something said earlier — is the easiest kind of wit. It doesn't need a clever line, only attention: you noticed, you remembered, you brought it back.",
+      how: ["Notice a vivid detail", "Hold onto it", "Bring it back later in a new context"],
+      source: "Improv and comedy craft",
+    },
+    steps: [{ kind: "drill", drill: "callback" }],
+  },
+  {
+    id: "conv_21_exaggerate",
+    skill: "conversation",
+    unitId: "conv_wit",
+    title: "Playful exaggeration",
+    minutes: 3,
+    teach: {
+      why: "Taking something ordinary and blowing it up a little — “so your cat is planning a heist” — is a gentle, low-risk kind of humor. It shows you're playing along.",
+      how: ["Find the odd detail", "Make it a little bigger", "Keep it kind"],
+      source: "Improv ('yes, and'); humor training studies",
+    },
+    steps: [{ kind: "guided", guidedId: "gd_exaggerate" }, { kind: "drill", drill: "conv_react" }],
+  },
+  {
+    id: "conv_22_tease",
+    skill: "conversation",
+    unitId: "conv_wit",
+    title: "Kind teasing, real curiosity",
+    minutes: 3,
+    teach: {
+      why: "Flirting isn't a script — people's styles vary a lot, and lines rarely land. What works is the same as good conversation: real curiosity, warmth, and a little play.",
+      how: ["Be curious about them, specifically", "Tease the situation, never the person's insecurities", "Say what you actually enjoy about talking to them"],
+      source: "Hall et al. (2010), styles of flirting",
+    },
+    steps: [{ kind: "guided", guidedId: "gd_kind_tease" }, { kind: "drill", drill: "conv_react" }],
+  },
 ];
 
 export interface GuidedExercise {
@@ -423,6 +717,9 @@ export interface GuidedExercise {
   title: string;
   steps: string[];
   ratingQuestion: string;
+  // The skill the self-rating feeds (defaults to the guided drill's skill,
+  // confidence).
+  skill?: SkillId;
 }
 
 // Exercises that can't be measured reliably on-device, so they finish with
@@ -478,6 +775,141 @@ export const GUIDED: GuidedExercise[] = [
       "Let your face lead each one — eyebrows, eyes, mouth.",
     ],
     ratingQuestion: "How different did your face and voice feel across the four?",
+  },
+
+  // --- Conversation ---
+  {
+    id: "gd_attention_check",
+    title: "Where's my attention?",
+    skill: "conversation",
+    steps: [
+      "Think of the last conversation where you went quiet. Picture it for a moment.",
+      "Where was your attention — on them, or on how you were coming across? Just notice; there's no wrong answer.",
+      "Now look around wherever you are and name three things you can see, out loud. That's what moving attention outward feels like.",
+      "Next time you notice yourself watching yourself, do the same: pick one thing about the other person and look at it.",
+    ],
+    ratingQuestion: "How easy was it to move your attention outward?",
+  },
+  {
+    id: "gd_spark",
+    title: "Listen for the spark",
+    skill: "conversation",
+    steps: [
+      "Play a short video or podcast clip of someone talking — or remember a friend telling you about their day.",
+      "Listen for the one word or moment where their energy went up. That's the spark.",
+      "Say out loud the question you'd ask about it: “Wait — what happened with ___?”",
+    ],
+    ratingQuestion: "How clearly could you hear where the spark was?",
+  },
+  {
+    id: "gd_drop_rehearsal",
+    title: "Set down the rehearsal",
+    skill: "conversation",
+    steps: [
+      "Remember a moment you were rehearsing what to say while someone else was talking.",
+      "What did you miss while you were rehearsing? Name one thing.",
+      "Make a plan in one sentence: “When I notice I'm scripting, I'll go back to their last word.”",
+    ],
+    ratingQuestion: "How confident are you that you'll notice the next time you're scripting?",
+  },
+  {
+    id: "gd_liking_gap",
+    title: "Predict, then check",
+    skill: "conversation",
+    steps: [
+      "Think of a conversation coming up — today or this week.",
+      "Predict, 0 to 10, how awkward it will be. Say the number out loud.",
+      "Afterwards, open Today → Debrief and rate how it actually went. Most people find their prediction was worse than reality.",
+    ],
+    ratingQuestion: "How willing are you to test your prediction?",
+  },
+  {
+    id: "gd_good_enough",
+    title: "Say the plain thing",
+    skill: "conversation",
+    steps: [
+      "Imagine a friend says: “I finally finished that huge project.”",
+      "Say three plain replies out loud: “Nice, how does it feel?”, “What was the hardest part?”, “You must be relieved.”",
+      "Notice none of them were clever, and all of them were good.",
+    ],
+    ratingQuestion: "How okay does a plain reply feel to you now?",
+  },
+  {
+    id: "gd_story_questions",
+    title: "Turn facts into stories",
+    skill: "conversation",
+    steps: [
+      "Take the question “What do you do?” and turn it into a story question out loud — e.g. “What's the most surprising part of your job?”",
+      "Do the same for “How was your weekend?” — e.g. “What was the best part of your weekend?”",
+      "And “Where are you from?” — e.g. “What do you miss most about growing up there?”",
+    ],
+    ratingQuestion: "How natural did the story questions feel?",
+  },
+  {
+    id: "gd_me_too",
+    title: "One sentence, then hand it back",
+    skill: "conversation",
+    steps: [
+      "Imagine someone says: “I just started learning guitar.”",
+      "Say one sentence of your own — “I tried piano once and quit after a month” — then hand it back: “What made you pick guitar?”",
+      "Try it again with: “I've been getting into running.”",
+    ],
+    ratingQuestion: "How easy was it to stop at one sentence?",
+  },
+  {
+    id: "gd_recover",
+    title: "Practice the blank",
+    skill: "conversation",
+    steps: [
+      "Say this out loud, calmly, like it's no big deal: “Good question — give me a second.”",
+      "Now: “I totally lost my thought. Go on.”",
+      "Now take one slow breath and say: “Wait, tell me more about that.” These three lines will get you through almost any blank.",
+    ],
+    ratingQuestion: "How comfortable would you feel using one of these for real?",
+  },
+  {
+    id: "gd_detours",
+    title: "Catch the detour",
+    skill: "conversation",
+    steps: [
+      "Tell yourself, out loud, how your morning went — but every time you hear “by the way”, “anyway” or “that reminds me”, stop.",
+      "Back up and say the main point in one sentence instead.",
+      "Do it once more, aiming for no detours at all.",
+    ],
+    ratingQuestion: "How often did you catch the detour before you took it?",
+  },
+  {
+    id: "gd_offer_more",
+    title: "The short version",
+    skill: "conversation",
+    steps: [
+      "Answer out loud in one or two sentences: “What do you do?”",
+      "End with an offer: “It's a long story if you ever want it.”",
+      "Do it again for: “How was your trip?”",
+    ],
+    ratingQuestion: "How natural did stopping early feel?",
+  },
+  {
+    id: "gd_exaggerate",
+    title: "Make it bigger",
+    skill: "conversation",
+    steps: [
+      "Someone says: “My cat knocked my coffee off the table again.” Say a playful exaggeration out loud — e.g. “So it's a war now.”",
+      "Try: “I've been on hold with the bank for an hour.”",
+      "Try: “My roommate labels everything in the fridge.”",
+    ],
+    ratingQuestion: "How playful did you let yourself be?",
+  },
+  {
+    id: "gd_kind_tease",
+    title: "Curious and kind",
+    skill: "conversation",
+    steps: [
+      "Imagine someone tells you they're terrible at cooking but make one great pasta. Say something curious out loud: “Okay, what's the one pasta?”",
+      "Now a light, kind tease about the situation, not them: “So if I come over, it's pasta. Every time.”",
+      "Then something genuine: “I like that you know exactly what you're good at.”",
+    ],
+    ratingQuestion: "How warm (not performed) did that feel?",
   },
 ];
 

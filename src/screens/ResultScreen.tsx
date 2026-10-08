@@ -18,6 +18,7 @@ import { ThreePassPlayer } from "../components/review/ThreePassPlayer";
 import { AnalysisStepsCard } from "../components/result/AnalysisStepsCard";
 import { CoachCard } from "../components/result/CoachCard";
 import { ComparisonCard } from "../components/result/ComparisonCard";
+import { FeltObservedCard } from "../components/result/FeltObservedCard";
 import { getPromptComparison } from "../services/db/statsRepo";
 import type { CoachOutput } from "../domain/coach/ruleCoach";
 import { AnnotatedTranscript } from "../components/result/AnnotatedTranscript";
@@ -299,6 +300,8 @@ export function ResultScreen({ route, navigation }: Props) {
               </Text>
             </Card>
           ) : null}
+
+          {hasVideo ? <FeltObservedCard sessionId={sessionId} /> : null}
 
           {hasVideo ? (
             <ThreePassPlayer

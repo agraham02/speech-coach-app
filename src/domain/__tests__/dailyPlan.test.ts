@@ -1,5 +1,5 @@
 import { buildDailyPlan, chooseFocusSkill, type PlanInput } from "../dailyPlan";
-import { LESSONS } from "../../content/lessons";
+import { LESSONS, UNITS, getGuided } from "../../content/lessons";
 import { DRILL_SKILL } from "../drills/drillSpecs";
 
 function input(overrides: Partial<PlanInput> = {}): PlanInput {
@@ -11,6 +11,7 @@ function input(overrides: Partial<PlanInput> = {}): PlanInput {
       cadence: { rating: 40, lastPracticedAt: "2026-09-30T10:00:00Z" },
       impromptu: { rating: 40, lastPracticedAt: "2026-09-30T10:00:00Z" },
       confidence: { rating: 40, lastPracticedAt: "2026-09-30T10:00:00Z" },
+      conversation: { rating: 40, lastPracticedAt: "2026-09-30T10:00:00Z" },
     },
     recentFocus: [],
     lessons: {},
@@ -45,15 +46,28 @@ describe("daily plan", () => {
       // practicing a skill marks it recent and nudges its rating up
       skills[plan.focusSkill] = { rating: skills[plan.focusSkill].rating + 5, lastPracticedAt: `${date}T10:00:00Z` };
     }
-    expect(seen.size).toBe(4);
+    expect(seen.size).toBe(5);
   });
 
   it("builds warm-up -> practice -> rep -> review for 8 minutes", () => {
-    const plan = buildDailyPlan(input());
+    const skills = { ...input().skills, cadence: { rating: 5, lastPracticedAt: "2026-09-30T10:00:00Z" } };
+    const plan = buildDailyPlan(input({ skills }));
+    expect(plan.focusSkill).toBe("cadence");
     const kinds = plan.steps.map((s) => s.kind);
     expect(kinds[0]).toBe("warmup");
     expect(kinds).toContain("rep");
     expect(kinds[kinds.length - 1]).toBe("review");
+  });
+
+  it("ends a conversation day on a partner drill, with no video rep or review", () => {
+    const skills = { ...input().skills, conversation: { rating: 5, lastPracticedAt: null } };
+    const plan = buildDailyPlan(input({ skills }));
+    expect(plan.focusSkill).toBe("conversation");
+    const kinds = plan.steps.map((s) => s.kind);
+    expect(kinds).not.toContain("rep");
+    expect(kinds).not.toContain("review");
+    const last = plan.steps[plan.steps.length - 1].lessonStep;
+    expect(last?.kind === "drill" && DRILL_SKILL[last.drill]).toBe("conversation");
   });
 
   it("keeps the 5-minute plan short", () => {
@@ -80,12 +94,24 @@ describe("curriculum content", () => {
       expect(lesson.teach.how).toHaveLength(3);
       for (const step of lesson.steps) {
         if (step.kind === "drill") expect(DRILL_SKILL[step.drill]).toBeDefined();
+        if (step.kind === "guided") expect(getGuided(step.guidedId)).toBeDefined();
+        if (step.kind === "drill" && lesson.skill === "conversation") expect(DRILL_SKILL[step.drill]).toBe("conversation");
       }
     }
   });
 
+  it("conversation guided exercises feed the conversation skill, and every lesson's unit exists", () => {
+    for (const lesson of LESSONS) {
+      expect(UNITS.find((u) => u.id === lesson.unitId)?.skill).toBe(lesson.skill);
+      for (const step of lesson.steps) {
+        if (step.kind === "guided" && lesson.skill === "conversation") expect(getGuided(step.guidedId)?.skill).toBe("conversation");
+      }
+    }
+    expect(new Set(LESSONS.map((l) => l.id)).size).toBe(LESSONS.length);
+  });
+
   it("has at least two units' worth of lessons per skill", () => {
-    for (const skill of ["articulation", "cadence", "impromptu", "confidence"]) {
+    for (const skill of ["articulation", "cadence", "impromptu", "confidence", "conversation"]) {
       expect(LESSONS.filter((l) => l.skill === skill).length).toBeGreaterThanOrEqual(4);
     }
   });

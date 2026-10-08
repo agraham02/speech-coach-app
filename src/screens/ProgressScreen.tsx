@@ -12,16 +12,21 @@ import { ListRow } from "../components/common/ListRow";
 import { SkillRings } from "../components/common/SkillRings";
 import { MetricChart } from "../components/common/MetricChart";
 import { StatTile } from "../components/common/StatTile";
+import { ConversationProgress } from "../components/conversation/ConversationProgress";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
 import { getAllDrillLevels, getPracticeDates, getRecentDrillAttempts, getSkillStates } from "../services/db/progressRepo";
 import { getSessionMetricSeries, getWeeklySummaries, type SessionMetricPoint, type WeekSummary } from "../services/db/statsRepo";
 import { computeStreaks } from "../domain/streaks";
 import { DRILL_SKILL, DRILL_TITLES, type DrillType } from "../domain/drills/drillSpecs";
 import { SKILL_LABELS, type SkillId } from "../theme/tokens";
+import { SKILLS } from "../domain/mastery";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
-const SKILLS: SkillId[] = ["articulation", "cadence", "impromptu", "confidence"];
 const WEEKS = 5;
+
+function emptyBySkill(): Record<SkillId, number[]> {
+  return Object.fromEntries(SKILLS.map((s) => [s, []])) as unknown as Record<SkillId, number[]>;
+}
 
 function localDay(iso: string): string {
   const d = new Date(iso.length === 10 ? `${iso}T12:00:00` : iso);
@@ -36,7 +41,7 @@ export function ProgressScreen() {
   const tabBarInset = useTabBarBottomInset();
   const [mastery, setMastery] = useState<Record<SkillId, number> | null>(null);
   const [skill, setSkill] = useState<SkillId>("articulation");
-  const [drillScores, setDrillScores] = useState<Record<SkillId, number[]>>({ articulation: [], cadence: [], impromptu: [], confidence: [] });
+  const [drillScores, setDrillScores] = useState<Record<SkillId, number[]>>(emptyBySkill);
   const [levels, setLevels] = useState<{ type: DrillType; level: number }[]>([]);
   const [series, setSeries] = useState<SessionMetricPoint[]>([]);
   const [practiceDays, setPracticeDays] = useState<Set<string>>(new Set());
@@ -47,7 +52,7 @@ export function ProgressScreen() {
     useCallback(() => {
       getSkillStates().then((s) => setMastery(Object.fromEntries(SKILLS.map((k) => [k, s[k].rating])) as Record<SkillId, number>));
       getRecentDrillAttempts(300).then((attempts) => {
-        const bySkill: Record<SkillId, number[]> = { articulation: [], cadence: [], impromptu: [], confidence: [] };
+        const bySkill = emptyBySkill();
         for (const a of [...attempts].reverse()) {
           const k = a.skill ?? DRILL_SKILL[a.drillType];
           if (k && a.score != null) bySkill[k].push(Math.round(a.score * 100));
@@ -152,7 +157,20 @@ export function ProgressScreen() {
 
         <ChipGroup scroll options={SKILLS.map((s) => ({ key: s, label: SKILL_LABELS[s] }))} value={skill} onChange={setSkill} />
         <Card style={styles.card}>
-          <MetricChart title="Drill scores" values={drillScores[skill]} color={c.fg} maxValue={100} unit="%" emptyText="Do a few drills in this track to see a trend." />
+          {/* Conversation drills are scored on process, not quality, so no
+              percentage chart for them — see ConversationProgress instead. */}
+          {skill !== "conversation" ? (
+            <MetricChart title="Drill scores" values={drillScores[skill]} color={c.fg} maxValue={100} unit="%" emptyText="Do a few drills in this track to see a trend." />
+          ) : (
+            <>
+              <Txt variant="headline">Drill levels</Txt>
+              {skillLevels.length === 0 ? (
+                <Txt variant="footnote" tone="muted">
+                  Do a few conversation drills to see your levels.
+                </Txt>
+              ) : null}
+            </>
+          )}
           {skillLevels.length > 0 ? (
             <View style={styles.levels}>
               {skillLevels.map((l) => (
@@ -168,6 +186,8 @@ export function ProgressScreen() {
             </View>
           ) : null}
         </Card>
+
+        {skill === "conversation" ? <ConversationProgress /> : null}
 
         <Card style={styles.card}>
           <MetricChart title="Pace" values={series.map((p) => p.wpm).filter((v): v is number => v != null)} unit="wpm" color={colors.skill.cadence.fg} />

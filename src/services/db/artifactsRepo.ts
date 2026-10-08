@@ -4,7 +4,7 @@ import { logger } from "../../utils/logger";
 // JSON outputs of analysis steps that don't deserve their own columns
 // (pause lists, presence timelines, coach output, the deep review's own
 // transcript). Keyed by (session, kind); writing replaces.
-export type ArtifactKind = "cloud_transcript" | "pauses" | "presence_timeline" | "presence" | "coach" | "progress";
+export type ArtifactKind = "cloud_transcript" | "pauses" | "presence_timeline" | "presence" | "coach" | "progress" | "felt_observed";
 
 export async function putArtifact(sessionId: string, kind: ArtifactKind, value: unknown, version = 1): Promise<void> {
   const db = await getDatabase();

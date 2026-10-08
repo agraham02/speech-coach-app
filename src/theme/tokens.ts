@@ -5,7 +5,7 @@ import type { TextStyle } from "react-native";
 // which follow the system appearance live. theme.ts builds the full color
 // set (palette + a few extras) for a scheme.
 
-export type SkillId = "articulation" | "cadence" | "impromptu" | "confidence";
+export type SkillId = "articulation" | "cadence" | "impromptu" | "confidence" | "conversation";
 
 export interface SkillColor {
   fg: string;
@@ -60,6 +60,7 @@ export const darkPalette: Palette = {
     cadence: { fg: "#A78BFA", bg: "rgba(167,139,250,0.16)" },
     impromptu: { fg: "#FBBF24", bg: "rgba(251,191,36,0.16)" },
     confidence: { fg: "#F472B6", bg: "rgba(244,114,182,0.16)" },
+    conversation: { fg: "#38BDF8", bg: "rgba(56,189,248,0.16)" },
   },
 };
 
@@ -90,6 +91,7 @@ export const lightPalette: Palette = {
     cadence: { fg: "#6D28D9", bg: "rgba(109,40,217,0.10)" },
     impromptu: { fg: "#A16207", bg: "rgba(161,98,7,0.10)" },
     confidence: { fg: "#BE185D", bg: "rgba(190,24,93,0.10)" },
+    conversation: { fg: "#0369A1", bg: "rgba(3,105,161,0.10)" },
   },
 };
 
@@ -119,4 +121,5 @@ export const SKILL_LABELS: Record<SkillId, string> = {
   cadence: "Cadence",
   impromptu: "Impromptu",
   confidence: "Confidence",
+  conversation: "Conversation",
 };

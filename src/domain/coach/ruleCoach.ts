@@ -2,6 +2,7 @@ import type { SkillId } from "../../theme/tokens";
 import type { PauseAnalysis } from "../dsp/pauses";
 import type { PresenceMetrics } from "../presenceMetrics";
 import { FRAMEWORK_LABELS, findHedges, guessStructure, hasStrongEnding, type FrameworkId, type StructureGuess } from "./structureHeuristics";
+import { ramblingMetrics } from "./ramblingMetrics";
 
 // Deterministic on-device coaching from measured signals. Always available
 // (no model, no network); the Apple on-device model, when present, writes
@@ -128,6 +129,19 @@ export function ruleCoach(input: CoachInput): CoachOutput {
       wins.push({ weight: 4, text: `Clear structure (${FRAMEWORK_LABELS[structure.framework]}).` });
     }
     if (structure.pointUpFront) wins.push({ weight: 2, text: "You led with your point." });
+
+    // Rambling cues become tips only, not observations, so they don't
+    // change how a rep moves mastery.
+    const rambling = ramblingMetrics({ transcript, durationSeconds: input.durationSeconds });
+    if (rambling.sentencesBeforePoint >= 2) {
+      findings.push({ skill: "impromptu", severity: 4.5, tip: `Your answer started after ${rambling.sentencesBeforePoint} warm-up sentences. Lead with the point — the context can come after.` });
+    }
+    if (rambling.tangentMarkers >= 2) {
+      findings.push({ skill: "impromptu", severity: 3 + rambling.tangentMarkers / 2, tip: `You took ${rambling.tangentMarkers} detours ("by the way", "anyway"…). Skip the side trip and get back to your point in one sentence.` });
+    }
+    if (rambling.restarts >= 2) {
+      findings.push({ skill: "impromptu", severity: 3, tip: "You restarted your thought a few times. Go with the plain version and keep moving — it's clearer than the perfect one." });
+    }
   }
 
   // --- Confidence: presence, hedges, ending ---

@@ -2,7 +2,7 @@ import type { NavigationProp } from "@react-navigation/native";
 import type { RootStackParamList } from "../../navigation";
 import type { LessonStep } from "../../content/lessons";
 import type { PracticeContext } from "../../domain/practice";
-import { paramsFor } from "../../domain/drills/drillSpecs";
+import { isConversationDrill, paramsFor } from "../../domain/drills/drillSpecs";
 import { getDrillLevel } from "../db/progressRepo";
 import { getAllPrompts } from "../db/promptsRepo";
 import { getRecentlyUsedPromptIds } from "../db/sessionsRepo";
@@ -23,6 +23,8 @@ export async function launchStep(navigation: Nav, step: LessonStep, practice: Pr
     case "drill":
       if (step.drill === "twister") {
         navigation.navigate("DrillSession", { twisterId: step.contentId, practice });
+      } else if (isConversationDrill(step.drill)) {
+        navigation.navigate("Conversation", { drill: step.drill, contentId: step.contentId, practice });
       } else {
         navigation.navigate("Drill", { drill: step.drill, contentId: step.contentId, practice });
       }

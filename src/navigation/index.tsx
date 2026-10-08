@@ -14,10 +14,13 @@ import { LessonScreen } from "../screens/LessonScreen";
 import { DailySessionScreen } from "../screens/DailySessionScreen";
 import { DrillRunnerScreen } from "../screens/DrillRunnerScreen";
 import { GuidedScreen } from "../screens/GuidedScreen";
+import { ConversationRunnerScreen } from "../screens/ConversationRunnerScreen";
+import { PrimeScreen } from "../screens/PrimeScreen";
+import { DebriefScreen } from "../screens/DebriefScreen";
 import { AsrLabScreen } from "../screens/AsrLabScreen";
 import { reconcileOnLaunch } from "../services/pipeline/reconcile";
 import type { PracticeContext } from "../domain/practice";
-import type { DrillType } from "../domain/drills/drillSpecs";
+import type { ConversationDrillType, DrillType } from "../domain/drills/drillSpecs";
 import { HistoryScreen } from "../screens/HistoryScreen";
 import { TrendsScreen } from "../screens/TrendsScreen";
 import { DevScreen } from "../screens/DevScreen";
@@ -62,6 +65,9 @@ export type RootStackParamList = {
   DrillSession: { twisterId?: string; practice?: PracticeContext };
   Drill: { drill: DrillType; contentId?: string; practice?: PracticeContext };
   Guided: { guidedId?: string; warmupId?: string; practice?: PracticeContext };
+  Conversation: { drill: ConversationDrillType; contentId?: string; practice?: PracticeContext; blankMomentId?: string };
+  Prime: undefined;
+  Debrief: { eventId?: string } | undefined;
   Lesson: { lessonId: string };
   DailySession: undefined;
   Practice: undefined;
@@ -270,6 +276,9 @@ export function AppNavigator() {
         <Stack.Screen name="Trends" component={TrendsScreen} />
         <Stack.Screen name="Drill" component={DrillRunnerScreen} />
         <Stack.Screen name="Guided" component={GuidedScreen} />
+        <Stack.Screen name="Conversation" component={ConversationRunnerScreen} />
+        <Stack.Screen name="Prime" component={PrimeScreen} options={{ presentation: "modal" }} />
+        <Stack.Screen name="Debrief" component={DebriefScreen} options={{ presentation: "modal" }} />
         <Stack.Screen name="Lesson" component={LessonScreen} />
         <Stack.Screen name="DailySession" component={DailySessionScreen} />
         <Stack.Screen name="ScriptLibrary" component={ScriptLibraryScreen} />

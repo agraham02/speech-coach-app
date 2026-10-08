@@ -58,7 +58,7 @@ export function nextReviewIntervalDays(previousDays: number | null, success: boo
   return idx === -1 ? REVIEW_INTERVALS[REVIEW_INTERVALS.length - 1] : REVIEW_INTERVALS[idx];
 }
 
-export const SKILLS: SkillId[] = ["articulation", "cadence", "impromptu", "confidence"];
+export const SKILLS: SkillId[] = ["articulation", "cadence", "impromptu", "confidence", "conversation"];
 
 // 1-5 level for the legacy curriculum shim (prompt tier, durations).
 export function legacyLevelFromDifficulty(level: number): 1 | 2 | 3 | 4 | 5 {

@@ -169,7 +169,7 @@ function GuidedRunner({
     setSaving(true);
     const outcome = scoreSelfRating(rating);
     const level = await getDrillLevel("guided");
-    await recordDrillOutcome({ drillType: "guided", outcome, level, contentId: exercise.id });
+    await recordDrillOutcome({ drillType: "guided", outcome, level, contentId: exercise.id, skill: exercise.skill });
     onDone(outcome.score);
   }
 

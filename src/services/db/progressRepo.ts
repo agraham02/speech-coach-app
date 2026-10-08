@@ -17,6 +17,7 @@ import {
 import { buildDailyPlan, type DailyPlan, type PlanMinutes } from "../../domain/dailyPlan";
 import type { CoachOutput, Verdict } from "../../domain/coach/ruleCoach";
 import { getLesson } from "../../content/lessons";
+import { summarizeAttempt, type AttemptSummary } from "../../domain/conversation/attemptMetrics";
 
 // Curriculum v2 persistence: skill mastery, adaptive drill difficulty,
 // lesson progress, daily plans and review passes.
@@ -92,9 +93,11 @@ export async function recordDrillOutcome(args: {
   metrics?: unknown;
   wpm?: number | null;
   accuracyPercent?: number | null;
+  // Overrides the drill type's skill (guided exercises serve several skills).
+  skill?: SkillId;
 }): Promise<ProgressChange> {
   const db = await getDatabase();
-  const skill = DRILL_SKILL[args.drillType];
+  const skill = args.skill ?? DRILL_SKILL[args.drillType];
   const now = new Date().toISOString();
   await db.runAsync(
     `INSERT INTO drill_attempts (id, drill_type, content_id, started_at, mode, accuracy_percent, wpm, metrics_json, skill, lesson_id, drill_level, score, success)
@@ -331,6 +334,25 @@ export async function getRecentDrillAttempts(limit = 200): Promise<
     success: r.success == null ? null : r.success === 1,
     level: r.drill_level,
   }));
+}
+
+// Conversation drill attempts, oldest first, reduced to what Progress charts.
+export async function getConversationAttemptSummaries(limit = 60): Promise<(AttemptSummary & { startedAt: string; drillType: DrillType })[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{ drill_type: string; started_at: string; metrics_json: string | null }>(
+    `SELECT drill_type, started_at, metrics_json FROM drill_attempts WHERE skill = 'conversation' AND metrics_json IS NOT NULL
+     ORDER BY started_at DESC LIMIT ?`,
+    [limit],
+  );
+  return rows.reverse().map((r) => {
+    let parsed: unknown = null;
+    try {
+      parsed = r.metrics_json ? JSON.parse(r.metrics_json) : null;
+    } catch {
+      parsed = null;
+    }
+    return { ...summarizeAttempt(parsed), startedAt: r.started_at, drillType: r.drill_type as DrillType };
+  });
 }
 
 // Every day with any practice — a recorded session, a drill, or a finished

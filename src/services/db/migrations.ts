@@ -5,7 +5,7 @@ import { inferLegacySteps, type LegacySessionSignals } from "../../domain/sessio
 import type { SessionStatus } from "../../domain/sessionTypes";
 
 // Bump this and add a new numbered migration when the schema changes.
-export const LATEST_DB_VERSION = 15;
+export const LATEST_DB_VERSION = 16;
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(
@@ -504,6 +504,47 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
       }
     });
     currentVersion = await commitVersion(db, 15);
+  }
+
+  if (currentVersion < 16) {
+    // Conversation skill, real-world side: Prime → Debrief events (with the
+    // predicted vs actual awkwardness), moments you blanked (replayed as
+    // practice), and daily mission taps.
+    await db.withTransactionAsync(async () => {
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS social_events (
+          id TEXT PRIMARY KEY NOT NULL,
+          created_at TEXT NOT NULL,
+          label TEXT,
+          topics_json TEXT,
+          questions_json TEXT,
+          outward_goal TEXT,
+          predicted_awkward INTEGER,
+          happened_at TEXT,
+          debrief_json TEXT,
+          actual_awkward INTEGER,
+          completed_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_social_events_created ON social_events(created_at);
+        CREATE TABLE IF NOT EXISTS blank_moments (
+          id TEXT PRIMARY KEY NOT NULL,
+          event_id TEXT,
+          text TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          practiced_count INTEGER NOT NULL DEFAULT 0,
+          last_practiced_at TEXT,
+          deleted_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS mission_log (
+          date TEXT NOT NULL,
+          mission_id TEXT NOT NULL,
+          count INTEGER NOT NULL DEFAULT 0,
+          completed_at TEXT,
+          PRIMARY KEY (date, mission_id)
+        );
+      `);
+    });
+    currentVersion = await commitVersion(db, 16);
   }
 }
 

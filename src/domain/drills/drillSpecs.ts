@@ -18,7 +18,42 @@ export type DrillType =
   | "projection"
   | "guided"
   | "warmup"
-  | "rep";
+  | "rep"
+  // Conversation: a spoken partner line, then your reply (see
+  // domain/conversation). Each has its own staircase.
+  | "conv_reply"
+  | "conv_beat"
+  | "conv_thread"
+  | "conv_held"
+  | "conv_outsider"
+  | "conv_echo"
+  | "conv_group"
+  | "conv_replay"
+  | "land_plane"
+  | "squeeze"
+  | "callback"
+  | "conv_react";
+
+export const CONVERSATION_DRILLS = [
+  "conv_reply",
+  "conv_beat",
+  "conv_thread",
+  "conv_held",
+  "conv_outsider",
+  "conv_echo",
+  "conv_group",
+  "conv_replay",
+  "land_plane",
+  "squeeze",
+  "callback",
+  "conv_react",
+] as const satisfies readonly DrillType[];
+
+export type ConversationDrillType = (typeof CONVERSATION_DRILLS)[number];
+
+export function isConversationDrill(type: DrillType): type is ConversationDrillType {
+  return (CONVERSATION_DRILLS as readonly DrillType[]).includes(type);
+}
 
 export const DRILL_SKILL: Record<DrillType, SkillId> = {
   twister: "articulation",
@@ -34,6 +69,18 @@ export const DRILL_SKILL: Record<DrillType, SkillId> = {
   guided: "confidence",
   warmup: "confidence",
   rep: "impromptu",
+  conv_reply: "conversation",
+  conv_beat: "conversation",
+  conv_thread: "conversation",
+  conv_held: "conversation",
+  conv_outsider: "conversation",
+  conv_echo: "conversation",
+  conv_group: "conversation",
+  conv_replay: "conversation",
+  land_plane: "conversation",
+  squeeze: "conversation",
+  callback: "conversation",
+  conv_react: "conversation",
 };
 
 export const DRILL_TITLES: Record<DrillType, string> = {
@@ -50,6 +97,18 @@ export const DRILL_TITLES: Record<DrillType, string> = {
   guided: "Guided exercise",
   warmup: "Warm-up",
   rep: "Impromptu rep",
+  conv_reply: "Reply window",
+  conv_beat: "Take a beat",
+  conv_thread: "Ask about it",
+  conv_held: "Hold one word",
+  conv_outsider: "Curious outsider",
+  conv_echo: "Echo – Ask – Add",
+  conv_group: "Join the group",
+  conv_replay: "Replay a blank",
+  land_plane: "Land the plane",
+  squeeze: "Squeeze it",
+  callback: "Call it back",
+  conv_react: "React",
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -88,6 +147,19 @@ export interface DrillParams {
   // impromptu rep
   prepSeconds?: number;
   tier?: DifficultyTier;
+  // conversation: how long after the partner stops a reply still counts as
+  // "in the window" (never a penalty for replying fast)
+  replyWindowSec?: number;
+  // conversation: silent wait before the mic opens (hold one word)
+  holdSeconds?: number;
+  // conversation: Echo – Ask – Add beats needed to pass
+  requiredBeats?: number;
+  // conversation: partner turns in a group / multi-turn drill
+  turns?: number;
+  // land the plane / squeeze: time budget per answer
+  budgetSeconds?: number;
+  // squeeze: share of the short take's content words drawn from the long one
+  retentionTarget?: number;
 }
 
 export function paramsFor(type: DrillType, level: number): DrillParams {
@@ -121,6 +193,25 @@ export function paramsFor(type: DrillType, level: number): DrillParams {
         prepSeconds: Math.max(5, Math.round(30 - l * 2.5)),
         seconds: Math.min(150, 45 + l * 10),
       };
+    // Conversation knobs only ever ask for a reply sooner or a little more of
+    // it — never for a "better" reply. Level 1 is deliberately generous.
+    case "conv_reply":
+    case "conv_replay":
+    case "conv_thread":
+    case "conv_outsider":
+      return { replyWindowSec: Math.round((6.4 - l * 0.4) * 10) / 10 };
+    case "conv_held":
+      return { replyWindowSec: 6, holdSeconds: Math.round(4 + l * 0.6) };
+    case "conv_echo":
+      return { replyWindowSec: 6, requiredBeats: l <= 4 ? 2 : 3 };
+    case "conv_group":
+      return { replyWindowSec: Math.round((6.4 - l * 0.3) * 10) / 10, turns: Math.min(4, 2 + Math.floor(l / 4)) };
+    case "land_plane":
+      return { budgetSeconds: Math.round(48 - l * 2.8) };
+    case "squeeze":
+      return { retentionTarget: Math.round((0.25 + l * 0.02) * 100) / 100 };
+    case "callback":
+      return { replyWindowSec: 8 };
     default:
       return {};
   }
@@ -138,7 +229,7 @@ export interface DrillOutcome {
 
 const SUCCESS = 0.8;
 
-function outcome(score: number, summary: string, success = score >= SUCCESS): DrillOutcome {
+export function outcome(score: number, summary: string, success = score >= SUCCESS): DrillOutcome {
   return { score: Math.round(clamp(score, 0, 1) * 100) / 100, success, summary };
 }
 

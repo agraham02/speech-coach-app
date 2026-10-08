@@ -47,7 +47,12 @@ const WARMUP_FOR: Record<SkillId, string> = {
   cadence: "wu_resonance",
   impromptu: "wu_articulators",
   confidence: "wu_breath",
+  conversation: "wu_breath",
 };
+
+// A conversation day ends on a conversation drill, not a monologue rep —
+// the first of these the day's practice doesn't already include.
+const CONVERSATION_APPLY: Extract<LessonStep, { kind: "drill" }>["drill"][] = ["conv_thread", "conv_echo", "conv_reply"];
 
 const DEFAULT_FRAMEWORKS: FrameworkId[] = ["PREP", "WhatSoWhatNowWhat", "PastPresentFuture", "ListOfThree"];
 
@@ -134,8 +139,15 @@ export function buildDailyPlan(input: PlanInput): DailyPlan {
   const practiceCount = input.minutes === 5 ? 1 : input.minutes === 8 ? 2 : practice.length;
   practice.slice(0, Math.max(1, practiceCount)).forEach(push);
 
-  // 3. One impromptu rep: the lesson's own, or a framework rep.
+  // 3. One apply step. Conversation: a partner drill. Otherwise one
+  // impromptu rep: the lesson's own, or a framework rep.
   const lessonRep = lesson.steps.find((s): s is Extract<LessonStep, { kind: "rep" }> => s.kind === "rep");
+  if (focusSkill === "conversation") {
+    const used = new Set(steps.map((s) => (s.lessonStep?.kind === "drill" ? s.lessonStep.drill : null)));
+    push({ kind: "drill", drill: CONVERSATION_APPLY.find((d) => !used.has(d)) ?? "conv_reply" });
+    // No video rep to review on a conversation day.
+    return { date: input.date, minutes: input.minutes, focusSkill, lessonId: lesson.id, isReview, steps };
+  }
   if (lessonRep) {
     push(lessonRep);
   } else {

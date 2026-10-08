@@ -15,16 +15,16 @@ import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
 import { LESSONS, UNITS } from "../content/lessons";
 import { getLessonStates, getSkillStates, type LessonState, type SkillState } from "../services/db/progressRepo";
 import { SKILL_LABELS, type SkillId } from "../theme/tokens";
+import { SKILLS } from "../domain/mastery";
 import { todayISODate } from "../utils/dateUtils";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
-
-const SKILL_ORDER: SkillId[] = ["articulation", "cadence", "impromptu", "confidence"];
 
 const SKILL_BLURB: Record<SkillId, string> = {
   articulation: "Crisp consonants, finished words, clarity at speed.",
   cadence: "Pace, pauses, emphasis and melody.",
   impromptu: "Word retrieval, structure on the fly, the mind-mouth link.",
   confidence: "Nerves, volume, statements, eye contact and expression.",
+  conversation: "Knowing what to say, staying present, and getting to the point.",
 };
 
 // Every lesson, open to browse. "Next up" marks the recommended one per
@@ -54,7 +54,7 @@ export function LearnScreen() {
   return (
     <ScreenContainer style={styles.container} edges={["top", "left", "right"]}>
       <Header title="Learn" large />
-      <ChipGroup scroll options={SKILL_ORDER.map((s) => ({ key: s, label: SKILL_LABELS[s] }))} value={skill} onChange={setSkill} />
+      <ChipGroup scroll options={SKILLS.map((s) => ({ key: s, label: SKILL_LABELS[s] }))} value={skill} onChange={setSkill} />
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: tabBarInset + 24 }]} showsVerticalScrollIndicator={false}>
         <Card style={styles.skillCard}>
           <ProgressRing size={64} strokeWidth={6} progress={(skills?.[skill].rating ?? 0) / 100} color={c.fg} trackColor={c.bg}>
@@ -114,6 +114,13 @@ export function LearnScreen() {
             </Card>
           </View>
         ))}
+
+        {skill === "conversation" ? (
+          <Txt variant="footnote" tone="muted">
+            These lessons are practice, not treatment. If worry about conversations is taking over your days, CBT for social anxiety has strong
+            evidence and is worth looking into.
+          </Txt>
+        ) : null}
 
         <Card style={styles.more}>
           <ListRow icon="book-outline" title="Frameworks reference" subtitle="PREP, story spine, the five vocal levers…" chevron onPress={() => navigation.navigate("Frameworks")} />
