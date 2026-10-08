@@ -4,8 +4,12 @@ import { darkPalette, lightPalette, type Palette } from "./tokens";
 // The system appearance when the app launched. Screens that still use the
 // static `colors` below (via StyleSheet.create at module load) render in
 // this scheme; ThemeProvider uses the same value so old and new screens
-// always match. Changing the system appearance applies on next launch.
-export const launchScheme: "light" | "dark" = Appearance.getColorScheme() === "light" ? "light" : "dark";
+// always match. If the system appearance changes while the app is running,
+// ThemeProvider reloads the app so the new scheme takes effect.
+export function systemScheme(): "light" | "dark" {
+  return Appearance.getColorScheme() === "light" ? "light" : "dark";
+}
+export const launchScheme: "light" | "dark" = systemScheme();
 
 function legacyColors(p: Palette, scheme: "light" | "dark") {
   const light = scheme === "light";

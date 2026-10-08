@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Easing, Pressable, ScrollView, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
@@ -17,6 +17,9 @@ import { completePracticeStep } from "../services/practice/practiceEvents";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Guided">;
+
+// The breathing circle never shrinks below this fraction of its full size.
+const BREATH_MIN_SCALE = 0.68;
 
 // Warm-ups (timed steps) and guided exercises (steps + an honest 1-5
 // self-rating, for things the phone can't measure reliably).
@@ -46,28 +49,48 @@ function WarmUpRunner({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const rounds = warmUp.rounds ?? 1;
+  const sequence = useMemo(
+    () => Array.from({ length: rounds }, (_, round) => warmUp.steps.map((step) => ({ step, round }))).flat(),
+    [warmUp, rounds],
+  );
+  const totalSeconds = sequence.reduce((sum, s) => sum + s.step.seconds, 0);
   const [index, setIndex] = useState(-1); // -1 = not started
-  const [remaining, setRemaining] = useState(0);
-  const step = warmUp.steps[index];
+  const [tick, setTick] = useState<{ index: number; left: number } | null>(null);
+  const scale = useRef(new Animated.Value(BREATH_MIN_SCALE)).current;
+  const current = sequence[index];
+  const finished = index >= sequence.length;
 
+  // Counts down against a deadline rather than by ticks, so it stays right
+  // if the app is briefly backgrounded or the JS thread stalls.
   useEffect(() => {
-    if (index < 0 || index >= warmUp.steps.length) return;
-    setRemaining(warmUp.steps[index].seconds);
+    if (index < 0 || index >= sequence.length) return;
+    const { step } = sequence[index];
+    const deadline = Date.now() + step.seconds * 1000;
+    Haptics.selectionAsync().catch(() => undefined);
+    if (step.phase === "in" || step.phase === "out") {
+      Animated.timing(scale, {
+        toValue: step.phase === "in" ? 1 : BREATH_MIN_SCALE,
+        duration: step.seconds * 1000,
+        easing: Easing.inOut(Easing.sin),
+        useNativeDriver: true,
+      }).start();
+    }
     const timer = setInterval(() => {
-      setRemaining((r) => {
-        if (r <= 1) {
-          clearInterval(timer);
-          Haptics.selectionAsync().catch(() => undefined);
-          setIndex((i) => i + 1);
-          return 0;
-        }
-        return r - 1;
-      });
-    }, 1000);
+      const left = Math.ceil((deadline - Date.now()) / 1000);
+      if (left <= 0) {
+        clearInterval(timer);
+        setIndex((i) => i + 1);
+      } else {
+        setTick({ index, left });
+      }
+    }, 250);
     return () => clearInterval(timer);
-  }, [index, warmUp.steps]);
+  }, [index, sequence, scale]);
 
-  const finished = index >= warmUp.steps.length;
+  const breathing = current?.step.phase != null;
+  // Until the first tick of a step lands, show its full duration (not a stale 0).
+  const remaining = current ? (tick?.index === index ? tick.left : current.step.seconds) : 0;
 
   return (
     <ScreenContainer style={styles.container}>
@@ -83,6 +106,9 @@ function WarmUpRunner({
                 </Txt>
               </View>
             ))}
+            <Txt variant="footnote" tone="muted">
+              {rounds > 1 ? `${rounds} rounds · ` : ""}about {totalSeconds >= 90 ? `${Math.round(totalSeconds / 60)} min` : `${totalSeconds} seconds`}
+            </Txt>
           </Card>
         ) : finished ? (
           <Txt variant="title2" align="center">
@@ -90,23 +116,26 @@ function WarmUpRunner({
           </Txt>
         ) : (
           <View style={styles.activeStep}>
-            <ProgressRing size={160} strokeWidth={10} progress={remaining / Math.max(step.seconds, 1)} color={colors.accent}>
-              <Txt variant="largeTitle">{remaining}</Txt>
-            </ProgressRing>
+            <View style={styles.ringWrap}>
+              {breathing ? <Animated.View style={[styles.breathCircle, { transform: [{ scale }] }]} /> : null}
+              <ProgressRing size={160} strokeWidth={10} progress={remaining / Math.max(current.step.seconds, 1)} color={colors.accent}>
+                <Txt variant="largeTitle">{remaining}</Txt>
+              </ProgressRing>
+            </View>
             <Txt variant="title2" align="center">
-              {step.label}
+              {current.step.label}
             </Txt>
             <Txt variant="callout" tone="secondary" align="center">
-              {step.detail}
+              {current.step.detail}
             </Txt>
             <Txt variant="footnote" tone="muted">
-              Step {index + 1} of {warmUp.steps.length}
+              {rounds > 1 ? `Round ${current.round + 1} of ${rounds}` : `Step ${index + 1} of ${sequence.length}`}
             </Txt>
           </View>
         )}
       </View>
       {index < 0 ? <PrimaryButton label="Start" onPress={() => setIndex(0)} /> : null}
-      {index >= 0 && !finished ? <PrimaryButton label="Next step" variant="secondary" onPress={() => setIndex((i) => i + 1)} /> : null}
+      {index >= 0 && !finished ? <PrimaryButton label="Skip" variant="secondary" onPress={() => setIndex((i) => i + 1)} /> : null}
       {finished ? <PrimaryButton label="Done" onPress={onDone} /> : null}
     </ScreenContainer>
   );
@@ -122,11 +151,21 @@ function GuidedRunner({
   onBack: () => void;
 }) {
   const styles = useStyles();
+  // One instruction at a time, then the self-rating. Showing every step
+  // (and the rating) up front let you rate yourself without doing anything.
+  const [stepIndex, setStepIndex] = useState(0);
   const [rating, setRating] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const total = exercise.steps.length;
+  const ratingStage = stepIndex >= total;
+
+  function go(next: number) {
+    Haptics.selectionAsync().catch(() => undefined);
+    setStepIndex(next);
+  }
 
   async function save() {
-    if (rating == null) return;
+    if (rating == null || saving) return;
     setSaving(true);
     const outcome = scoreSelfRating(rating);
     const level = await getDrillLevel("guided");
@@ -137,44 +176,63 @@ function GuidedRunner({
   return (
     <ScreenContainer style={styles.container}>
       <Header eyebrow="Guided exercise" title={exercise.title} onBack={onBack} backIcon="close" />
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {exercise.steps.map((text, i) => (
-          <Card key={i} style={styles.guidedStep}>
-            <Txt variant="caption2" tone="accent" uppercase>
-              Step {i + 1}
-            </Txt>
-            <Txt variant="callout">{text}</Txt>
-          </Card>
+      <View style={styles.dots} accessibilityLabel={ratingStage ? "Rate yourself" : `Step ${stepIndex + 1} of ${total}`}>
+        {Array.from({ length: total + 1 }, (_, i) => (
+          <View key={i} style={[styles.dot, i <= stepIndex && styles.dotOn]} />
         ))}
-        <Card style={styles.guidedStep}>
-          <Txt variant="headline">{exercise.ratingQuestion}</Txt>
-          <View style={styles.ratingRow}>
-            {[1, 2, 3, 4, 5].map((n) => (
-              <Pressable
-                key={n}
-                onPress={() => setRating(n)}
-                style={[styles.ratingChip, rating === n && styles.ratingChipOn]}
-                accessibilityRole="button"
-                accessibilityLabel={`Rate ${n} out of 5`}
-                accessibilityState={{ selected: rating === n }}
-              >
-                <Txt variant="headline" tone={rating === n ? "onAccent" : "primary"}>
-                  {n}
-                </Txt>
-              </Pressable>
-            ))}
-          </View>
-          <View style={styles.ratingLabels}>
-            <Txt variant="caption1" tone="muted">
-              Not at all
+      </View>
+      <ScrollView contentContainerStyle={styles.scroll}>
+        {!ratingStage ? (
+          <Card style={styles.guidedStep}>
+            <Txt variant="caption2" tone="accent" uppercase>
+              Step {stepIndex + 1} of {total}
             </Txt>
-            <Txt variant="caption1" tone="muted">
-              Completely
-            </Txt>
-          </View>
-        </Card>
+            <Txt variant="title3">{exercise.steps[stepIndex]}</Txt>
+          </Card>
+        ) : (
+          <Card style={styles.guidedStep}>
+            <Txt variant="headline">{exercise.ratingQuestion}</Txt>
+            <View style={styles.ratingRow}>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <Pressable
+                  key={n}
+                  onPress={() => setRating(n)}
+                  style={[styles.ratingChip, rating === n && styles.ratingChipOn]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Rate ${n} out of 5`}
+                  accessibilityState={{ selected: rating === n }}
+                >
+                  <Txt variant="headline" tone={rating === n ? "onAccent" : "primary"}>
+                    {n}
+                  </Txt>
+                </Pressable>
+              ))}
+            </View>
+            <View style={styles.ratingLabels}>
+              <Txt variant="caption1" tone="muted">
+                Not at all
+              </Txt>
+              <Txt variant="caption1" tone="muted">
+                Completely
+              </Txt>
+            </View>
+          </Card>
+        )}
       </ScrollView>
-      <PrimaryButton label="Done" onPress={save} disabled={rating == null} loading={saving} />
+      {ratingStage ? (
+        <PrimaryButton label="Done" onPress={save} disabled={rating == null} loading={saving} />
+      ) : (
+        <View style={styles.navRow}>
+          {stepIndex > 0 ? (
+            <View style={styles.flex}>
+              <PrimaryButton label="Back" variant="secondary" onPress={() => go(stepIndex - 1)} />
+            </View>
+          ) : null}
+          <View style={styles.flex}>
+            <PrimaryButton label={stepIndex === total - 1 ? "I've done it" : "Next"} onPress={() => go(stepIndex + 1)} />
+          </View>
+        </View>
+      )}
     </ScreenContainer>
   );
 }
@@ -185,7 +243,14 @@ const useStyles = makeStyles((t) => ({
   list: { gap: t.space.md },
   listRow: { gap: 2 },
   activeStep: { alignItems: "center", gap: t.space.md },
-  scroll: { gap: t.space.md, paddingBottom: t.space.lg },
+  ringWrap: { width: 240, height: 240, alignItems: "center", justifyContent: "center" },
+  breathCircle: { position: "absolute", width: 240, height: 240, borderRadius: 120, backgroundColor: t.colors.accent, opacity: 0.22 },
+  dots: { flexDirection: "row", gap: t.space.xs },
+  dot: { height: 6, flex: 1, borderRadius: 3, backgroundColor: t.colors.surfaceRaised },
+  dotOn: { backgroundColor: t.colors.accent },
+  navRow: { flexDirection: "row", gap: t.space.sm },
+  flex: { flex: 1 },
+  scroll: { flexGrow: 1, justifyContent: "center", gap: t.space.md, paddingBottom: t.space.lg },
   guidedStep: { gap: t.space.sm },
   ratingRow: { flexDirection: "row", justifyContent: "space-between", marginTop: t.space.sm },
   ratingChip: {

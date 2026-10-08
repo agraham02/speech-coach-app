@@ -123,21 +123,32 @@ export const SHADOWING_LINES = [
   { id: "sh8", text: "The question isn't whether we can afford to change. It's whether we can afford not to.", level: 3 },
 ];
 
+export interface WarmUpStepSpec {
+  label: string;
+  detail: string;
+  seconds: number;
+  // For breathing: the ring grows on "in", shrinks on "out", holds on "hold".
+  phase?: "in" | "hold" | "out";
+}
+
 export interface WarmUp {
   id: string;
   title: string;
-  steps: { label: string; detail: string; seconds: number }[];
+  // How many times the whole step list runs (default 1).
+  rounds?: number;
+  steps: WarmUpStepSpec[];
 }
 
 export const WARM_UPS: WarmUp[] = [
   {
     id: "wu_breath",
     title: "Box breathing",
+    rounds: 3,
     steps: [
-      { label: "In for 4", detail: "Breathe in through your nose, belly first.", seconds: 4 },
-      { label: "Hold for 4", detail: "Shoulders down, jaw loose.", seconds: 4 },
-      { label: "Out for 4", detail: "Slowly through your mouth.", seconds: 4 },
-      { label: "Hold for 4", detail: "Then repeat — three rounds.", seconds: 4 },
+      { label: "Breathe in", detail: "Through your nose, belly first.", seconds: 4, phase: "in" },
+      { label: "Hold", detail: "Shoulders down, jaw loose.", seconds: 4, phase: "hold" },
+      { label: "Breathe out", detail: "Slowly through your mouth.", seconds: 4, phase: "out" },
+      { label: "Hold", detail: "Stay relaxed, then go again.", seconds: 4, phase: "hold" },
     ],
   },
   {
