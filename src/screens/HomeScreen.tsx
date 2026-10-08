@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -48,7 +48,8 @@ import {
 } from "../services/prefs/prefsStore";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
 import type { Prompt } from "../domain/sessionTypes";
-import { colors, fontDisplay, radii, spacing, typography } from "../theme/theme";
+import { fontDisplay, radii, spacing, typography } from "../theme/theme";
+import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 const EMPTY_STREAK: StreakResult = { currentStreak: 0, longestStreak: 0 };
 
@@ -69,6 +70,8 @@ interface ShelfCardProps {
 // demoted below the one primary action instead of competing with it as
 // equal-weight buttons (see the old six-button stack this replaced).
 function ShelfCard({ icon, label, onPress }: ShelfCardProps) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   return (
     <Pressable
       onPress={onPress}
@@ -83,6 +86,8 @@ function ShelfCard({ icon, label, onPress }: ShelfCardProps) {
 }
 
 export function HomeScreen() {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const tabBarInset = useTabBarBottomInset();
   const [prompt, setPrompt] = useState<Prompt | null>(null);
@@ -308,11 +313,11 @@ export function HomeScreen() {
       <View style={styles.middle}>
         <HeroCard
           contentStyle={styles.promptCard}
-          accent={colorForCategory(prompt.category).fg}
+          accent={colorForCategory(prompt.category, colors).fg}
           accentSecondary={colors.violet}
         >
           <View style={styles.promptCardHeader}>
-            <Badge label={prompt.category} {...colorForCategory(prompt.category)} />
+            <Badge label={prompt.category} {...colorForCategory(prompt.category, colors)} />
             <View style={styles.promptCardHeaderRight}>
               {/* Small tappable chip — opens the full "why" + manual
                   override on CurriculumScreen. Reflects the tier that's
@@ -418,7 +423,7 @@ export function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   container: { justifyContent: "space-between" },
   actions: { gap: spacing.sm },
   centered: { alignItems: "center", justifyContent: "center" },
@@ -491,4 +496,4 @@ const styles = StyleSheet.create({
   },
   shelfCardPressed: { opacity: 0.7 },
   shelfCardLabel: { color: colors.textPrimary, fontSize: typography.caption - 1, fontWeight: "700", textAlign: "center", lineHeight: 15 },
-});
+}));

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
@@ -29,7 +29,8 @@ import { showGlobalToast } from "../components/common/ToastProvider";
 import { useLiveSpeech } from "../hooks/useLiveSpeech";
 import { useRecordingTimer } from "../hooks/useRecordingTimer";
 import { logger } from "../utils/logger";
-import { colors, radii, spacing, typography } from "../theme/theme";
+import { radii, spacing, typography } from "../theme/theme";
+import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "DrillSession">;
 
@@ -59,6 +60,8 @@ function pickTwisterForLevel(level: number): string {
 }
 
 export function DrillSessionScreen({ route, navigation }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const practice = route.params.practice;
   const [level, setLevel] = useState<number | null>(null);
   const [twisterId, setTwisterId] = useState<string | undefined>(route.params.twisterId);
@@ -258,7 +261,7 @@ export function DrillSessionScreen({ route, navigation }: Props) {
                   <Text
                     key={word.globalIndex}
                     style={[
-                      styleForStatus(live?.statuses[word.globalIndex] ?? "pending"),
+                      styleForStatus(live?.statuses[word.globalIndex] ?? "pending", styles),
                       live && word.globalIndex === live.cursor ? styles.wordCurrent : null,
                     ]}
                   >
@@ -320,6 +323,7 @@ export function DrillSessionScreen({ route, navigation }: Props) {
 }
 
 function ListeningStatus({ status, heard }: { status: string; heard: string }) {
+  const styles = useStyles();
   const label =
     status === "restarting"
       ? "Reconnecting — keep going…"
@@ -354,6 +358,7 @@ function ResultView({
   wordsPerRep: number;
   result: { score: DrillScore; statuses: WordStatus[] };
 }) {
+  const styles = useStyles();
   const { score, statuses } = result;
   const misses = groupMisses(score.misses);
   const weakSounds = score.focusSounds.filter((f) => f.total > 0 && f.missed > 0);
@@ -375,7 +380,7 @@ function ResultView({
               {target
                 .filter((w) => w.rep === rep)
                 .map((w) => (
-                  <Text key={w.globalIndex} style={styleForStatus(statuses[w.globalIndex])}>
+                  <Text key={w.globalIndex} style={styleForStatus(statuses[w.globalIndex], styles)}>
                     {w.display}
                     {w.display.endsWith("-") ? "" : " "}
                   </Text>
@@ -432,7 +437,7 @@ function groupMisses(misses: DrillMiss[]): (DrillMiss & { count: number })[] {
   return [...grouped.values()].sort((a, b) => b.count - a.count);
 }
 
-function styleForStatus(status: WordStatus) {
+function styleForStatus(status: WordStatus, styles: ReturnType<typeof useStyles>) {
   switch (status) {
     case "hit":
       return styles.wordHit;
@@ -445,7 +450,7 @@ function styleForStatus(status: WordStatus) {
   }
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   repeatHint: { color: colors.textMuted, fontSize: typography.caption, fontWeight: "600" },
@@ -491,4 +496,4 @@ const styles = StyleSheet.create({
   resultActions: { flexDirection: "row", gap: spacing.sm, width: "100%" },
   resultButton: { flex: 1 },
   missingText: { color: colors.textMuted, fontSize: typography.body },
-});
+}));

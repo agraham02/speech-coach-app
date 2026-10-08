@@ -7,7 +7,7 @@ import { ExpoResourceFetcher } from "react-native-executorch-expo-resource-fetch
 import { AppNavigator } from "./src/navigation";
 import { ToastProvider } from "./src/components/common/ToastProvider";
 import { LoadingSpinner } from "./src/components/common/LoadingSpinner";
-import { colors, spacing } from "./src/theme/theme";
+import { spacing } from "./src/theme/theme";
 import { ThemeProvider, useTheme } from "./src/theme/ThemeProvider";
 
 // Must run before anything touches react-native-executorch — the on-device
@@ -25,25 +25,28 @@ export default function App() {
     "Sora-Bold": require("./assets/fonts/Sora-Bold.ttf"),
   });
 
-  if (!fontsLoaded) {
-    return (
-      <SafeAreaProvider>
-        <View style={styles.loading}>
-          <LoadingSpinner />
-        </View>
-      </SafeAreaProvider>
-    );
-  }
-
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <ToastProvider>
-          <AppNavigator />
-          <ThemedStatusBar />
-        </ToastProvider>
+        {fontsLoaded ? (
+          <ToastProvider>
+            <AppNavigator />
+          </ToastProvider>
+        ) : (
+          <LoadingScreen />
+        )}
+        <ThemedStatusBar />
       </ThemeProvider>
     </SafeAreaProvider>
+  );
+}
+
+function LoadingScreen() {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.loading, { backgroundColor: colors.background }]}>
+      <LoadingSpinner />
+    </View>
   );
 }
 
@@ -55,7 +58,6 @@ function ThemedStatusBar() {
 const styles = StyleSheet.create({
   loading: {
     flex: 1,
-    backgroundColor: colors.background,
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.xl,

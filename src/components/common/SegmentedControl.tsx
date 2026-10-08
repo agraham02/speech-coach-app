@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { type LayoutChangeEvent, Pressable, StyleSheet, Text, View } from "react-native";
+import { type LayoutChangeEvent, Pressable, Text, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import { colors, radii, spacing, typography } from "../../theme/theme";
+import { radii, spacing, typography } from "../../theme/theme";
+import { makeStyles } from "../../theme/ThemeProvider";
 
 interface SegmentOption<T extends string> {
   key: T;
@@ -20,6 +21,7 @@ const TRACK_PADDING = 3;
 // preference for small Reanimated-based UI over pulling in a tab-bar
 // dependency (see ToastProvider.tsx).
 export function SegmentedControl<T extends string>({ options, value, onChange }: SegmentedControlProps<T>) {
+  const styles = useStyles();
   const [trackWidth, setTrackWidth] = useState(0);
   const indicatorX = useSharedValue(0);
   const activeIndex = Math.max(0, options.findIndex((o) => o.key === value));
@@ -57,7 +59,7 @@ export function SegmentedControl<T extends string>({ options, value, onChange }:
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   track: {
     flexDirection: "row",
     backgroundColor: colors.surface,
@@ -79,4 +81,4 @@ const styles = StyleSheet.create({
   segment: { flex: 1, paddingVertical: spacing.sm, alignItems: "center", justifyContent: "center" },
   label: { color: colors.textMuted, fontSize: typography.caption, fontWeight: "700" },
   labelSelected: { color: colors.textPrimary },
-});
+}));

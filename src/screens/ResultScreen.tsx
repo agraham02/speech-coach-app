@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
@@ -41,7 +41,8 @@ import { completePracticeStep } from "../services/practice/practiceEvents";
 import { colorForCategory } from "../domain/categoryColor";
 import { makeAdhocPrompt, type Prompt, type Session, type SessionScores } from "../domain/sessionTypes";
 import { formatDuration } from "../utils/dateUtils";
-import { colors, fontDisplay, spacing, typography } from "../theme/theme";
+import { fontDisplay, spacing, typography } from "../theme/theme";
+import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Result">;
 type ResultTab = "overview" | "scores" | "transcript";
@@ -54,6 +55,8 @@ function avgScore(...scores: number[]): number {
 }
 
 function ScoreDelta({ current, previous }: { current: number; previous: number | null }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   if (previous === null) return null;
   const diff = Math.round((current - previous) * 10) / 10;
   if (diff === 0) {
@@ -71,6 +74,7 @@ function ScoreDelta({ current, previous }: { current: number; previous: number |
 }
 
 function NumberTile({ value, label }: { value: string; label: string }) {
+  const styles = useStyles();
   return (
     <View style={styles.tile}>
       <Text style={styles.tileValue}>{value}</Text>
@@ -80,6 +84,8 @@ function NumberTile({ value, label }: { value: string; label: string }) {
 }
 
 export function ResultScreen({ route, navigation }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const { sessionId } = route.params;
   const showToast = useToast();
   const [session, setSession] = useState<Session | null>(null);
@@ -238,21 +244,21 @@ export function ResultScreen({ route, navigation }: Props) {
           {scores ? (
             <HeroCard
               contentStyle={styles.scoreHeroContent}
-              accent={colorForScore(scores.overallScore)}
+              accent={colorForScore(scores.overallScore, colors)}
               accentSecondary={colors.violet}
             >
               <ProgressRing
                 size={132}
                 strokeWidth={10}
                 progress={scores.overallScore / 10}
-                color={colorForScore(scores.overallScore)}
+                color={colorForScore(scores.overallScore, colors)}
               >
-                <Text style={[styles.scoreHeroNumber, { color: colorForScore(scores.overallScore) }]}>
+                <Text style={[styles.scoreHeroNumber, { color: colorForScore(scores.overallScore, colors) }]}>
                   {scores.overallScore}
                 </Text>
                 <Text style={styles.scoreHeroOutOf}>OUT OF 10</Text>
               </ProgressRing>
-              <Text style={[styles.scoreHeroArchetype, { color: colorForScore(scores.overallScore) }]}>
+              <Text style={[styles.scoreHeroArchetype, { color: colorForScore(scores.overallScore, colors) }]}>
                 {scores.archetypeDetected}
               </Text>
               <ScoreDelta current={scores.overallScore} previous={previousOverallScore} />
@@ -279,14 +285,14 @@ export function ResultScreen({ route, navigation }: Props) {
 
           {prompt ? (
             <Card style={styles.promptCard}>
-              <Badge label={prompt.category} {...colorForCategory(prompt.category)} />
+              <Badge label={prompt.category} {...colorForCategory(prompt.category, colors)} />
               <Text style={styles.promptText}>{prompt.text}</Text>
             </Card>
           ) : null}
 
           {script ? (
             <Card style={styles.promptCard}>
-              <Badge label={script.category} {...colorForCategory(script.category)} />
+              <Badge label={script.category} {...colorForCategory(script.category, colors)} />
               <Text style={styles.rowTitle}>{script.title}</Text>
               <Text style={styles.promptText} numberOfLines={3}>
                 {script.text}
@@ -436,7 +442,7 @@ export function ResultScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
   centered: { alignItems: "center", justifyContent: "center" },
   header: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: spacing.md },
@@ -493,4 +499,4 @@ const styles = StyleSheet.create({
   drillText: { color: colors.textPrimary, fontSize: typography.body, lineHeight: 20 },
   radarCard: { alignItems: "center" },
   bodyLanguageNotes: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },
-});
+}));

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import Slider from "@react-native-community/slider";
-import { colors, spacing, typography } from "../../theme/theme";
+import { spacing, typography } from "../../theme/theme";
+import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 interface LabeledSliderProps {
   label: string;
@@ -24,6 +25,8 @@ export function LabeledSlider({
   onChange,
   disabled,
 }: LabeledSliderProps) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const [displayValue, setDisplayValue] = useState(value);
 
   // @react-native-community/slider's `value` prop is write-only — its own
@@ -64,10 +67,10 @@ export function LabeledSlider({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.xs },
   disabled: { opacity: 0.4 },
   header: { flexDirection: "row", justifyContent: "space-between" },
   label: { color: colors.textSecondary, fontSize: typography.body, fontWeight: "600" },
   value: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "700" },
-});
+}));

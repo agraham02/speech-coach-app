@@ -2,18 +2,20 @@ import { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
-import { FlatList, Pressable, Share, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, Share, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenContainer } from "../components/common/ScreenContainer";
 import { clearLogs, formatLogsForSharing, getLogs, subscribeLogs, type LogEntry } from "../services/logs/logStore";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
-import { colors, spacing, typography } from "../theme/theme";
+import { spacing, typography } from "../theme/theme";
+import { makeStyles, useTheme } from "../theme/ThemeProvider";
+import type { Colors } from "../theme/theme";
 
-const LEVEL_COLOR: Record<LogEntry["level"], string> = {
+const levelColors = (colors: Colors): Record<LogEntry["level"], string> => ({
   info: colors.textSecondary,
   warn: colors.warning,
   error: colors.danger,
-};
+});
 
 function formatTime(isoTimestamp: string): string {
   return new Date(isoTimestamp).toLocaleTimeString(undefined, {
@@ -24,6 +26,8 @@ function formatTime(isoTimestamp: string): string {
 }
 
 export function DevScreen() {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const tabBarInset = useTabBarBottomInset();
   const [logs, setLogs] = useState<LogEntry[]>(getLogs());
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -75,7 +79,7 @@ export function DevScreen() {
           renderItem={({ item }) => (
             <View style={styles.row}>
               <Text style={styles.time}>{formatTime(item.timestamp)}</Text>
-              <Text style={[styles.message, { color: LEVEL_COLOR[item.level] }]}>{item.message}</Text>
+              <Text style={[styles.message, { color: levelColors(colors)[item.level] }]}>{item.message}</Text>
             </View>
           )}
         />
@@ -84,7 +88,7 @@ export function DevScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   // See TrendsScreen.tsx for why paddingBottom: 0 — overrides
   // ScreenContainer's default bottom padding, since the list's own
   // listContent already reserves end-of-content breathing room.
@@ -99,4 +103,4 @@ const styles = StyleSheet.create({
   message: { flex: 1, fontSize: typography.caption, fontFamily: "monospace", lineHeight: 17 },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
   emptyText: { color: colors.textMuted, fontSize: typography.body, textAlign: "center", paddingHorizontal: spacing.xl },
-});
+}));

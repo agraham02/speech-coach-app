@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -11,7 +11,9 @@ import { SegmentedControl } from "../components/common/SegmentedControl";
 import { getAllPrompts } from "../services/db/promptsRepo";
 import { colorForCategory } from "../domain/categoryColor";
 import type { DifficultyTier, Prompt } from "../domain/sessionTypes";
-import { colors, radii, spacing, typography } from "../theme/theme";
+import { radii, spacing, typography } from "../theme/theme";
+import { makeStyles, useTheme } from "../theme/ThemeProvider";
+import type { Colors } from "../theme/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "PromptLibrary">;
 
@@ -24,13 +26,15 @@ const DIFFICULTY_FILTERS: { key: DifficultyFilter; label: string }[] = [
   { key: "hard", label: "Hard" },
 ];
 
-const DIFFICULTY_COLOR: Record<DifficultyTier, string> = {
+const difficultyColors = (colors: Colors): Record<DifficultyTier, string> => ({
   easy: colors.success,
   medium: colors.warning,
   hard: colors.danger,
-};
+});
 
 export function PromptLibraryScreen({ navigation }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -135,11 +139,11 @@ export function PromptLibraryScreen({ navigation }: Props) {
             <Pressable onPress={() => navigation.navigate("Recording", { kind: "prompt", prompt: item })}>
               <Card style={styles.promptCard}>
                 <View style={styles.promptCardHeader}>
-                  <Badge label={item.category} {...colorForCategory(item.category)} />
+                  <Badge label={item.category} {...colorForCategory(item.category, colors)} />
                   {item.difficultyTier ? (
                     <Badge
                       label={item.difficultyTier}
-                      fg={DIFFICULTY_COLOR[item.difficultyTier]}
+                      fg={difficultyColors(colors)[item.difficultyTier]}
                       bg={colors.surfaceRaised}
                     />
                   ) : null}
@@ -156,7 +160,7 @@ export function PromptLibraryScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   title: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
@@ -192,4 +196,4 @@ const styles = StyleSheet.create({
   promptText: { color: colors.textPrimary, fontSize: typography.bodyLarge, fontWeight: "600", lineHeight: 22 },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
   emptyText: { color: colors.textMuted, fontSize: typography.body, textAlign: "center", paddingHorizontal: spacing.xl },
-});
+}));

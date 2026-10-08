@@ -2,7 +2,8 @@ import { useEffect } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, radii, spacing, typography } from "../../theme/theme";
+import { radii, spacing, typography } from "../../theme/theme";
+import { makeStyles } from "../../theme/ThemeProvider";
 
 interface FilterOption {
   key: string;
@@ -37,6 +38,7 @@ export function FilterSheet({
   onDurationChange,
   onReset,
 }: FilterSheetProps) {
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   const progress = useSharedValue(0);
 
@@ -114,7 +116,7 @@ export function FilterSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   backdrop: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.overlayScrim },
   panel: {
     position: "absolute",
@@ -156,4 +158,4 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   doneButtonText: { color: colors.onAccent, fontSize: typography.bodyLarge, fontWeight: "600" },
-});
+}));

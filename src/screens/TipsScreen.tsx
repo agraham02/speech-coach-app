@@ -1,10 +1,12 @@
 import { useNavigation } from "@react-navigation/native";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenContainer } from "../components/common/ScreenContainer";
 import { Card } from "../components/common/Card";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
-import { colors, spacing, typography } from "../theme/theme";
+import { spacing, typography } from "../theme/theme";
+import { makeStyles, useTheme } from "../theme/ThemeProvider";
+import type { Colors } from "../theme/theme";
 
 interface Framework {
   accent: string;
@@ -16,7 +18,7 @@ interface Framework {
   drillText: string;
 }
 
-const FRAMEWORKS: Framework[] = [
+const frameworks = (colors: Colors): Framework[] => [
   {
     accent: colors.violet,
     accentMuted: colors.violetMuted,
@@ -85,6 +87,8 @@ const FRAMEWORKS: Framework[] = [
 ];
 
 export function TipsScreen() {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const tabBarInset = useTabBarBottomInset();
   const navigation = useNavigation();
   return (
@@ -102,7 +106,7 @@ export function TipsScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: spacing.lg + tabBarInset }]}
         showsVerticalScrollIndicator={false}
       >
-        {FRAMEWORKS.map((framework) => (
+        {frameworks(colors).map((framework) => (
         <Card key={framework.title} style={styles.section}>
           <Text style={[styles.sectionTitle, { color: framework.accent }]}>{framework.title}</Text>
           <Text style={styles.sectionDescription}>{framework.description}</Text>
@@ -156,7 +160,7 @@ export function TipsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   // See TrendsScreen.tsx for why paddingBottom: 0 — overrides
   // ScreenContainer's default bottom padding, since the ScrollView's own
   // scrollContent already reserves end-of-content breathing room and there's
@@ -177,4 +181,4 @@ const styles = StyleSheet.create({
   drillBox: { borderRadius: 10, padding: spacing.md, gap: spacing.xs, marginTop: spacing.xs },
   drillLabel: { fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 1 },
   drillText: { color: colors.textPrimary, fontSize: typography.body, lineHeight: 20 },
-});
+}));

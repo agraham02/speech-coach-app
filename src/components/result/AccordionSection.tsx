@@ -1,8 +1,9 @@
 import { useState, type ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
-import { colors, radii, spacing, typography } from "../../theme/theme";
+import { radii, spacing, typography } from "../../theme/theme";
+import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 interface AccordionSectionProps {
   title: string;
@@ -20,6 +21,8 @@ interface AccordionSectionProps {
 // height change (and reflows the accordions below it) without hand-rolled
 // height measurement.
 export function AccordionSection({ title, scoreLabel, defaultOpen = false, children }: AccordionSectionProps) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const [open, setOpen] = useState(defaultOpen);
 
   return (
@@ -46,7 +49,7 @@ export function AccordionSection({ title, scoreLabel, defaultOpen = false, child
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   container: {
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -65,4 +68,4 @@ const styles = StyleSheet.create({
   title: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "700" },
   score: { color: colors.accent, fontSize: typography.caption, fontWeight: "800" },
   body: { paddingHorizontal: spacing.md, paddingBottom: spacing.md, gap: spacing.sm },
-});
+}));

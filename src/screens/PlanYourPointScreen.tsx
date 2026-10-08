@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
 import { PrimaryButton } from "../components/common/PrimaryButton";
-import { colors, radii, spacing, typography } from "../theme/theme";
+import { radii, spacing, typography } from "../theme/theme";
+import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "PlanYourPoint">;
 
@@ -13,6 +14,8 @@ type Props = NativeStackScreenProps<RootStackParamList, "PlanYourPoint">;
 // optional — "Start recording" always proceeds, empty fields just mean the
 // speaker chose to skip planning rather than an incomplete form.
 export function PlanYourPointScreen({ route, navigation }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const { prompt } = route.params;
   const [point, setPoint] = useState("");
   const [reason, setReason] = useState("");
@@ -103,7 +106,7 @@ export function PlanYourPointScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   headerSpacer: { width: 24 },
@@ -132,4 +135,4 @@ const styles = StyleSheet.create({
     minHeight: 56,
   },
   spacer: { flex: 1 },
-});
+}));

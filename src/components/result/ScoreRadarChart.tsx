@@ -1,13 +1,15 @@
 import { View, StyleSheet } from "react-native";
 import { RadarChart } from "react-native-gifted-charts";
 import type { SessionScores } from "../../domain/sessionTypes";
-import { colors, spacing } from "../../theme/theme";
+import { spacing } from "../../theme/theme";
+import { useTheme } from "../../theme/ThemeProvider";
 
 function average(values: number[]): number {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
 export function ScoreRadarChart({ scores }: { scores: SessionScores }) {
+  const { colors } = useTheme();
   const deliveryAvg = average([
     scores.rateScore,
     scores.volumeScore,

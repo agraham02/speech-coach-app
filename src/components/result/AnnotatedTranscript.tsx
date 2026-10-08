@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import {
@@ -15,7 +15,8 @@ import {
   type LocatedAnnotation,
 } from "../../domain/transcriptAnnotations";
 import type { TranscriptWord } from "../../domain/sessionTypes";
-import { annotationColors, colors, radii, spacing, typography } from "../../theme/theme";
+import { getAnnotationColors, radii, spacing, typography } from "../../theme/theme";
+import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 interface AnnotatedTranscriptProps {
   transcriptVerbatim: string;
@@ -55,6 +56,9 @@ export function AnnotatedTranscript({
   repeatedWordCount,
   annotations,
 }: AnnotatedTranscriptProps) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const annotationColors = getAnnotationColors(colors);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   // Kept separate from selectedIndex, cleared only after the dismiss
   // animation finishes — otherwise the panel's text would vanish instantly
@@ -201,7 +205,7 @@ export function AnnotatedTranscript({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.sm },
   statLine: { color: colors.warning, fontSize: typography.caption, fontWeight: "700" },
   statLineSecondary: { color: colors.indigo, fontSize: typography.caption, fontWeight: "700" },
@@ -220,4 +224,4 @@ const styles = StyleSheet.create({
   notePanelHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   notePanelLabel: { fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 0.6, textTransform: "uppercase" },
   notePanelText: { color: colors.textSecondary, fontSize: typography.body, lineHeight: 20 },
-});
+}));

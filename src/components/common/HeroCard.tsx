@@ -1,6 +1,7 @@
 import { StyleSheet, View, type StyleProp, type ViewProps, type ViewStyle } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { colors, radii, spacing } from "../../theme/theme";
+import { radii, spacing } from "../../theme/theme";
+import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 import { withAlpha } from "../../utils/color";
 
 interface HeroCardProps extends ViewProps {
@@ -20,10 +21,14 @@ export function HeroCard({
   style,
   contentStyle,
   children,
-  accent = colors.accent,
-  accentSecondary = colors.violet,
+  accent: accentProp,
+  accentSecondary: accentSecondaryProp,
   ...props
 }: HeroCardProps) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const accent = accentProp ?? colors.accent;
+  const accentSecondary = accentSecondaryProp ?? colors.violet;
   return (
     <View style={[styles.card, style]} {...props}>
       <LinearGradient
@@ -43,7 +48,7 @@ export function HeroCard({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   card: {
     borderRadius: radii.lg,
     borderWidth: 1,
@@ -52,4 +57,4 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   content: { padding: spacing.lg },
-});
+}));

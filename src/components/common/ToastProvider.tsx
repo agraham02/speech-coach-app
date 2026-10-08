@@ -1,8 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { Pressable, StyleSheet, Text } from "react-native";
+import { Pressable, Text } from "react-native";
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, radii, spacing, typography } from "../../theme/theme";
+import { radii, spacing, typography } from "../../theme/theme";
+import { makeStyles, useTheme } from "../../theme/ThemeProvider";
+import type { Colors } from "../../theme/theme";
 
 type ToastTone = "success" | "error" | "info";
 type ShowToast = (text: string, tone?: ToastTone, onPress?: () => void) => void;
@@ -14,11 +16,11 @@ interface ToastMessage {
   onPress?: () => void;
 }
 
-const TONE_COLOR: Record<ToastTone, string> = {
+const toneColors = (colors: Colors): Record<ToastTone, string> => ({
   success: colors.success,
   error: colors.danger,
   info: colors.accent,
-};
+});
 
 const DISMISS_AFTER_MS = 2800;
 
@@ -36,6 +38,8 @@ export function showGlobalToast(text: string, tone: ToastTone = "info", onPress?
 }
 
 export function ToastProvider({ children }: { children: ReactNode }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const opacity = useSharedValue(0);
@@ -79,7 +83,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       {toast ? (
         <Animated.View
-          style={[styles.toast, animatedStyle, { top: insets.top + spacing.sm, borderColor: TONE_COLOR[toast.tone] }]}
+          style={[styles.toast, animatedStyle, { top: insets.top + spacing.sm, borderColor: toneColors(colors)[toast.tone] }]}
           pointerEvents={toast.onPress ? "auto" : "none"}
         >
           {toast.onPress ? (
@@ -106,7 +110,7 @@ export function useToast(): ShowToast {
   return ctx;
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   toast: {
     position: "absolute",
     left: spacing.lg,
@@ -119,4 +123,4 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   text: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "600", textAlign: "center" },
-});
+}));

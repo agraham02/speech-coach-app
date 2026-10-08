@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Alert, Linking, Pressable, ScrollView, Switch, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
@@ -29,7 +29,8 @@ import {
 } from "../services/secrets/secretsStore";
 import { formatReminderHour, REMINDER_HOUR_MAX, REMINDER_HOUR_MIN } from "../domain/reminderSettings";
 import { cancelDailyReminder, requestNotificationPermission, syncDailyReminder } from "../services/notifications/reminderScheduler";
-import { colors, spacing, typography } from "../theme/theme";
+import { spacing, typography } from "../theme/theme";
+import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import { SHOW_DEV_TOOLS } from "../config/devTools";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
@@ -46,6 +47,8 @@ interface SecretFieldProps {
 // (Gemini key, Notion token, Notion page ID) below rather than a bare
 // Switch/Slider, since these are pasted-in credentials, not toggled prefs.
 function SecretField({ label, caption, value, onChangeText, onBlur }: SecretFieldProps) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const [visible, setVisible] = useState(false);
   return (
     <View style={styles.secretField}>
@@ -83,6 +86,8 @@ function SecretField({ label, caption, value, onChangeText, onBlur }: SecretFiel
 }
 
 export function SettingsScreen({ navigation }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const showToast = useToast();
   const [reminderSettings, setReminderSettingsState] = useState(getReminderSettings());
   const [planYourPointEnabled, setPlanYourPointEnabledState] = useState(getPlanYourPointEnabled());
@@ -341,6 +346,8 @@ export function SettingsScreen({ navigation }: Props) {
 }
 
 function StatusLine({ label, value, ok }: { label: string; value: string; ok?: boolean }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   return (
     <View style={styles.statusLine}>
       <Ionicons name={ok ? "checkmark-circle" : "ellipse-outline"} size={16} color={ok ? colors.success : colors.textMuted} />
@@ -350,7 +357,7 @@ function StatusLine({ label, value, ok }: { label: string; value: string; ok?: b
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   groupLabel: { color: colors.textMuted, fontSize: 11, fontWeight: "700", letterSpacing: 0.8, marginTop: spacing.sm },
   linkCard: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   statusLine: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
@@ -383,4 +390,4 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   secretInput: { flex: 1, color: colors.textPrimary, fontSize: typography.body, padding: 0 },
-});
+}));

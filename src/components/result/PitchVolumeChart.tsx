@@ -1,7 +1,8 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { LineChart } from "react-native-gifted-charts";
 import type { DspStatus } from "../../domain/sessionTypes";
-import { colors, spacing, typography } from "../../theme/theme";
+import { spacing, typography } from "../../theme/theme";
+import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 interface PitchVolumeChartProps {
   dspStatus: DspStatus | null;
@@ -15,6 +16,8 @@ interface PitchVolumeChartProps {
 // instead of just omitting the chart, since a missing chart with no
 // explanation reads as a bug rather than an expected degrade path.
 export function PitchVolumeChart({ dspStatus, pitchContourHz, volumeEnvelopeDbfs }: PitchVolumeChartProps) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   if (dspStatus !== "complete" || !pitchContourHz || !volumeEnvelopeDbfs) {
     return (
       <View style={styles.container}>
@@ -83,9 +86,9 @@ export function PitchVolumeChart({ dspStatus, pitchContourHz, volumeEnvelopeDbfs
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.xs, marginTop: spacing.sm },
   label: { color: colors.textSecondary, fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 0.4 },
   volumeLabel: { marginTop: spacing.sm },
   unavailable: { color: colors.textMuted, fontSize: typography.caption, fontStyle: "italic" },
-});
+}));

@@ -1,9 +1,9 @@
 import type { TextStyle } from "react-native";
 
 // Semantic design tokens for both color schemes ("Calm coach" direction).
-// Screens read these through useTheme()/makeStyles() (ThemeProvider.tsx).
-// The legacy static `colors` export in theme.ts is the dark palette, kept
-// while older screens are migrated.
+// Screens read these through useTheme()/makeStyles() (ThemeProvider.tsx),
+// which follow the system appearance live. theme.ts builds the full color
+// set (palette + a few extras) for a scheme.
 
 export type SkillId = "articulation" | "cadence" | "impromptu" | "confidence";
 

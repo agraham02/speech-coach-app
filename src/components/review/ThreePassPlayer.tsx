@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useEvent } from "expo";
 import { useVideoPlayer, VideoView } from "expo-video";
 import type { TranscriptWord } from "../../domain/sessionTypes";
-import { colors, radii, spacing, typography } from "../../theme/theme";
+import { radii, spacing, typography } from "../../theme/theme";
+import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 import { getReviewPasses, markReviewPass } from "../../services/db/progressRepo";
 
 // Vinh Giang's self-review method: watch the same take three times, each
@@ -47,6 +48,8 @@ export function ThreePassPlayer({
   transcriptWords: TranscriptWord[] | null;
   transcriptText: string | null;
 }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const [pass, setPass] = useState<Pass>("watch");
   const [rate, setRate] = useState(1);
   const [completed, setCompleted] = useState<Set<Pass>>(new Set());
@@ -157,7 +160,7 @@ export function ThreePassPlayer({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.sm },
   passRow: { flexDirection: "row", gap: spacing.xs },
   passChip: {
@@ -193,4 +196,4 @@ const styles = StyleSheet.create({
   rateChipSelected: { backgroundColor: colors.accentMuted },
   rateText: { color: colors.textMuted, fontSize: typography.caption, fontWeight: "600" },
   rateTextSelected: { color: colors.accent },
-});
+}));

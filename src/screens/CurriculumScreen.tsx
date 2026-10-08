@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -16,7 +16,9 @@ import {
 import { getCurriculumHistory, recomputeCurriculumLevel, resetCurriculumProgress } from "../services/db/curriculumRepo";
 import { getCurriculumOverride, setCurriculumOverride } from "../services/prefs/prefsStore";
 import type { CurriculumStateEntry } from "../domain/sessionTypes";
-import { colors, radii, spacing, typography } from "../theme/theme";
+import { radii, spacing, typography } from "../theme/theme";
+import { makeStyles, useTheme } from "../theme/ThemeProvider";
+import type { Colors } from "../theme/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Curriculum">;
 
@@ -35,7 +37,7 @@ function directionIcon(direction: string): keyof typeof Ionicons.glyphMap {
   return "flag-outline";
 }
 
-function directionColor(direction: string): string {
+function directionColor(direction: string, colors: Colors): string {
   if (direction === "up") return colors.success;
   if (direction === "down") return colors.warning;
   return colors.textMuted;
@@ -57,6 +59,8 @@ function historyReasonLabel(entry: CurriculumStateEntry): string {
 // header note) — this screen is where that's made visible and explained,
 // not just asserted.
 export function CurriculumScreen({ navigation }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const [level, setLevel] = useState<CurriculumLevel>(DEFAULT_CURRICULUM_LEVEL);
   const [override, setOverrideState] = useState<number | null>(null);
   const [explanation, setExplanation] = useState("");
@@ -162,7 +166,7 @@ export function CurriculumScreen({ navigation }: Props) {
           ) : (
             history.map((entry) => (
               <View key={entry.id} style={styles.historyRow}>
-                <Ionicons name={directionIcon(entry.direction)} size={16} color={directionColor(entry.direction)} />
+                <Ionicons name={directionIcon(entry.direction)} size={16} color={directionColor(entry.direction, colors)} />
                 <View style={styles.historyText}>
                   <Text style={styles.historyLevel}>Level {entry.level}</Text>
                   <Text style={styles.historyReason}>{historyReasonLabel(entry)}</Text>
@@ -194,7 +198,7 @@ export function CurriculumScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   headerSpacer: { width: 26 },
@@ -236,4 +240,4 @@ const styles = StyleSheet.create({
     borderColor: colors.danger,
   },
   resetButtonText: { color: colors.danger, fontSize: typography.body, fontWeight: "700" },
-});
+}));

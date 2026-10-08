@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -23,7 +23,8 @@ import { getCurriculumHistory, recomputeCurriculumLevel } from "../services/db/c
 import { getCurriculumOverride } from "../services/prefs/prefsStore";
 import { subscribeToAllSessions } from "../services/pipeline/processingEvents";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
-import { colors, fontDisplay, spacing, typography } from "../theme/theme";
+import { fontDisplay, spacing, typography } from "../theme/theme";
+import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 const RECENT_COUNT = 10;
 
@@ -57,6 +58,8 @@ function DeltaIndicator({
   previous: number | null;
   invert?: boolean;
 }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   if (current === null || previous === null) {
     return <Text style={styles.deltaNeutral}>Not enough data yet</Text>;
   }
@@ -82,6 +85,8 @@ function DeltaIndicator({
 }
 
 export function TrendsScreen() {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const tabBarInset = useTabBarBottomInset();
   const [totalSessions, setTotalSessions] = useState(0);
@@ -254,7 +259,7 @@ export function TrendsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   titleRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   // paddingBottom: 0 overrides ScreenContainer's default bottom padding —
   // this screen's own ScrollView already reserves breathing room via
@@ -288,4 +293,4 @@ const styles = StyleSheet.create({
   recentCard: { gap: spacing.md },
   empty: { alignItems: "center", justifyContent: "center", gap: spacing.md, paddingVertical: spacing.xxl },
   emptyText: { color: colors.textMuted, fontSize: typography.body, textAlign: "center", paddingHorizontal: spacing.xl },
-});
+}));

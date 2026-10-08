@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Alert, ScrollView, Switch, Text, View } from "react-native";
 import { usePreventRemove } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
@@ -12,7 +12,8 @@ import { deleteRecording } from "../services/storage/videoStorage";
 import { createSessionFromTake } from "../services/pipeline/sessionPipeline";
 import { logger } from "../utils/logger";
 import { completePracticeStep } from "../services/practice/practiceEvents";
-import { colors, spacing, typography } from "../theme/theme";
+import { spacing, typography } from "../theme/theme";
+import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Preview">;
 
@@ -20,6 +21,8 @@ type Props = NativeStackScreenProps<RootStackParamList, "Preview">;
 // analysis always runs, and a deep review or Notion sync can be added from
 // the session at any time later.
 export function PreviewScreen({ route, navigation }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const { videoUri, durationSecondsLocal, ...subject } = route.params;
   const isFreeRecord = subject.kind === "prompt" && isFreeRecordPrompt(subject.prompt.id);
   const [wantsCloudReview, setWantsCloudReview] = useState(false);
@@ -156,7 +159,7 @@ export function PreviewScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
   title: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
   scroll: { flex: 1 },
@@ -171,4 +174,4 @@ const styles = StyleSheet.create({
   actions: { gap: spacing.sm },
   secondaryRow: { flexDirection: "row", gap: spacing.md },
   actionSlot: { flex: 1 },
-});
+}));

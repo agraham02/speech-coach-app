@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -10,7 +10,8 @@ import { SegmentedControl } from "../components/common/SegmentedControl";
 import { useToast } from "../components/common/ToastProvider";
 import { getAllPrompts, insertUserPrompt } from "../services/db/promptsRepo";
 import type { DifficultyTier } from "../domain/sessionTypes";
-import { colors, radii, spacing, typography } from "../theme/theme";
+import { radii, spacing, typography } from "../theme/theme";
+import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AddPrompt">;
 
@@ -23,6 +24,8 @@ const DIFFICULTY_OPTIONS: { key: DifficultyTier; label: string }[] = [
 const TEXT_MAX_LENGTH = 280;
 
 export function AddPromptScreen({ navigation }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const showToast = useToast();
   const [text, setText] = useState("");
   const [category, setCategory] = useState("");
@@ -126,7 +129,7 @@ export function AddPromptScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.lg },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   headerSpacer: { width: 24 },
@@ -166,4 +169,4 @@ const styles = StyleSheet.create({
   },
   chipText: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "600" },
   spacer: { flex: 1 },
-});
+}));

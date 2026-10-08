@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, FlatList, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -25,14 +25,16 @@ import { colorForScore } from "../components/result/scoreColor";
 import { colorForCategory } from "../domain/categoryColor";
 import type { Prompt, Session } from "../domain/sessionTypes";
 import { formatDuration } from "../utils/dateUtils";
-import { colors, spacing, typography } from "../theme/theme";
+import { spacing, typography } from "../theme/theme";
+import { makeStyles, useTheme } from "../theme/ThemeProvider";
+import type { Colors } from "../theme/theme";
 
-const STATUS_META: Record<Session["status"], { label: string; color: string; icon: keyof typeof Ionicons.glyphMap }> = {
+const statusMeta = (colors: Colors): Record<Session["status"], { label: string; color: string; icon: keyof typeof Ionicons.glyphMap }> => ({
   recording: { label: "Recording", color: colors.textMuted, icon: "radio-button-on-outline" },
   processing: { label: "Processing", color: colors.accent, icon: "sync-outline" },
   done: { label: "Done", color: colors.success, icon: "checkmark-circle-outline" },
   error: { label: "Failed", color: colors.danger, icon: "alert-circle-outline" },
-};
+});
 
 type StatusFilter = "all" | Session["status"];
 
@@ -74,6 +76,8 @@ const COLLECTIONS: { route: "Practice" | "PromptLibrary" | "ScriptLibrary" | "Dr
 ];
 
 export function HistoryScreen() {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const showToast = useToast();
   const tabBarInset = useTabBarBottomInset();
@@ -292,7 +296,7 @@ export function HistoryScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.accent} />}
           renderItem={({ item }) => {
             const prompt = resolvePrompt(item.promptId, item);
-            const status = STATUS_META[item.status];
+            const status = statusMeta(colors)[item.status];
             return (
               <Pressable
                 onPress={() => openSession(item)}
@@ -303,9 +307,9 @@ export function HistoryScreen() {
                 <Card style={styles.row}>
                   <View style={styles.rowTop}>
                     <View style={styles.rowTopLeft}>
-                      {prompt ? <Badge label={prompt.category} {...colorForCategory(prompt.category)} /> : null}
+                      {prompt ? <Badge label={prompt.category} {...colorForCategory(prompt.category, colors)} /> : null}
                       {item.overallScore !== null ? (
-                        <Text style={[styles.scoreText, { color: colorForScore(item.overallScore) }]}>
+                        <Text style={[styles.scoreText, { color: colorForScore(item.overallScore, colors) }]}>
                           {item.overallScore}/10
                         </Text>
                       ) : null}
@@ -332,7 +336,7 @@ export function HistoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   collectionsScroll: { flexGrow: 0 },
   collections: { gap: spacing.sm, paddingRight: spacing.md },
   collection: {
@@ -411,4 +415,4 @@ const styles = StyleSheet.create({
   metaText: { color: colors.textMuted, fontSize: typography.caption },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
   emptyText: { color: colors.textMuted, fontSize: typography.body, textAlign: "center", paddingHorizontal: spacing.xl },
-});
+}));

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
-import { NavigationContainer, type NavigatorScreenParams } from "@react-navigation/native";
+import { DarkTheme, DefaultTheme, NavigationContainer, type NavigatorScreenParams } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeBottomTabNavigator } from "@bottom-tabs/react-navigation";
@@ -39,7 +39,7 @@ import { navigationRef } from "./navigationRef";
 import { syncDailyReminder } from "../services/notifications/reminderScheduler";
 import { logger } from "../utils/logger";
 import type { Prompt, RecordingSubject } from "../domain/sessionTypes";
-import { colors } from "../theme/theme";
+import { useTheme } from "../theme/ThemeProvider";
 
 export { navigationRef };
 
@@ -90,6 +90,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 // (native tab icons need real image/SF Symbol sources, not vector-icon
 // components) for a platform where nothing actually changes.
 function JSTabs() {
+  const { colors } = useTheme();
   return (
     <JSTab.Navigator
       screenOptions={{
@@ -141,6 +142,7 @@ function JSTabs() {
 }
 
 function NativeTabs() {
+  const { colors } = useTheme();
   return (
     <NativeTab.Navigator
       // iOS 26's UITabBarController uses a *separate* appearance
@@ -215,6 +217,22 @@ function Tabs() {
 }
 
 export function AppNavigator() {
+  const { scheme, colors } = useTheme();
+  // Keeps React Navigation's own backgrounds (screen transitions, modals)
+  // in step with the app's palette instead of its default light theme.
+  const base = scheme === "dark" ? DarkTheme : DefaultTheme;
+  const navTheme = {
+    ...base,
+    colors: {
+      ...base.colors,
+      primary: colors.accent,
+      background: colors.background,
+      card: colors.surface,
+      text: colors.textPrimary,
+      border: colors.border,
+      notification: colors.danger,
+    },
+  };
   // Tapping the "session complete" notification (sessionCompleteNotifier.ts)
   // navigates to that session's Result screen, same tap-to-navigate pattern
   // as the in-app toast (see sessionProcessor.ts's goToResult).
@@ -242,7 +260,7 @@ export function AppNavigator() {
   }, []);
 
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer ref={navigationRef} theme={navTheme}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Tabs" component={Tabs} />
         <Stack.Screen name="Settings" component={SettingsScreen} options={{ presentation: "modal" }} />

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FlatList, Pressable, StyleSheet, Switch, Text, View } from "react-native";
+import { FlatList, Pressable, Switch, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
@@ -11,13 +11,16 @@ import { getAllScripts } from "../services/db/scriptsRepo";
 import { colorForCategory } from "../domain/categoryColor";
 import type { Script } from "../domain/scriptTypes";
 import { formatDuration } from "../utils/dateUtils";
-import { colors, spacing, typography } from "../theme/theme";
+import { spacing, typography } from "../theme/theme";
+import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ScriptLibrary">;
 
 const SCRIPTS = getAllScripts();
 
 export function ScriptLibraryScreen({ navigation }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const [selected, setSelected] = useState<Script | null>(null);
   const [cuesEnabled, setCuesEnabled] = useState(true);
 
@@ -55,7 +58,7 @@ export function ScriptLibraryScreen({ navigation }: Props) {
             <Pressable onPress={() => setSelected(item)}>
               <Card style={[styles.scriptCard, isSelected ? styles.scriptCardSelected : null]}>
                 <View style={styles.scriptCardHeader}>
-                  <Badge label={item.category} {...colorForCategory(item.category)} />
+                  <Badge label={item.category} {...colorForCategory(item.category, colors)} />
                   <Text style={styles.duration}>{formatDuration(item.targetDurationSeconds)}</Text>
                 </View>
                 <Text style={styles.scriptTitle}>{item.title}</Text>
@@ -88,7 +91,7 @@ export function ScriptLibraryScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   headerSpacer: { width: 24 },
@@ -106,4 +109,4 @@ const styles = StyleSheet.create({
   footerText: { flex: 1, gap: spacing.xs },
   footerTitle: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "600" },
   footerSubtitle: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },
-});
+}));

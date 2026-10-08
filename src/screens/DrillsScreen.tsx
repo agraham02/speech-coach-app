@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -14,7 +14,9 @@ import { getDrillCompletionDates } from "../services/db/drillsRepo";
 import { getEffectiveCurriculumLevel } from "../services/db/curriculumRepo";
 import { levelToDifficultyTier } from "../domain/curriculum";
 import type { DifficultyTier } from "../domain/sessionTypes";
-import { colors, spacing, typography } from "../theme/theme";
+import { spacing, typography } from "../theme/theme";
+import { makeStyles, useTheme } from "../theme/ThemeProvider";
+import type { Colors } from "../theme/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Drills">;
 
@@ -27,15 +29,17 @@ const DIFFICULTY_FILTERS: { key: DifficultyFilter; label: string }[] = [
   { key: "hard", label: "Hard" },
 ];
 
-const DIFFICULTY_COLOR: Record<DifficultyTier, string> = {
+const difficultyColors = (colors: Colors): Record<DifficultyTier, string> => ({
   easy: colors.success,
   medium: colors.warning,
   hard: colors.danger,
-};
+});
 
 const EMPTY_STREAK: StreakResult = { currentStreak: 0, longestStreak: 0 };
 
 export function DrillsScreen({ navigation }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   // Soft default, not a hard gate — pre-selects the curriculum-implied tier
   // (with a "Recommended for you" hint) but the user can freely browse
   // other tiers ad hoc, same as any other SegmentedControl choice.
@@ -95,7 +99,7 @@ export function DrillsScreen({ navigation }: Props) {
           <Pressable onPress={() => navigation.navigate("DrillSession", { twisterId: item.id })}>
             <Card style={styles.twisterCard}>
               <View style={styles.twisterCardHeader}>
-                <Badge label={item.difficulty} fg={DIFFICULTY_COLOR[item.difficulty]} bg={colors.surfaceRaised} />
+                <Badge label={item.difficulty} fg={difficultyColors(colors)[item.difficulty]} bg={colors.surfaceRaised} />
                 <Text style={styles.repeatHint}>×{item.repeatCount}</Text>
               </View>
               <Text style={styles.twisterText}>{item.text}</Text>
@@ -107,7 +111,7 @@ export function DrillsScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   title: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
@@ -121,4 +125,4 @@ const styles = StyleSheet.create({
   twisterCardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   repeatHint: { color: colors.textMuted, fontSize: typography.caption, fontWeight: "600" },
   twisterText: { color: colors.textPrimary, fontSize: typography.bodyLarge, fontWeight: "600", lineHeight: 22 },
-});
+}));

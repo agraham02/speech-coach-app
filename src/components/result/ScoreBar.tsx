@@ -1,7 +1,8 @@
 import { useEffect } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import { colors, radii, spacing, typography } from "../../theme/theme";
+import { radii, spacing, typography } from "../../theme/theme";
+import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 import { colorForScore } from "./scoreColor";
 
 interface ScoreBarProps {
@@ -12,7 +13,9 @@ interface ScoreBarProps {
 }
 
 export function ScoreBar({ label, score, notes, suffix }: ScoreBarProps) {
-  const fillColor = colorForScore(score);
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const fillColor = colorForScore(score, colors);
   const targetPercent = Math.max(0, Math.min(10, score)) * 10;
   const widthPercent = useSharedValue(0);
 
@@ -40,7 +43,7 @@ export function ScoreBar({ label, score, notes, suffix }: ScoreBarProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.xs },
   labelRow: { flexDirection: "row", justifyContent: "space-between" },
   label: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "600" },
@@ -48,4 +51,4 @@ const styles = StyleSheet.create({
   track: { height: 6, borderRadius: radii.pill, backgroundColor: colors.surfaceRaised, overflow: "hidden" },
   fill: { height: "100%", borderRadius: radii.pill },
   notes: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },
-});
+}));

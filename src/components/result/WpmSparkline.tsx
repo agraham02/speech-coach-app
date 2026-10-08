@@ -1,7 +1,8 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { LineChart } from "react-native-gifted-charts";
 import type { WpmPoint } from "../../domain/sessionTypes";
-import { colors, spacing, typography } from "../../theme/theme";
+import { spacing, typography } from "../../theme/theme";
+import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 // Real words-per-minute over time, from word-level timestamps (on-device
 // ASR/AssemblyAI) — shown alongside (not instead of) the existing Rate
@@ -9,6 +10,8 @@ import { colors, spacing, typography } from "../../theme/theme";
 // judgment. Only renders when word-level data exists; returns null otherwise
 // so it never shows an empty/broken chart for older or Gemini-fallback sessions.
 export function WpmSparkline({ wpmCurve }: { wpmCurve: WpmPoint[] | null }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   if (!wpmCurve || wpmCurve.length === 0) return null;
 
   const data = wpmCurve.map((point) => ({ value: point.wpm, label: `${point.bucketStartSeconds}s` }));
@@ -44,7 +47,7 @@ export function WpmSparkline({ wpmCurve }: { wpmCurve: WpmPoint[] | null }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.xs, marginTop: spacing.sm },
   label: { color: colors.textSecondary, fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 0.4 },
-});
+}));

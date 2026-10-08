@@ -1,5 +1,5 @@
 import { LineChart } from "react-native-gifted-charts";
-import { colors } from "../../theme/theme";
+import { useTheme } from "../../theme/ThemeProvider";
 
 export interface TrendPoint {
   value: number;
@@ -17,6 +17,7 @@ interface ScoreTrendChartProps {
 }
 
 export function ScoreTrendChart({ data, maxValue = 10, noOfSections = 5, height = 180 }: ScoreTrendChartProps) {
+  const { colors } = useTheme();
   return (
     <LineChart
       data={data}

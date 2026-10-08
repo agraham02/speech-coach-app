@@ -1,8 +1,9 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Card } from "../common/Card";
 import { STEP_LABELS, type SessionStep, type StepState } from "../../domain/sessionSteps";
-import { colors, radii, spacing, typography } from "../../theme/theme";
+import { radii, spacing, typography } from "../../theme/theme";
+import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 const VISIBLE_STEPS: SessionStep[] = ["transcribe", "audio_metrics", "presence", "coach", "cloud_review", "notion"];
 
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export function AnalysisStepsCard({ steps, onRun, disabledReason = {} }: Props) {
+  const styles = useStyles();
   const byStep = new Map(steps.map((s) => [s.step, s]));
   return (
     <Card style={styles.card}>
@@ -36,6 +38,8 @@ export function AnalysisStepsCard({ steps, onRun, disabledReason = {} }: Props) 
 }
 
 function StepRow({ state, onRun, disabledReason }: { state: StepState; onRun: () => void; disabledReason?: string }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const { status, step } = state;
   const busy = status === "running" || status === "pending";
   let detail: string;
@@ -100,7 +104,7 @@ function StepRow({ state, onRun, disabledReason }: { state: StepState; onRun: ()
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   card: { gap: spacing.md },
   label: { color: colors.textMuted, fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 1 },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.md },
@@ -111,4 +115,4 @@ const styles = StyleSheet.create({
   action: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2, borderRadius: radii.pill, backgroundColor: colors.accentMuted },
   actionDisabled: { opacity: 0.4 },
   actionText: { color: colors.accent, fontSize: typography.caption, fontWeight: "700" },
-});
+}));
