@@ -21,6 +21,7 @@ import type { DrillType } from "../domain/drills/drillSpecs";
 import { HistoryScreen } from "../screens/HistoryScreen";
 import { TrendsScreen } from "../screens/TrendsScreen";
 import { DevScreen } from "../screens/DevScreen";
+import { SHOW_DEV_TOOLS } from "../config/devTools";
 import { RecordingScreen } from "../screens/RecordingScreen";
 import { PreviewScreen } from "../screens/PreviewScreen";
 import { ProcessingScreen } from "../screens/ProcessingScreen";
@@ -126,7 +127,7 @@ function JSTabs() {
           tabBarIcon: ({ color, size }) => <Ionicons name="albums-outline" size={size} color={color} />,
         }}
       />
-      {__DEV__ ? (
+      {SHOW_DEV_TOOLS ? (
         <JSTab.Screen
           name="Dev"
           component={DevScreen}
@@ -196,7 +197,7 @@ function NativeTabs() {
           tabBarIcon: ({ focused }) => ({ sfSymbol: focused ? "square.stack.fill" : "square.stack" }),
         }}
       />
-      {__DEV__ ? (
+      {SHOW_DEV_TOOLS ? (
         <NativeTab.Screen
           name="Dev"
           component={DevScreen}

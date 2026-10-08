@@ -30,6 +30,7 @@ import {
 import { formatReminderHour, REMINDER_HOUR_MAX, REMINDER_HOUR_MIN } from "../domain/reminderSettings";
 import { cancelDailyReminder, requestNotificationPermission, syncDailyReminder } from "../services/notifications/reminderScheduler";
 import { colors, spacing, typography } from "../theme/theme";
+import { SHOW_DEV_TOOLS } from "../config/devTools";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
 
@@ -257,7 +258,7 @@ export function SettingsScreen({ navigation }: Props) {
         <Text style={styles.sectionSubtitle}>
           Everything above runs on this phone. Nothing leaves it unless you ask for a deep review or Notion sync.
         </Text>
-        {__DEV__ ? (
+        {SHOW_DEV_TOOLS ? (
           <Pressable onPress={() => navigation.navigate("AsrLab")}>
             <Text style={styles.linkText}>Compare transcription engines (ASR Lab)</Text>
           </Pressable>
