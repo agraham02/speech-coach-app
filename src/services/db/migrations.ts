@@ -546,6 +546,17 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
     });
     currentVersion = await commitVersion(db, 16);
   }
+
+  if (currentVersion < 17) {
+    // Conversation log (debriefs can be deleted), progress keepsake videos
+    // (one kept per month, compressed, when old videos are cleared), and
+    // the combined local + cloud session score.
+    await addColumnIfMissing(db, "social_events", "deleted_at", "TEXT");
+    await addColumnIfMissing(db, "sessions", "video_keepsake", "INTEGER NOT NULL DEFAULT 0");
+    await addColumnIfMissing(db, "sessions", "video_compressed_at", "TEXT");
+    await addColumnIfMissing(db, "sessions", "session_score", "REAL");
+    currentVersion = await commitVersion(db, 17);
+  }
 }
 
 // Commits each migration's version as soon as that migration finishes.

@@ -132,15 +132,17 @@ export async function getScoresBySessionId(sessionId: string): Promise<SessionSc
   return row ? rowToScores(row) : null;
 }
 
-// The overall score of the most recent *other* graded session before this
-// one, for Result screen's "vs your last session" delta — null if this is the
-// first graded session, or the given recordedAt is the earliest.
+// The score of the most recent *other* scored session before this one, for
+// Result screen's "vs your last session" delta — the combined session score,
+// or the cloud score for sessions from before it existed. Null if this is
+// the first scored session.
 export async function getPreviousOverallScore(recordedAt: string): Promise<number | null> {
   const db = await getDatabase();
   const row = await db.getFirstAsync<{ overall_score: number }>(
-    `SELECT sc.overall_score FROM scores sc
-     JOIN sessions s ON s.id = sc.session_id
+    `SELECT COALESCE(s.session_score, sc.overall_score) AS overall_score
+     FROM sessions s LEFT JOIN scores sc ON sc.session_id = s.id
      WHERE s.status = 'done' AND s.deleted_at IS NULL AND s.recorded_at < ?
+       AND COALESCE(s.session_score, sc.overall_score) IS NOT NULL
      ORDER BY s.recorded_at DESC LIMIT 1`,
     [recordedAt],
   );

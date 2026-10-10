@@ -61,6 +61,8 @@ export interface SessionRow {
   updated_at: string | null;
   subject_json: string | null;
   notion_block_id: string | null;
+  video_keepsake?: number | null;
+  session_score?: number | null;
 }
 
 // Generic nullable-JSON-column parser — logs and degrades to null rather
@@ -121,6 +123,8 @@ export function rowToSession(row: SessionRow): Session {
     updatedAt: row.updated_at ?? null,
     subjectExtras: parseNullableJson<SessionSubjectExtras>(row.subject_json ?? null, "subject_json"),
     notionBlockId: row.notion_block_id ?? null,
+    videoKeepsake: row.video_keepsake === 1,
+    sessionScore: row.session_score ?? null,
   };
 }
 

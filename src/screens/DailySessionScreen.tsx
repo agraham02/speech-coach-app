@@ -16,7 +16,7 @@ import { launchStep } from "../services/practice/launchStep";
 import { subscribePracticeSteps } from "../services/practice/practiceEvents";
 import { showGlobalToast } from "../components/common/ToastProvider";
 import { getLesson } from "../content/lessons";
-import { todayISODate } from "../utils/dateUtils";
+import { isoDateFromDate, todayISODate } from "../utils/dateUtils";
 import type { PlanStep } from "../domain/dailyPlan";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
@@ -52,7 +52,9 @@ export function DailySessionScreen({ navigation }: Props) {
         // Review today's rep with the three-pass player.
         const today = todayISODate();
         const sessions = await getAllSessions();
-        const latest = sessions.find((s) => s.recordedAt.slice(0, 10) === today && !s.videoDeletedAt);
+        // recordedAt is UTC; compare its *local* date, or an evening rep
+        // reads as tomorrow's.
+        const latest = sessions.find((s) => isoDateFromDate(new Date(s.recordedAt)) === today && !s.videoDeletedAt);
         if (!latest) {
           showGlobalToast("Record today's rep first, then review it.", "info");
           return;

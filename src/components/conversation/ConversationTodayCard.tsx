@@ -130,6 +130,15 @@ export function ConversationTodayCard() {
             onPress={() => navigation.navigate("Conversation", { drill: "conv_replay" })}
           />
         ) : null}
+        <ListRow
+          icon="book-outline"
+          iconColor={c.fg}
+          iconBackground={c.bg}
+          title="Conversation log"
+          subtitle="Past primes and debriefs"
+          chevron
+          onPress={() => navigation.navigate("ConversationLog")}
+        />
       </View>
     </Card>
   );

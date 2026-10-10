@@ -1,0 +1,39 @@
+def safeExtGet(prop, fallback) {
+    rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
+}
+
+apply plugin: "com.android.library"
+apply plugin: "kotlin-android"
+
+android {
+    namespace "com.speechcoach.facelandmarker"
+    compileSdkVersion safeExtGet("compileSdkVersion", 35)
+
+    defaultConfig {
+        minSdkVersion safeExtGet("minSdkVersion", 26)
+        targetSdkVersion safeExtGet("targetSdkVersion", 35)
+    }
+
+    // One copy of the model, shared with the iOS pod.
+    sourceSets {
+        main.assets.srcDirs += ["${projectDir}/../assets"]
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
+}
+
+dependencies {
+    implementation "com.facebook.react:react-native:+"
+    api project(":react-native-vision-camera")
+    implementation "androidx.camera:camera-core:1.5.1"
+    implementation "com.google.mediapipe:tasks-vision:0.10.35"
+}

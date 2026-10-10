@@ -13,6 +13,9 @@ interface FilterOption {
 interface FilterSheetProps {
   visible: boolean;
   onClose: () => void;
+  statusOptions: FilterOption[];
+  statusValue: string;
+  onStatusChange: (value: string) => void;
   categoryOptions: string[]; // "all" plus every distinct category, "All Topics" label derived for "all"
   categoryValue: string;
   onCategoryChange: (value: string) => void;
@@ -23,13 +26,14 @@ interface FilterSheetProps {
 }
 
 // A hand-rolled slide-up sheet (RN's Modal for portal/back-button handling,
-// Reanimated for the actual motion) — holds the Topic and Duration filters
-// that used to sit as two permanent chip rows on History, freeing that
-// screen up when there's little to filter yet. Status stays as its own
-// always-visible row on History since it's the one people reach for most.
+// Reanimated for the actual motion) — holds the Show, Topic and Length
+// filters, keeping the Library itself down to a search box and the list.
 export function FilterSheet({
   visible,
   onClose,
+  statusOptions,
+  statusValue,
+  onStatusChange,
   categoryOptions,
   categoryValue,
   onCategoryChange,
@@ -69,7 +73,26 @@ export function FilterSheet({
           </Pressable>
         </View>
 
-        <Text style={styles.sectionLabel}>TOPIC</Text>
+        <Text style={styles.sectionLabel}>SHOW</Text>
+        <View style={styles.chipRowWrap}>
+          {statusOptions.map((option) => {
+            const selected = statusValue === option.key;
+            return (
+              <Pressable
+                key={option.key}
+                onPress={() => onStatusChange(option.key)}
+                style={[styles.chip, selected && styles.chipSelected]}
+                accessibilityRole="button"
+                accessibilityLabel={`Show ${option.label}`}
+                accessibilityState={{ selected }}
+              >
+                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{option.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <Text style={[styles.sectionLabel, styles.sectionSpacer]}>TOPIC</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRowScroll}>
           {categoryOptions.map((category) => {
             const selected = categoryValue === category;

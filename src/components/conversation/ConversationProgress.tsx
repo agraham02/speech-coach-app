@@ -1,10 +1,13 @@
 import { useCallback, useState } from "react";
 import { View } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { RootStackParamList } from "../../navigation";
 import { Card } from "../common/Card";
 import { Txt } from "../common/Txt";
 import { StatTile } from "../common/StatTile";
 import { MetricChart } from "../common/MetricChart";
+import { ListRow } from "../common/ListRow";
 import { getConversationAttemptSummaries } from "../../services/db/progressRepo";
 import { getPredictionPairs } from "../../services/db/socialRepo";
 import { predictionMessage, summarizePredictions, type PredictionSummary } from "../../domain/conversation/realWorld";
@@ -18,6 +21,7 @@ export function ConversationProgress() {
   const styles = useStyles();
   const { colors } = useTheme();
   const c = colors.skill.conversation;
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [attempts, setAttempts] = useState<AttemptSummary[]>([]);
   const [predictions, setPredictions] = useState<PredictionSummary | null>(null);
   const [actualSeries, setActualSeries] = useState<number[]>([]);
@@ -54,6 +58,15 @@ export function ConversationProgress() {
           {predictions ? predictionMessage(predictions) : ""}
         </Txt>
         {actualSeries.length >= 2 ? <MetricChart title="How awkward it actually was" values={actualSeries} maxValue={10} color={c.fg} /> : null}
+        <ListRow
+          icon="book-outline"
+          iconColor={c.fg}
+          iconBackground={c.bg}
+          title="Conversation log"
+          subtitle="Review or delete past primes and debriefs"
+          chevron
+          onPress={() => navigation.navigate("ConversationLog")}
+        />
       </Card>
 
       <Card style={styles.card}>

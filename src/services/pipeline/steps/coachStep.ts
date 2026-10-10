@@ -9,6 +9,7 @@ import { StepError } from "../stepRunner";
 import { recordRepOutcome } from "../../db/progressRepo";
 import { showGlobalToast } from "../../../components/common/ToastProvider";
 import { coachWithOnDeviceModel } from "../../onDeviceLlm/onDeviceCoach";
+import { measuredVoice, refreshSessionScore } from "../../sessions/sessionScoreService";
 
 // On-device coaching: measured signals -> one strength, one tip, a focus
 // skill and a follow-up question. Uses the Apple on-device model when
@@ -22,13 +23,7 @@ export async function coachStep(sessionId: string): Promise<void> {
     describeSessionSubject(session),
   ]);
 
-  const words = session.transcriptWords;
-  const wpmAvg =
-    words && words.length > 0 && session.durationSeconds > 0
-      ? Math.round(words.length / (Math.max(session.durationSeconds, 1) / 60))
-      : null;
-  const pitchRangeHz =
-    session.pitchMaxHz != null && session.pitchMinHz != null ? Math.round(session.pitchMaxHz - session.pitchMinHz) : null;
+  const { wpmAvg, pitchRangeHz } = measuredVoice(session);
 
   const input = {
     transcript: session.transcriptVerbatim,
@@ -44,6 +39,7 @@ export async function coachStep(sessionId: string): Promise<void> {
   const rules = ruleCoach(input);
   const output: CoachOutput = (await coachWithOnDeviceModel(input, rules)) ?? rules;
   await putArtifact(sessionId, "coach", output);
+  await refreshSessionScore(sessionId);
 
   // Impromptu reps move skill mastery — once per session, so re-running the
   // coach can't count the same rep twice.

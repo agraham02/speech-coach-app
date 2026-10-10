@@ -7,6 +7,7 @@ import type { TranscriptWord } from "../../domain/sessionTypes";
 import { radii, spacing, typography } from "../../theme/theme";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 import { getReviewPasses, markReviewPass } from "../../services/db/progressRepo";
+import { formatDuration } from "../../utils/dateUtils";
 
 // Vinh Giang's self-review method: watch the same take three times, each
 // time paying attention to one channel. Watching with the sound off exposes
@@ -67,6 +68,7 @@ export function ThreePassPlayer({
     currentOffsetFromLive: null,
     bufferedPosition: 0,
   });
+  const { isPlaying } = useEvent(player, "playingChange", { isPlaying: player.playing });
 
   useEffect(() => {
     player.muted = pass === "watch";
@@ -89,6 +91,17 @@ export function ThreePassPlayer({
     setPass(next);
     player.currentTime = 0;
     player.pause();
+  }
+
+  // The listen pass hides the picture — and with it the native play button —
+  // so it gets its own control.
+  function togglePlay() {
+    if (isPlaying) {
+      player.pause();
+      return;
+    }
+    if (player.duration > 0 && player.currentTime >= player.duration - 0.25) player.currentTime = 0;
+    player.play();
   }
 
   const currentMs = currentTime * 1000;
@@ -128,8 +141,8 @@ export function ThreePassPlayer({
         {pass === "listen" ? (
           // The video stays mounted (and audible) under an opaque panel —
           // unmounting it would stop playback on some platforms.
-          <View style={styles.listenPanel} pointerEvents="box-none">
-            <ScrollView contentContainerStyle={styles.listenScroll}>
+          <View style={styles.listenPanel}>
+            <ScrollView style={styles.listenScrollView} contentContainerStyle={styles.listenScroll}>
               {transcriptWords?.length ? (
                 <Text style={styles.listenText}>
                   {transcriptWords.map((w, i) => (
@@ -142,6 +155,20 @@ export function ThreePassPlayer({
                 <Text style={styles.listenText}>{transcriptText ?? "Listening only — no picture."}</Text>
               )}
             </ScrollView>
+            <View style={styles.listenControls}>
+              <Pressable
+                onPress={togglePlay}
+                style={styles.playButton}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={isPlaying ? "Pause" : "Play"}
+              >
+                <Ionicons name={isPlaying ? "pause" : "play"} size={24} color={colors.onAccent} />
+              </Pressable>
+              <Text style={styles.listenTime}>
+                {formatDuration(Math.floor(currentTime))} / {formatDuration(Math.floor(player.duration || 0))}
+              </Text>
+            </View>
           </View>
         ) : null}
       </View>
@@ -183,10 +210,29 @@ const useStyles = makeStyles(({ colors }) => ({
     top: 0,
     left: 0,
     right: 0,
-    bottom: 64, // leave the native controls reachable
+    bottom: 0,
     backgroundColor: colors.surface,
   },
+  listenScrollView: { flex: 1 },
   listenScroll: { padding: spacing.md },
+  listenControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  playButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.accent,
+  },
+  listenTime: { color: colors.textSecondary, fontSize: typography.caption, fontVariant: ["tabular-nums"] },
   listenText: { color: colors.textSecondary, fontSize: typography.bodyLarge, lineHeight: 26 },
   listenWordActive: { color: colors.textPrimary, fontWeight: "700", backgroundColor: colors.accentMuted },
   footer: { flexDirection: "row", alignItems: "center", gap: spacing.sm },

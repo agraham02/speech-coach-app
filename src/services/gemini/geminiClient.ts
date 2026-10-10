@@ -2,9 +2,11 @@ import { File } from "expo-file-system";
 import { getGeminiApiKey } from "../secrets/secretsStore";
 import { GeminiApiError, type UploadedGeminiFile } from "./types";
 import { fetchWithTimeout, withDeadline } from "../../utils/fetchWithTimeout";
+import { logger } from "../../utils/logger";
 
 const API_BASE = "https://generativelanguage.googleapis.com";
 const MODEL = "gemini-flash-latest";
+const SERVER_ERROR_RETRY_DELAYS_MS = [2_000, 6_000, 15_000];
 
 async function apiKeyQuery(): Promise<string> {
   const key = await getGeminiApiKey();
@@ -151,23 +153,33 @@ export async function generateContent(args: {
     ? [{ file_data: { file_uri: args.fileUri, mime_type: args.mimeType } }, { text: args.systemPrompt }]
     : [{ text: args.systemPrompt }];
 
-  const response = await fetchWithTimeout(
-    `${API_BASE}/v1beta/models/${MODEL}:generateContent?${await apiKeyQuery()}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: args.responseSchema,
-          ...(hasMedia ? { mediaResolution: args.mediaResolution ?? "MEDIA_RESOLUTION_LOW" } : {}),
-        },
-      }),
+  const url = `${API_BASE}/v1beta/models/${MODEL}:generateContent?${await apiKeyQuery()}`;
+  const body = JSON.stringify({
+    contents: [{ parts }],
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: args.responseSchema,
+      ...(hasMedia ? { mediaResolution: args.mediaResolution ?? "MEDIA_RESOLUTION_LOW" } : {}),
     },
-    hasMedia ? 180_000 : 45_000,
-    "Gemini analysis",
-  );
+  });
+
+  // 5xx (mostly 503 "model overloaded") is Gemini-side and usually clears
+  // within seconds, so it's retried here instead of failing the whole step.
+  let response: Response;
+  for (let attempt = 0; ; attempt++) {
+    response = await fetchWithTimeout(
+      url,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body },
+      hasMedia ? 180_000 : 45_000,
+      "Gemini analysis",
+    );
+    if (response.status < 500 || attempt >= SERVER_ERROR_RETRY_DELAYS_MS.length) break;
+    const retryAfterSeconds = Number(response.headers.get("retry-after"));
+    const delayMs =
+      retryAfterSeconds > 0 ? Math.min(retryAfterSeconds * 1000, 30_000) : SERVER_ERROR_RETRY_DELAYS_MS[attempt];
+    logger.warn(`[gemini] generateContent ${response.status}, retrying in ${Math.round(delayMs / 1000)}s`);
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
 
   if (!response.ok) {
     throw new GeminiApiError(

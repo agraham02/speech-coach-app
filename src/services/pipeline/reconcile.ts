@@ -3,6 +3,7 @@ import { getReferencedVideoFiles, getSessionById } from "../db/sessionsRepo";
 import { deleteRecording, listSessionFiles } from "../storage/videoStorage";
 import { refreshSessionStatus } from "./stepRunner";
 import { runPendingSteps } from "./sessionPipeline";
+import { backfillSessionScores } from "../sessions/sessionScoreService";
 import { logger } from "../../utils/logger";
 
 // Steps resume automatically only for recent sessions and only a few times,
@@ -44,6 +45,7 @@ export async function reconcileOnLaunch(): Promise<void> {
     if (stale.length) logger.info(`[reconcile] marked ${stale.length} interrupted step(s)`);
 
     await cleanUpOrphanedVideos();
+    await backfillSessionScores();
   } catch (error) {
     logger.error(`[reconcile] failed — ${(error as Error).message}`);
   }

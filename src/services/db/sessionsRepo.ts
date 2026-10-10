@@ -242,7 +242,7 @@ export interface SessionWithScore extends Session {
 export async function getAllSessionsWithScores(): Promise<SessionWithScore[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<SessionWithScoreRow>(
-    `SELECT s.*, sc.overall_score
+    `SELECT s.*, COALESCE(s.session_score, sc.overall_score) AS overall_score
      FROM sessions s
      LEFT JOIN scores sc ON sc.session_id = s.id
      WHERE s.deleted_at IS NULL

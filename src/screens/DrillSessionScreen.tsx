@@ -185,6 +185,13 @@ export function DrillSessionScreen({ route, navigation }: Props) {
           ? transcript.lastResultAtMs - transcript.firstResultAtMs + FIRST_RESULT_LATENCY_MS
           : now - attemptStartedAtRef.current;
       const score = scoreAlignment(target, tokens, ops, { speakingMs }, twister.focusSounds);
+      // What the recognizer delivered, segment by segment — the only way to
+      // diagnose miscounted reps from a device's shared logs.
+      logger.info(
+        `[drill] ${twister.id}: ${score.repsCompleted}/${twister.repeatCount} reps, ${score.accuracyPercent}% — heard ${transcript.committed
+          .map((u) => `[task ${u.taskId}] "${u.text}"`)
+          .join(" ")}`,
+      );
       const outcome = scoreAccuracy(score.accuracyPercent, score.wpm, targetWpm);
       const change = await recordDrillOutcome({
         drillType: "twister",

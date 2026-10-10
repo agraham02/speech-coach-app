@@ -1,5 +1,6 @@
+import { useContext } from "react";
 import { Platform } from "react-native";
-import { useBottomTabBarHeight } from "react-native-bottom-tabs";
+import { BottomTabBarHeightContext } from "react-native-bottom-tabs";
 
 // Android's JS tab bar (see navigation/index.tsx) reserves its own space in
 // the layout, so screens there already sit above it with no extra padding
@@ -9,11 +10,10 @@ import { useBottomTabBarHeight } from "react-native-bottom-tabs";
 // view) needs to explicitly pad for its height, or it renders hidden
 // underneath the glass.
 //
-// Calling useBottomTabBarHeight conditionally on Platform.OS is safe here
-// even though it's a hook: Platform.OS never changes for the lifetime of a
-// running app, so the branch taken never flips between renders.
+// Reads the context directly rather than useBottomTabBarHeight(), which
+// throws outside a tab: some of these screens are also pushed onto the root
+// stack (Practice, Frameworks, Trends), where there's no tab bar to clear.
 export function useTabBarBottomInset(): number {
-  if (Platform.OS !== "ios") return 0;
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  return useBottomTabBarHeight();
+  const height = useContext(BottomTabBarHeightContext);
+  return Platform.OS === "ios" ? (height ?? 0) : 0;
 }

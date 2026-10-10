@@ -48,7 +48,7 @@ function toSummary(row: ScoredSessionRow): ScoredSessionSummary {
 export async function getScoredSessionSummaries(): Promise<ScoredSessionSummary[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<ScoredSessionRow>(
-    `SELECT s.recorded_at, s.duration_seconds, sc.overall_score, sc.structure_score, sc.content_coherence_score,
+    `SELECT s.recorded_at, s.duration_seconds, COALESCE(s.session_score, sc.overall_score) AS overall_score, sc.structure_score, sc.content_coherence_score,
             sc.rate_score, sc.volume_score, sc.pitch_melody_score, sc.tonality_score, sc.pausing_score,
             sc.archetype_detected, sc.annotations_json
      FROM sessions s
@@ -73,6 +73,7 @@ export interface SessionMetricPoint {
   recordedAt: string;
   wpm: number | null;
   fillerRate: number | null;
+  // Gaze-measured eye contact only (older head-pose-only takes are null).
   eyeContact: number | null;
 }
 
@@ -91,7 +92,7 @@ export async function getSessionMetricSeries(limit = 30): Promise<SessionMetricP
     `SELECT * FROM (
        SELECT s.recorded_at, s.duration_seconds, s.filler_rate_per_minute,
               json_array_length(s.transcript_words_json) AS word_count,
-              json_extract(a.json, '$.eyeContactPercent') AS eye_contact
+              CASE WHEN json_extract(a.json, '$.eyeContactSource') = 'gaze' THEN json_extract(a.json, '$.eyeContactPercent') END AS eye_contact
        FROM sessions s
        LEFT JOIN session_artifacts a ON a.session_id = s.id AND a.kind = 'presence'
        WHERE s.status = 'done' AND s.deleted_at IS NULL AND s.session_type IN ('spontaneous', 'concise', 'free_record')
@@ -116,7 +117,7 @@ export async function getPromptComparison(
   type Row = { recorded_at: string; duration_seconds: number; word_count: number | null; filler_rate_per_minute: number | null; eye_contact: number | null };
   const select = `SELECT s.recorded_at, s.duration_seconds, s.filler_rate_per_minute,
                          json_array_length(s.transcript_words_json) AS word_count,
-                         json_extract(a.json, '$.eyeContactPercent') AS eye_contact
+                         CASE WHEN json_extract(a.json, '$.eyeContactSource') = 'gaze' THEN json_extract(a.json, '$.eyeContactPercent') END AS eye_contact
                   FROM sessions s
                   LEFT JOIN session_artifacts a ON a.session_id = s.id AND a.kind = 'presence'`;
   const current = await db.getFirstAsync<Row & { prompt_id: string }>(`${select.replace("SELECT ", "SELECT s.prompt_id, ")} WHERE s.id = ?`, [sessionId]);

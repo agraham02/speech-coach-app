@@ -115,7 +115,7 @@ export async function getOpenEvents(): Promise<SocialEvent[]> {
   const db = await getDatabase();
   const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
   const rows = await db.getAllAsync<EventRow>(
-    `SELECT * FROM social_events WHERE completed_at IS NULL AND created_at >= ? ORDER BY created_at DESC`,
+    `SELECT * FROM social_events WHERE completed_at IS NULL AND deleted_at IS NULL AND created_at >= ? ORDER BY created_at DESC`,
     [since],
   );
   return rows.map(toEvent);
@@ -156,12 +156,40 @@ export async function saveDebrief(input: {
   return id!;
 }
 
+// Every Prime and Debrief, newest first, for the conversation log.
+export async function getEventHistory(): Promise<SocialEvent[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<EventRow>(
+    `SELECT * FROM social_events WHERE deleted_at IS NULL ORDER BY COALESCE(completed_at, created_at) DESC`,
+  );
+  return rows.map(toEvent);
+}
+
+export async function getEventBlankMoments(eventId: string): Promise<BlankMoment[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<BlankRow>(
+    `SELECT * FROM blank_moments WHERE event_id = ? AND deleted_at IS NULL ORDER BY created_at`,
+    [eventId],
+  );
+  return rows.map(toBlank);
+}
+
+// Removes an event from the log, its stats and its replay practice.
+export async function deleteEvent(id: string): Promise<void> {
+  const db = await getDatabase();
+  const now = new Date().toISOString();
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(`UPDATE social_events SET deleted_at = ? WHERE id = ?`, [now, id]);
+    await db.runAsync(`UPDATE blank_moments SET deleted_at = ? WHERE event_id = ? AND deleted_at IS NULL`, [now, id]);
+  });
+}
+
 // Pairs for the predicted-vs-actual chart, oldest first.
 export async function getPredictionPairs(limit = 30): Promise<(PredictionPair & { at: string })[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<{ predicted_awkward: number; actual_awkward: number; completed_at: string }>(
     `SELECT predicted_awkward, actual_awkward, completed_at FROM social_events
-     WHERE predicted_awkward IS NOT NULL AND actual_awkward IS NOT NULL AND completed_at IS NOT NULL
+     WHERE predicted_awkward IS NOT NULL AND actual_awkward IS NOT NULL AND completed_at IS NOT NULL AND deleted_at IS NULL
      ORDER BY completed_at DESC LIMIT ?`,
     [limit],
   );

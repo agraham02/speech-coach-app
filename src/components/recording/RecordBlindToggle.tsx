@@ -12,7 +12,7 @@ export function RecordBlindToggle({ value, onValueChange, disabled }: RecordBlin
     <View style={styles.row}>
       <View style={styles.textGroup}>
         <Text style={styles.label}>Record blind</Text>
-        <Text style={styles.sublabel}>Hide the preview while recording</Text>
+        <Text style={styles.sublabel}>Blank screen while recording. Switch any time with the eye button.</Text>
       </View>
       <Switch
         value={value}

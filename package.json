@@ -36,6 +36,7 @@
     "react-native": "0.86.2",
     "react-native-audio-api": "^0.13.2",
     "react-native-bottom-tabs": "^1.4.0",
+    "react-native-compressor": "^2.0.3",
     "react-native-executorch": "^0.9.3",
     "react-native-executorch-expo-resource-fetcher": "^0.9.1",
     "react-native-gesture-handler": "~2.32.0",
@@ -46,9 +47,9 @@
     "react-native-screens": "~4.26.0",
     "react-native-svg": "15.15.4",
     "react-native-vision-camera": "^4.7.3",
-    "react-native-vision-camera-face-detector": "^1.10.2",
     "react-native-worklets": "0.10.1",
     "react-native-worklets-core": "^1.6.3",
+    "vision-camera-face-landmarker": "file:modules/vision-camera-face-landmarker",
     "zod": "^4.6.5"
   },
   "devDependencies": {

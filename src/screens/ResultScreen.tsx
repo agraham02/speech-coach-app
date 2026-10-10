@@ -18,6 +18,9 @@ import { ThreePassPlayer } from "../components/review/ThreePassPlayer";
 import { AnalysisStepsCard } from "../components/result/AnalysisStepsCard";
 import { CoachCard } from "../components/result/CoachCard";
 import { ComparisonCard } from "../components/result/ComparisonCard";
+import { ScoreBreakdownCard } from "../components/result/ScoreBreakdownCard";
+import type { SessionScoreBreakdown } from "../domain/sessionScore";
+import { refreshSessionScore } from "../services/sessions/sessionScoreService";
 import { FeltObservedCard } from "../components/result/FeltObservedCard";
 import { getPromptComparison } from "../services/db/statsRepo";
 import type { CoachOutput } from "../domain/coach/ruleCoach";
@@ -32,6 +35,7 @@ import { getPrompt } from "../services/db/promptsRepo";
 import { getScriptById } from "../services/db/scriptsRepo";
 import { deleteRecording, resolveVideoUri, videoExists } from "../services/storage/videoStorage";
 import { requestStep } from "../services/pipeline/sessionPipeline";
+import { setVideoKeepsake } from "../services/data/videoKeepsakes";
 import { getArtifact } from "../services/db/artifactsRepo";
 import { describeSessionSubject, subjectFromSession, type SessionSubjectSummary } from "../services/sessions/sessionSubject";
 import { useSessionSteps } from "../hooks/useSessionSteps";
@@ -98,6 +102,7 @@ export function ResultScreen({ route, navigation }: Props) {
   const [subjectSummary, setSubjectSummary] = useState<SessionSubjectSummary | null>(null);
   const [cloudTranscript, setCloudTranscript] = useState<CloudTranscriptArtifact | null>(null);
   const [coach, setCoach] = useState<CoachOutput | null>(null);
+  const [breakdown, setBreakdown] = useState<SessionScoreBreakdown | null>(null);
   const [comparison, setComparison] = useState<Awaited<ReturnType<typeof getPromptComparison>>>(null);
 
   // Reloaded whenever an analysis step finishes, so results fill in live.
@@ -112,6 +117,10 @@ export function ResultScreen({ route, navigation }: Props) {
     getScoresBySessionId(sessionId).then(setScores);
     getArtifact<CloudTranscriptArtifact>(sessionId, "cloud_transcript").then(setCloudTranscript);
     getArtifact<CoachOutput>(sessionId, "coach").then(setCoach);
+    // Sessions analyzed before the combined score existed get one now.
+    getArtifact<SessionScoreBreakdown>(sessionId, "session_score").then((b) =>
+      b ? setBreakdown(b) : refreshSessionScore(sessionId).then(setBreakdown),
+    );
     getPromptComparison(sessionId).then(setComparison);
   }, [sessionId]);
 
@@ -178,6 +187,13 @@ export function ResultScreen({ route, navigation }: Props) {
     navigation.navigate("Recording", subject);
   }
 
+  async function handleToggleKeepsake() {
+    const keep = !session!.videoKeepsake;
+    await setVideoKeepsake(sessionId, keep);
+    setSession((prev) => (prev ? { ...prev, videoKeepsake: keep } : prev));
+    showToast(keep ? "Kept as a progress video — clearing old videos won't remove it" : "No longer a progress video", "success");
+  }
+
   async function handleDeleteVideo() {
     await deleteSessionVideo(sessionId);
     deleteRecording(resolveVideoUri(session!));
@@ -216,6 +232,9 @@ export function ResultScreen({ route, navigation }: Props) {
     session.pitchMaxHz != null && session.pitchMinHz != null ? Math.round(session.pitchMaxHz - session.pitchMinHz) : null;
   // Deep-review annotations quote Gemini's own transcript, so show that one
   // when annotating; otherwise the on-device transcript.
+  // The combined phone + cloud score; the cloud's own score only until the
+  // combined one has been computed.
+  const overall = breakdown?.overall ?? scores?.overallScore ?? null;
   const annotatedTranscript =
     scores && scores.annotations.length > 0 && cloudTranscript ? cloudTranscript.verbatim : session.transcriptVerbatim ?? "";
 
@@ -228,42 +247,54 @@ export function ResultScreen({ route, navigation }: Props) {
             {subjectSummary?.title ?? ""}
           </Text>
         </View>
-        <Pressable
-          onPress={handleDelete}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Delete session"
-        >
-          <Ionicons name="trash-outline" size={22} color={colors.textSecondary} />
-        </Pressable>
+        <View style={styles.headerActions}>
+          {hasVideo ? (
+            <Pressable
+              onPress={handleToggleKeepsake}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityState={{ selected: !!session.videoKeepsake }}
+              accessibilityLabel={session.videoKeepsake ? "Remove from progress videos" : "Keep as a progress video"}
+            >
+              <Ionicons
+                name={session.videoKeepsake ? "bookmark" : "bookmark-outline"}
+                size={22}
+                color={session.videoKeepsake ? colors.accent : colors.textSecondary}
+              />
+            </Pressable>
+          ) : null}
+          <Pressable
+            onPress={handleDelete}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Delete session"
+          >
+            <Ionicons name="trash-outline" size={22} color={colors.textSecondary} />
+          </Pressable>
+        </View>
       </View>
 
       <SegmentedControl options={tabs} value={tab} onChange={setTab} />
 
       {tab === "overview" ? (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {scores ? (
+          {overall != null ? (
             <HeroCard
               contentStyle={styles.scoreHeroContent}
-              accent={colorForScore(scores.overallScore, colors)}
+              accent={colorForScore(overall, colors)}
               accentSecondary={colors.violet}
             >
-              <ProgressRing
-                size={132}
-                strokeWidth={10}
-                progress={scores.overallScore / 10}
-                color={colorForScore(scores.overallScore, colors)}
-              >
-                <Text style={[styles.scoreHeroNumber, { color: colorForScore(scores.overallScore, colors) }]}>
-                  {scores.overallScore}
-                </Text>
+              <ProgressRing size={132} strokeWidth={10} progress={overall / 10} color={colorForScore(overall, colors)}>
+                <Text style={[styles.scoreHeroNumber, { color: colorForScore(overall, colors) }]}>{overall}</Text>
                 <Text style={styles.scoreHeroOutOf}>OUT OF 10</Text>
               </ProgressRing>
-              <Text style={[styles.scoreHeroArchetype, { color: colorForScore(scores.overallScore, colors) }]}>
-                {scores.archetypeDetected}
-              </Text>
-              <ScoreDelta current={scores.overallScore} previous={previousOverallScore} />
-              <Text style={styles.scoreHeroFit}>{scores.archetypeFitForTopic}</Text>
+              {scores ? (
+                <Text style={[styles.scoreHeroArchetype, { color: colorForScore(overall, colors) }]}>
+                  {scores.archetypeDetected}
+                </Text>
+              ) : null}
+              <ScoreDelta current={overall} previous={previousOverallScore} />
+              {scores ? <Text style={styles.scoreHeroFit}>{scores.archetypeFitForTopic}</Text> : null}
             </HeroCard>
           ) : coach ? null : (
             <Card style={styles.numbersCard}>
@@ -279,6 +310,8 @@ export function ResultScreen({ route, navigation }: Props) {
               <Text style={styles.rowSubtitle}>Measured on this phone. A deep review adds structure and presence scores.</Text>
             </Card>
           )}
+
+          {breakdown ? <ScoreBreakdownCard breakdown={breakdown} /> : null}
 
           {coach ? <CoachCard coach={coach} onAnswerFollowUp={handleAnswerFollowUp} /> : null}
 
@@ -450,6 +483,7 @@ const useStyles = makeStyles(({ colors }) => ({
   centered: { alignItems: "center", justifyContent: "center" },
   header: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: spacing.md },
   headerText: { flex: 1, gap: 2 },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: spacing.lg },
   headerType: { color: colors.textMuted, fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 1 },
   headerTitle: { color: colors.textPrimary, fontSize: typography.bodyLarge, fontWeight: "700", lineHeight: 22 },
   numbersCard: { gap: spacing.md },

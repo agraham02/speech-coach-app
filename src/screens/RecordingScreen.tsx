@@ -57,7 +57,7 @@ export function RecordingScreen({ route, navigation }: Props) {
   const cameraRef = useRef<VisionCamera>(null);
   const { hasAllPermissions, hasCameraPermission, hasMicrophonePermission, requestCameraPermission, requestMicrophonePermission } =
     useCameraPermissions();
-  const { faceDetected, framingStatus, onFacesDetected, faceDetectionOptions, startTimeline, stopTimeline } = useFaceDetection();
+  const { faceDetected, framingStatus, onFaceFrame, startTimeline, stopTimeline } = useFaceDetection();
   const { elapsedSeconds, start, stop } = useRecordingTimer();
   const [recordBlind, setRecordBlind] = useState(!isScript && getRecordBlindPref());
   const [isFinishing, setIsFinishing] = useState(false);
@@ -246,8 +246,7 @@ export function RecordingScreen({ route, navigation }: Props) {
       <CameraPreview
         cameraRef={cameraRef}
         isActive
-        onFacesDetected={onFacesDetected}
-        faceDetectionOptions={faceDetectionOptions}
+        onFaceFrame={onFaceFrame}
       />
 
       {stage === "warmup" && (
@@ -289,7 +288,21 @@ export function RecordingScreen({ route, navigation }: Props) {
       {stage === "idle" && !isScript && <FramingGuideOverlay status={framingStatus} />}
 
       {stage === "recording" && !isScript && recordBlind && (
-        <RecordBlindOverlay promptText={subject.prompt.text} elapsedSeconds={remainingRecordingSeconds} />
+        <RecordBlindOverlay promptText={subject.prompt.text} remainingSeconds={remainingRecordingSeconds} />
+      )}
+
+      {/* Show or hide the preview mid-take. Above the blind overlay so it
+          stays reachable; dimmed while blind so it doesn't draw the eye. */}
+      {stage === "recording" && !isScript && !isFinishing && (
+        <Pressable
+          onPress={() => handleToggleRecordBlind(!recordBlind)}
+          style={[styles.iconButton, styles.previewToggle, { top: insets.top + spacing.sm }, recordBlind && styles.previewToggleBlind]}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel={recordBlind ? "Show preview" : "Hide preview"}
+        >
+          <Ionicons name={recordBlind ? "eye-off-outline" : "eye-outline"} size={22} color={colors.textPrimary} />
+        </Pressable>
       )}
 
       {/* Script Practice replaces the spontaneous-mode prompt banner/framing
@@ -403,6 +416,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   promptBannerSlot: { flex: 1 },
+  previewToggle: { position: "absolute", right: spacing.lg },
+  previewToggleBlind: { opacity: 0.3 },
   teleprompterWrap: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   teleprompterCloseButton: { position: "absolute", left: spacing.lg, zIndex: 1 },
   bottomBar: {

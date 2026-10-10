@@ -169,6 +169,12 @@ export interface Session {
   updatedAt: string | null;
   subjectExtras: SessionSubjectExtras | null;
   notionBlockId: string | null;
+  // Migration v17. Optional because they're only ever written by their own
+  // steps, never on insert. videoKeepsake: kept (compressed) when old videos
+  // are cleared — see domain/videoKeepsakes.ts. sessionScore: the combined
+  // on-device + cloud score, 0-10 — see domain/sessionScore.ts.
+  videoKeepsake?: boolean;
+  sessionScore?: number | null;
 }
 
 // Recording-context details with no dedicated column, kept so "Practice

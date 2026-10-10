@@ -4,7 +4,8 @@ import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
-import { deleteOldVideos, exportPracticeData, formatBytes, getVideoStorageBytes } from "../services/data/dataExport";
+import { exportPracticeData, formatBytes, getVideoStorageBytes } from "../services/data/dataExport";
+import { deleteOldVideos } from "../services/data/videoKeepsakes";
 import { isAppleModelAvailable } from "../services/onDeviceLlm/onDeviceCoach";
 import { Card } from "../components/common/Card";
 import { LabeledSlider } from "../components/common/LabeledSlider";
@@ -161,18 +162,25 @@ export function SettingsScreen({ navigation }: Props) {
   }
 
   function handleDeleteOldVideos() {
-    Alert.alert("Delete videos older than 30 days?", "Transcripts, analysis and scores are kept. This can't be undone.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          const n = await deleteOldVideos(30);
-          setVideoBytes(getVideoStorageBytes());
-          Alert.alert("Done", `Removed ${n} video${n === 1 ? "" : "s"}.`);
+    Alert.alert(
+      "Clear videos older than 30 days?",
+      "The best take from each month is kept (compressed) so you can see your progress — find them under Library → Progress. Transcripts, analysis and scores are always kept. This can't be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Clear",
+          style: "destructive",
+          onPress: async () => {
+            const { deleted, kept } = await deleteOldVideos(30);
+            setVideoBytes(getVideoStorageBytes());
+            Alert.alert(
+              "Done",
+              `Removed ${deleted} video${deleted === 1 ? "" : "s"}. ${kept} progress video${kept === 1 ? "" : "s"} kept.`,
+            );
+          },
         },
-      },
-    ]);
+      ],
+    );
   }
   const [onDeviceRecognition] = useState(() => {
     try {
@@ -337,7 +345,7 @@ export function SettingsScreen({ navigation }: Props) {
           <Text style={styles.linkText}>Export practice data (share sheet)</Text>
         </Pressable>
         <Pressable onPress={handleDeleteOldVideos} accessibilityRole="button">
-          <Text style={styles.linkText}>Delete videos older than 30 days</Text>
+          <Text style={styles.linkText}>Clear videos older than 30 days (keeps one a month)</Text>
         </Pressable>
       </Card>
       </ScrollView>

@@ -52,6 +52,9 @@ export default (): ExpoConfig => ({
         "expo-notifications",
         "expo-secure-store",
         "react-native-bottom-tabs",
+        // MediaPipe + ExecuTorch both set a conditional linker flag that
+        // CocoaPods can't merge (it drops both); see the plugin for details.
+        "./plugins/withMediaPipeLinkerFlags",
         [
             "react-native-vision-camera",
             {

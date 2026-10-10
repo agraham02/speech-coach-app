@@ -1,8 +1,7 @@
 import { Share } from "react-native";
 import { File, Paths } from "expo-file-system";
 import { getDatabase } from "../db/database";
-import { deleteSessionVideo } from "../db/sessionsRepo";
-import { deleteRecording, listSessionFiles, resolveVideoUri } from "../storage/videoStorage";
+import { listSessionFiles } from "../storage/videoStorage";
 import { logger } from "../../utils/logger";
 
 // Everything this app knows lives on the phone. These helpers let you take
@@ -13,7 +12,7 @@ const DB_NAME = "speech_coach.db";
 // Copies the practice database (sessions, transcripts, scores, drills,
 // mastery, lesson progress) to a dated file and opens the share sheet so it
 // can be saved to Files, AirDropped, etc. Videos aren't included — they're
-// large and are kept separately (see deleteOldVideos).
+// large and are kept separately (see videoKeepsakes.ts).
 export async function exportPracticeData(): Promise<void> {
   const db = await getDatabase();
   // Flush the write-ahead log so the copied file is complete on its own.
@@ -41,23 +40,6 @@ export function getVideoStorageBytes(): number {
       return sum;
     }
   }, 0);
-}
-
-// Deletes video files for sessions older than `days`, keeping their
-// transcripts, analysis and scores. Returns how many videos were removed.
-export async function deleteOldVideos(days: number): Promise<number> {
-  const db = await getDatabase();
-  const cutoff = new Date(Date.now() - days * 86_400_000).toISOString();
-  const rows = await db.getAllAsync<{ id: string; video_file: string | null; video_path: string }>(
-    `SELECT id, video_file, video_path FROM sessions WHERE video_deleted_at IS NULL AND recorded_at < ?`,
-    [cutoff],
-  );
-  for (const row of rows) {
-    deleteRecording(resolveVideoUri({ videoFile: row.video_file, videoPath: row.video_path }));
-    await deleteSessionVideo(row.id);
-  }
-  logger.info(`[data] deleted ${rows.length} video(s) older than ${days} days`);
-  return rows.length;
 }
 
 export function formatBytes(bytes: number): string {

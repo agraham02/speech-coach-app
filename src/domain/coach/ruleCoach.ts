@@ -148,16 +148,37 @@ export function ruleCoach(input: CoachInput): CoachOutput {
 
   // --- Confidence: presence, hedges, ending ---
   if (input.presence && input.presence.presentPercent < 40) {
-    // Mostly out of frame: eye-contact numbers would be meaningless.
+    // Mostly out of frame: facing-the-lens numbers would be meaningless.
     const pr = input.presence;
     observations.push({ skill: "confidence", label: "Face in frame", value: `${pr.presentPercent}%`, verdict: "work" });
     findings.push({ skill: "confidence", severity: 4, tip: "Your face was out of frame for most of the take. Prop the phone at eye level, arm's length away, so your expression is part of the message." });
   } else if (input.presence) {
     const pr = input.presence;
-    observations.push({ skill: "confidence", label: "Eye contact", value: `${pr.eyeContactPercent}%`, verdict: pr.eyeContactPercent >= 75 ? "good" : pr.eyeContactPercent >= 55 ? "ok" : "work" });
-    if (pr.eyeContactPercent < 55) findings.push({ skill: "confidence", severity: 5, tip: `You looked at the lens ${pr.eyeContactPercent}% of the time. Treat the lens as one person's eyes and finish each sentence there.` });
-    else if (pr.eyeContactPercent >= 75) wins.push({ weight: 4, text: `Strong eye contact (${pr.eyeContactPercent}%).` });
+    if (pr.eyeContactSource === "gaze") {
+      // Head and eyes (MediaPipe gaze).
+      observations.push({ skill: "confidence", label: "Eye contact", value: `${pr.eyeContactPercent}%`, verdict: pr.eyeContactPercent >= 70 ? "good" : pr.eyeContactPercent >= 50 ? "ok" : "work" });
+      if (pr.eyeContactPercent < 50) findings.push({ skill: "confidence", severity: 5, tip: `You looked at the lens ${pr.eyeContactPercent}% of the time. Treat the lens as one person's eyes and finish each sentence there.` });
+      else if (pr.eyeContactPercent >= 70) wins.push({ weight: 4, text: `Strong eye contact (${pr.eyeContactPercent}%).` });
+      if ((pr.lookingDownPercent ?? 0) >= 25) {
+        findings.push({ skill: "confidence", severity: 4.5, tip: `Your eyes dropped below the lens ${pr.lookingDownPercent}% of the time. When you need to think, look up or to the side — looking down reads as unsure.` });
+      }
+    } else {
+      // Older takes: head direction only — the face detector then couldn't
+      // see where the eyes pointed, so this is never called "eye contact".
+      observations.push({ skill: "confidence", label: "Facing the lens", value: `${pr.eyeContactPercent}%`, verdict: pr.eyeContactPercent >= 75 ? "good" : pr.eyeContactPercent >= 55 ? "ok" : "work" });
+      if (pr.eyeContactPercent < 55) findings.push({ skill: "confidence", severity: 5, tip: `Your face was turned toward the lens only ${pr.eyeContactPercent}% of the time. Treat the lens as one person's eyes and finish each sentence there.` });
+      else if (pr.eyeContactPercent >= 75) wins.push({ weight: 4, text: `You kept facing the lens (${pr.eyeContactPercent}%).` });
+    }
     if (pr.presentPercent >= 50 && pr.expressiveness < 12) findings.push({ skill: "confidence", severity: 3, tip: "Your face stayed still. Let your expression match the words — a flat face makes the voice sound flat too." });
+    if (pr.tiltedPercent != null && pr.headTiltDeg != null) {
+      observations.push({ skill: "confidence", label: "Head level", value: `${100 - pr.tiltedPercent}%`, verdict: pr.tiltedPercent <= 25 ? "good" : pr.tiltedPercent <= 50 ? "ok" : "work" });
+      if (pr.tiltedPercent > 50) findings.push({ skill: "confidence", severity: 2.5, tip: `Your head was tilted (about ${Math.round(pr.headTiltDeg)}°) for most of the take. Keep it level when you make a point — a tilt makes a statement sound like a question.` });
+    }
+    if (pr.presentPercent >= 50 && pr.eyeContactSource === "gaze") {
+      if (pr.smilePercent === 0) findings.push({ skill: "confidence", severity: 2, tip: "You didn't smile once. A brief, real smile as you start and as you finish makes you look at ease." });
+      if ((pr.tensePercent ?? 0) >= 40) findings.push({ skill: "confidence", severity: 3, tip: "Your brow or lips looked tense for much of the take. Drop your shoulders, unclench your jaw and let your forehead relax before you start." });
+      if ((pr.browRaisesPerMinute ?? 0) >= 4) wins.push({ weight: 2, text: "Your eyebrows lifted to underline key points." });
+    }
   }
   if (hedges.length >= 3) {
     findings.push({ skill: "confidence", severity: 3 + hedges.length / 2, tip: `You hedged ${hedges.length} times ("${hedges[0]}"…). Say it as a statement — you can add nuance without softening every sentence.` });

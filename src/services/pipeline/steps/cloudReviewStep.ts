@@ -6,6 +6,7 @@ import { setStepStatus } from "../../db/stepsRepo";
 import { resolveVideoUri, videoExists } from "../../storage/videoStorage";
 import { gradingContextFromSession } from "../../sessions/sessionSubject";
 import { emitStepEvent } from "../processingEvents";
+import { refreshSessionScore } from "../../sessions/sessionScoreService";
 import { StepError } from "../stepRunner";
 
 export interface CloudTranscriptArtifact {
@@ -45,6 +46,7 @@ export async function cloudReviewStep(sessionId: string): Promise<void> {
 
   const analysis = await analyzeUploadedVideo(uploaded, grounded);
   await upsertScores(analysisToSessionScores(sessionId, analysis));
+  await refreshSessionScore(sessionId);
   await putArtifact(sessionId, "cloud_transcript", {
     verbatim: analysis.transcript_verbatim,
     clean: analysis.transcript_clean,

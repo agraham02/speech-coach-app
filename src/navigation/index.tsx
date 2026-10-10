@@ -17,6 +17,7 @@ import { GuidedScreen } from "../screens/GuidedScreen";
 import { ConversationRunnerScreen } from "../screens/ConversationRunnerScreen";
 import { PrimeScreen } from "../screens/PrimeScreen";
 import { DebriefScreen } from "../screens/DebriefScreen";
+import { ConversationLogScreen } from "../screens/ConversationLogScreen";
 import { AsrLabScreen } from "../screens/AsrLabScreen";
 import { reconcileOnLaunch } from "../services/pipeline/reconcile";
 import type { PracticeContext } from "../domain/practice";
@@ -68,6 +69,7 @@ export type RootStackParamList = {
   Conversation: { drill: ConversationDrillType; contentId?: string; practice?: PracticeContext; blankMomentId?: string };
   Prime: undefined;
   Debrief: { eventId?: string } | undefined;
+  ConversationLog: undefined;
   Lesson: { lessonId: string };
   DailySession: undefined;
   Practice: undefined;
@@ -279,6 +281,7 @@ export function AppNavigator() {
         <Stack.Screen name="Conversation" component={ConversationRunnerScreen} />
         <Stack.Screen name="Prime" component={PrimeScreen} options={{ presentation: "modal" }} />
         <Stack.Screen name="Debrief" component={DebriefScreen} options={{ presentation: "modal" }} />
+        <Stack.Screen name="ConversationLog" component={ConversationLogScreen} />
         <Stack.Screen name="Lesson" component={LessonScreen} />
         <Stack.Screen name="DailySession" component={DailySessionScreen} />
         <Stack.Screen name="ScriptLibrary" component={ScriptLibraryScreen} />
