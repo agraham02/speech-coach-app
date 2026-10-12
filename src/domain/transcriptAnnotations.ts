@@ -107,7 +107,7 @@ function detectRepeatedRuns(tokens: { text: string }[]): RepeatedWordMatch[] {
   return matches;
 }
 
-// Preferred path — uses word-level tokens from on-device ASR or AssemblyAI
+// Preferred path — uses word-level tokens from on-device ASR
 // (see sessionProcessor.ts), which tokenize more reliably than a naive
 // whitespace split (handles punctuation attached to words correctly).
 export function detectRepeatedWordsFromWords(words: { text: string }[]): RepeatedWordMatch[] {
@@ -116,7 +116,7 @@ export function detectRepeatedWordsFromWords(words: { text: string }[]): Repeate
 
 // Last-resort fallback — whitespace-tokenized scan over raw transcript text,
 // used only when no word-level array is available (both on-device ASR and
-// AssemblyAI unavailable/failed, Gemini self-transcribed instead).
+// on-device ASR unavailable/failed, the deep review transcribed instead).
 export function detectRepeatedWordsFromText(text: string): RepeatedWordMatch[] {
   const tokens = text.split(/\s+/).filter(Boolean);
   return detectRepeatedRuns(tokens.map((t) => ({ text: t })));

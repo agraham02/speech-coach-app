@@ -65,7 +65,7 @@ export function DevScreen() {
         <View style={styles.empty}>
           <Ionicons name="terminal-outline" size={40} color={colors.textMuted} />
           <Text style={styles.emptyText}>
-            Nothing logged yet. Record a session — every step of saving, uploading to Gemini, transcribing, and
+            Nothing logged yet. Record a session — every step of saving, transcribing, analyzing, and
             running a deep review gets logged here as it happens.
           </Text>
         </View>

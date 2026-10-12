@@ -5,7 +5,7 @@ import { spacing, typography, font } from "../../theme/theme";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 // Real words-per-minute over time, from word-level timestamps (on-device
-// ASR/AssemblyAI) — shown alongside (not instead of) the existing Rate
+// ASR) — shown alongside (not instead of) the existing Rate
 // ScoreBar's single averaged number, which stays Gemini's own qualitative
 // judgment. Only renders when word-level data exists; returns null otherwise
 // so it never shows an empty/broken chart for older or Gemini-fallback sessions.

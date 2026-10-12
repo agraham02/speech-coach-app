@@ -6,7 +6,7 @@ import type { SessionStatus } from "./sessionTypes";
 // app was killed, a later "grade" pass could clobber earlier results, and
 // there was no way to retry just one part.
 //
-// - transcribe:    on-device ASR (plus AssemblyAI if enabled) -> transcript
+// - transcribe:    on-device ASR -> transcript
 // - audio_metrics: pitch/volume DSP, fillers, repeated words, WPM curve
 // - presence:      face-timeline summary (video analysis, Phase 2)
 // - coach:         on-device coaching (Phase 2)

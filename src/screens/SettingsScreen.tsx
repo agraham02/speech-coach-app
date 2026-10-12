@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Linking, Modal, Pressable, TextInput, View } from "react-native";
+import { useState } from "react";
+import { ActivityIndicator, Alert, Linking, Modal, View } from "react-native";
 import { CommonActions } from "@react-navigation/native";
 import { resetApp } from "../services/data/resetApp";
+import { DeepReviewSettings } from "../components/settings/DeepReviewSettings";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
@@ -18,19 +19,11 @@ import { Card } from "../components/common/Card";
 import { LabeledSlider } from "../components/common/LabeledSlider";
 import { useToast } from "../components/common/ToastProvider";
 import {
-  getAssemblyAiEnabled,
   getPlanYourPointEnabled,
   getReminderSettings,
-  setAssemblyAiEnabled,
   setPlanYourPointEnabled,
   setReminderSettings,
 } from "../services/prefs/prefsStore";
-import {
-  getAssemblyAiApiKey,
-  getGeminiApiKey,
-  setAssemblyAiApiKey,
-  setGeminiApiKey,
-} from "../services/secrets/secretsStore";
 import { formatReminderHour, REMINDER_HOUR_MAX, REMINDER_HOUR_MIN } from "../domain/reminderSettings";
 import { defaultExtraHours, type DailyGoal } from "../domain/dailyGoal";
 import { getDailySessionGoal, getVideoRetentionDays, setDailySessionGoal } from "../services/prefs/prefsStore";
@@ -40,60 +33,6 @@ import { SHOW_DEV_TOOLS } from "../config/devTools";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
 
-interface SecretFieldProps {
-  label: string;
-  caption: string;
-  value: string;
-  onChangeText: (text: string) => void;
-  onBlur: () => void;
-}
-
-// A labeled, maskable text field for one API secret — used for all three
-// (Gemini and AssemblyAI keys) below rather than a bare
-// Switch/Slider, since these are pasted-in credentials, not toggled prefs.
-function SecretField({ label, caption, value, onChangeText, onBlur }: SecretFieldProps) {
-  const styles = useStyles();
-  const { colors } = useTheme();
-  const [visible, setVisible] = useState(false);
-  return (
-    <View style={styles.secretField}>
-      <Txt variant="subhead" weight="600">
-        {label}
-      </Txt>
-      <View style={styles.secretInputRow}>
-        <TextInput
-          style={styles.secretInput}
-          value={value}
-          onChangeText={onChangeText}
-          onBlur={onBlur}
-          // Also save when editing ends or the keyboard's return is pressed —
-          // blur alone isn't reliable when leaving the screen.
-          onEndEditing={onBlur}
-          onSubmitEditing={onBlur}
-          returnKeyType="done"
-          placeholder="Not set"
-          placeholderTextColor={colors.textMuted}
-          secureTextEntry={!visible}
-          autoCapitalize="none"
-          autoCorrect={false}
-          spellCheck={false}
-        />
-        <Pressable
-          onPress={() => setVisible((v) => !v)}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel={visible ? `Hide ${label}` : `Show ${label}`}
-        >
-          <Ionicons name={visible ? "eye-off-outline" : "eye-outline"} size={18} color={colors.textMuted} />
-        </Pressable>
-      </View>
-      <Txt variant="footnote" tone="secondary">
-        {caption}
-      </Txt>
-    </View>
-  );
-}
-
 export function SettingsScreen({ navigation }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -101,21 +40,6 @@ export function SettingsScreen({ navigation }: Props) {
   const [reminderSettings, setReminderSettingsState] = useState(getReminderSettings());
   const [goal, setGoalState] = useState<DailyGoal>(getDailySessionGoal());
   const [planYourPointEnabled, setPlanYourPointEnabledState] = useState(getPlanYourPointEnabled());
-  const [geminiKey, setGeminiKeyField] = useState("");
-  const [assemblyAiEnabled, setAssemblyAiEnabledState] = useState(getAssemblyAiEnabled());
-  const [assemblyAiKey, setAssemblyAiKeyField] = useState("");
-
-  useEffect(() => {
-    Promise.all([getGeminiApiKey(), getAssemblyAiApiKey()]).then(([gemini, assemblyAi]) => {
-      setGeminiKeyField(gemini ?? "");
-      setAssemblyAiKeyField(assemblyAi ?? "");
-    });
-  }, []);
-
-  function handleAssemblyAiToggle(enabled: boolean) {
-    setAssemblyAiEnabledState(enabled);
-    setAssemblyAiEnabled(enabled);
-  }
 
   function handlePlanYourPointToggle(enabled: boolean) {
     setPlanYourPointEnabledState(enabled);
@@ -370,42 +294,7 @@ export function SettingsScreen({ navigation }: Props) {
         All of this runs on your phone. Nothing leaves it unless you ask for a deep review.
       </Txt>
 
-      <Txt variant="footnote" weight="500" tone="secondary" style={styles.groupTitle}>
-        Cloud (optional)
-      </Txt>
-      <Card style={styles.section}>
-        <SwitchRow
-          title="Cloud transcription"
-          subtitle="AssemblyAI, about $0.15 an hour — better with disfluencies. Off by default; on-device transcription is free."
-          value={assemblyAiEnabled}
-          onValueChange={handleAssemblyAiToggle}
-        />
-        {assemblyAiEnabled ? (
-          <SecretField
-            label="AssemblyAI API key"
-            caption="From your AssemblyAI dashboard — required for cloud transcription to run."
-            value={assemblyAiKey}
-            onChangeText={setAssemblyAiKeyField}
-            onBlur={() => setAssemblyAiApiKey(assemblyAiKey)}
-          />
-        ) : null}
-      </Card>
-
-      <Card style={styles.section}>
-        <View style={styles.sectionText}>
-          <Txt variant="headline">Deep review (Gemini)</Txt>
-          <Txt variant="footnote" tone="secondary">
-            Keys stay on this device. Deep reviews are always opt-in, per session.
-          </Txt>
-        </View>
-        <SecretField
-          label="Gemini API key"
-          caption="From Google AI Studio — only used for the deep reviews you choose."
-          value={geminiKey}
-          onChangeText={setGeminiKeyField}
-          onBlur={() => setGeminiApiKey(geminiKey)}
-        />
-      </Card>
+      <DeepReviewSettings />
 
       <ListGroup title="Your data">
         <ListRow icon="film-outline" title="Videos" value={formatBytes(videoBytes)} />
@@ -463,15 +352,4 @@ const useStyles = makeStyles((t) => ({
   dayRow: { flexDirection: "row", justifyContent: "space-between" },
   dayChip: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: t.colors.surfaceRaised },
   dayChipOn: { backgroundColor: t.colors.accent },
-  secretField: { gap: t.space.xs + 2 },
-  secretInputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: t.space.sm,
-    backgroundColor: t.colors.surfaceRaised,
-    borderRadius: t.radius.md - 4,
-    paddingHorizontal: t.space.md,
-    height: 46,
-  },
-  secretInput: { ...t.type.callout, flex: 1, color: t.colors.textPrimary, padding: 0 },
 }));

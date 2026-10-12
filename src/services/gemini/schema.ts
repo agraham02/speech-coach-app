@@ -230,7 +230,7 @@ export function buildResponseSchemaWithCueCompliance(): object {
 // When present and non-empty, gives Gemini the speaker's own stated PREP plan
 // (Plan Your Point) as grounding for judging relevance/coherence — did the
 // actual response execute on what they said they'd cover, roughly in order?
-function planTextSection(planText?: PlanText): string {
+export function planTextSection(planText?: PlanText): string {
   if (!planText || !hasAnyPlanText(planText)) return "";
   const lines: string[] = [];
   if (planText.point.trim()) lines.push(`- Point: "${planText.point.trim()}"`);
@@ -240,7 +240,7 @@ function planTextSection(planText?: PlanText): string {
 }
 
 // When present, gives Gemini an already-verified verbatim transcript (from
-// on-device Whisper or AssemblyAI — see sessionProcessor.ts) as grounding —
+// on-device Whisper — see cloudReviewStep.ts) as grounding —
 // Gemini still produces its own transcript_verbatim/transcript_clean (so its
 // own evidence-quote annotations stay guaranteed-locatable within whatever
 // it returns), but is told to treat the provided text as ground truth rather
@@ -303,9 +303,9 @@ Respond only with JSON matching the provided schema.`;
 // The script rewritten in the app's mark notation, with a legend — compact
 // enough for a full speech, and text-anchored so Gemini can locate each
 // mark in the audio (a word index means nothing to it).
-const MARK_LEGEND = `*word* = stress this word · word↗ / word↘ = pitch rises / falls at the end of this word · | = short pause · || = long pause · {slow …} {fast …} {louder …} {softer …} = a stretch said that way · [[…]] = a tone direction for what follows`;
+export const MARK_LEGEND = `*word* = stress this word · word↗ / word↘ = pitch rises / falls at the end of this word · | = short pause · || = long pause · {slow …} {fast …} {louder …} {softer …} = a stretch said that way · [[…]] = a tone direction for what follows`;
 
-function markedScriptText(script: Script, level: MarkLevel): string | null {
+export function markedScriptText(script: Script, level: MarkLevel): string | null {
   const marks = filterMarks(script.marks, level);
   if (!marks.length) return null;
   return toNotation({ text: script.text, marks });
@@ -412,7 +412,7 @@ Respond only with JSON matching the provided schema.`;
 }
 
 // Text-only path (no video ever uploaded) — used when an on-device or
-// AssemblyAI transcript already exists and grading wasn't requested, so the
+// transcript already exists and grading wasn't requested, so the
 // only thing still worth a Gemini call is rewriting the verbatim text into
 // clean journal prose. See sessionProcessor.ts's non-grading, transcript-
 // resolved branch.
@@ -439,3 +439,10 @@ Rewrite it as grammatically clean prose, with filler words (um, uh, like) and fa
 
 Respond only with JSON matching the provided schema.`;
 }
+
+// Appended to every deep-review prompt for someone who said they stutter
+// (onboarding): repetitions, blocks and hesitations are never faults
+// anywhere in the app, cloud reviews included.
+export const STUTTER_NOTE = `
+
+IMPORTANT — THIS SPEAKER STUTTERS: never count sound or word repetitions, prolongations, blocks, hesitations or interjections as filler words, slips or pacing problems, and never lower any score for them or name them as something to fix. Judge rate and pausing only on deliberate choices (pauses at phrase boundaries, emphasis), and do not annotate stuttering moments.`;

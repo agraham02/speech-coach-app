@@ -42,7 +42,6 @@ export interface SessionRow {
   transcript_words_json: string | null;
   wpm_curve_json: string | null;
   repeated_word_count: number | null;
-  assemblyai_transcript_id: string | null;
   dsp_status: string | null;
   pitch_contour_json: string | null;
   volume_envelope_json: string | null;
@@ -101,7 +100,6 @@ export function rowToSession(row: SessionRow): Session {
     transcriptWords: parseNullableJson<TranscriptWord[]>(row.transcript_words_json, "transcript_words_json"),
     wpmCurve: parseNullableJson<WpmPoint[]>(row.wpm_curve_json, "wpm_curve_json"),
     repeatedWordCount: row.repeated_word_count,
-    assemblyaiTranscriptId: row.assemblyai_transcript_id,
     dspStatus: row.dsp_status as DspStatus | null,
     pitchContourHz: parseNullableJson<(number | null)[]>(row.pitch_contour_json, "pitch_contour_json"),
     volumeEnvelopeDbfs: parseNullableJson<number[]>(row.volume_envelope_json, "volume_envelope_json"),

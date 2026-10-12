@@ -77,9 +77,10 @@ export type RecordingSubject =
 // 'whisper_ondevice' is the default free path (react-native-executorch,
 // Phase 2 — the plan originally targeted Moonshine, but the installed
 // package's speech-to-text module only ships Whisper; see plan.md's
-// correction note). 'assemblyai' is the opt-in paid upgrade. 'on_device' is
-// kept for pre-Phase-2 rows that used that generic value; 'gemini' is the
-// fallback when neither on-device nor AssemblyAI produced a transcript.
+// correction note). 'on_device' is kept for pre-Phase-2 rows that used that
+// generic value, and 'assemblyai' for takes from when cloud transcription
+// existed (removed 2026-10-12); 'gemini' is the fallback when on-device
+// transcription didn't produce one.
 export type TranscriptionSource = "gemini" | "on_device" | "whisper_ondevice" | "assemblyai";
 
 export interface TranscriptWord {
@@ -149,13 +150,11 @@ export interface Session {
   // Audio-first pipeline (Phase 2) — all nullable, populated in a follow-up
   // write after transcription/analysis completes, independent of wantsGrading
   // (same convention as fillerWordCount above). transcriptWords/wpmCurve come
-  // from whichever transcript engine actually ran (on-device ASR by default,
-  // AssemblyAI if opted in) — null if both that and the Gemini-fallback path
-  // were used instead (no word-level timestamps available in that case).
+  // from on-device ASR — null when the deep review supplied the transcript
+  // instead (no word-level timestamps in that case).
   transcriptWords: TranscriptWord[] | null;
   wpmCurve: WpmPoint[] | null;
   repeatedWordCount: number | null;
-  assemblyaiTranscriptId: string | null;
   // dspStatus null = never attempted (e.g. decode failed before analysis
   // could even start); 'failed' = attempted and failed; 'complete' = the
   // pitch/volume fields below are populated.

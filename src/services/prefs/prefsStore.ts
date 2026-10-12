@@ -10,6 +10,7 @@ import { DEFAULT_REMINDER_SETTINGS, type ReminderSettings } from "../../domain/r
 import { DEFAULT_CURRICULUM_LEVEL } from "../../domain/curriculum";
 import type { DailyGoal } from "../../domain/dailyGoal";
 import type { UserProfile } from "../../domain/profile";
+import type { ProviderId } from "../cloud/providers";
 
 const storage = createMMKV({ id: "speech-coach-prefs" });
 
@@ -20,7 +21,6 @@ const KEYS = {
   reminderSettings: "reminderSettings",
   planYourPointEnabled: "planYourPointEnabled",
   conciseModeSeconds: "conciseModeSeconds",
-  assemblyAiEnabled: "assemblyAiEnabled",
   warmUpEnabled: "warmUpEnabled",
   curriculumOverride: "curriculumOverride",
   curriculumAutoLevel: "curriculumAutoLevel",
@@ -31,6 +31,9 @@ const KEYS = {
   userProfile: "userProfile",
   skillCheckPending: "skillCheckPending",
   cloudReviewDefault: "cloudReviewDefault",
+  cloudProvider: "cloudProvider",
+  cloudModels: "cloudModels",
+  cloudConsent: "cloudConsent",
   videoRetentionDays: "videoRetentionDays",
   lastAutoCleanup: "lastAutoCleanup",
 } as const;
@@ -109,17 +112,6 @@ export function getWarmUpEnabled(): boolean {
 
 export function setWarmUpEnabled(value: boolean): void {
   storage.set(KEYS.warmUpEnabled, value);
-}
-
-// Off by default — this is the only paid element in the audio pipeline
-// (AssemblyAI, ~$0.15-0.21/hr), so it must never turn on silently. See
-// SettingsScreen.tsx's "Cloud transcription" card.
-export function getAssemblyAiEnabled(): boolean {
-  return storage.getBoolean(KEYS.assemblyAiEnabled) ?? false;
-}
-
-export function setAssemblyAiEnabled(value: boolean): void {
-  storage.set(KEYS.assemblyAiEnabled, value);
 }
 
 // The manual curriculum pin — `null` means "Auto" (the computed level
@@ -252,6 +244,53 @@ export function setCloudReviewDefault(value: boolean): void {
   storage.set(KEYS.cloudReviewDefault, value);
 }
 
+const PROVIDER_IDS: ProviderId[] = ["gemini", "openai", "anthropic", "openrouter"];
+
+// Which bring-your-own-key provider runs deep reviews (Gemini until chosen).
+export function getCloudProvider(): ProviderId {
+  const id = storage.getString(KEYS.cloudProvider);
+  return id && (PROVIDER_IDS as string[]).includes(id) ? (id as ProviderId) : "gemini";
+}
+
+export function setCloudProvider(id: ProviderId): void {
+  storage.set(KEYS.cloudProvider, id);
+}
+
+function readJson<T>(key: string, fallback: T): T {
+  const raw = storage.getString(key);
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+// A model ID typed in Settings for a provider; null means its default.
+export function getCloudModel(id: ProviderId): string | null {
+  return readJson<Partial<Record<ProviderId, string>>>(KEYS.cloudModels, {})[id]?.trim() || null;
+}
+
+export function setCloudModel(id: ProviderId, model: string): void {
+  const models = readJson<Partial<Record<ProviderId, string>>>(KEYS.cloudModels, {});
+  if (model.trim()) models[id] = model.trim();
+  else delete models[id];
+  storage.set(KEYS.cloudModels, JSON.stringify(models));
+}
+
+// Providers the user has explicitly allowed to receive their data — asked
+// once per provider before the first deep review (App Review 5.1.2(i):
+// say where personal data goes, including third-party AI, and get
+// permission first).
+export function getCloudConsent(): ProviderId[] {
+  return readJson<ProviderId[]>(KEYS.cloudConsent, []);
+}
+
+export function setCloudConsent(id: ProviderId, allowed: boolean): void {
+  const current = getCloudConsent().filter((p) => p !== id);
+  storage.set(KEYS.cloudConsent, JSON.stringify(allowed ? [...current, id] : current));
+}
+
 
 // Days to keep full videos before the monthly-keepsake cleanup runs on its
 // own (onboarding 3.8). 0 = keep forever; null = never chosen (cleanup only
@@ -272,9 +311,9 @@ export function setLastAutoCleanup(date: string): void {
   storage.set(KEYS.lastAutoCleanup, date);
 }
 
-// Prefs for features that no longer exist (the Notion journal's default,
-// removed 2026-10-12).
-const REMOVED_KEYS = ["notionDefault"];
+// Prefs for features that no longer exist (both removed 2026-10-12): the
+// Notion journal's default and the AssemblyAI cloud-transcription switch.
+const REMOVED_KEYS = ["notionDefault", "assemblyAiEnabled"];
 
 export function removeObsoletePrefs(): void {
   for (const key of REMOVED_KEYS) storage.remove(key);

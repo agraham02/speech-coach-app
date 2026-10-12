@@ -6,7 +6,7 @@ const BUCKET_SECONDS = 5;
 // words-per-minute rate for each — a real pace-over-time curve instead of
 // the single averaged number Gemini's rate_wpm_avg already provides. Uses
 // each word's start time to assign it to a bucket. Requires word-level
-// timestamps (on-device ASR or AssemblyAI) — there's nothing to compute this
+// timestamps (on-device ASR) — there's nothing to compute this
 // from when only a Gemini self-transcription exists (no word array).
 export function computeWpmCurve(words: TranscriptWord[], durationSeconds: number): WpmPoint[] {
   if (words.length === 0 || durationSeconds <= 0) return [];

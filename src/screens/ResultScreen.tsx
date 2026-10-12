@@ -37,6 +37,8 @@ import { getPrompt } from "../services/db/promptsRepo";
 import { getScriptById } from "../services/db/scriptsRepo";
 import { deleteRecording, resolveVideoUri, videoExists } from "../services/storage/videoStorage";
 import { requestStep } from "../services/pipeline/sessionPipeline";
+import { currentProvider, reviewBlockedReason } from "../services/cloud/providers";
+import { readyForDeepReview } from "../services/cloud/consent";
 import { setVideoKeepsake } from "../services/data/videoKeepsakes";
 import { getArtifact } from "../services/db/artifactsRepo";
 import { describeSessionSubject, subjectFromSession, type SessionSubjectSummary } from "../services/sessions/sessionSubject";
@@ -158,7 +160,8 @@ export function ResultScreen({ route, navigation }: Props) {
         { key: "transcript", label: "Transcript" },
       ];
 
-  function handleRunStep(step: SessionStep) {
+  async function handleRunStep(step: SessionStep) {
+    if (step === "cloud_review" && !(await readyForDeepReview(() => navigation.navigate("Settings")))) return;
     requestStep(sessionId, step).catch((error) => {
       logger.error(`[result] ${step} failed to start — ${(error as Error).message}`);
       showToast("Couldn't start that — try again", "error");
@@ -231,7 +234,7 @@ export function ResultScreen({ route, navigation }: Props) {
   if (session.sessionType === "feeling") {
     return <FeelingResultView session={session} steps={steps} hasVideo={hasVideo} videoUri={videoUri} onDone={handleDone} onDelete={handleDelete} />;
   }
-  const deepReviewBlocked = !hasVideo ? "Needs the video, which has been deleted." : undefined;
+  const deepReviewBlocked = reviewBlockedReason(currentProvider(), { hasVideo, hasDeviceTranscript: !!session.transcriptVerbatim });
   const avgWpm =
     session.transcriptWords && session.transcriptWords.length > 0 && session.durationSeconds > 0
       ? Math.round(session.transcriptWords.length / (session.durationSeconds / 60))

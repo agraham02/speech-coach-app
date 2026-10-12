@@ -6,7 +6,7 @@ import type { SessionStatus } from "../../domain/sessionTypes";
 import { logger } from "../../utils/logger";
 
 // Bump this and add a new numbered migration when the schema changes.
-export const LATEST_DB_VERSION = 22;
+export const LATEST_DB_VERSION = 23;
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(
@@ -633,6 +633,12 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
       await dropColumnIfPresent(db, "sessions", column);
     }
     currentVersion = await commitVersion(db, 22);
+  }
+
+  if (currentVersion < 23) {
+    // AssemblyAI cloud transcription is gone too.
+    await dropColumnIfPresent(db, "sessions", "assemblyai_transcript_id");
+    currentVersion = await commitVersion(db, 23);
   }
 }
 

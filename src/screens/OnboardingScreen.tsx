@@ -401,8 +401,8 @@ export function OnboardingScreen({ route, navigation }: Props) {
               options={[
                 {
                   key: "review",
-                  label: "Deep review with Gemini",
-                  detail: "Uploads the video to Google's Gemini for a detailed review of content and delivery. Needs your own key in Settings.",
+                  label: "AI deep reviews with your own key",
+                  detail: "A detailed review of a take from Google Gemini, OpenAI, Claude or OpenRouter — you add your own key in Settings, so the app stays free. You'll be asked before anything is sent.",
                 },
               ]}
               value={cloudReview ? ["review"] : []}

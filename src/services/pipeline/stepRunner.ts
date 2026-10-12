@@ -1,7 +1,7 @@
 import { deriveSessionStatus, STEP_LABELS, type SessionStep } from "../../domain/sessionSteps";
 import { getSessionSteps, setStepStatus } from "../db/stepsRepo";
 import { updateSessionDerivedStatus } from "../db/sessionsRepo";
-import { describeGeminiError } from "../gemini/describeError";
+import { describeCloudError } from "../cloud/cloudErrors";
 import { notifySessionComplete } from "../notifications/sessionCompleteNotifier";
 import { emitStepEvent } from "./processingEvents";
 import { runExclusive } from "./jobQueue";
@@ -12,7 +12,7 @@ export class StepError extends Error {}
 
 function describeStepError(error: unknown): string {
   if (error instanceof StepError) return error.message;
-  return describeGeminiError(error);
+  return describeCloudError(error);
 }
 
 // Recomputes sessions.status from its steps (the session-level status is

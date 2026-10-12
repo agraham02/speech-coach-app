@@ -14,6 +14,8 @@ import { setVideoKeepsake } from "../services/data/videoKeepsakes";
 import { logger } from "../utils/logger";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { getCloudReviewDefault } from "../services/prefs/prefsStore";
+import { currentProvider, hasConsent, hasProviderKey } from "../services/cloud/providers";
+import { readyForDeepReview } from "../services/cloud/consent";
 import { spacing, typography, font, fontDisplay } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
@@ -29,7 +31,17 @@ export function PreviewScreen({ route, navigation }: Props) {
   // A feeling rep is private by default: nothing leaves the phone unless
   // switched on here.
   const isFeeling = subject.kind === "prompt" && !!subject.feeling;
-  const [wantsCloudReview, setWantsCloudReview] = useState(() => !isFeeling && getCloudReviewDefault());
+  // On by default only once a provider is set up and allowed.
+  const provider = currentProvider();
+  const [wantsCloudReview, setWantsCloudReview] = useState(() => !isFeeling && getCloudReviewDefault() && hasConsent(provider.id));
+
+  async function toggleCloudReview(on: boolean) {
+    if (!on) {
+      setWantsCloudReview(false);
+      return;
+    }
+    if (await readyForDeepReview(() => navigation.navigate("Settings"))) setWantsCloudReview(true);
+  }
   const [isSaving, setIsSaving] = useState(false);
   // Set once the take has been saved or deliberately thrown away, so leaving
   // the screen no longer needs a confirmation.
@@ -94,7 +106,8 @@ export function PreviewScreen({ route, navigation }: Props) {
         subject,
         previewUri: videoUri,
         durationSecondsLocal,
-        wantsCloudReview,
+        // A key removed since the switch went on: save without the review.
+        wantsCloudReview: wantsCloudReview && (await hasProviderKey(provider.id)),
       });
       // A lesson / daily-plan rep counts as done once the take is kept.
       if (subject.kind === "prompt") completePracticeStep(subject.practice, null, sessionId);
@@ -125,16 +138,16 @@ export function PreviewScreen({ route, navigation }: Props) {
           </Text>
           <View style={styles.row}>
             <View style={styles.rowText}>
-              <Text style={styles.rowTitle}>Deep review (cloud)</Text>
+              <Text style={styles.rowTitle}>Deep review</Text>
               <Text style={styles.rowSubtitle}>
-                {subject.kind === "script"
-                  ? "Gemini scores delivery, presence and how well you followed the cues. Uploads the video."
-                  : "Gemini scores structure, delivery and presence. Uploads the video."}
+                {provider.input === "video"
+                  ? `${provider.name} scores ${subject.kind === "script" ? "delivery, presence and how well you followed the marks" : "structure, delivery and presence"} from the video. Uses your own key.`
+                  : `${provider.name} scores ${subject.kind === "script" ? "your reading" : "structure, content and delivery"} from your transcript and the phone's measurements — the video stays here. Uses your own key.`}
               </Text>
             </View>
             <Switch
               value={wantsCloudReview}
-              onValueChange={setWantsCloudReview}
+              onValueChange={toggleCloudReview}
               trackColor={{ true: colors.success, false: colors.switchTrackOff }}
               thumbColor="#FFFFFF"
             />

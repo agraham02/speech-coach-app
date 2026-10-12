@@ -106,7 +106,6 @@ export async function createSessionFromTake(take: NewTake): Promise<string> {
     transcriptWords: null,
     wpmCurve: null,
     repeatedWordCount: null,
-    assemblyaiTranscriptId: null,
     dspStatus: null,
     pitchContourHz: null,
     volumeEnvelopeDbfs: null,

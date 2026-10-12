@@ -23,7 +23,7 @@ interface AnnotatedTranscriptProps {
   durationSeconds: number;
   fillerWordCount: number | null;
   fillerRatePerMinute: number | null;
-  // Word-level timestamps from on-device ASR/AssemblyAI, if available —
+  // Word-level timestamps from on-device ASR, if available —
   // preferred source for repeated-words detection (more reliable than a
   // naive whitespace split); falls back to scanning transcriptVerbatim
   // directly when null (Gemini self-transcribed, no word array exists).

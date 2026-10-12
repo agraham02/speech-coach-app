@@ -2,14 +2,19 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Card } from "../common/Card";
 import { STEP_LABELS, type SessionStep, type StepState } from "../../domain/sessionSteps";
+import { currentProvider } from "../../services/cloud/providers";
 import { radii, spacing, typography, font } from "../../theme/theme";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 const VISIBLE_STEPS: SessionStep[] = ["transcribe", "audio_metrics", "presence", "coach", "cloud_review"];
 
-const OPTIONAL_DESCRIPTIONS: Partial<Record<SessionStep, string>> = {
-  cloud_review: "Gemini scores structure, delivery and presence. Uploads the video.",
-};
+// What "Get" would do, for the provider chosen in Settings.
+function cloudReviewDescription(): string {
+  const provider = currentProvider();
+  return provider.input === "video"
+    ? `${provider.name} scores structure, delivery and presence from the video. Your own key.`
+    : `${provider.name} scores your transcript and the phone's measurements. Your own key.`;
+}
 
 interface Props {
   steps: StepState[];
@@ -73,7 +78,7 @@ function StepRow({ state, onRun, disabledReason }: { state: StepState; onRun: ()
       tint = colors.danger;
       break;
     default:
-      detail = OPTIONAL_DESCRIPTIONS[step] ?? "Not run";
+      detail = step === "cloud_review" ? cloudReviewDescription() : "Not run";
       action = step === "cloud_review" ? "Get" : "Run";
       icon = "add-circle-outline";
       tint = colors.textMuted;

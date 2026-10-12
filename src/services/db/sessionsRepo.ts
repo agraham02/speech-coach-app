@@ -52,14 +52,13 @@ export interface TranscriptFields {
   durationSeconds: number;
   source: TranscriptionSource;
   words: TranscriptWord[] | null;
-  assemblyaiTranscriptId: string | null;
 }
 
 export async function updateTranscriptFields(id: string, fields: TranscriptFields): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
     `UPDATE sessions SET transcript_verbatim = ?, transcript_clean = ?, duration_seconds = ?, transcription_source = ?,
-       transcript_words_json = ?, assemblyai_transcript_id = ?
+       transcript_words_json = ?
      WHERE id = ?`,
     [
       fields.verbatim,
@@ -67,7 +66,6 @@ export async function updateTranscriptFields(id: string, fields: TranscriptField
       fields.durationSeconds,
       fields.source,
       fields.words ? JSON.stringify(fields.words) : null,
-      fields.assemblyaiTranscriptId,
       id,
     ],
   );
