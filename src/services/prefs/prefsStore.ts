@@ -279,3 +279,9 @@ const REMOVED_KEYS = ["notionDefault"];
 export function removeObsoletePrefs(): void {
   for (const key of REMOVED_KEYS) storage.remove(key);
 }
+
+// Every preference, gone (Reset app): the profile, onboarding, goals,
+// reminders, recording settings — back to first-launch defaults.
+export function clearAllPrefs(): void {
+  storage.clearAll();
+}

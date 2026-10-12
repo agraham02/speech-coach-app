@@ -46,7 +46,7 @@ If a future need arises to move to the v5 Nitro pair, re-check `visioncamera.mar
 - `src/screens/PreviewScreen.tsx` — sits between Recording and Processing. Nothing is written to the DB or uploaded anywhere until the user chooses "Save" here (vs. "Discard", which just deletes the temp video file) — recording no longer auto-saves/auto-processes the instant it stops.
 - `src/components/common/ToastProvider.tsx` — a small Reanimated-based toast, plus a module-level `showGlobalToast()` escape hatch so non-component code (the background pipeline) can surface feedback (e.g. "session graded", streak milestones) regardless of which screen is open.
 - `src/services/secrets/secretsStore.ts` — the Gemini and AssemblyAI keys, entered via Settings and stored with `expo-secure-store` (Keychain/Keystore), never embedded in the build (see `plan.md` §12). `geminiClient.ts` throws a normal `GeminiApiError` with no HTTP status when the key is missing, which `describeGeminiError` + the toast pipeline surface without any special-casing.
-- `src/services/data/resetApp.ts` — Settings' "Reset app": closes and deletes the database (migrations rebuild it on next open, like a fresh install), deletes every video, clears preferences and logs, cancels reminders, and sends you back to onboarding. API keys survive.
+- `src/services/data/resetApp.ts` — Settings' "Reset app": drops every table and reruns the migrations (like a fresh install), deletes every video, clears preferences and logs, cancels reminders, and sends you back to onboarding. API keys survive.
 
 ## Native dependencies requiring an EAS rebuild
 

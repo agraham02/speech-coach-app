@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { Alert, Linking, Pressable, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Modal, Pressable, TextInput, View } from "react-native";
+import { CommonActions } from "@react-navigation/native";
+import { resetApp } from "../services/data/resetApp";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
@@ -216,6 +218,33 @@ export function SettingsScreen({ navigation }: Props) {
       ],
     );
   }
+  const [resetting, setResetting] = useState(false);
+
+  // Starts over completely — for old data from an earlier version, or a
+  // clean slate. Everything but the API keys goes (see resetApp.ts).
+  function confirmReset() {
+    Alert.alert(
+      "Reset the app?",
+      "This deletes every recording and video, your scores, lessons, levels and streak, and your profile and settings — then starts onboarding again. Your API keys are kept. This can't be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Export first", onPress: handleExport },
+        { text: "Reset", style: "destructive", onPress: runReset },
+      ],
+    );
+  }
+
+  async function runReset() {
+    setResetting(true);
+    try {
+      await resetApp();
+      navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: "OnboardingGate" }] }));
+    } catch (error) {
+      setResetting(false);
+      Alert.alert("Couldn't reset", (error as Error).message);
+    }
+  }
+
   const [onDeviceRecognition] = useState(() => {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -386,6 +415,28 @@ export function SettingsScreen({ navigation }: Props) {
       <Txt variant="footnote" tone="secondary" style={styles.note}>
         Your recordings and practice history stay on this phone.
       </Txt>
+
+      <ListGroup title="Start over">
+        <ListRow
+          icon="refresh-outline"
+          title="Reset app"
+          subtitle="Deletes every recording, video and bit of progress, then starts onboarding again"
+          destructive
+          onPress={confirmReset}
+        />
+      </ListGroup>
+      <Txt variant="footnote" tone="secondary" style={styles.note}>
+        Your API keys are kept.
+      </Txt>
+
+      {resetting ? (
+        <Modal transparent animationType="fade" visible>
+          <View style={styles.resetOverlay}>
+            <ActivityIndicator color={colors.textPrimary} />
+            <Txt variant="headline">Resetting…</Txt>
+          </View>
+        </Modal>
+      ) : null}
     </Screen>
   );
 }
@@ -403,6 +454,7 @@ function StatusLine({ label, value, ok }: { label: string; value: string; ok?: b
 
 const useStyles = makeStyles((t) => ({
   content: { gap: t.space.lg },
+  resetOverlay: { flex: 1, alignItems: "center", justifyContent: "center", gap: t.space.md, backgroundColor: t.colors.overlayScrim },
   section: { gap: t.space.md },
   sectionText: { gap: 2 },
   groupTitle: { paddingHorizontal: 4, marginBottom: -t.space.md },

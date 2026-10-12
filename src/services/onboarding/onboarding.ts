@@ -17,8 +17,9 @@ export function resetToTabs(navigation: NavigationProp<RootStackParamList>): voi
   navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: "Tabs" }] }));
 }
 
-// Someone who used the app before onboarding existed skips it; they get
-// "Set up your profile" and "Take a skill check" cards on Progress instead.
+// Practice from before onboarding existed: the gate offers to start fresh or
+// keep it (keeping skips onboarding; Progress then offers the profile
+// questions and a skill check).
 export async function hasPracticeHistory(): Promise<boolean> {
   const db = await getDatabase();
   const row = await db.getFirstAsync<{ n: number }>(
