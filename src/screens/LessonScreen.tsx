@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
-import { Header } from "../components/common/Header";
+import { Screen } from "../components/common/Screen";
+import { HeroCard } from "../components/common/HeroCard";
+import { Badge } from "../components/common/Badge";
+import { SectionHeader } from "../components/common/SectionHeader";
 import { Card } from "../components/common/Card";
 import { Txt } from "../components/common/Txt";
 import { PrimaryButton } from "../components/common/PrimaryButton";
@@ -84,85 +87,104 @@ export function LessonScreen({ route, navigation }: Props) {
   const skill = colors.skill[lesson.skill];
   const teachOpen = showTeach ?? !collapseTeach;
 
+  const firstOpen = lesson.steps.findIndex((_, i) => !done.has(i));
+
   return (
-    <ScreenContainer style={styles.container}>
-      <Header eyebrow={`${SKILL_LABELS[lesson.skill]} · ${lesson.minutes} min`} title={lesson.title} onBack={() => navigation.goBack()} />
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <Card style={styles.teach}>
-          <View style={[styles.badge, { backgroundColor: skill.bg }]}>
-            <Txt variant="caption1" weight="700" color={skill.fg}>
-              Why it matters
+    <Screen eyebrow={`${SKILL_LABELS[lesson.skill]} · ${lesson.minutes} min`} title={lesson.title} onBack={() => navigation.goBack()}>
+      <HeroCard accent={skill.fg} contentStyle={styles.teach}>
+        <Badge label="Why it matters" fg={skill.fg} bg={skill.bg} dot />
+        {!teachOpen ? (
+          <Pressable onPress={() => setShowTeach(true)} accessibilityRole="button">
+            <Txt variant="callout" tone="secondary">
+              {lesson.teach.how.join(" · ")}{" "}
+              <Txt variant="callout" weight="600">
+                More
+              </Txt>
+            </Txt>
+          </Pressable>
+        ) : null}
+        {teachOpen ? <Txt variant="body">{lesson.teach.why}</Txt> : null}
+        {(teachOpen ? lesson.teach.how : []).map((h, i) => (
+          <View key={h} style={styles.howRow}>
+            <Txt variant="title1" color={skill.fg} style={styles.howNumber}>
+              {i + 1}
+            </Txt>
+            <Txt variant="callout" style={styles.flex}>
+              {h}
             </Txt>
           </View>
-          {!teachOpen ? (
-            <Pressable onPress={() => setShowTeach(true)} accessibilityRole="button">
-              <Txt variant="callout" tone="secondary">
-                {lesson.teach.how.join(" · ")} <Txt variant="callout" tone="accent">More</Txt>
-              </Txt>
-            </Pressable>
-          ) : null}
-          {teachOpen ? <Txt variant="callout">{lesson.teach.why}</Txt> : null}
-          {teachOpen ? (
-            <Txt variant="caption2" tone="muted" uppercase>
-              How
-            </Txt>
-          ) : null}
-          {(teachOpen ? lesson.teach.how : []).map((h, i) => (
-            <View key={h} style={styles.howRow}>
-              <Txt variant="headline" color={skill.fg}>
-                {i + 1}
-              </Txt>
-              <Txt variant="callout" style={styles.flex}>
-                {h}
-              </Txt>
-            </View>
-          ))}
-          {teachOpen ? (
-            <Txt variant="caption1" tone="muted">
-              Source: {lesson.teach.source}
-            </Txt>
-          ) : null}
-        </Card>
-
-        {state?.done ? (
-          <Txt variant="footnote" tone="success">
-            Completed {state.attempts}× · next review {state.nextReviewAt ? new Date(state.nextReviewAt).toLocaleDateString() : "soon"}
+        ))}
+        {teachOpen ? (
+          <Txt variant="caption1" tone="muted">
+            Source: {lesson.teach.source}
           </Txt>
         ) : null}
+      </HeroCard>
 
-        {lesson.steps.map((step, i) => {
-          const isDone = done.has(i);
-          return (
-            <Card key={i} style={styles.step}>
-              <View style={styles.stepRow}>
-                <Ionicons name={isDone ? "checkmark-circle" : "ellipse-outline"} size={22} color={isDone ? colors.success : colors.textMuted} />
-                <View style={styles.flex}>
-                  <Txt variant="headline">{stepTitle(step)}</Txt>
-                  <Txt variant="footnote" tone="secondary">
-                    {stepDetail(step)}
+      {state?.done ? (
+        <View style={styles.completed}>
+          <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+          <Txt variant="footnote" tone="secondary">
+            Completed {state.attempts}× · next review {state.nextReviewAt ? new Date(state.nextReviewAt).toLocaleDateString() : "soon"}
+          </Txt>
+        </View>
+      ) : null}
+
+      <SectionHeader title="Practice" />
+      {lesson.steps.map((step, i) => {
+        const isDone = done.has(i);
+        const isNext = i === firstOpen;
+        return (
+          <Card key={i} style={styles.step}>
+            <View style={styles.stepRow}>
+              <View style={[styles.node, isDone && { backgroundColor: skill.fg, borderColor: skill.fg }, isNext && styles.nodeNext]}>
+                {isDone ? (
+                  <Ionicons name="checkmark" size={15} color={colors.background} />
+                ) : (
+                  <Txt variant="caption1" weight="700" color={isNext ? colors.onAccent : colors.textSecondary}>
+                    {i + 1}
                   </Txt>
-                </View>
+                )}
               </View>
-              <PrimaryButton
-                label={isDone ? "Do it again" : "Start"}
-                variant={isDone ? "secondary" : "primary"}
-                onPress={() => launchStep(navigation, step, { lessonId: lesson.id, lessonStepIndex: i })}
-              />
-            </Card>
-          );
-        })}
-      </ScrollView>
-    </ScreenContainer>
+              <View style={styles.flex}>
+                <Txt variant="headline">{stepTitle(step)}</Txt>
+                <Txt variant="footnote" tone="secondary">
+                  {stepDetail(step)}
+                </Txt>
+              </View>
+            </View>
+            <PrimaryButton
+              label={isDone ? "Do it again" : "Start"}
+              variant={isNext ? "primary" : "secondary"}
+              size="md"
+              iconRight={isNext ? "arrow-forward" : undefined}
+              onPress={() => launchStep(navigation, step, { lessonId: lesson.id, lessonStepIndex: i })}
+            />
+          </Card>
+        );
+      })}
+    </Screen>
   );
 }
 
+const NODE = 28;
+
 const useStyles = makeStyles((t) => ({
-  container: { gap: t.space.md },
-  scroll: { gap: t.space.md, paddingBottom: t.space.xl },
-  teach: { gap: t.space.sm },
-  badge: { alignSelf: "flex-start", paddingHorizontal: t.space.sm + 2, paddingVertical: 4, borderRadius: t.radius.pill },
-  howRow: { flexDirection: "row", gap: t.space.md, alignItems: "flex-start" },
+  teach: { gap: t.space.md - 4 },
+  howRow: { flexDirection: "row", gap: t.space.md - 2, alignItems: "flex-start" },
+  howNumber: { fontSize: 26, lineHeight: 26, width: 18 },
   flex: { flex: 1 },
+  completed: { flexDirection: "row", alignItems: "center", gap: t.space.xs + 2, paddingHorizontal: 4 },
   step: { gap: t.space.md },
-  stepRow: { flexDirection: "row", gap: t.space.md, alignItems: "center" },
+  stepRow: { flexDirection: "row", gap: t.space.md - 2, alignItems: "center" },
+  node: {
+    width: NODE,
+    height: NODE,
+    borderRadius: NODE / 2,
+    borderWidth: 1.5,
+    borderColor: t.colors.textMuted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  nodeNext: { backgroundColor: t.colors.accent, borderColor: t.colors.accent },
 }));
