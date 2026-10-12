@@ -49,6 +49,7 @@ export const UNITS: Unit[] = [
   { id: "imp_start", skill: "impromptu", title: "Just start talking", summary: "Faster word retrieval and fewer stalls — the mind-mouth link." },
   { id: "imp_structure", skill: "impromptu", title: "Structure on the fly", summary: "Frameworks that organize an answer as you give it." },
   { id: "imp_feet", skill: "impromptu", title: "Think on your feet", summary: "Stories, surprises and follow-up questions." },
+  { id: "con_breath", skill: "confidence", title: "Breath support", summary: "Breath that steadies your pace, carries your volume and calms your voice." },
   { id: "con_nerves", skill: "confidence", title: "Reframe the nerves", summary: "Turn adrenaline into energy instead of fighting it." },
   { id: "con_authority", skill: "confidence", title: "Voice of authority", summary: "Volume, statements, and endings that land." },
   { id: "con_presence", skill: "confidence", title: "Eye contact and face", summary: "Talk to a person, not a phone." },
@@ -411,6 +412,75 @@ export const LESSONS: Lesson[] = [
 
   // ---------------- Confidence ----------------
   {
+    id: "con_2_breath",
+    skill: "confidence",
+    unitId: "con_breath",
+    title: "Breathe low",
+    minutes: 4,
+    teach: {
+      why: "A thin or shaky voice usually starts with shallow breaths high in the chest. Breathing low — belly and lower ribs moving, shoulders still — gives your voice a steady supply of air, and the belly muscles that power speech something to work with.",
+      how: ["Feet planted, shoulders down and loose", "Breathe in through your nose — belly out, chest still", "Start speaking on the out-breath, not after holding it"],
+      source: "Hoit et al. (1988), the belly muscles in speech; Linklater, Freeing the Natural Voice",
+    },
+    steps: [{ kind: "warmup", warmupId: "wu_low_breath" }, { kind: "drill", drill: "breath_count" }],
+  },
+  {
+    id: "con_b2_phrase",
+    skill: "confidence",
+    unitId: "con_breath",
+    title: "One breath, one phrase",
+    minutes: 4,
+    teach: {
+      why: "Natural speakers breathe at the ends of phrases and sentences, not in the middle of them. Run out of air mid-thought and you rush the end; top up at every pause and your pace evens out, and every sentence gets a full finish.",
+      how: ["Breathe at full stops and commas — that's where pauses go anyway", "Take a quick, quiet sip through your nose", "Top up early instead of pushing to the last drop"],
+      source: "Winkworth et al. (1995), breathing in spontaneous speech; Vinh Giang — the power of the pause",
+    },
+    steps: [{ kind: "guided", guidedId: "gd_phrase_breath" }, { kind: "drill", drill: "pause_reading" }],
+  },
+  {
+    id: "con_b3_steady",
+    skill: "confidence",
+    unitId: "con_breath",
+    title: "Steady air",
+    minutes: 4,
+    teach: {
+      why: "Breath control is about letting air out slowly and evenly, not about how much you can take in. A steady out-breath keeps your voice even to the end of a long sentence — and stops you speeding up as you run low.",
+      how: ["Breathe low, then let it out on a soft, even “sss”", "Keep the hiss the same strength from start to finish", "Count at an easy pace — rushing is cheating"],
+      source: "Linklater, Freeing the Natural Voice; voice warm-up practice",
+    },
+    steps: [{ kind: "warmup", warmupId: "wu_hiss" }, { kind: "drill", drill: "breath_count" }],
+  },
+  {
+    id: "con_b4_volume",
+    skill: "confidence",
+    unitId: "con_breath",
+    title: "Breath behind the volume",
+    minutes: 4,
+    teach: {
+      why: "Louder speech is powered by breath, not by squeezing your throat. When people speak up, they take bigger breaths and use more of them. Support the volume from below and your voice carries without sounding strained.",
+      how: ["Take a fuller, low breath before a loud sentence", "Feel your belly firm up as you speak, like a gentle cough", "Keep your throat and jaw loose — let the air do the work"],
+      source: "Winkworth & Davis (1997), speech breathing and loudness; Vinh Giang — volume",
+    },
+    steps: [{ kind: "guided", guidedId: "gd_breath_volume" }, { kind: "drill", drill: "projection" }],
+  },
+  {
+    id: "con_b5_calm",
+    skill: "confidence",
+    unitId: "con_breath",
+    title: "Calm in a minute",
+    minutes: 4,
+    teach: {
+      why: "Slow breaths with long out-breaths settle a racing heart before you speak. In a month-long study, five minutes a day of “cyclic sighing” — two breaths in, one long breath out — improved mood more than mindfulness meditation did.",
+      how: ["Breathe in through your nose, then sip in a little more", "Let it all out slowly — longer than the breath in", "After a few rounds, start your first sentence on an out-breath"],
+      source: "Balban et al. (2023), cyclic sighing",
+    },
+    steps: [
+      { kind: "warmup", warmupId: "wu_sigh" },
+      { kind: "guided", guidedId: "gd_breath_reset" },
+      { kind: "rep", focus: "Start on an out-breath — calm and unhurried.", seconds: 60 },
+    ],
+  },
+  {
     id: "con_1_excited",
     skill: "confidence",
     unitId: "con_nerves",
@@ -422,19 +492,6 @@ export const LESSONS: Lesson[] = [
       source: "Brooks (2014), anxiety reappraisal",
     },
     steps: [{ kind: "guided", guidedId: "gd_reappraisal" }, { kind: "rep", focus: "Start with energy. Use the adrenaline.", seconds: 60 }],
-  },
-  {
-    id: "con_2_breath",
-    skill: "confidence",
-    unitId: "con_nerves",
-    title: "Breath and posture",
-    minutes: 3,
-    teach: {
-      why: "A shaky voice usually comes from shallow breathing. Slow belly breaths calm the body and give your voice a steady supply of air.",
-      how: ["Feet planted, shoulders down", "Breathe low into your belly", "Start your first sentence on an out-breath"],
-      source: "Box breathing; Balban et al. (2023)",
-    },
-    steps: [{ kind: "warmup", warmupId: "wu_breath" }, { kind: "warmup", warmupId: "wu_resonance" }],
   },
   {
     id: "con_3_project",
@@ -815,6 +872,36 @@ export const GUIDED: GuidedExercise[] = [
       "Say it once more, louder, standing tall.",
     ],
     ratingQuestion: "How energized (vs anxious) do you feel now?",
+  },
+  {
+    id: "gd_phrase_breath",
+    title: "One breath, one phrase",
+    steps: [
+      "Read this out loud: “When you speak, | breathe at the pauses, | not in the middle of a thought. || Each phrase gets its own breath, | and each sentence gets a full finish.”",
+      "At every bar, take a quick, quiet sip of air through your nose.",
+      "Read it again a little slower, making sure no phrase runs out of air before its last word.",
+    ],
+    ratingQuestion: "How easily did each phrase finish on its own breath?",
+  },
+  {
+    id: "gd_breath_volume",
+    title: "Breath behind the volume",
+    steps: [
+      "Put a hand on your belly. Say “Hey!” as if calling someone across a room — feel your belly firm up under your hand.",
+      "Now say a whole sentence at that volume: “I'd like to start with the most important part.” Keep the push going to the last word.",
+      "Once more, louder, with a bigger breath first — throat loose, no straining.",
+    ],
+    ratingQuestion: "How well did your volume hold up to the end of the sentence?",
+  },
+  {
+    id: "gd_breath_reset",
+    title: "Reset before you speak",
+    steps: [
+      "Two calming sighs: breathe in, sip in a little more, then one long breath out.",
+      "Feel your feet on the floor and let your shoulders drop.",
+      "On your next out-breath, say an opening line out loud: “Thanks for having me — let me start with a quick story.”",
+    ],
+    ratingQuestion: "How steady did your voice feel on that first line?",
   },
   {
     id: "gd_power_pause",

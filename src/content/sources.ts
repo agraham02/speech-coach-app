@@ -49,6 +49,10 @@ export const SOURCE_GROUPS: SourceGroup[] = [
         usedFor: "The effort actions (punch, press, wring, float…) in Move It.",
       },
       {
+        citation: "Linklater, K. (2006). *Freeing the Natural Voice* (Rev. ed.). Nick Hern Books.",
+        usedFor: "Low, relaxed breathing and steady air in the breath lessons.",
+      },
+      {
         citation: "Wells, J. C. (2006). *English Intonation: An Introduction.* Cambridge University Press.",
         usedFor: "Rising and falling tones in the pitch lessons and Mark It Up's arrows.",
       },
@@ -119,8 +123,23 @@ export const SOURCE_GROUPS: SourceGroup[] = [
         url: doi("10.1177/0261927X04273034"),
       },
       {
+        citation: "Hoit, J. D., Plassman, B. L., Lansing, R. W., & Hixon, T. J. (1988). Abdominal muscle activity during speech production. *Journal of Applied Physiology, 65*(6), 2656–2664.",
+        usedFor: "Why 'breathe low': the belly muscles work while you speak.",
+        url: doi("10.1152/jappl.1988.65.6.2656"),
+      },
+      {
+        citation: "Winkworth, A. L., Davis, P. J., Adams, R. D., & Ellis, E. (1995). Breathing patterns during spontaneous speech. *Journal of Speech and Hearing Research, 38*(1), 124–144.",
+        usedFor: "Breaths fall at phrase and sentence ends — one breath, one phrase.",
+        url: doi("10.1044/jshr.3801.124"),
+      },
+      {
+        citation: "Winkworth, A. L., & Davis, P. J. (1997). Speech breathing and the Lombard effect. *Journal of Speech, Language, and Hearing Research, 40*(1), 159–169.",
+        usedFor: "Speaking louder takes bigger breaths — breath behind the volume.",
+        url: doi("10.1044/jslhr.4001.159"),
+      },
+      {
         citation: "Balban, M. Y., Neri, E., Kogon, M. M., et al. (2023). Brief structured respiration practices enhance mood and reduce physiological arousal. *Cell Reports Medicine, 4*(1), 100895.",
-        usedFor: "Long, slow exhales to settle nerves (box breathing, the breath lessons).",
+        usedFor: "Cyclic sighing and long out-breaths to settle nerves (Calm in a minute, box breathing).",
         url: doi("10.1016/j.xcrm.2022.100895"),
       },
     ],

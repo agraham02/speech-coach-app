@@ -3,6 +3,7 @@ import { alignFinal, buildTarget, scoreAlignment, type DrillMiss } from "../spee
 import { summarizeVolume, uniqueContentWords, usedWord, type VolumeReading } from "../dsp/volumePauses";
 import {
   scoreAccuracy,
+  scoreBreathCount,
   scoreBridges,
   scoreChain,
   scoreCount,
@@ -15,6 +16,7 @@ import {
 } from "./drillSpecs";
 import type { DrillSetup } from "./prepareDrill";
 import { chainWords, countBridges } from "./wordChain";
+import { countRate, countReached } from "./breathCount";
 
 // Scores one live drill attempt from what the screen measured. Pure.
 
@@ -46,6 +48,9 @@ export interface DrillDetails {
   fractionAtTarget?: number;
   resets?: number;
   bridges?: number;
+  // One-breath count: how far, and how fast.
+  count?: number;
+  perSecond?: number | null;
 }
 
 const HESITATION_MS = 2000;
@@ -105,6 +110,11 @@ export function evaluateDrill(setup: DrillSetup, m: DrillMeasurements): { outcom
         return { outcome: scoreBridges(bridges, target, resets, m.penalizeResets), details: { counted, bridges, resets } };
       }
       return { outcome: scoreChain(counted.length, target, resets, m.penalizeResets), details: { counted, resets } };
+    }
+    case "breath": {
+      const count = countReached(rawTokens);
+      const perSecond = countRate(count, m.speakingMs);
+      return { outcome: scoreBreathCount(count, setup.params.target ?? 10, perSecond), details: { count, perSecond } };
     }
     case "volume": {
       const vol = summarizeVolume(m.volume, 300, setup.params.volumeTarget ?? 4);

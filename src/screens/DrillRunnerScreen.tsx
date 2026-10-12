@@ -21,6 +21,7 @@ import { evaluateDrill, type DrillDetails } from "../domain/drills/evaluateDrill
 import { DRILL_TITLES, type DrillOutcome } from "../domain/drills/drillSpecs";
 import { uniqueContentWords, usedWord } from "../domain/dsp/volumePauses";
 import { chainWords, nextSeed } from "../domain/drills/wordChain";
+import { countReached, MAX_COUNT_RATE } from "../domain/drills/breathCount";
 import { CHAIN_SEEDS } from "../content/drillContent";
 import { defaultsFromProfile } from "../domain/profile";
 import { getUserProfile } from "../services/prefs/prefsStore";
@@ -32,6 +33,11 @@ import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Drill">;
 type Stage = "intro" | "model" | "prep" | "listening" | "finalizing" | "result";
+
+// One-breath count: this long without a new number means the breath ran out.
+// Longer in stuttering mode, so a block is never taken for the end.
+const BREATH_END_MS = 2000;
+const BREATH_END_STUTTER_MS = 3500;
 
 // One screen for every live-speech drill (pace and pause reading, minimal
 // pairs, shadowing, fluency sprints, random-word story, Just a Minute,
@@ -68,6 +74,12 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
       const ms = Date.now() - startedAtRef.current;
       setElapsedMs(ms);
       if (setup?.seconds && ms >= setup.seconds * 1000) {
+        finish();
+        return;
+      }
+      // One-breath count: ends on its own once the numbers stop.
+      const breathEnd = profileDefaults.stutterMode ? BREATH_END_STUTTER_MS : BREATH_END_MS;
+      if (setup?.live === "breath" && heardCountRef.current > 0 && Date.now() - lastActivityRef.current > breathEnd + FIRST_RESULT_LATENCY_MS) {
         finish();
         return;
       }
@@ -279,7 +291,11 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
 
       {stage === "intro" ? <PrimaryButton label={setup.type === "shadowing" ? "Play and repeat" : "Start"} onPress={start} /> : null}
       {stage === "listening" ? (
-        <PrimaryButton label={secondsLeft != null ? `Finish · ${secondsLeft}s` : "Finish"} variant="danger" onPress={finish} />
+        <PrimaryButton
+          label={setup.live === "breath" ? "Out of breath" : secondsLeft != null ? `Finish · ${secondsLeft}s` : "Finish"}
+          variant="danger"
+          onPress={finish}
+        />
       ) : null}
       {stage === "finalizing" ? <PrimaryButton label="Scoring…" onPress={() => undefined} loading /> : null}
       {stage === "result" ? (
@@ -396,6 +412,19 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         </Card>
       );
     }
+    if (setup.live === "breath") {
+      const count = showHeard ? countReached(heard) : 0;
+      return (
+        <Card style={[styles.card, styles.center]}>
+          <Txt variant="display" tabular color={count >= (setup.params.target ?? 0) ? colors.success : colors.textPrimary}>
+            {count}
+          </Txt>
+          <Txt variant="footnote" tone="secondary">
+            {stage === "listening" ? "Easy and even — about two a second" : `Target: ${setup.params.target} on one breath`}
+          </Txt>
+        </Card>
+      );
+    }
     if (setup.live === "free" && setup.category) {
       return (
         <Card style={styles.card}>
@@ -461,6 +490,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         </View>
       );
     }
+    if (setup.live === "breath") return null;
     if (setup.live === "count") {
       const count = uniqueContentWords(heard, setup.letter).length;
       return (
@@ -518,6 +548,13 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         {setup.type === "pause_reading" ? (
           <Txt variant="footnote" tone="muted">
             Pauses are measured from your volume, so close your mouth fully in each one.
+          </Txt>
+        ) : null}
+        {setup.live === "breath" && details.perSecond != null ? (
+          <Txt variant="footnote" tone="secondary">
+            {details.perSecond > MAX_COUNT_RATE
+              ? `About ${details.perSecond} numbers a second — slow to an easy two, and let the breath do the work.`
+              : `About ${details.perSecond} numbers a second — a steady pace.`}
           </Txt>
         ) : null}
       </Card>

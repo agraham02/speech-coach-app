@@ -12,7 +12,7 @@ import { contentLevel, paramsFor, type DrillParams, type DrillType } from "./dri
 // Turns (drill type, difficulty level, optional content id, seed) into
 // everything the drill screen needs to show and score. Pure.
 
-export type LiveMode = "follow" | "count" | "story" | "free" | "volume" | "chain";
+export type LiveMode = "follow" | "count" | "story" | "free" | "volume" | "chain" | "breath";
 
 export interface DrillSetup {
   type: DrillType;
@@ -192,6 +192,16 @@ export function prepareDrill(type: DrillType, level: number, seed: number, conte
         title: "Projection",
         instructions: `Talk about anything for ${params.seconds} seconds, keeping the meter in the green zone. Support it with breath — don't shout.`,
         live: "volume",
+        seconds: params.seconds,
+      };
+    }
+    case "breath_count": {
+      return {
+        ...base,
+        contentId: "breath_count",
+        title: "Count on one breath",
+        instructions: `Breathe in low — belly, not shoulders. Then count out loud, “one, two, three…”, at an easy, even pace until you'd need another breath. Don't squeeze out the last few. Target: ${params.target}. It stops when you do.`,
+        live: "breath",
         seconds: params.seconds,
       };
     }

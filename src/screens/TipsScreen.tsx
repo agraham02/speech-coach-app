@@ -57,6 +57,19 @@ const FRAMEWORKS: Framework[] = [
     from: "Vinh Giang",
   },
   {
+    skill: "confidence",
+    title: "Breath support",
+    description: "Breath is the engine under pace, volume and a steady voice.",
+    points: [
+      "Breathe low: belly and lower ribs move, shoulders stay still.",
+      "One breath, one phrase: top up at commas and full stops, never mid-thought.",
+      "Volume comes from more breath, not a tighter throat.",
+      "Long out-breaths calm you down — two breaths in, one slow breath out.",
+    ],
+    tryThis: "Breathe in low, then count out loud at an easy pace on one breath. Note the number — it grows with practice.",
+    from: "Winkworth et al. (1995, 1997); Hoit et al. (1988); Balban et al. (2023); Linklater",
+  },
+  {
     title: "Three pillars",
     description: "Structure, content and delivery are judged separately — a well-shaped answer can still say little, and a great point can be delivered badly.",
     points: [

@@ -70,7 +70,7 @@ function WarmUpRunner({
     Haptics.selectionAsync().catch(() => undefined);
     if (step.phase === "in" || step.phase === "out") {
       Animated.timing(scale, {
-        toValue: step.phase === "in" ? 1 : BREATH_MIN_SCALE,
+        toValue: step.phase === "in" ? BREATH_MIN_SCALE + (1 - BREATH_MIN_SCALE) * (step.fill ?? 1) : BREATH_MIN_SCALE,
         duration: step.seconds * 1000,
         easing: Easing.inOut(Easing.sin),
         useNativeDriver: true,

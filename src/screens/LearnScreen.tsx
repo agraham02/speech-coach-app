@@ -24,7 +24,7 @@ const SKILL_BLURB: Record<SkillId, string> = {
   articulation: "Crisp consonants, finished words, clarity at speed.",
   cadence: "Pause, pace, pitch, rhythm and emphasis.",
   impromptu: "Word retrieval, structure on the fly, the mind-mouth link.",
-  confidence: "Nerves, volume, statements, eye contact and expression.",
+  confidence: "Breath, nerves, volume, statements, eye contact and expression.",
   conversation: "Knowing what to say, staying present, and getting to the point.",
 };
 

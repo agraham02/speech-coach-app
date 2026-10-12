@@ -1,4 +1,5 @@
 import type { SkillId } from "../../theme/tokens";
+import { MAX_COUNT_RATE } from "./breathCount";
 import type { DifficultyTier } from "../sessionTypes";
 
 // Every drill type: which skill it trains, how its knobs scale with the
@@ -20,6 +21,7 @@ export type DrillType =
   | "marked_reading"
   | "move_it"
   | "projection"
+  | "breath_count"
   | "guided"
   | "warmup"
   | "rep"
@@ -74,6 +76,7 @@ export const DRILL_SKILL: Record<DrillType, SkillId> = {
   word_chain: "impromptu",
   chain_bridge: "impromptu",
   projection: "confidence",
+  breath_count: "confidence",
   guided: "confidence",
   warmup: "confidence",
   rep: "impromptu",
@@ -106,6 +109,7 @@ export const DRILL_TITLES: Record<DrillType, string> = {
   marked_reading: "Mark it up",
   move_it: "Move it",
   projection: "Projection",
+  breath_count: "One-breath count",
   guided: "Guided exercise",
   warmup: "Warm-up",
   rep: "Impromptu rep",
@@ -213,6 +217,10 @@ export function paramsFor(type: DrillType, level: number): DrillParams {
       return { target: 80 };
     case "projection":
       return { volumeTarget: Math.min(8, 2 + l * 0.5), seconds: 10 + l };
+    // Numbers counted aloud on one breath: 10 at level 1, 28 at level 10.
+    // The minute is only a cap — it ends when you stop.
+    case "breath_count":
+      return { target: 8 + l * 2, seconds: 60 };
     case "rep":
       return {
         tier: tierForLevel(l),
@@ -318,6 +326,13 @@ export function scoreJustAMinute(hesitations: number, fillers: number, allowed: 
 
 export function scoreProjection(fractionAbove: number): DrillOutcome {
   return outcome(fractionAbove / 0.8, `${Math.round(fractionAbove * 100)}% of speech at target volume`, fractionAbove >= 0.7);
+}
+
+// Rushing squeezes more numbers into the same breath, so it doesn't pass.
+export function scoreBreathCount(count: number, target: number, perSecond: number | null): DrillOutcome {
+  const rushed = perSecond != null && perSecond > MAX_COUNT_RATE;
+  const summary = rushed ? `${count} on one breath — but rushed (${perSecond} a second)` : `${count} on one breath (target ${target})`;
+  return outcome((count / Math.max(target, 1)) * (rushed ? 0.7 : 1), summary, count >= target && !rushed);
 }
 
 export function scoreSelfRating(rating: number): DrillOutcome {

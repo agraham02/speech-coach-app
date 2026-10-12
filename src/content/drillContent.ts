@@ -139,6 +139,9 @@ export interface WarmUpStepSpec {
   seconds: number;
   // For breathing: the ring grows on "in", shrinks on "out", holds on "hold".
   phase?: "in" | "hold" | "out";
+  // How full an "in" fills the ring (default 1) — a second, topping-up
+  // breath needs the first to stop short of full.
+  fill?: number;
 }
 
 export interface WarmUp {
@@ -159,6 +162,36 @@ export const WARM_UPS: WarmUp[] = [
       { label: "Hold", detail: "Shoulders down, jaw loose.", seconds: 4, phase: "hold" },
       { label: "Breathe out", detail: "Slowly through your mouth.", seconds: 4, phase: "out" },
       { label: "Hold", detail: "Stay relaxed, then go again.", seconds: 4, phase: "hold" },
+    ],
+  },
+  {
+    id: "wu_low_breath",
+    title: "Low breath",
+    rounds: 4,
+    steps: [
+      { label: "Breathe in", detail: "Through your nose. Belly moves out; shoulders stay still.", seconds: 4, phase: "in" },
+      { label: "Breathe out", detail: "Slowly through your mouth, belly softening.", seconds: 6, phase: "out" },
+    ],
+  },
+  {
+    // Cyclic sighing (Balban et al., 2023): a long exhale settles nerves.
+    id: "wu_sigh",
+    title: "Calming sigh",
+    rounds: 5,
+    steps: [
+      { label: "Breathe in", detail: "Through your nose, deep and low.", seconds: 3, phase: "in", fill: 0.8 },
+      { label: "Sip in more", detail: "A short second breath on top.", seconds: 1, phase: "in" },
+      { label: "Long breath out", detail: "Slowly through your mouth, all the way out.", seconds: 6, phase: "out" },
+    ],
+  },
+  {
+    id: "wu_hiss",
+    title: "Steady hiss",
+    rounds: 3,
+    steps: [
+      { label: "Breathe in", detail: "Low and quiet, through your nose.", seconds: 3, phase: "in" },
+      { label: "Hiss it out", detail: "A soft, even “sss” — the same strength the whole way. Don't push.", seconds: 10, phase: "out" },
+      { label: "Rest", detail: "Let the next breath come on its own.", seconds: 3, phase: "hold" },
     ],
   },
   {
