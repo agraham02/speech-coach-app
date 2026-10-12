@@ -9,6 +9,8 @@ import { LoadingSpinner } from "../components/common/LoadingSpinner";
 import { Card } from "../components/common/Card";
 import { Badge } from "../components/common/Badge";
 import { HeroCard } from "../components/common/HeroCard";
+import { IconButton } from "../components/common/IconButton";
+import { Txt } from "../components/common/Txt";
 import { ProgressRing } from "../components/common/ProgressRing";
 import { SegmentedControl } from "../components/common/SegmentedControl";
 import { ScoreBar } from "../components/result/ScoreBar";
@@ -47,7 +49,7 @@ import { completePracticeStep } from "../services/practice/practiceEvents";
 import { colorForCategory } from "../domain/categoryColor";
 import { makeAdhocPrompt, type Prompt, type Session, type SessionScores } from "../domain/sessionTypes";
 import { formatDuration } from "../utils/dateUtils";
-import { fontDisplay, spacing, typography, font } from "../theme/theme";
+import { fontDisplay, radii, spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Result">;
@@ -247,37 +249,24 @@ export function ResultScreen({ route, navigation }: Props) {
   return (
     <ScreenContainer style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.headerText}>
-          <Text style={styles.headerType}>{subjectSummary?.typeLabel.toUpperCase() ?? ""}</Text>
-          <Text style={styles.headerTitle} numberOfLines={2}>
-            {subjectSummary?.title ?? ""}
-          </Text>
-        </View>
-        <View style={styles.headerActions}>
+        <View style={styles.headerTop}>
+          <Txt variant="footnote" weight="500" tone="secondary" style={styles.flex}>
+            {subjectSummary?.typeLabel ?? ""}
+          </Txt>
           {hasVideo ? (
-            <Pressable
+            <IconButton
+              icon={session.videoKeepsake ? "bookmark" : "bookmark-outline"}
+              color={session.videoKeepsake ? colors.warning : undefined}
               onPress={handleToggleKeepsake}
-              hitSlop={12}
-              accessibilityRole="button"
-              accessibilityState={{ selected: !!session.videoKeepsake }}
+              size={38}
               accessibilityLabel={session.videoKeepsake ? "Remove from progress videos" : "Keep as a progress video"}
-            >
-              <Ionicons
-                name={session.videoKeepsake ? "bookmark" : "bookmark-outline"}
-                size={22}
-                color={session.videoKeepsake ? colors.accent : colors.textSecondary}
-              />
-            </Pressable>
+            />
           ) : null}
-          <Pressable
-            onPress={handleDelete}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel="Delete session"
-          >
-            <Ionicons name="trash-outline" size={22} color={colors.textSecondary} />
-          </Pressable>
+          <IconButton icon="trash-outline" onPress={handleDelete} size={38} accessibilityLabel="Delete session" />
         </View>
+        <Txt variant="title1" numberOfLines={3}>
+          {subjectSummary?.title ?? ""}
+        </Txt>
       </View>
 
       <SegmentedControl options={tabs} value={tab} onChange={setTab} />
@@ -290,8 +279,10 @@ export function ResultScreen({ route, navigation }: Props) {
               accent={colorForScore(overall, colors)}
               accentSecondary={colors.violet}
             >
-              <ProgressRing size={132} strokeWidth={10} progress={overall / 10} color={colorForScore(overall, colors)}>
-                <Text style={[styles.scoreHeroNumber, { color: colorForScore(overall, colors) }]}>{overall}</Text>
+              <ProgressRing size={156} strokeWidth={8} progress={overall / 10} color={colorForScore(overall, colors)}>
+                <Txt variant="display" style={styles.scoreHeroNumber}>
+                  {overall}
+                </Txt>
                 <Text style={styles.scoreHeroOutOf}>out of 10</Text>
               </ProgressRing>
               {scores ? (
@@ -486,8 +477,10 @@ export function ResultScreen({ route, navigation }: Props) {
 
 const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
+  flex: { flex: 1 },
   centered: { alignItems: "center", justifyContent: "center" },
-  header: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: spacing.md },
+  header: { gap: spacing.xs },
+  headerTop: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   headerText: { flex: 1, gap: 2 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: spacing.lg },
   headerType: { color: colors.textMuted, fontSize: 13, ...font("600") },
@@ -495,8 +488,8 @@ const useStyles = makeStyles(({ colors }) => ({
   numbersCard: { gap: spacing.md },
   numbersLabel: { color: colors.textMuted, fontSize: 13, ...font("600") },
   numbersRow: { flexDirection: "row", gap: spacing.sm },
-  tile: { flex: 1, alignItems: "center", gap: 2, paddingVertical: spacing.sm, borderRadius: 12, backgroundColor: colors.surfaceRaised },
-  tileValue: { color: colors.textPrimary, fontFamily: fontDisplay.bold, fontSize: 22 },
+  tile: { flex: 1, alignItems: "center", gap: 2, paddingVertical: spacing.md - 2, borderRadius: radii.md, backgroundColor: colors.surfaceRaised },
+  tileValue: { color: colors.textPrimary, fontFamily: fontDisplay.bold, fontSize: 28, lineHeight: 32 },
   tileLabel: { ...font("400"), color: colors.textMuted, fontSize: typography.caption - 1 },
   scroll: { flex: 1 },
   scrollContent: { gap: spacing.md, paddingBottom: spacing.lg },
@@ -506,28 +499,23 @@ const useStyles = makeStyles(({ colors }) => ({
   rowTitle: { color: colors.textPrimary, fontSize: typography.body, ...font("600") },
   rowSubtitle: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption },
   gradeCard: { gap: spacing.md },
-  scoreHeroContent: { alignItems: "center", gap: spacing.xs },
-  scoreHeroNumber: { fontFamily: fontDisplay.bold, fontSize: 40, lineHeight: 44 },
+  scoreHeroContent: { alignItems: "center", gap: spacing.sm, paddingVertical: spacing.xl },
+  scoreHeroNumber: { fontSize: 64, lineHeight: 68 },
   scoreHeroOutOf: { ...font("400"), color: colors.textMuted, fontSize: 13, marginTop: 2 },
-  scoreHeroArchetype: {
-    fontSize: typography.caption,
-    ...font("800"),
-    letterSpacing: 1,
-    marginTop: spacing.xs,
-  },
+  scoreHeroArchetype: { fontSize: 15, ...font("600"), marginTop: spacing.sm },
   scoreHeroFit: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17, textAlign: "center", marginTop: spacing.xs },
   deltaRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   deltaText: { fontSize: typography.caption, ...font("600") },
   deltaNeutral: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
   promptCard: { gap: spacing.sm },
-  promptText: { ...font("400"), color: colors.textSecondary, fontSize: typography.body, lineHeight: 21, fontStyle: "italic" },
+  promptText: { fontFamily: fontDisplay.regular, color: colors.textPrimary, fontSize: 22, lineHeight: 28 },
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  sectionLabel: { color: colors.accent, fontSize: 13, ...font("600") },
+  sectionLabel: { color: colors.textSecondary, fontSize: 13, ...font("600") },
   sectionSpacer: { marginTop: spacing.sm },
   duration: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
   transcript: { ...font("400"), color: colors.textPrimary, fontSize: typography.bodyLarge, lineHeight: 25 },
   verbatimToggle: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, paddingVertical: spacing.sm },
-  verbatimToggleText: { color: colors.accent, fontSize: typography.body, ...font("600") },
+  verbatimToggleText: { color: colors.textSecondary, fontSize: typography.body, ...font("600") },
   videoRemovedRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, paddingVertical: spacing.sm },
   videoRemovedText: { ...font("400"), color: colors.textMuted, fontSize: typography.body },
   verbatimCard: { backgroundColor: colors.surfaceRaised },
@@ -536,8 +524,8 @@ const useStyles = makeStyles(({ colors }) => ({
   coachingRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
   coachingRowText: { ...font("400"), flex: 1, color: colors.textSecondary, fontSize: typography.body, lineHeight: 20 },
   coachingRowLabel: { color: colors.textPrimary, ...font("700") },
-  drillBox: { backgroundColor: colors.accentMuted, borderRadius: 10, padding: spacing.md, gap: spacing.xs, marginTop: spacing.xs },
-  drillLabel: { color: colors.accent, fontSize: 13, ...font("600") },
+  drillBox: { backgroundColor: colors.surfaceRaised, borderRadius: radii.md, padding: spacing.md, gap: spacing.xs, marginTop: spacing.xs },
+  drillLabel: { color: colors.textSecondary, fontSize: 13, ...font("600") },
   drillText: { ...font("400"), color: colors.textPrimary, fontSize: typography.body, lineHeight: 20 },
   radarCard: { alignItems: "center" },
   bodyLanguageNotes: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },

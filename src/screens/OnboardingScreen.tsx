@@ -1,9 +1,16 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Aura } from "../components/common/Aura";
+import { ChoiceList } from "../components/common/ChoiceList";
+import { Enter } from "../components/common/Enter";
+import { IconButton } from "../components/common/IconButton";
+import Animated, { FadeInLeft, FadeInRight, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming } from "react-native-reanimated";
+import { duration, easeOut, spring } from "../theme/motion";
 import { Txt } from "../components/common/Txt";
 import { Card } from "../components/common/Card";
 import { Chip } from "../components/common/Chip";
@@ -48,7 +55,6 @@ import {
 import { requestNotificationPermission, syncDailyReminder } from "../services/notifications/reminderScheduler";
 import { isoDateFromDate, todayISODate } from "../utils/dateUtils";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
-import { font } from "../theme/tokens";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Onboarding">;
 
@@ -78,6 +84,13 @@ export function OnboardingScreen({ route, navigation }: Props) {
   const [eventKind, setEventKind] = useState(profile.event?.kind ?? null);
   const [eventWhen, setEventWhen] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // 1 = forward, -1 = back: which way the next question slides in.
+  const [direction, setDirection] = useState(1);
+  function go(target: number) {
+    setDirection(target >= step ? 1 : -1);
+    setStep(target);
+  }
 
   const question = QUESTIONS[step];
   const chapterIndex = question?.chapter ?? 0;
@@ -172,7 +185,7 @@ export function OnboardingScreen({ route, navigation }: Props) {
         await finish();
         return;
       }
-      setStep(nextStep);
+      go(nextStep);
       setProfile((p) => {
         const saved = { ...p, onboardingStep: nextStep };
         setUserProfile(saved);
@@ -188,7 +201,7 @@ export function OnboardingScreen({ route, navigation }: Props) {
       navigation.goBack();
       return;
     }
-    setStep((s) => s - 1);
+    go(step - 1);
   }
 
   async function finish() {
@@ -210,20 +223,7 @@ export function OnboardingScreen({ route, navigation }: Props) {
   }
 
   function Choices<T extends string>({ options, value, onPick }: { options: Option<T>[]; value: T | undefined | null; onPick: (key: T) => void }) {
-    return (
-      <View style={styles.options}>
-        {options.map((o) => {
-          const on = o.key === value;
-          return (
-            <Pressable key={o.key} onPress={() => onPick(o.key)} style={[styles.option, on && styles.optionOn]} accessibilityRole="radio" accessibilityState={{ selected: on }}>
-              <Txt variant="callout" weight={on ? "700" : "500"} color={on ? colors.onAccent : colors.textPrimary}>
-                {o.label}
-              </Txt>
-            </Pressable>
-          );
-        })}
-      </View>
-    );
+    return <ChoiceList options={options} value={value} onChange={onPick} />;
   }
 
   function Multi<T extends string>({ options, value, onChange }: { options: Option<T>[]; value: T[]; onChange: (v: T[]) => void }) {
@@ -322,7 +322,7 @@ export function OnboardingScreen({ route, navigation }: Props) {
               {DAY_LABELS.map((label, day) => {
                 const on = days.includes(day);
                 return (
-                  <Pressable key={day} onPress={() => setDays((d) => (on && d.length > 1 ? d.filter((x) => x !== day) : on ? d : [...d, day].sort()))} style={[styles.day, on && styles.optionOn]} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
+                  <Pressable key={day} onPress={() => setDays((d) => (on && d.length > 1 ? d.filter((x) => x !== day) : on ? d : [...d, day].sort()))} style={[styles.day, on && styles.dayOn]} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
                     <Txt variant="headline" color={on ? colors.onAccent : colors.textSecondary}>
                       {label}
                     </Txt>
@@ -389,28 +389,28 @@ export function OnboardingScreen({ route, navigation }: Props) {
       case "cloud":
         return (
           <View style={styles.block}>
-            <Card style={styles.block}>
-              <Txt variant="headline">Phone only</Txt>
-              <Txt variant="footnote" tone="secondary">
-                Transcripts, pace, pauses, pitch and eye contact are all worked out on this phone. Nothing leaves it.
-              </Txt>
-            </Card>
-            <Pressable onPress={() => setCloud((c) => ({ ...c, review: !c.review }))} accessibilityRole="checkbox" accessibilityState={{ checked: cloud.review }}>
-              <Card style={[styles.block, cloud.review && styles.cardOn]}>
-                <Txt variant="headline">+ Deep review with Gemini</Txt>
+            <View style={styles.phoneOnly}>
+              <Ionicons name="phone-portrait-outline" size={20} color={colors.textSecondary} />
+              <View style={styles.flex}>
+                <Txt variant="headline">Always on this phone</Txt>
                 <Txt variant="footnote" tone="secondary">
-                  Uploads the video to Google's Gemini for a detailed review of content and delivery. Needs your own key in Settings.
+                  Transcripts, pace, pauses, pitch and eye contact are worked out here. Nothing leaves it.
                 </Txt>
-              </Card>
-            </Pressable>
-            <Pressable onPress={() => setCloud((c) => ({ ...c, notion: !c.notion }))} accessibilityRole="checkbox" accessibilityState={{ checked: cloud.notion }}>
-              <Card style={[styles.block, cloud.notion && styles.cardOn]}>
-                <Txt variant="headline">+ Notion journal</Txt>
-                <Txt variant="footnote" tone="secondary">
-                  Adds the clean transcript to your Notion journal. Sends the text to Notion.
-                </Txt>
-              </Card>
-            </Pressable>
+              </View>
+            </View>
+            <ChoiceList
+              multiple
+              options={[
+                {
+                  key: "review",
+                  label: "Deep review with Gemini",
+                  detail: "Uploads the video to Google's Gemini for a detailed review of content and delivery. Needs your own key in Settings.",
+                },
+                { key: "notion", label: "Notion journal", detail: "Adds the clean transcript to your Notion journal. Sends the text to Notion." },
+              ]}
+              value={[cloud.review ? "review" : null, cloud.notion ? "notion" : null].filter((k): k is "review" | "notion" => !!k)}
+              onChange={(k) => setCloud((c) => ({ ...c, [k]: !c[k] }))}
+            />
           </View>
         );
       case "retention":
@@ -422,87 +422,153 @@ export function OnboardingScreen({ route, navigation }: Props) {
 
   if (step < 0) {
     return (
-      <ScreenContainer style={styles.welcome}>
-        <View style={styles.welcomeBody}>
-          <Ionicons name="mic-outline" size={44} color={colors.accent} />
-          <Txt variant="largeTitle">{mode === "profile" ? "Tell us about you" : "Speaking well is a skill — not a trait."}</Txt>
-          <Txt variant="callout" tone="secondary">
-            {mode === "profile"
-              ? "A few questions so your plan fits you. About three minutes; skip anything you like."
-              : "A few questions (about three minutes), a quick setup check, then a short skill check so your plan starts where you are. Nothing is graded, and you can skip anything."}
-          </Txt>
-        </View>
-        <PrimaryButton label="Let's start" onPress={() => setStep(0)} />
-      </ScreenContainer>
+      <View style={styles.welcomeRoot}>
+        <Aura color={colors.skill.cadence.fg} secondary={colors.skill.conversation.fg} strength={0.42} at={{ x: 0.2, y: 0.1 }} />
+        <SafeAreaView style={styles.welcome}>
+          <View style={styles.welcomeBody}>
+            <Enter index={0}>
+              <Waveform />
+            </Enter>
+            <Enter index={1}>
+              <Txt variant="display" style={styles.welcomeTitle}>
+                {mode === "profile" ? "Tell us about you" : "Speaking well is a skill, not a trait."}
+              </Txt>
+            </Enter>
+            <Enter index={2}>
+              <Txt variant="body" tone="secondary">
+                {mode === "profile"
+                  ? "A few questions so your plan fits you. About three minutes; skip anything you like."
+                  : "A few questions (about three minutes), a quick setup check, then a short skill check so your plan starts where you are. Nothing is graded, and you can skip anything."}
+              </Txt>
+            </Enter>
+          </View>
+          <Enter index={3}>
+            <PrimaryButton label="Let's start" iconRight="arrow-forward" onPress={() => go(0)} />
+          </Enter>
+        </SafeAreaView>
+      </View>
     );
   }
 
   return (
     <ScreenContainer style={styles.container}>
       <View style={styles.top}>
-        <Pressable onPress={back} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
-          <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
-        </Pressable>
+        <IconButton icon="chevron-back" onPress={back} accessibilityLabel="Back" size={38} />
         <View style={styles.flex}>
-          <Txt variant="caption2" tone="muted" uppercase>
+          <Txt variant="footnote" weight="500" tone="secondary">
             {CHAPTERS[chapterIndex]} · {chapterIndex + 1} of {CHAPTERS.length}
           </Txt>
-          <View style={styles.track}>
-            <View style={[styles.fill, { width: `${progress * 100}%` }]} />
-          </View>
+          <ProgressBar progress={progress} />
         </View>
       </View>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <Txt variant="title2">{question.title}</Txt>
-          {question.subtitle ? (
-            <Txt variant="subhead" tone="secondary">
-              {question.subtitle}
-            </Txt>
-          ) : null}
-          {body()}
-          <Txt variant="footnote" tone="muted" style={styles.changes}>
-            {question.changes}
-          </Txt>
+          <Animated.View
+            key={step}
+            entering={(direction > 0 ? FadeInRight : FadeInLeft).duration(duration.slow).easing(easeOut).withInitialValues({ transform: [{ translateX: direction * 24 }] })}
+            style={styles.question}
+          >
+            <View style={styles.questionHead}>
+              <Txt variant="title1">{question.title}</Txt>
+              {question.subtitle ? (
+                <Txt variant="callout" tone="secondary">
+                  {question.subtitle}
+                </Txt>
+              ) : null}
+            </View>
+            {body()}
+            <View style={styles.changes}>
+              <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} />
+              <Txt variant="footnote" tone="muted" style={styles.flex}>
+                {question.changes}
+              </Txt>
+            </View>
+          </Animated.View>
         </ScrollView>
         <View style={styles.actions}>
           {question.optional ? <PrimaryButton label="Skip" variant="ghost" style={styles.flex} onPress={next} disabled={busy} /> : null}
-          <PrimaryButton label={step === QUESTIONS.length - 1 ? "Done" : "Next"} style={styles.flexWide} onPress={next} disabled={!answered} loading={busy} />
+          <PrimaryButton label={step === QUESTIONS.length - 1 ? "Done" : "Continue"} style={styles.flexWide} onPress={next} disabled={!answered} loading={busy} />
         </View>
       </KeyboardAvoidingView>
     </ScreenContainer>
   );
 }
 
+// A thin bar that eases to each new value.
+function ProgressBar({ progress }: { progress: number }) {
+  const styles = useStyles();
+  const w = useSharedValue(progress);
+  useEffect(() => {
+    w.value = withTiming(progress, { duration: duration.slow, easing: easeOut });
+  }, [progress, w]);
+  const fill = useAnimatedStyle(() => ({ width: `${w.value * 100}%` }));
+  return (
+    <View style={styles.track}>
+      <Animated.View style={[styles.fill, fill]} />
+    </View>
+  );
+}
+
+// The welcome's one flourish: a voice's waveform rising into place.
+const BARS = [0.35, 0.6, 0.45, 0.85, 1, 0.7, 0.5, 0.8, 0.55, 0.3, 0.65, 0.4];
+function Waveform() {
+  const styles = useStyles();
+  return (
+    <View style={styles.wave} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      {BARS.map((h, i) => (
+        <Bar key={i} height={h} index={i} />
+      ))}
+    </View>
+  );
+}
+
+function Bar({ height, index }: { height: number; index: number }) {
+  const styles = useStyles();
+  const v = useSharedValue(0.08);
+  useEffect(() => {
+    v.value = withDelay(200 + index * 45, withSpring(height, spring.gentle));
+  }, [height, index, v]);
+  const style = useAnimatedStyle(() => ({ height: 56 * v.value }));
+  return <Animated.View style={[styles.bar, style]} />;
+}
+
 const useStyles = makeStyles((t) => ({
   container: { gap: t.space.md },
-  welcome: { justifyContent: "space-between" },
-  welcomeBody: { flex: 1, justifyContent: "center", gap: t.space.md },
+  welcomeRoot: { flex: 1, backgroundColor: t.colors.background },
+  welcome: { flex: 1, justifyContent: "space-between", paddingHorizontal: t.layout.gutter, paddingBottom: t.space.md },
+  welcomeBody: { flex: 1, justifyContent: "center", gap: t.space.lg },
+  welcomeTitle: { fontSize: 50, lineHeight: 54 },
+  wave: { flexDirection: "row", alignItems: "center", gap: 5, height: 56 },
+  bar: { width: 5, borderRadius: 3, backgroundColor: t.colors.textPrimary },
   top: { flexDirection: "row", alignItems: "center", gap: t.space.md },
-  track: { height: 6, borderRadius: 3, backgroundColor: t.colors.surfaceRaised, marginTop: 6, overflow: "hidden" },
-  fill: { height: "100%", backgroundColor: t.colors.accent },
-  scroll: { gap: t.space.md, paddingBottom: t.space.lg },
-  block: { gap: t.space.sm },
-  options: { gap: t.space.sm },
-  option: { paddingVertical: t.space.md, paddingHorizontal: t.space.md, borderRadius: t.radius.md, backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.border },
-  optionOn: { backgroundColor: t.colors.accent, borderColor: t.colors.accent },
-  cardOn: { borderColor: t.colors.accent },
+  track: { height: 4, borderRadius: 2, backgroundColor: t.colors.surfaceRaised, marginTop: 8, overflow: "hidden" },
+  fill: { height: "100%", borderRadius: 2, backgroundColor: t.colors.accent },
+  scroll: { paddingTop: t.space.md, paddingBottom: t.space.lg },
+  question: { gap: t.space.lg },
+  questionHead: { gap: t.space.sm },
+  block: { gap: t.space.md },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: t.space.sm },
   dayRow: { flexDirection: "row", justifyContent: "space-between" },
-  day: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.border },
-  input: {
-    ...font("400"),
-    borderRadius: t.radius.md,
-    backgroundColor: t.colors.surface,
-    borderWidth: 1,
-    borderColor: t.colors.border,
-    color: t.colors.textPrimary,
-    paddingHorizontal: t.space.md,
-    paddingVertical: t.space.md,
-    fontSize: 17,
+  day: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: t.colors.surfaceRaised },
+  dayOn: { backgroundColor: t.colors.accent },
+  phoneOnly: {
+    flexDirection: "row",
+    gap: t.space.md - 4,
+    padding: t.space.md,
+    borderRadius: t.radius.md + 2,
+    backgroundColor: t.colors.surfaceRaised,
   },
-  multiline: { minHeight: 110, textAlignVertical: "top" },
-  changes: { marginTop: t.space.sm },
+  input: {
+    ...t.type.body,
+    fontSize: 17,
+    borderRadius: t.radius.md + 2,
+    backgroundColor: t.colors.surfaceRaised,
+    color: t.colors.textPrimary,
+    paddingHorizontal: t.space.md + 2,
+    paddingVertical: t.space.md,
+  },
+  multiline: { minHeight: 120, textAlignVertical: "top" },
+  changes: { flexDirection: "row", gap: t.space.sm, alignItems: "flex-start" },
   actions: { flexDirection: "row", gap: t.space.sm, paddingTop: t.space.sm },
   flex: { flex: 1 },
   flexWide: { flex: 2 },
