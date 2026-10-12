@@ -6,6 +6,7 @@ import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
 import { Header } from "../components/common/Header";
 import { Card } from "../components/common/Card";
+import { HeroCard } from "../components/common/HeroCard";
 import { Txt } from "../components/common/Txt";
 import { PrimaryButton } from "../components/common/PrimaryButton";
 import { RatingScale } from "../components/common/RatingScale";
@@ -224,7 +225,7 @@ export function LineRepScreen({ route, navigation }: Props) {
 
         {stage === "read" ? (
           <>
-            <Card style={styles.readCard}>
+            <HeroCard accent={colors.skill.cadence.fg} contentStyle={styles.readCard}>
               <View style={styles.readHead}>
                 <Txt variant="caption2" tone="accent" uppercase>
                   Read {read + 1} of {READS.length} · {READS[read].title}
@@ -239,7 +240,7 @@ export function LineRepScreen({ route, navigation }: Props) {
                   — {line.credit}
                 </Txt>
               ) : null}
-            </Card>
+            </HeroCard>
             {READS[read].level !== "none" ? <MarkLegend marks={readMarks} hidden={hidden} onToggle={toggleHidden} /> : null}
           </>
         ) : null}

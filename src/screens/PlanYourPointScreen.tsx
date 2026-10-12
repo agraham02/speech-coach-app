@@ -6,7 +6,7 @@ import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
 import { Header } from "../components/common/Header";
 import { PrimaryButton } from "../components/common/PrimaryButton";
-import { radii, spacing, typography, font } from "../theme/theme";
+import { radii, spacing, typography, font, fontDisplay } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "PlanYourPoint">;
@@ -108,7 +108,7 @@ const useStyles = makeStyles(({ colors }) => ({
     borderRadius: radii.md,
     padding: spacing.md,
   },
-  promptPreviewText: { ...font("400"), color: colors.textSecondary, fontSize: typography.body, fontStyle: "italic" },
+  promptPreviewText: { fontFamily: fontDisplay.regular, color: colors.textPrimary, fontSize: 22, lineHeight: 27 },
   field: { gap: spacing.xs },
   label: { color: colors.textSecondary, fontSize: 13, ...font("600") },
   hint: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },

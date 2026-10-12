@@ -13,7 +13,7 @@ import { SegmentedControl } from "../components/common/SegmentedControl";
 import { getAllPrompts } from "../services/db/promptsRepo";
 import { colorForCategory } from "../domain/categoryColor";
 import type { DifficultyTier, Prompt } from "../domain/sessionTypes";
-import { radii, spacing, typography, font } from "../theme/theme";
+import { radii, spacing, typography, font, fontDisplay } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import type { Colors } from "../theme/theme";
 
@@ -174,7 +174,7 @@ const useStyles = makeStyles(({ colors }) => ({
   list: { gap: spacing.sm, paddingBottom: spacing.lg },
   promptCard: { gap: spacing.xs },
   promptCardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  promptText: { color: colors.textPrimary, fontSize: typography.bodyLarge, ...font("600"), lineHeight: 22 },
+  promptText: { color: colors.textPrimary, fontFamily: fontDisplay.regular, fontSize: 21, lineHeight: 26 },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
   emptyText: { ...font("400"), color: colors.textMuted, fontSize: typography.body, textAlign: "center", paddingHorizontal: spacing.xl },
 }));

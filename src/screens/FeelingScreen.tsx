@@ -67,7 +67,7 @@ export function FeelingScreen({ route, navigation }: Props) {
           <Txt variant="caption2" tone="accent" uppercase>
             {angle.title(emotion.label)}
           </Txt>
-          <Txt variant="title3">{angle.prompt(emotion.label)}</Txt>
+          <Txt variant="quote">{angle.prompt(emotion.label)}</Txt>
           <Txt variant="subhead" tone="secondary">
             A minute or two, on camera, with as much detail as you can. {RULES.join(" ")}
           </Txt>
