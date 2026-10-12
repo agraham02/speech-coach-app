@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
   softer: { ...font("400"), fontSize: FONT_SIZE * 0.88, color: "rgba(255,255,255,0.72)" },
   slow: { letterSpacing: 2.5 },
   fast: { fontStyle: "italic", letterSpacing: -0.3 },
-  currentWord: { backgroundColor: colors.accent, color: "white" },
+  currentWord: { backgroundColor: colors.accent, color: colors.onAccent },
   arrow: { color: colors.skill.cadence.fg, fontSize: FONT_SIZE * 0.8, lineHeight: LINE_HEIGHT, ...font("700") },
   gap: { color: colors.skill.cadence.fg, fontSize: FONT_SIZE, lineHeight: LINE_HEIGHT, ...font("300") },
   note: { ...font("400"), color: colors.textMuted, fontSize: typography.caption, lineHeight: 22, fontStyle: "italic" },

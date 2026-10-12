@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { radii, spacing, typography, font } from "../../theme/theme";
+import { radii, spacing, typography, font, fontDisplay } from "../../theme/theme";
 import { makeStyles } from "../../theme/ThemeProvider";
 
 interface FilterOption {
@@ -147,14 +147,14 @@ const useStyles = makeStyles(({ colors }) => ({
     right: 0,
     bottom: 0,
     backgroundColor: colors.surface,
-    borderTopLeftRadius: radii.lg,
-    borderTopRightRadius: radii.lg,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     padding: spacing.lg,
     gap: spacing.sm,
   },
-  handle: { alignSelf: "center", width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: spacing.xs },
+  handle: { alignSelf: "center", width: 40, height: 5, borderRadius: 3, backgroundColor: colors.switchTrackOff, marginBottom: spacing.sm },
   panelHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  panelTitle: { color: colors.textPrimary, fontSize: typography.title, ...font("700") },
+  panelTitle: { color: colors.textPrimary, fontFamily: fontDisplay.regular, fontSize: 28, lineHeight: 34 },
   resetText: { color: colors.accent, fontSize: typography.body, ...font("600") },
   sectionLabel: { color: colors.textMuted, fontSize: 13, ...font("600") },
   sectionSpacer: { marginTop: spacing.sm },

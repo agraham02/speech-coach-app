@@ -18,7 +18,8 @@ export function RecordBlindToggle({ value, onValueChange, disabled }: RecordBlin
         value={value}
         onValueChange={onValueChange}
         disabled={disabled}
-        trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
+        trackColor={{ true: colors.success, false: "rgba(255,255,255,0.2)" }}
+        thumbColor="#FFFFFF"
       />
     </View>
   );

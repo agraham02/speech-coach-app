@@ -138,7 +138,8 @@ export function PreviewScreen({ route, navigation }: Props) {
             <Switch
               value={wantsCloudReview}
               onValueChange={setWantsCloudReview}
-              trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
+              trackColor={{ true: colors.success, false: colors.switchTrackOff }}
+              thumbColor="#FFFFFF"
             />
           </View>
           <View style={styles.row}>
@@ -149,7 +150,8 @@ export function PreviewScreen({ route, navigation }: Props) {
             <Switch
               value={wantsNotionSync}
               onValueChange={setWantsNotionSync}
-              trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
+              trackColor={{ true: colors.success, false: colors.switchTrackOff }}
+              thumbColor="#FFFFFF"
             />
           </View>
           <Text style={styles.hint}>
