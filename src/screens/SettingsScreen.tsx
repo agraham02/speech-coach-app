@@ -1,9 +1,14 @@
 import { useEffect, useState } from "react";
-import { Alert, Linking, Pressable, ScrollView, Switch, Text, TextInput, View } from "react-native";
+import { Alert, Linking, Pressable, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
-import { ScreenContainer } from "../components/common/ScreenContainer";
+import { Screen } from "../components/common/Screen";
+import { Txt } from "../components/common/Txt";
+import { ListGroup, ListRow, SwitchRow } from "../components/common/ListRow";
+import { SegmentedControl } from "../components/common/SegmentedControl";
+import { PressableScale } from "../components/common/PressableScale";
+import { PrimaryButton } from "../components/common/PrimaryButton";
 import { exportPracticeData, formatBytes, getVideoStorageBytes } from "../services/data/dataExport";
 import { deleteOldVideos } from "../services/data/videoKeepsakes";
 import { isAppleModelAvailable } from "../services/onDeviceLlm/onDeviceCoach";
@@ -30,10 +35,8 @@ import {
 } from "../services/secrets/secretsStore";
 import { formatReminderHour, REMINDER_HOUR_MAX, REMINDER_HOUR_MIN } from "../domain/reminderSettings";
 import { defaultExtraHours, type DailyGoal } from "../domain/dailyGoal";
-import { ChipGroup } from "../components/common/Chip";
 import { getDailySessionGoal, getVideoRetentionDays, setDailySessionGoal } from "../services/prefs/prefsStore";
 import { cancelDailyReminder, requestNotificationPermission, syncDailyReminder } from "../services/notifications/reminderScheduler";
-import { spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import { SHOW_DEV_TOOLS } from "../config/devTools";
 
@@ -56,7 +59,9 @@ function SecretField({ label, caption, value, onChangeText, onBlur }: SecretFiel
   const [visible, setVisible] = useState(false);
   return (
     <View style={styles.secretField}>
-      <Text style={styles.switchLabel}>{label}</Text>
+      <Txt variant="subhead" weight="600">
+        {label}
+      </Txt>
       <View style={styles.secretInputRow}>
         <TextInput
           style={styles.secretInput}
@@ -84,7 +89,9 @@ function SecretField({ label, caption, value, onChangeText, onBlur }: SecretFiel
           <Ionicons name={visible ? "eye-off-outline" : "eye-outline"} size={18} color={colors.textMuted} />
         </Pressable>
       </View>
-      <Text style={styles.sectionSubtitle}>{caption}</Text>
+      <Txt variant="footnote" tone="secondary">
+        {caption}
+      </Txt>
     </View>
   );
 }
@@ -229,34 +236,33 @@ export function SettingsScreen({ navigation }: Props) {
   });
 
   return (
-    <ScreenContainer style={styles.container}>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Go back">
-          <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
-        </Pressable>
-        <Text style={styles.title}>Settings</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+    <Screen title="Settings" onBack={() => navigation.goBack()} contentStyle={styles.content}>
+      <ListGroup title="Practice">
+        <ListRow
+          icon="person-circle-outline"
+          title="Your profile and goals"
+          subtitle="What gets in your way, where you want to speak better, how you practice"
+          chevron
+          onPress={() => navigation.navigate("Onboarding", { mode: "profile" })}
+        />
+        <ListRow icon="speedometer-outline" title="Level & difficulty" subtitle="See your impromptu level, or pin it manually" chevron onPress={() => navigation.navigate("Curriculum")} />
+        <SwitchRow
+          icon="git-branch-outline"
+          title="Plan your point"
+          subtitle="A quick PREP sketch before a recording starts"
+          value={planYourPointEnabled}
+          onValueChange={handlePlanYourPointToggle}
+        />
+      </ListGroup>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-      <Text style={styles.groupLabel}>Practice</Text>
       <Card style={styles.section}>
-        <Pressable onPress={() => navigation.navigate("Onboarding", { mode: "profile" })} style={styles.sectionHeaderRow} accessibilityRole="button">
-          <View style={styles.sectionHeaderText}>
-            <Text style={styles.sectionTitle}>Your profile and goals</Text>
-            <Text style={styles.sectionSubtitle}>What gets in your way, where you want to speak better, how you practice.</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-        </Pressable>
-      </Card>
-      <Card style={styles.section}>
-        <View style={styles.sectionHeaderText}>
-          <Text style={styles.sectionTitle}>Daily goal</Text>
-          <Text style={styles.sectionSubtitle}>
-            Sessions a day. The first is your daily plan; the rest are 4-minute top-ups. Your streak only ever needs one.
-          </Text>
+        <View style={styles.sectionText}>
+          <Txt variant="headline">Daily goal</Txt>
+          <Txt variant="footnote" tone="secondary">
+            The first session is your daily plan; the rest are 4-minute top-ups. Your streak only ever needs one.
+          </Txt>
         </View>
-        <ChipGroup
+        <SegmentedControl
           options={[
             { key: "1", label: "1 a day" },
             { key: "2", label: "2 a day" },
@@ -265,39 +271,44 @@ export function SettingsScreen({ navigation }: Props) {
           value={String(goal)}
           onChange={handleGoalChange}
         />
-        <View style={styles.sectionHeaderText}>
-          <Text style={styles.sectionSubtitle}>Practice days — a day you leave off never breaks your streak.</Text>
+        <View style={styles.sectionText}>
+          <Txt variant="subhead" weight="600">
+            Practice days
+          </Txt>
+          <Txt variant="footnote" tone="secondary">
+            A day you leave off never breaks your streak.
+          </Txt>
         </View>
         <View style={styles.dayRow}>
           {["S", "M", "T", "W", "T", "F", "S"].map((label, day) => {
             const on = !reminderSettings.practiceDays?.length || reminderSettings.practiceDays.includes(day);
             return (
-              <Pressable
+              <PressableScale
                 key={day}
                 onPress={() => handleToggleDay(day)}
-                style={[styles.dayChip, on && { backgroundColor: colors.accent }]}
+                haptic="tick"
+                scaleTo={0.9}
+                style={[styles.dayChip, on && styles.dayChipOn]}
                 accessibilityRole="button"
                 accessibilityState={{ selected: on }}
                 accessibilityLabel={["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][day]}
               >
-                <Text style={[styles.dayText, on && { color: colors.onAccent }]}>{label}</Text>
-              </Pressable>
+                <Txt variant="subhead" weight="600" color={on ? colors.onAccent : colors.textSecondary}>
+                  {label}
+                </Txt>
+              </PressableScale>
             );
           })}
         </View>
       </Card>
+
       <Card style={styles.section}>
-        <View style={styles.sectionHeaderRow}>
-          <View style={styles.sectionHeaderText}>
-            <Text style={styles.sectionTitle}>Reminders</Text>
-            <Text style={styles.sectionSubtitle}>{goal > 1 ? "A nudge for each session — skipped once it's done." : "A nudge to practice, once a day."}</Text>
-          </View>
-          <Switch
-            value={reminderSettings.enabled}
-            onValueChange={handleReminderToggle}
-            trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
-          />
-        </View>
+        <SwitchRow
+          title="Reminders"
+          subtitle={goal > 1 ? "A nudge for each session — skipped once it's done." : "A nudge to practice, once a day."}
+          value={reminderSettings.enabled}
+          onValueChange={handleReminderToggle}
+        />
         {reminderSettings.enabled ? (
           <>
             <LabeledSlider
@@ -321,74 +332,35 @@ export function SettingsScreen({ navigation }: Props) {
                 onChange={(h) => handleExtraHourChange(i, h)}
               />
             ))}
-            <Pressable onPress={() => Linking.openSettings()}>
-              <Text style={styles.linkText}>Open iOS notification settings</Text>
-            </Pressable>
+            <PrimaryButton label="Notification settings" variant="secondary" size="sm" icon="open-outline" onPress={() => Linking.openSettings()} style={styles.inlineButton} />
           </>
         ) : null}
       </Card>
 
-      {/* Recording length, Concise mode length, Warm-up, and Prep phase moved
-          to the Session options sheet on Home (opened from the icon button
-          next to Start Recording) — they only ever matter right before a
-          recording, not as standing app configuration like what's left here. */}
-      <Card style={styles.section}>
-        <View style={styles.sectionHeaderRow}>
-          <View style={styles.sectionHeaderText}>
-            <Text style={styles.sectionTitle}>Plan your point</Text>
-            <Text style={styles.sectionSubtitle}>
-              A quick PREP (Point/Reason/Example) sketch before recording starts.
-            </Text>
-          </View>
-          <Switch
-            value={planYourPointEnabled}
-            onValueChange={handlePlanYourPointToggle}
-            trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
-          />
-        </View>
-      </Card>
+      {/* Recording length, Concise mode length, Warm-up, and Prep phase live
+          in the Session options sheet on Practice — they only matter right
+          before a recording, not as standing app configuration. */}
 
-      <Pressable onPress={() => navigation.navigate("Curriculum")} accessibilityRole="button">
-        <Card style={styles.linkCard}>
-          <View style={styles.sectionHeaderText}>
-            <Text style={styles.sectionTitle}>Level & difficulty</Text>
-            <Text style={styles.sectionSubtitle}>See your impromptu level, or pin it manually.</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-        </Card>
-      </Pressable>
-
-      <Text style={styles.groupLabel}>ON-DEVICE AI</Text>
-      <Card style={styles.section}>
-        <StatusLine label="Coaching" value={appleCoach ? "Apple Intelligence (on-device)" : "Built-in rules (on-device)"} ok />
+      <ListGroup title="On-device AI">
+        <StatusLine label="Coaching" value={appleCoach ? "Apple Intelligence" : "Built-in rules"} ok />
         <StatusLine label="Live recognition" value={onDeviceRecognition ? "On-device" : "System recognizer"} ok={onDeviceRecognition} />
-        <StatusLine label="Transcription" value="Whisper base.en (on-device)" ok />
-        <Text style={styles.sectionSubtitle}>
-          Everything above runs on this phone. Nothing leaves it unless you ask for a deep review or Notion sync.
-        </Text>
-        {SHOW_DEV_TOOLS ? (
-          <Pressable onPress={() => navigation.navigate("AsrLab")}>
-            <Text style={styles.linkText}>Compare transcription engines (ASR Lab)</Text>
-          </Pressable>
-        ) : null}
-      </Card>
+        <StatusLine label="Transcription" value="Whisper base.en" ok />
+        {SHOW_DEV_TOOLS ? <ListRow title="ASR Lab" subtitle="Compare transcription engines" chevron onPress={() => navigation.navigate("AsrLab")} /> : null}
+      </ListGroup>
+      <Txt variant="footnote" tone="secondary" style={styles.note}>
+        All of this runs on your phone. Nothing leaves it unless you ask for a deep review or Notion sync.
+      </Txt>
 
-      <Text style={styles.groupLabel}>CLOUD (OPTIONAL)</Text>
+      <Txt variant="footnote" weight="500" tone="secondary" style={styles.groupTitle}>
+        Cloud (optional)
+      </Txt>
       <Card style={styles.section}>
-        <View style={styles.sectionHeaderRow}>
-          <View style={styles.sectionHeaderText}>
-            <Text style={styles.sectionTitle}>Cloud transcription (AssemblyAI)</Text>
-            <Text style={styles.sectionSubtitle}>
-              Off by default — on-device transcription is free. Turning this on sends your recording's audio to
-              AssemblyAI (~$0.15/hr) for higher-accuracy transcription, especially on disfluencies.
-            </Text>
-          </View>
-          <Switch
-            value={assemblyAiEnabled}
-            onValueChange={handleAssemblyAiToggle}
-            trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
-          />
-        </View>
+        <SwitchRow
+          title="Cloud transcription"
+          subtitle="AssemblyAI, about $0.15 an hour — better with disfluencies. Off by default; on-device transcription is free."
+          value={assemblyAiEnabled}
+          onValueChange={handleAssemblyAiToggle}
+        />
         {assemblyAiEnabled ? (
           <SecretField
             label="AssemblyAI API key"
@@ -401,24 +373,31 @@ export function SettingsScreen({ navigation }: Props) {
       </Card>
 
       <Card style={styles.section}>
-        <Text style={styles.sectionTitle}>Deep review (Gemini)</Text>
-        <Text style={styles.sectionSubtitle}>
-          Keys are stored on this device only. Deep reviews are always opt-in, per session.
-        </Text>
+        <View style={styles.sectionText}>
+          <Txt variant="headline">Deep review (Gemini)</Txt>
+          <Txt variant="footnote" tone="secondary">
+            Keys stay on this device. Deep reviews are always opt-in, per session.
+          </Txt>
+        </View>
         <SecretField
           label="Gemini API key"
-          caption="From Google AI Studio — only used for optional deep reviews (the cloud upload you choose per session)."
+          caption="From Google AI Studio — only used for the deep reviews you choose."
           value={geminiKey}
           onChangeText={setGeminiKeyField}
           onBlur={() => setGeminiApiKey(geminiKey)}
         />
       </Card>
 
-      <Text style={styles.groupLabel}>Notion journal</Text>
       <Card style={styles.section}>
+        <View style={styles.sectionText}>
+          <Txt variant="headline">Notion journal</Txt>
+          <Txt variant="footnote" tone="secondary">
+            Synced transcripts are appended to a page you choose.
+          </Txt>
+        </View>
         <SecretField
           label="Notion token"
-          caption="A Notion integration token — share your journal page with the integration in Notion's UI, or sync will 404."
+          caption="A Notion integration token — share your journal page with the integration in Notion, or sync will 404."
           value={notionToken}
           onChangeText={setNotionTokenField}
           onBlur={() => setNotionToken(notionToken)}
@@ -432,68 +411,48 @@ export function SettingsScreen({ navigation }: Props) {
         />
       </Card>
 
-      <Text style={styles.groupLabel}>Data</Text>
-      <Card style={styles.section}>
-        <Text style={styles.sectionTitle}>Your data stays on this phone</Text>
-        <Text style={styles.sectionSubtitle}>Videos use {formatBytes(videoBytes)}.</Text>
-        <Pressable onPress={handleExport} accessibilityRole="button">
-          <Text style={styles.linkText}>Export practice data (share sheet)</Text>
-        </Pressable>
-        <Pressable onPress={handleDeleteOldVideos} accessibilityRole="button">
-          <Text style={styles.linkText}>Clear videos older than 30 days (keeps one a month)</Text>
-        </Pressable>
-      </Card>
-      </ScrollView>
-    </ScreenContainer>
+      <ListGroup title="Your data">
+        <ListRow icon="film-outline" title="Videos" value={formatBytes(videoBytes)} />
+        <ListRow icon="share-outline" title="Export practice data" chevron onPress={handleExport} />
+        <ListRow icon="trash-outline" title="Clear old videos" subtitle="Keeps the best take from each month" destructive onPress={handleDeleteOldVideos} />
+      </ListGroup>
+      <Txt variant="footnote" tone="secondary" style={styles.note}>
+        Your recordings and practice history stay on this phone.
+      </Txt>
+    </Screen>
   );
 }
 
 function StatusLine({ label, value, ok }: { label: string; value: string; ok?: boolean }) {
-  const styles = useStyles();
   const { colors } = useTheme();
   return (
-    <View style={styles.statusLine}>
-      <Ionicons name={ok ? "checkmark-circle" : "ellipse-outline"} size={16} color={ok ? colors.success : colors.textMuted} />
-      <Text style={styles.statusLabel}>{label}</Text>
-      <Text style={styles.statusValue}>{value}</Text>
-    </View>
+    <ListRow
+      title={label}
+      value={value}
+      right={<Ionicons name={ok ? "checkmark-circle" : "ellipse-outline"} size={18} color={ok ? colors.success : colors.textMuted} />}
+    />
   );
 }
 
-const useStyles = makeStyles(({ colors }) => ({
-  groupLabel: { color: colors.textMuted, fontSize: 13, ...font("600"), marginTop: spacing.sm },
-  linkCard: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  statusLine: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  statusLabel: { color: colors.textPrimary, fontSize: typography.body, ...font("600"), flex: 1 },
-  statusValue: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption },
-  container: { gap: spacing.lg },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  headerSpacer: { width: 26 },
-  title: { color: colors.textPrimary, fontSize: typography.title, ...font("700") },
-  scroll: { flex: 1 },
-  scrollContent: { gap: spacing.lg, paddingBottom: spacing.lg },
-  section: { gap: spacing.md },
-  sectionHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
-  sectionHeaderText: { flex: 1, gap: spacing.xs },
-  sectionTitle: { color: colors.textPrimary, fontSize: typography.bodyLarge, ...font("700") },
-  sectionSubtitle: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18 },
-  switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  switchLabel: { ...font("400"), color: colors.textSecondary, fontSize: typography.body },
-  linkText: { color: colors.accent, fontSize: typography.caption, ...font("600") },
+const useStyles = makeStyles((t) => ({
+  content: { gap: t.space.lg },
+  section: { gap: t.space.md },
+  sectionText: { gap: 2 },
+  groupTitle: { paddingHorizontal: 4, marginBottom: -t.space.md },
+  note: { paddingHorizontal: 4, marginTop: -t.space.sm },
+  inlineButton: { alignSelf: "flex-start" },
   dayRow: { flexDirection: "row", justifyContent: "space-between" },
-  dayChip: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceRaised },
-  dayText: { color: colors.textSecondary, fontSize: typography.caption, ...font("700") },
-  secretField: { gap: spacing.xs },
+  dayChip: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: t.colors.surfaceRaised },
+  dayChipOn: { backgroundColor: t.colors.accent },
+  secretField: { gap: t.space.xs + 2 },
   secretInputRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
-    backgroundColor: colors.surfaceRaised,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    gap: t.space.sm,
+    backgroundColor: t.colors.surfaceRaised,
+    borderRadius: t.radius.md - 4,
+    paddingHorizontal: t.space.md,
+    height: 46,
   },
-  secretInput: { ...font("400"), flex: 1, color: colors.textPrimary, fontSize: typography.body, padding: 0 },
+  secretInput: { ...t.type.callout, flex: 1, color: t.colors.textPrimary, padding: 0 },
 }));
