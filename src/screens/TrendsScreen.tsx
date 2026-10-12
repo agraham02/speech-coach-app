@@ -5,6 +5,7 @@ import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
+import { Header } from "../components/common/Header";
 import { Card } from "../components/common/Card";
 import { Badge } from "../components/common/Badge";
 import { HeroCard } from "../components/common/HeroCard";
@@ -144,12 +145,8 @@ export function TrendsScreen() {
 
   return (
     <ScreenContainer style={styles.container}>
-      <View style={styles.titleRow}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
-          <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
-        </Pressable>
-        <Text style={styles.title}>Deep review trends</Text>
-      </View>
+      <Header title="Deep review trends" onBack={() => navigation.goBack()} backIcon="chevron-back"
+      />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: spacing.lg + tabBarInset }]}

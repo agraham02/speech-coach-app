@@ -2,6 +2,7 @@ import { useNavigation } from "@react-navigation/native";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenContainer } from "../components/common/ScreenContainer";
+import { Header } from "../components/common/Header";
 import { Card } from "../components/common/Card";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
 import { spacing, typography, font } from "../theme/theme";
@@ -93,13 +94,9 @@ export function TipsScreen() {
   const navigation = useNavigation();
   return (
     <ScreenContainer style={styles.container}>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
-          <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
-        </Pressable>
-        <Text style={styles.title}>Frameworks</Text>
-        <Text style={styles.subtitle}>The coaching models behind your scores — and how to practice them.</Text>
-      </View>
+      <Header title="Frameworks" onBack={() => navigation.goBack()} backIcon="chevron-back"
+      />
+      <Text style={styles.subtitle}>The coaching models behind your scores — and how to practice them.</Text>
 
       <ScrollView
         style={styles.scroll}

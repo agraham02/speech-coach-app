@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
+import { Header } from "../components/common/Header";
 import { PrimaryButton } from "../components/common/PrimaryButton";
 import { radii, spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
@@ -31,18 +32,8 @@ export function PlanYourPointScreen({ route, navigation }: Props) {
 
   return (
     <ScreenContainer style={styles.container}>
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Close"
-        >
-          <Ionicons name="close" size={24} color={colors.textPrimary} />
-        </Pressable>
-        <Text style={styles.title}>Plan Your Point</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <Header title="Plan your point" onBack={() => navigation.goBack()} backIcon="close"
+      />
 
       <Text style={styles.subtitle}>
         Quickly sketch your PREP before you record — Point, Reason, Example, Point again. Skip any of it and start
@@ -114,8 +105,6 @@ const useStyles = makeStyles(({ colors }) => ({
   subtitle: { ...font("400"), color: colors.textSecondary, fontSize: typography.body, lineHeight: 20 },
   promptPreview: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: radii.md,
     padding: spacing.md,
   },
@@ -125,9 +114,7 @@ const useStyles = makeStyles(({ colors }) => ({
   hint: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
   textArea: {
     ...font("400"),
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.surfaceRaised,
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,

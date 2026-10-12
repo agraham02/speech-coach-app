@@ -5,6 +5,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
+import { Header } from "../components/common/Header";
 import { PrimaryButton } from "../components/common/PrimaryButton";
 import { SegmentedControl } from "../components/common/SegmentedControl";
 import { useToast } from "../components/common/ToastProvider";
@@ -61,18 +62,8 @@ export function AddPromptScreen({ navigation }: Props) {
 
   return (
     <ScreenContainer style={styles.container}>
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Close"
-        >
-          <Ionicons name="close" size={24} color={colors.textPrimary} />
-        </Pressable>
-        <Text style={styles.title}>Add a Prompt</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <Header title="Add a prompt" onBack={() => navigation.goBack()} backIcon="close"
+      />
 
       <View style={styles.field}>
         <Text style={styles.label}>Prompt</Text>
@@ -138,9 +129,7 @@ const useStyles = makeStyles(({ colors }) => ({
   label: { color: colors.textSecondary, fontSize: 13, ...font("600") },
   input: {
     ...font("400"),
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.surfaceRaised,
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
@@ -149,9 +138,7 @@ const useStyles = makeStyles(({ colors }) => ({
   },
   textArea: {
     ...font("400"),
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.surfaceRaised,
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
@@ -165,9 +152,7 @@ const useStyles = makeStyles(({ colors }) => ({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: radii.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.surfaceRaised,
   },
   chipText: { color: colors.textSecondary, fontSize: typography.caption, ...font("600") },
   spacer: { flex: 1 },

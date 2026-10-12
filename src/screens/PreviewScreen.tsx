@@ -14,7 +14,7 @@ import { setVideoKeepsake } from "../services/data/videoKeepsakes";
 import { logger } from "../utils/logger";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { getCloudReviewDefault, getNotionDefault } from "../services/prefs/prefsStore";
-import { spacing, typography, font } from "../theme/theme";
+import { spacing, typography, font, fontDisplay } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Preview">;
@@ -177,7 +177,7 @@ export function PreviewScreen({ route, navigation }: Props) {
 
 const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
-  title: { color: colors.textPrimary, fontSize: typography.title, ...font("700") },
+  title: { color: colors.textPrimary, fontFamily: fontDisplay.regular, fontSize: 34, lineHeight: 40 },
   scroll: { flex: 1 },
   scrollContent: { gap: spacing.md, paddingBottom: spacing.lg },
   section: { gap: spacing.md },

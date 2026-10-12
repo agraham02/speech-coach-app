@@ -44,9 +44,7 @@ export function Field({
 const useStyles = makeStyles((t) => ({
   wrap: { gap: t.space.xs },
   input: {
-    backgroundColor: t.colors.surface,
-    borderWidth: 1,
-    borderColor: t.colors.border,
+    backgroundColor: t.colors.surfaceRaised,
     borderRadius: t.radius.md,
     paddingHorizontal: t.space.md,
     paddingVertical: t.space.sm + 2,

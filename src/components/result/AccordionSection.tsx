@@ -49,8 +49,6 @@ export function AccordionSection({ title, scoreLabel, defaultOpen = false, child
 const useStyles = makeStyles(({ colors }) => ({
   container: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: radii.md,
     overflow: "hidden",
   },

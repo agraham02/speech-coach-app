@@ -5,6 +5,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
+import { Header } from "../components/common/Header";
 import { Card } from "../components/common/Card";
 import {
   DEFAULT_CURRICULUM_LEVEL,
@@ -124,13 +125,8 @@ export function CurriculumScreen({ navigation }: Props) {
 
   return (
     <ScreenContainer style={styles.container}>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Go back">
-          <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
-        </Pressable>
-        <Text style={styles.title}>Your Level</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <Header title="Your level" onBack={() => navigation.goBack()} backIcon="chevron-back"
+      />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <Card style={styles.levelCard}>
@@ -216,8 +212,6 @@ const useStyles = makeStyles(({ colors }) => ({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
     backgroundColor: colors.surfaceRaised,
   },
   chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },

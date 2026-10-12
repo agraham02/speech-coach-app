@@ -244,8 +244,6 @@ const useStyles = makeStyles(({ colors }) => ({
     backgroundColor: colors.surface,
     borderTopLeftRadius: radii.lg,
     borderTopRightRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
   },

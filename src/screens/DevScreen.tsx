@@ -7,7 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { ScreenContainer } from "../components/common/ScreenContainer";
 import { clearLogs, formatLogsForSharing, getLogs, subscribeLogs, type LogEntry } from "../services/logs/logStore";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
-import { spacing, typography, font } from "../theme/theme";
+import { spacing, typography, font, fontDisplay } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import type { Colors } from "../theme/theme";
 
@@ -95,7 +95,7 @@ const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md, paddingBottom: 0 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   headerActions: { flexDirection: "row", gap: spacing.lg },
-  title: { color: colors.textPrimary, fontSize: typography.title, ...font("700") },
+  title: { color: colors.textPrimary, fontFamily: fontDisplay.regular, fontSize: 34, lineHeight: 40 },
   list: { flex: 1 },
   listContent: { gap: spacing.sm, paddingBottom: spacing.lg },
   row: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start" },

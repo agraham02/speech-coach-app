@@ -5,6 +5,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
+import { Header } from "../components/common/Header";
 import { Card } from "../components/common/Card";
 import { Badge } from "../components/common/Badge";
 import { SegmentedControl } from "../components/common/SegmentedControl";
@@ -61,18 +62,8 @@ export function DrillsScreen({ navigation }: Props) {
 
   return (
     <ScreenContainer style={styles.container}>
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Close"
-        >
-          <Ionicons name="close" size={24} color={colors.textPrimary} />
-        </Pressable>
-        <Text style={styles.title}>Drills</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      <Header title="Drills" onBack={() => navigation.goBack()} backIcon="close"
+      />
 
       <Card style={styles.streakCard}>
         <Ionicons name="flame" size={28} color={streak.currentStreak > 0 ? colors.warning : colors.textMuted} />
