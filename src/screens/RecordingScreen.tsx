@@ -49,6 +49,11 @@ type Props = NativeStackScreenProps<RootStackParamList, "Recording">;
 
 type Stage = "warmup" | "prep" | "idle" | "recording";
 
+// A speech recording stops on its own only at twice its target length.
+const SCRIPT_SOFT_CAP = 2;
+// Room kept below the teleprompter for the record button and its hint.
+const SCRIPT_CONTROLS_HEIGHT = 190;
+
 export function RecordingScreen({ route, navigation }: Props) {
   const subject = route.params;
   const isScript = subject.kind === "script";
@@ -78,10 +83,12 @@ export function RecordingScreen({ route, navigation }: Props) {
   const fromPractice = subject.kind === "prompt" && !!subject.practice;
   const lessonPrep = subject.kind === "prompt" ? subject.prepSeconds : undefined;
   const [prepEnabled] = useState(() => {
+    // A speech is studied on its own screen first — no countdown that hides it.
+    if (isScript) return false;
     if (lessonPrep != null) return lessonPrep > 0;
     return getPrepSettingsManuallySet() ? getPrepPhaseSettings().enabled : true;
   });
-  const [warmUpEnabled] = useState(() => !fromPractice && getWarmUpEnabled());
+  const [warmUpEnabled] = useState(() => !fromPractice && !isScript && getWarmUpEnabled());
   // Warm-up length scales with curriculum level — harder levels get a
   // longer, more thorough warm-up (see curriculum.ts's LEVEL_WARM_UP_INTENSITY
   // table and its judgment-call note).
@@ -204,13 +211,17 @@ export function RecordingScreen({ route, navigation }: Props) {
   );
 
   const remainingRecordingSeconds = Math.max(0, targetDurationSeconds - elapsedSeconds);
+  // A speech's target is a guide, not a limit — reading with the marked
+  // pauses runs long. Only a generous cap stops it on its own.
+  const scriptCapSeconds = targetDurationSeconds * SCRIPT_SOFT_CAP;
 
   useEffect(() => {
-    if (stage === "recording" && remainingRecordingSeconds === 0) {
+    if (stage !== "recording") return;
+    if (isScript ? elapsedSeconds >= scriptCapSeconds : remainingRecordingSeconds === 0) {
       handleStop();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stage, remainingRecordingSeconds]);
+  }, [stage, remainingRecordingSeconds, elapsedSeconds]);
 
   if (!hasAllPermissions) {
     return (
@@ -325,8 +336,9 @@ export function RecordingScreen({ route, navigation }: Props) {
           )}
           <ScriptTeleprompterOverlay
             script={subject.script}
-            cuesEnabled={subject.cuesEnabled}
+            markLevel={subject.cuesEnabled ? subject.markLevel ?? "full" : "none"}
             isRecording={stage === "recording"}
+            bottomInset={insets.bottom + SCRIPT_CONTROLS_HEIGHT}
           />
         </View>
       )}
@@ -352,7 +364,7 @@ export function RecordingScreen({ route, navigation }: Props) {
             {/* The ring only appears once recording starts (and blind mode isn't
                 hiding it), so it never reads as decoration on the idle button —
                 it's specifically the countdown, made visible. */}
-            {stage === "recording" && !recordBlind ? (
+            {stage === "recording" && !recordBlind && !isScript ? (
               <ProgressRing
                 size={120}
                 strokeWidth={6}
@@ -376,9 +388,11 @@ export function RecordingScreen({ route, navigation }: Props) {
                   ? isConcise
                     ? `One point. ${targetDurationSeconds}s.`
                     : "Tap to start"
-                  : recordBlind
-                    ? "Tap to stop"
-                    : `${formatDuration(remainingRecordingSeconds)} left · tap to stop`}
+                  : isScript
+                    ? `${formatDuration(elapsedSeconds)} · about ${formatDuration(targetDurationSeconds)} · tap to stop`
+                    : recordBlind
+                      ? "Tap to stop"
+                      : `${formatDuration(remainingRecordingSeconds)} left · tap to stop`}
             </Text>
           </View>
         </View>

@@ -1,11 +1,11 @@
-import { Component, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View, type GestureResponderEvent, type LayoutChangeEvent } from "react-native";
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import { Component, Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent, type TextStyle } from "react-native";
+import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import MaskedView from "@react-native-masked-view/masked-view";
-import { tokenizeScript, type Script, type ScriptCue } from "../../domain/scriptTypes";
-import { withAlpha } from "../../utils/color";
+import { tokenizeScript, type Script } from "../../domain/scriptTypes";
+import { filterMarks, marksByWord, type MarkLevel, type WordMarks } from "../../domain/cadence/marks";
 import { darkColors as colors, radii, spacing, typography } from "../../theme/theme";
 import { logger } from "../../utils/logger";
 
@@ -36,65 +36,34 @@ class PanelErrorBoundary extends Component<{ children: ReactNode }, { hasError: 
 
 interface ScriptTeleprompterOverlayProps {
   script: Script;
-  cuesEnabled: boolean;
+  markLevel: MarkLevel;
   isRecording: boolean;
+  // Space at the bottom kept clear for the record controls.
+  bottomInset: number;
 }
 
-// Plain-text glyphs (not an icon font) so the cue marker can sit inline as
-// just another word in the paragraph's Text tree — no separate floating
-// card, no font-linking to worry about. Deliberately restricted to
-// single-UTF-16-code-unit characters (BMP, U+0000–U+FFFF) — Android's
-// nested-Text tap hit-testing (how RN implements onPress on inline text
-// spans) computes touch targets from character offsets, and surrogate-pair
-// glyphs (astral-plane emoji like 🔊 or 🐢, U+10000+) throw that off, making
-// the span untappable or routing the tap to a neighboring span instead.
-// Confirmed on-device: "❗" (BMP) was tappable, "🔊"/"🐢" (astral) were not.
-const CUE_GLYPH: Record<ScriptCue["type"], string> = {
-  pitch_up: "↑",
-  pitch_down: "↓",
-  volume_up: "▲",
-  volume_down: "▼",
-  pause: "⏸",
-  emphasis: "❗",
-  slow_down: "⏳",
-};
-
-const CUE_LABEL: Record<ScriptCue["type"], string> = {
-  pitch_up: "Pitch up",
-  pitch_down: "Pitch down",
-  volume_up: "Louder",
-  volume_down: "Softer",
-  pause: "Pause",
-  emphasis: "Emphasize",
-  slow_down: "Slow down",
-};
-
-// Settled on the web prototype (teleprompter-prototype/) — porting the exact
-// tuned values rather than re-guessing them here.
-const FONT_SIZE = 20;
-const LINE_HEIGHT = 36;
-const PANEL_FRACTION = 0.4; // each top/bottom panel covers 40% of the screen
-// The outer edge of each panel's darkening gradient goes all the way to
-// fully opaque (1, not e.g. 0.97) deliberately — a
-// semi-transparent color here doesn't composite reliably against the
-// scrolling text underneath (it sits on its own GPU layer from the
-// reanimated transform), so a "nearly opaque" value can still let text
-// show through much more than the alpha number suggests. Fully opaque has
-// no such ambiguity — confirmed by testing with an opaque debug color, which
-// hid the text completely as expected.
+const FONT_SIZE = 22;
+const LINE_HEIGHT = 34;
+const PANEL_FRACTION = 0.3; // each top/bottom panel covers 30% of the text area
+// See the note in the original prototype: a fully opaque outer edge is the
+// only value that reliably hides the text layer underneath.
 const PANEL_OPACITY = 1;
+// Reading with the marked pauses takes longer than the plain ~130 wpm the
+// target is based on.
+const MARKED_PACE_ALLOWANCE = 1.15;
+const SPEEDS = [0.8, 1, 1.25] as const;
 
-// Natural pacing: a flat "totalDuration / wordCount per word" clock reads as
-// robotic — real speech lingers on longer words and pauses after
-// punctuation. Each word gets a weight (length + a bonus for trailing
-// punctuation); the cumulative, normalized weights become the timing curve —
-// heavier words consume more of the time budget, so the clock visits them
-// more slowly without any per-frame logic.
-function computeWordWeights(tokens: string[]): number[] {
-  return tokens.map((word) => {
+// Natural pacing: heavier words (and words before a marked pause) take more
+// of the time budget, so the clock visits them more slowly.
+function computeWordWeights(tokens: string[], words: WordMarks[]): number[] {
+  return tokens.map((word, i) => {
     let weight = 1 + word.length * 0.28;
-    if (/[.!?]["')\]]?$/.test(word)) weight += 3.2;
+    const gap = words[i]?.gapAfter;
+    if (gap === "long_pause") weight += 4;
+    else if (gap === "pause") weight += 2;
+    else if (/[.!?]["')\]]?$/.test(word)) weight += 3.2;
     else if (/[,;:—–-]["')\]]?$/.test(word)) weight += 1.4;
+    if (words[i]?.spans.includes("slow")) weight *= 1.4;
     return weight;
   });
 }
@@ -108,8 +77,6 @@ function buildCumulativeFractions(weights: number[]): number[] {
   });
 }
 
-// First index whose cumulative fraction is >= target (weights are all
-// positive, so this array is strictly increasing — no ties to worry about).
 function wordIndexForFraction(cumulative: number[], target: number): number {
   let lo = 0;
   let hi = cumulative.length - 1;
@@ -121,29 +88,13 @@ function wordIndexForFraction(cumulative: number[], target: number): number {
   return lo;
 }
 
-// The panel is blur + darkening the WHOLE way from the clear middle to the
-// screen edge — no flat, un-blurred solid block anymore. That flat block was
-// hiding the camera completely partway into the panel; blurring continuously
-// all the way to the edge means the camera stays dimly visible (just
-// increasingly blurred and darkened) right up to the edge, while the text —
-// which sits on its own layer above the blur, so blur alone can't hide it —
-// gets fully covered by the darken gradient reaching true opaque black at
-// the outer edge.
 function Panel({ side, height }: { side: "top" | "bottom"; height: number }) {
-  // Local top->bottom of the panel: for the top panel, the panel's own top
-  // edge IS the screen edge (fully dark) and its bottom edge is adjacent to
-  // the clear middle (fully transparent) — the bottom panel is the mirror
-  // image.
   const darkenColors: [string, string] =
     side === "top" ? [`rgba(8,9,12,${PANEL_OPACITY})`, "rgba(8,9,12,0)"] : ["rgba(8,9,12,0)", `rgba(8,9,12,${PANEL_OPACITY})`];
   const maskColors: [string, string] = side === "top" ? ["white", "transparent"] : ["transparent", "white"];
-
   return (
     <View pointerEvents="none" style={[styles.panelWrap, side === "top" ? styles.panelTop : styles.panelBottom, { height }]}>
-      <MaskedView
-        style={StyleSheet.absoluteFill}
-        maskElement={<LinearGradient colors={maskColors} style={StyleSheet.absoluteFill} />}
-      >
+      <MaskedView style={StyleSheet.absoluteFill} maskElement={<LinearGradient colors={maskColors} style={StyleSheet.absoluteFill} />}>
         <BlurView intensity={65} tint="dark" style={StyleSheet.absoluteFill} />
       </MaskedView>
       <LinearGradient colors={darkenColors} style={StyleSheet.absoluteFill} />
@@ -151,223 +102,166 @@ function Panel({ side, height }: { side: "top" | "bottom"; height: number }) {
   );
 }
 
-// Simple, on purpose: a full-screen dark overlay with one plain scrolling
-// text layer underneath a pair of top/bottom panels — the panels do all the
-// hiding (solid block + blurred fade at the boundary), not per-word opacity
-// tricks on the text itself.
-export function ScriptTeleprompterOverlay({ script, cuesEnabled, isRecording }: ScriptTeleprompterOverlayProps) {
+// The Perform teleprompter for a marked speech. The marks render as
+// typography (stress bold + underlined, ↗ ↘ after the word, | ‖ ending each
+// breath group, which sits on its own line). It scrolls at a pace you
+// control — slower/faster, and hold anywhere on the text to pause — and
+// never cuts you off; reading with the marks takes as long as it takes.
+export function ScriptTeleprompterOverlay({ script, markLevel, isRecording, bottomInset }: ScriptTeleprompterOverlayProps) {
   const tokens = useMemo(() => tokenizeScript(script.text), [script.text]);
-  const cumulativeFractions = useMemo(() => buildCumulativeFractions(computeWordWeights(tokens)), [tokens]);
-  // Cues render inline, directly on their own word, instead of a floating
-  // card — a lookup keyed by word index is all rendering the paragraph needs.
-  const cueByWordIndex = useMemo(() => {
-    const map = new Map<number, ScriptCue>();
-    for (const cue of script.cues) map.set(cue.wordIndex, cue);
-    return map;
-  }, [script.cues]);
+  const words = useMemo(() => marksByWord({ text: script.text, marks: filterMarks(script.marks, markLevel) }), [script, markLevel]);
+  const cumulativeFractions = useMemo(() => buildCumulativeFractions(computeWordWeights(tokens, words)), [tokens, words]);
+  const phraseLines = markLevel !== "none";
 
   const [viewportHeight, setViewportHeight] = useState(0);
   const [contentHeight, setContentHeight] = useState(0);
-
+  const [speedIndex, setSpeedIndex] = useState(1);
+  const [held, setHeld] = useState(false);
   const scrollY = useSharedValue(0);
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
+  const baseDurationMs = script.targetDurationSeconds * 1000 * MARKED_PACE_ALLOWANCE;
+  const runningRef = useRef(false);
 
-  // Tapping a cue's glyph shows its instruction as a floating tooltip — it
-  // does NOT expand anything inline in the script (that was the previous,
-  // rejected design: full label text sitting in the paragraph flow, which
-  // crowded out the actual words to read once cues got dense). The tooltip
-  // is a sibling of the scrolling text, positioned near where you tapped, so
-  // it never affects the text's own layout.
-  const [tooltip, setTooltip] = useState<{ cue: ScriptCue; y: number } | null>(null);
-
-  function toggleTooltip(cue: ScriptCue, event: GestureResponderEvent) {
-    const y = event.nativeEvent.pageY;
-    setTooltip((prev) => (prev && prev.cue === cue ? null : { cue, y }));
-  }
-
-  // Constant-velocity scroll, driven entirely on the UI thread — pixel
-  // position advances linearly across the WHOLE script over its target
-  // duration, exactly how a real teleprompter behaves. Recording only ever
-  // starts once per session (no pause/resume mid-take), so this is a single
-  // one-shot animation rather than something that needs to track elapsed
-  // seconds tick-by-tick.
-  useEffect(() => {
-    if (!isRecording || contentHeight <= 0) return;
+  // (Re)starts the scroll from wherever it is now, at the chosen speed.
+  function run() {
+    if (contentHeight <= 0) return;
+    const remaining = Math.max(0, contentHeight - scrollY.value);
+    runningRef.current = true;
     scrollY.value = withTiming(contentHeight, {
-      duration: script.targetDurationSeconds * 1000,
+      duration: ((remaining / contentHeight) * baseDurationMs) / SPEEDS[speedIndex],
       easing: Easing.linear,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRecording, contentHeight]);
+  }
 
-  // The highlighted word is driven by the SAME time fraction as the scroll,
-  // sampled off the UI-thread shared value at a throttled ~12fps — enough to
-  // read as one-word-at-a-time progress without re-rendering the word list
-  // at a wasteful 60fps.
+  useEffect(() => {
+    if (!isRecording || contentHeight <= 0 || held) {
+      cancelAnimation(scrollY);
+      runningRef.current = false;
+      return;
+    }
+    run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRecording, contentHeight, held, speedIndex]);
+
   useEffect(() => {
     if (!isRecording || contentHeight <= 0) return;
     const interval = setInterval(() => {
-      const fraction = scrollY.value / contentHeight;
-      const nearest = wordIndexForFraction(cumulativeFractions, fraction);
+      const nearest = wordIndexForFraction(cumulativeFractions, scrollY.value / contentHeight);
       setCurrentWordIndex((prev) => (prev === nearest ? prev : nearest));
     }, 80);
     return () => clearInterval(interval);
-  }, [isRecording, contentHeight, cumulativeFractions]);
+  }, [isRecording, contentHeight, cumulativeFractions, scrollY]);
 
-  // Centering lives entirely in this transform, NOT in padding on the
-  // content view — padding big enough to let the first/last word reach dead
-  // center (viewportHeight/2, often 1000px+) inflated the content view's
-  // MEASURED size enough to hit a real Android rendering limit: it silently
-  // failed to paint at all (no crash, no error — confirmed via
-  // "out of bounds transparent region" SurfaceFlinger warnings in logcat).
-  // scrollY here means "how many pixels into the text the reading position
-  // is," ranging 0 -> contentHeight; offsetting by viewportHeight/2 in the
-  // transform achieves the same visual centering without the content view
-  // itself ever being larger than the script's own natural text height.
   const scrollStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: viewportHeight / 2 - scrollY.value }],
+    transform: [{ translateY: viewportHeight * 0.38 - scrollY.value }],
   }));
 
   function handleViewportLayout(event: LayoutChangeEvent) {
     setViewportHeight(event.nativeEvent.layout.height);
   }
-
   function handleContentLayout(event: LayoutChangeEvent) {
     setContentHeight(event.nativeEvent.layout.height);
   }
 
   const panelHeight = viewportHeight * PANEL_FRACTION;
 
-  // Keep the tooltip clear of the very top/bottom of the screen (the record
-  // button group lives below the overlay) regardless of where the tapped
-  // glyph happened to be.
-  const tooltipTop = tooltip ? Math.min(Math.max(tooltip.y - 56, 24), Math.max(viewportHeight - 200, 24)) : 0;
+  const wordStyle = (w: WordMarks, current: boolean): TextStyle[] => {
+    const s: TextStyle[] = [styles.word];
+    if (w.spans.includes("louder")) s.push(styles.louder);
+    if (w.spans.includes("softer")) s.push(styles.softer);
+    if (w.spans.includes("slow")) s.push(styles.slow);
+    if (w.spans.includes("fast")) s.push(styles.fast);
+    if (w.emphasis) s.push(styles.stress);
+    if (current) s.push(styles.currentWord);
+    return s;
+  };
 
   return (
-    // box-none (not none): most of this overlay still has to pass taps
-    // through to the camera/record button behind it, but the cue glyphs
-    // themselves — and the tap-away-to-dismiss layer below — need to be
-    // real touch targets, and "none" would swallow touches for the whole
-    // subtree, glyphs included.
-    <View style={styles.wrapper} onLayout={handleViewportLayout} pointerEvents="box-none">
-      {/* Base dark tint over the whole camera area */}
+    <View style={[styles.wrapper, { bottom: bottomInset }]} onLayout={handleViewportLayout}>
       <View style={styles.baseTint} pointerEvents="none" />
 
-      {/* The scrolling text — ONE plain layer. It just scrolls; the panels
-          above it do all the hiding. */}
-      <Animated.View onLayout={handleContentLayout} style={[styles.textContent, scrollStyle]} pointerEvents="box-none">
-        <Text style={styles.paragraph}>
-          {tokens.map((word, index) => {
-            const cue = cuesEnabled ? cueByWordIndex.get(index) : undefined;
-            const isCurrent = index === currentWordIndex;
-            const wordStyle = isCurrent ? styles.currentWord : cue ? styles.cueWord : styles.word;
-            return (
-              <Text key={index}>
-                {/* Icon-only marker, anchored right before its own word —
-                    unambiguous which word it applies to, but doesn't crowd
-                    the script with label text. Tap it for the instruction. */}
-                {cue ? (
-                  <Text style={styles.cueTag} onPress={(event) => toggleTooltip(cue, event)} suppressHighlighting>
-                    {CUE_GLYPH[cue.type]}{" "}
-                  </Text>
-                ) : null}
-                <Text style={wordStyle}>{word}</Text>
-                <Text style={styles.word}> </Text>
-              </Text>
-            );
-          })}
-        </Text>
-      </Animated.View>
+      <Pressable
+        style={StyleSheet.absoluteFill}
+        onPressIn={() => isRecording && setHeld(true)}
+        onPressOut={() => setHeld(false)}
+        accessibilityLabel="Hold to pause the scroll"
+      >
+        <Animated.View onLayout={handleContentLayout} style={[styles.textContent, scrollStyle]}>
+          <Text style={styles.paragraph}>
+            {words.map((w, index) => (
+              <Fragment key={index}>
+                {w.note && phraseLines ? <Text style={styles.note}>{`${index > 0 ? "\n" : ""}${w.note}\n`}</Text> : null}
+                <Text style={wordStyle(w, isRecording && index === currentWordIndex)}>{w.word}</Text>
+                {w.inflection ? <Text style={styles.arrow}>{w.inflection === "rise" ? "↗" : "↘"}</Text> : null}
+                {w.gapAfter && phraseLines ? (
+                  <Text style={styles.gap}>{w.gapAfter === "long_pause" ? "  ‖\n\n" : "  |\n"}</Text>
+                ) : (
+                  <Text style={styles.word}> </Text>
+                )}
+              </Fragment>
+            ))}
+          </Text>
+        </Animated.View>
+      </Pressable>
 
       <PanelErrorBoundary>
         <Panel side="top" height={panelHeight} />
         <Panel side="bottom" height={panelHeight} />
       </PanelErrorBoundary>
 
-      {tooltip ? (
-        <>
-          {/* Tap anywhere outside the tooltip to dismiss it. */}
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setTooltip(null)} />
-          <View style={[styles.tooltip, { top: tooltipTop }]} pointerEvents="none">
-            <Text style={styles.tooltipType}>
-              {CUE_GLYPH[tooltip.cue.type]} {CUE_LABEL[tooltip.cue.type].toUpperCase()}
-            </Text>
-            <Text style={styles.tooltipLabel}>{tooltip.cue.label}</Text>
+      {isRecording ? (
+        <View style={styles.controls} pointerEvents="box-none">
+          {held ? <Text style={styles.heldText}>Paused — let go to continue</Text> : null}
+          <View style={styles.speedRow}>
+            <Pressable
+              onPress={() => setSpeedIndex((i) => Math.max(0, i - 1))}
+              disabled={speedIndex === 0}
+              style={[styles.speedButton, speedIndex === 0 && styles.speedDisabled]}
+              accessibilityRole="button"
+              accessibilityLabel="Scroll slower"
+            >
+              <Text style={styles.speedText}>Slower</Text>
+            </Pressable>
+            <Text style={styles.speedValue}>{SPEEDS[speedIndex]}×</Text>
+            <Pressable
+              onPress={() => setSpeedIndex((i) => Math.min(SPEEDS.length - 1, i + 1))}
+              disabled={speedIndex === SPEEDS.length - 1}
+              style={[styles.speedButton, speedIndex === SPEEDS.length - 1 && styles.speedDisabled]}
+              accessibilityRole="button"
+              accessibilityLabel="Scroll faster"
+            >
+              <Text style={styles.speedText}>Faster</Text>
+            </Pressable>
           </View>
-        </>
+        </View>
       ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: { flex: 1, overflow: "hidden" },
-  baseTint: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.55)" },
+  wrapper: { position: "absolute", top: 0, left: 0, right: 0, overflow: "hidden" },
+  baseTint: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.78)" },
   textContent: { paddingHorizontal: spacing.xl },
   paragraph: { textAlign: "center" },
-  word: { color: "white", fontSize: FONT_SIZE, lineHeight: LINE_HEIGHT, fontWeight: "600", letterSpacing: 0.2 },
-  // The single unambiguous "you are here" marker — distinct from everything
-  // else so it never reads as "the whole line is lit up."
-  currentWord: {
-    color: "white",
-    backgroundColor: colors.accent,
-    fontSize: FONT_SIZE,
-    lineHeight: LINE_HEIGHT,
-    fontWeight: "700",
-    letterSpacing: 0.2,
-  },
-  // The word a cue applies to — a distinct color (amber, vs. the blue "you
-  // are here" marker) so the two never read as the same kind of thing, and
-  // it's anchored to the exact word rather than a nearby banner.
-  cueWord: {
-    color: "white",
-    backgroundColor: withAlpha(colors.warning, 0.35),
-    fontSize: FONT_SIZE,
-    lineHeight: LINE_HEIGHT,
-    fontWeight: "700",
-    letterSpacing: 0.2,
-  },
-  cueTag: {
-    color: colors.warning,
-    fontSize: FONT_SIZE,
-    lineHeight: LINE_HEIGHT,
-    fontWeight: "800",
-    letterSpacing: 0.3,
-  },
+  word: { color: "white", fontSize: FONT_SIZE, lineHeight: LINE_HEIGHT, fontWeight: "500" },
+  stress: { fontWeight: "800", textDecorationLine: "underline" },
+  louder: { fontSize: FONT_SIZE * 1.15, fontWeight: "700" },
+  softer: { fontSize: FONT_SIZE * 0.88, color: "rgba(255,255,255,0.72)" },
+  slow: { letterSpacing: 2.5 },
+  fast: { fontStyle: "italic", letterSpacing: -0.3 },
+  currentWord: { backgroundColor: colors.accent, color: "white" },
+  arrow: { color: colors.skill.cadence.fg, fontSize: FONT_SIZE * 0.8, lineHeight: LINE_HEIGHT, fontWeight: "700" },
+  gap: { color: colors.skill.cadence.fg, fontSize: FONT_SIZE, lineHeight: LINE_HEIGHT, fontWeight: "300" },
+  note: { color: colors.textMuted, fontSize: typography.caption, lineHeight: 22, fontStyle: "italic" },
   panelWrap: { position: "absolute", left: 0, right: 0, overflow: "hidden" },
   panelTop: { top: 0 },
   panelBottom: { bottom: 0 },
-  // A transient popover, not part of the script's own layout — it's a
-  // sibling of the scrolling text, so opening/closing it never reflows or
-  // resizes anything the reader is trying to read.
-  tooltip: {
-    position: "absolute",
-    left: "8%",
-    right: "8%",
-    alignSelf: "center",
-    backgroundColor: "rgba(21,22,28,0.96)",
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: withAlpha(colors.warning, 0.4),
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    gap: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 6,
-  },
-  tooltipType: {
-    color: colors.warning,
-    fontSize: typography.caption - 1,
-    fontWeight: "800",
-    letterSpacing: 0.8,
-  },
-  tooltipLabel: {
-    color: colors.textPrimary,
-    fontSize: typography.body,
-    fontWeight: "500",
-    lineHeight: 20,
-  },
+  controls: { position: "absolute", left: 0, right: 0, bottom: spacing.sm, alignItems: "center", gap: spacing.xs },
+  heldText: { color: colors.textPrimary, fontSize: typography.caption, fontWeight: "600" },
+  speedRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  speedButton: { paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radii.pill ?? 999, backgroundColor: "rgba(255,255,255,0.12)" },
+  speedDisabled: { opacity: 0.35 },
+  speedText: { color: colors.textPrimary, fontSize: typography.caption, fontWeight: "600" },
+  speedValue: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "700", minWidth: 40, textAlign: "center" },
 });

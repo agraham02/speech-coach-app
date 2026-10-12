@@ -1,0 +1,272 @@
+import { parseNotation } from "../domain/cadence/notation";
+import type { Mark } from "../domain/cadence/marks";
+
+// The Speeches shelf: the 12 full speeches from Script Practice, re-marked
+// to the marking guide (practice-expansion-plan.md §4.6) — rule-marked first,
+// then corrected by hand — with the old tone directions kept as notes, at
+// most one per paragraph. Notation: see domain/cadence/notation.ts. The
+// words are exactly the scripts' text (a test checks), so the teleprompter
+// and the Gemini script prompt stay aligned.
+
+export interface Speech {
+  id: string;
+  title: string;
+  category: string;
+  targetDurationSeconds: number;
+  text: string;
+  marks: Mark[];
+  // first word index of each paragraph
+  paragraphs: number[];
+}
+
+interface SpeechSource {
+  id: string;
+  title: string;
+  category: string;
+  targetDurationSeconds: number;
+  paragraphs: string[];
+}
+
+const SOURCES: SpeechSource[] = [
+  {
+    id: "s01",
+    title: "The Sixty-Second Fix",
+    category: "Sales pitch",
+    targetDurationSeconds: 60,
+    paragraphs: [
+      `[[Cold open — punchy and confident, not rushed]] *Thirty* seconds.↘ || That's about how *long* I have | before you check your *phone,*↗ | so let's *not* waste it.↘ || My name is *[Name],*↗ | and I build *software* | that gives small business owners back their *evenings.*↘`,
+      `[[List the problem plainly — let each item land]] The average shop owner spends *eleven* hours a week | on scheduling,↗ | *invoicing,*↗ | and chasing *no-shows.*↘ || *Eleven* hours.↘ || That's almost a full extra *workday,*↗ | *gone,*↗ | *every* single week.↘`,
+      `[[Reveal the fix — brighten your energy here]] We built a *tool* | that does *all* of it automatically — | *booking,*↗ | *reminders,*↗ | *payments* — | in *one* place.↘ || *No* spreadsheets.↘ || *No* 11pm panic texts to yourself.↘`,
+      `[[Proof point — give the timeframe room to register]] In the first *three* months,↗ | our early users got an average of *nine* hours back.↘ || *Nine* hours.↘ || Think about what *you'd* do | with an extra morning *every* week.↘`,
+      `[[Simple and confident — no hard sell]] That's the *whole* pitch.↘ || Can I show you how it *works?*↗`,
+    ],
+  },
+  {
+    id: "s02",
+    title: "Twelve Years of Bad Decisions",
+    category: "Toast",
+    targetDurationSeconds: 100,
+    paragraphs: [
+      `[[Wait for the room to settle before you start]] Okay.↘ || Is this *thing* on?↗ || *Good* — | because I only wrote this *once,*↗ | and I'm *not* doing it twice.↘`,
+      `[[Introduce yourself — unhurried, let them place you]] For anyone who *doesn't* know me,↗ | I'm *[Name],*↗ | and I've had the questionable honor of being [Groom]'s *best* friend | since we were *twelve* years old.↘ || *Twelve.*↘ || Old enough to know *better.*↘ || Apparently *not* old enough to actually behave better.↘`,
+      `[[First story — paint the scene, don't rush it]] I could *tell* you | about the time we got lost *hiking* | and had to be walked out by a park *ranger* | who was clearly trying *not* to laugh at us.↘ || I could tell you about the apartment we *shared* | that had — | and I want to be *precise* here — | exactly *one* working burner on the stove.↘ || But that's *not* really what tonight is about.↘`,
+      `[[Restate 'tonight' — this is the actual thesis]] Tonight is about watching my *friend* | become the *best* version of himself,↗ | and watching him do it because of *[Bride].*↘ || I've known [Groom] a long *time.*↘ || I have *never,*↗ | *not* once,↗ | seen him this *calm,*↗ | this *certain,*↗ | this happy before a big *decision.*↘ || That's *not* luck.↘ || *That's* her.↘`,
+      `[[Build toward the toast — rally the room]] So if you'll raise your *glasses* with me.↘ || To [Groom] and *[Bride]* — | may your fridge always have more than *one* working burner,↗ | may you laugh more than you *argue,*↗ | and may this be the *easiest* big decision | you ever make *together.*↘ || To the happy *couple!*↘`,
+    ],
+  },
+  {
+    id: "s03",
+    title: "Guess Which One I Was",
+    category: "Acceptance",
+    targetDurationSeconds: 115,
+    paragraphs: [
+      `[[Genuine surprise — let it be a little messy, don't perform composure]] *Wow.*↘ || Okay.↘ || I did *not* prepare a face for this,↗ | so please *bear* with me.↘`,
+      `[[First 'thank you' — quiet, not rehearsed]] *Thank* you.↘ || *Genuinely,*↗ | *thank* you.↘ || When they called my *name* | I turned to the person next to *me* | and asked if they'd heard *correctly,*↗ | so if this speech is a little *scattered,*↗ | *that's* why — | my brain is still *catching* up.↘`,
+      `[[Pivot to sincerity — steady down here]] I want to be honest about *something.*↘ || This award has my *name* on it,↗ | but it *doesn't* belong to just me.↘ || It belongs to a *team* | that stayed late more nights than I can *count,*↗ | to a manager who believed in an *idea* | before it had any right to *work,*↗ | and to a *family* | that put up with a lot of missed dinners this *year.*↘`,
+      `[[Flashback — unhurried, like remembering it clearly]] *Three* years ago,↗ | this project was a sketch on a *whiteboard* | that *two* people thought was a bad idea | and *one* person thought might just work.↘ || Guess which *one* I was.↘`,
+      `[[Reflective turn — quieter, more thoughtful]] There's a *lesson* in that,↗ | I *think.*↘ || *Not* every good idea looks good on day one.↘ || Some of them look *messy,*↗ | and *slow,*↗ | and a little *embarrassing* | in a room full of confident *people.*↘ || You keep going *anyway.*↘ || You keep *going* | because you believe the work is *worth* it,↗ | even when the outcome *isn't* guaranteed.↘`,
+      `[[Direct address to the room — rally them]] So to everyone in this *room* | who's sitting on an *idea* | that feels too *small,*↗ | too *weird,*↗ | or too *early* — | keep *going.*↘ || This is what it looks *like* | on the other *side.*↘`,
+      `[[Final thanks — sincere, unhurried]] *Thank* you so much.↘ || This means more than I can *say.*↘`,
+    ],
+  },
+  {
+    id: "s04",
+    title: "Bailing Water, Not Sinking",
+    category: "Rally",
+    targetDurationSeconds: 120,
+    paragraphs: [
+      `[[Open low and steady — pull them in, don't perform yet]] *Alright,*↗ | *everybody,*↗ | *gather* in.↘ || Bring it in *close,*↗ | I *don't* want to yell this.↘`,
+      `[[Name the hard truth plainly — no spin]] *Look,*↗ | I'm *not* going to stand up here | and pretend the last *two* quarters have been easy,↗ | because they *haven't.*↘ || We lost a client we thought we'd have *forever.*↘ || We missed a launch *date.*↘ || We had *weeks* | where it felt like we were bailing water *faster* | than we were *rowing.*↘ || I *know* that.↘ || You *know* that.↘ || Let's *not* pretend otherwise.↘`,
+      `[[The turn — lift your tone into the reframe]] But *here's* what I also know.↘ || When it got *hard,*↗ | *nobody* on this team pointed fingers.↘ || *Nobody* quit on each other.↘ || You *showed* up,↗ | you fixed what was *broken,*↗ | and you kept *moving.*↘ || That's not *nothing.*↘ || That's actually *everything.*↘`,
+      `[[Reframe — steady tone, not defensive]] So today *isn't* about pretending the road was smooth.↘ || It's about looking at where we are *now* — | because where we are *now* | is better than where we *started.*↘ || Our *numbers* are up.↘ || Our product is *stronger.*↘ || Our team is *tighter* than it's ever been.↘`,
+      `[[Turn to face them directly — a real question is coming]] Here's my *question* for you.↘ || Are we the *team* | that got knocked down *last* quarter?↗ || Or are we the team that's standing here right *now,*↗ | ready to *go* again?↘`,
+      `[[Answer your own question — certain and grounded]] I know which team I *see* | in *front* of me.↘`,
+      `[[Look ahead — lift the energy back up]] We've got a big quarter *ahead.*↘ || There will be more hard *days* — | I *won't* lie to you about that.↘ || But *we've* already proven something important:↘ | we *don't* fold when it gets tough.↘ || We *adjust.*↘ || We *push.*↘ || We win *together.*↘`,
+      `[[Build toward the close — rising energy]] So let's *go* out there | and finish what we *started.*↘ || *Not* because it's easy.↘ || Because it's *ours.*↘`,
+      `[[Shout it — full energy close]] Let's *go!*↘`,
+    ],
+  },
+  {
+    id: "s05",
+    title: "The Sound of a Leak",
+    category: "Sales pitch",
+    targetDurationSeconds: 140,
+    paragraphs: [
+      `[[Set the origin story — unhurried, like telling it fresh]] *Two* years ago,↗ | we asked a simple *question.*↘ || What if checking your home's water *usage* | was as easy as checking the *weather?*↘`,
+      `[[Wry, knowing tone — you know something they don't yet]] *Everyone* laughed a little | when we said that out *loud,*↗ | because water is *invisible.*↘ || You *don't* see it leaking behind a wall.↘ || You *don't* see it dripping | under a slab foundation at *two* in the morning.↘ || You just see the *bill,*↗ | *three* weeks later,↗ | and by then the damage is *already* done.↘`,
+      `[[The turn to the solution — brighten here]] So we built something to *fix* that.↘ || *Today,*↗ | I'm proud to *introduce* [Product Name] — | a sensor the size of a *coin* | that clips onto your main water *line* | and *tells* you,↗ | in real *time,*↗ | exactly what's happening in your home's *plumbing.*↘`,
+      `[[Beat before explaining how it actually works]] Here's how it *works.*↘ || It *listens.*↘ || *Every* drop of water moving through your pipes | has a *signature* — | a *rhythm.*↘ || Our sensor learns your home's normal *rhythm* | in the *first* week,↗ | and *after* that,↗ | it knows the *difference* | between someone running the *dishwasher* | and a slow leak behind your bathroom *wall.*↘`,
+      `[[Calm and reassuring — this is the payoff moment]] When *something's* off,↗ | you get a *notification.*↘ || *Not* a bill.↘ || *Not* a flooded basement.↘ || A *notification,*↗ | days or weeks before the problem becomes a *disaster.*↘`,
+      `[[Proof point — let the pilot numbers register]] In our pilot with two *hundred* homes,↗ | we caught *eleven* leaks | before they caused a single dollar of *damage.*↘ || *Eleven.*↘ || Homeowners told us it paid for *itself* | the very *first* time it caught something.↘`,
+      `[[Reframe — steady, more serious tone]] We're *not* just building a gadget.↘ || We're building peace of *mind* | for anyone who's ever come home to a soaked *carpet* | and a sinking feeling in their *stomach.*↘`,
+      `[[The ask begins — lift your energy here]] Starting *today,*↗ | [Product Name] is available for *pre-order.*↘ || And if you've ever *stood* | in a hardware store aisle *wondering* | if you should buy a water sensor "just in *case*" — | this is your *sign.*↘`,
+      `[[Build toward the close — rising energy]] Let's stop finding out about *leaks* | after they've already cost us *something.*↘ || Let's find out *first.*↘`,
+    ],
+  },
+  {
+    id: "s06",
+    title: "Exactly, Not Almost",
+    category: "Toast",
+    targetDurationSeconds: 150,
+    paragraphs: [
+      `[[Warm, casual open — like greeting friends across a room]] *Hi,*↗ | *everyone.*↘ || For those who *don't* know me,↗ | I'm *[Name],*↗ | and I've been [Bride]'s *best* friend | since we were assigned lab *partners* | in ninth grade *biology* | and she let me copy exactly *one* answer,↗ | *one* time,↗ | and has *never* let me forget it.↘`,
+      `[[Signal the story is starting — settle into it]] I want to tell you a quick *story.*↘ || About *six* years ago,↗ | [Bride] called me at *eleven* at night,↗ | completely convinced she was *never* going to find the right person.↘ || She was tired of *dating.*↘ || She was tired of *almost-right.*↘ || She *told* me,↗ | and I *quote,*↗ | maybe I'm just meant to be really *good* | at being *alone.*↘`,
+      `[[The turn of the story — land 'not meant to settle']] I remember *telling* her,↗ | you're *not* meant to settle for almost.↘ || You're meant to wait for *exactly.*↘ || I *don't* know if she believed me that night.↘ || But I *believed* it,↗ | because I'd watched her be an incredible *friend,*↗ | an incredible *daughter,*↗ | an incredible *person,*↗ | for *years,*↗ | and I knew whoever finally showed *up* | better be worth the *wait.*↘`,
+      `[[One-line paragraph — let it hang]] Then she met *[Groom].*↘`,
+      `[[Building the observation — take your time]] And I want you *all* to know — | the *first* time she talked about him,↗ | she *didn't* talk | about how he made her feel swept off her *feet.*↘ || She talked about how calm she felt *around* him.↘ || How *normal.*↘ || How like *herself.*↘ || If you know *[Bride],*↗ | you know that's the *highest* compliment she has.↘`,
+      `[[Direct address to the groom — warm, unhurried]] *[Groom],*↗ | I've watched you two build something *steady* and real | and,↗ | *honestly,*↗ | a little annoyingly *cute* | over the last few years.↘ || You make her laugh the *specific,*↗ | loud laugh that she *only* does | when she's truly *comfortable.*↘ || That laugh is my favorite sound in the *world,*↗ | and now it's yours to keep making *happen.*↘`,
+      `[[Toast line begins — lift your energy here]] So here's to *exactly,*↗ | *not* almost.↘ || Here's to *two* people | who found their *calm* in each other.↘ || And here's to [Bride] and *[Groom]* — | may your laughter stay *loud,*↗ | your love stay *easy,*↗ | and your marriage be *exactly* | what nineteen-year-old [Bride] didn't even know to *hope* for.↘`,
+      `[[Big finish — full glass-raise energy]] To the bride and *groom!*↘`,
+    ],
+  },
+  {
+    id: "s07",
+    title: "Messier Than You Planned",
+    category: "Graduation",
+    targetDurationSeconds: 160,
+    paragraphs: [
+      `[[Warm, welcoming open — big-room energy]] Good *morning,*↗ | *graduates,*↗ | *families,*↗ | *faculty* — | and *honestly,*↗ | good morning to whoever's *phone* | is about to go off | in the next *twenty* minutes.↘ || It's *fine.*↘ || We forgive you in *advance.*↘`,
+      `[[Nostalgic opener — unhurried, painting the past]] *Four* years ago,↗ | *most* of us walked onto this campus as strangers.↘ || We *didn't* know | which dining hall had the good *pizza.*↘ || We *didn't* know which professors gave out extensions | and which ones *absolutely,*↗ | positively did *not.*↘ || We definitely *didn't* know that a global pandemic,↗ | *three* roommate changes,↗ | and *one* deeply questionable spring break trip were all somewhere | in our *future.*↘`,
+      `[[Short line — let it land plainly]] But here *we* are.↘`,
+      `[[The real thesis begins — slow down, mean it]] I want to say *something* | that might sound *strange* | on a day built for *celebration:*↘ | it's okay that this *wasn't* the four years you planned.↘ || Maybe you switched majors *twice.*↘ || Maybe you failed a class you were sure you'd *ace,*↗ | or aced *one* you were sure you'd fail.↘ || Maybe the plan you had freshman year looks *nothing* | like the person sitting in this chair *today.*↘`,
+      `[[Short, definitive line]] That's *not* a failure.↘ || That's just what growing up actually *looks* like.↘ || *Nobody* tells you | that the straight line you *imagine* | for your twenties is basically a *myth.*↘ || It's *messier* than that.↘ || It's supposed to be *messier* than that.↘`,
+      `[[Turn to the real advice — lean in]] So here's what I actually want to *leave* you with.↘ || The people you became closest to in *college* | *weren't* the people | who had it all figured *out.*↘ || They were the people who *showed* up — | to the study *group,*↗ | to the late-night *conversation,*↗ | to the friend having a hard *week.*↘ || Showing up is still going to be the *thing* | that matters *most,*↗ | long after these gowns *come* off.↘`,
+      `[[Direct address — warmer, more encouraging]] You are walking out of here with more *resilience* | than you probably give yourselves *credit* for.↘ || You've already survived versions of *hard* | that you *didn't* think you could survive.↘ || Whatever comes *next* — | a job you *love,*↗ | a job you're *not* sure about yet,↗ | more *school,*↗ | *no* plan at all — | you've already proven you can handle *uncertainty.*↘`,
+      `[[Three short commands — punch each one separately]] So *go.*↘ || Be *uncertain.*↘ || Be *brave* about it.↘`,
+      `[[Congratulations — full warmth]] *Congratulations,*↗ | *graduates.*↘ || *We* are so,↗ | so *proud* of you.↘`,
+    ],
+  },
+  {
+    id: "s08",
+    title: "Ten-Thirty in the Morning",
+    category: "Fundraising",
+    targetDurationSeconds: 170,
+    paragraphs: [
+      `[[Let each half of the number land separately]] I want to start with a *number,*↗ | and I want you to *sit* | with it for a *second:*↘ | four *thousand,*↗ | two *hundred.*↘ || That's how many kids in this *county* | went to bed hungry *last* night.↘`,
+      `[[Sharp correction — mirror the previous rhythm]] *Not* last year.↘ || *Last* night.↘`,
+      `[[Acknowledge the moment — conversational, self-aware]] It's easy for a *number* like that | to wash over you | at a *dinner* like this,↗ | between the appetizer and the *entrée,*↗ | so I'm going to try to make it *smaller* | and harder to *ignore.*↘ || Four *thousand,*↗ | two *hundred* kids is roughly every student | in every elementary school across this *entire* district.↘ || *Combined.*↘`,
+      `[[Turn personal — quieter, more intimate]] I met one of those kids *last* spring.↘ || I'm *not* going to use her name,↗ | because that's *not* my story to tell,↗ | but I'll *tell* you what her teacher told me.↘ || She said this girl used to put her *head* down | on her desk *every* day around ten-thirty | in the *morning.*↘ || *Not* because she was tired.↘ || Because she was *hungry,*↗ | and it was easier to close her *eyes* | than to *sit* with it.↘`,
+      `[[Land the thesis — plain and grounded]] That's the problem we're here tonight to *talk* about.↘ || And I *promise* you,↗ | this *isn't* a story about hopelessness — | because *six* months ago,↗ | this same girl started coming | to our after-school meal *program* | *three* days a week.↘ || Her teacher told me something *else,*↗ | too:↘ | she stopped putting her *head* down.↘ || She started raising her *hand.*↘`,
+      `[[Direct address — this is the ask connecting to the story]] That's what your dollars *actually* do | in this room *tonight.*↘ || They're *not* abstract.↘ || They're *not* a line item.↘ || They're the *difference* | between a kid who's checked out by *ten-thirty* | and a kid who's raising her *hand.*↘`,
+      `[[Turn to the actual ask — lean in]] Here's what we're asking *tonight.*↘ || We need to raise three hundred *thousand* dollars | to expand this program into *eleven* more schools | by next *fall.*↘ || *That's* it.↘ || That's the *whole* ask.↘ || *Eleven* schools.↘ || Thousands more *kids* | who get to keep their *heads* up.↘`,
+      `[[Acknowledge donor fatigue — honest, unhurried]] I know everyone in this *room* | gets asked to give to something | almost *every* week.↘ || I *know* that.↘ || So I'm *not* going to pretend | this is the *only* cause that matters.↘ || But I *am* going to ask you | to think about *one* specific ten-thirty in the morning,↗ | in *one* specific classroom,↗ | and *one* kid deciding | whether it's worth raising her *hand.*↘`,
+      `[[Quiet, direct closing ask]] Help us make that decision *easy* for her.↘`,
+      `[[Simple thank you — sincere, unhurried]] *Thank* you.↘`,
+    ],
+  },
+  {
+    id: "s09",
+    title: "Eight Thousand Days",
+    category: "Tribute",
+    targetDurationSeconds: 185,
+    paragraphs: [
+      `[[Wry rhetorical question — deadpan, genuine surprise]] When they asked me to say a few *words* | about [Name] *tonight,*↗ | my *first* thought was:↘ | a few *words?*↗ || Thirty-one years and they're giving me *five* minutes?↗`,
+      `[[Settle in — steady, grounded tone]] Let's start with the *basics.*↘ || [Name] walked through these *doors* | for the *first* time | back when we still used fax *machines* | and *nobody* here had gray hair yet — | present company *included.*↘ || Thirty-one *years.*↘ || That's *not* a job.↘ || That's a chapter of a *life.*↘`,
+      `[[Setup for the stories — take your time]] I've been trying to think of the right *story* | to tell *tonight,*↗ | and *honestly,*↗ | there are too many.↘ || There's the time [Name] drove *two* hours | in a *snowstorm* | because a client had an *emergency* | and refused to let anyone else *handle* it.↘ || There's the fact that *[Name]* still,↗ | to this *day,*↗ | remembers *every* single new hire's first-week nerves | and makes a point of eating *lunch* with them | so they *don't* feel alone.↘ || Ask anyone in this *room* | who started here scared and *unsure.*↘ || I'd bet *most* of us have a story | about [Name] making us feel like we *belonged.*↘`,
+      `[[The reframe — stress 'gets lost in a job title']] That's the thing about *[Name]* | that I think gets lost in a job *title.*↘ || [Name] *never* once acted | like the *smartest* person in the room,↗ | even on the days when [Name] *absolutely* was.↘ || What [Name] did instead was *make* everyone else better | at their *job,*↗ | *quietly,*↗ | *patiently,*↗ | year after *year,*↗ | *without* ever needing the credit for it.↘`,
+      `[[Playful pivot — lighter tone]] I did some rough math *earlier.*↘ || Thirty-one *years.*↘ || If you *count* it up,↗ | that's somewhere around eight *thousand* days spent showing up | for this *company,*↗ | this *team,*↗ | and *honestly,*↗ | for a lot of us *personally.*↘ || Eight *thousand* days of answering the phone | when someone needed *help.*↘ || Eight *thousand* days of remembering birthdays,↗ | showing up for hard *weeks,*↗ | and *never* once making anyone feel small | for asking a question *twice.*↘`,
+      `[[Direct address — land 'built something' with pride]] You built something here that outlasts any org *chart,*↗ | *[Name].*↘ || You built a *culture.*↘ || And cultures *don't* retire,↗ | even when the person who built them *finally* does.↘`,
+      `[[Let the line breathe before the reveal]] So tonight *isn't* goodbye.↘ || It's a *thank* you,↗ | thirty-one years *overdue,*↗ | for every single one of those eight *thousand* days.↘`,
+      `[[Direct address to [Name] — sincere and unhurried]] *[Name],*↗ | on behalf of *everyone* in this room — | past and *present* — | thank you for showing us what it looks *like* | to do this *job,*↗ | and *honestly,*↗ | this *life,*↗ | with this much *heart.*↘`,
+      `[[Sincere, softer close]] We are going to miss you *more* | than this five-minute speech could ever *say.*↘ || Congratulations on *everything* ahead.↘ || You've more than *earned* it.↘`,
+    ],
+  },
+  {
+    id: "s10",
+    title: "The Permission Nobody's Waiting On",
+    category: "Keynote",
+    targetDurationSeconds: 225,
+    paragraphs: [
+      `[[Set up the contrast — unhurried, matter-of-fact]] *Fifteen* years ago,↗ | if you wanted to build a piece of *software,*↗ | you needed a team of *engineers,*↗ | a server *room,*↗ | and roughly *six* months | before anyone outside your *company* | saw a single line of it *work.*↘ || *Today,*↗ | a fourteen-year-old with a laptop and a *weekend* | can build *something* | that would have taken that *entire* team | a full *quarter.*↘`,
+      `[[Let it sink in before continuing]] I want to sit with that for a *second,*↗ | because I *don't* think we've fully processed what it means.↘`,
+      `[[Wry aside — a little cynical]] We talk a lot about *disruption* | in rooms like this *one.*↘ || It's become almost a throwaway *word* — | *disruption,*↗ | *innovation,*↗ | paradigm *shift* — | said so often it's lost its *weight.*↘ || But what's happening right now *isn't* a throwaway trend.↘ || It's a fundamental *rewiring* | of who gets to build *things.*↘`,
+      `[[Setup — steady, matter-of-fact]] For *most* of history,↗ | building something required *permission.*↘ || Permission from *investors.*↘ || Permission from *institutions.*↘ || *Permission,*↗ | *frankly,*↗ | from gatekeepers who decided whose ideas were worth *funding* | and whose *weren't.*↘ || That system produced a lot of great *things.*↘ || It also quietly filtered out an enormous amount of *talent* | that simply *didn't* have access to the room.↘`,
+      `[[Short line — let it announce the turn]] That's *changing.*↘ || *Not* slowly — | *fast.*↘ || And I think the *biggest* mistake | any of us in this room can make right *now* | is assuming the next *five* years | will look anything like the last *twenty.*↘`,
+      `[[Genuine question to the room]] So what do *you* do with that?↘ || Here's what I'd *offer* you.↘`,
+      `[[First point — clear, numbered delivery]] *First:*↘ | stop treating your current advantage as *permanent.*↘ || Whatever moat you think you have today is *narrower* | than it was *two* years ago,↗ | and it will be narrower still *two* years from now.↘ || That's *not* a reason to panic.↘ || It's a reason to keep *building.*↘`,
+      `[[Second point — same clear, numbered energy]] *Second:*↘ | the companies that win the next decade *won't* be the ones | with the *most* resources.↘ || They'll be the ones *closest* to their users,↗ | moving the *fastest* on what they learn from them.↘ || Speed of learning is the new *moat.*↘`,
+      `[[Third point — build to the strongest claim]] And *third* — | this is the *one* I actually believe most — | *don't* wait for permission anymore,↗ | because *increasingly,*↗ | there's *no* one left to ask.↘ || The tools are sitting *right* there.↘ || The *only* real question left | is whether you're going to *use* them.↘`,
+      `[[Callback to the opening example — unhurried]] I started this talk by *telling* you | a fourteen-year-old can now build in a *weekend* | what used to take a team a *quarter.*↘ || I want to end by asking you a harder *question:*↘ | if that's *true,*↗ | what exactly is your *excuse?*↗`,
+      `[[Building to the close — rising energy]] We are living through the *most* accessible moment | in the history of building *things.*↘ || *Not* the easiest — | I'm *not* naive about how hard this still is.↘ || But the *most* accessible.↘ || That's *not* a small shift.↘ || That's the *whole* game changing underneath our feet.↘`,
+      `[[Direct address — steady, sincere]] So my challenge to everyone in this *room* | is *simple.*↘ || Go build *something* | you would have talked yourself out of | *two* years ago.↘ || The permission you've been waiting *for* | was *never* coming | from anyone *else.*↘`,
+      `[[Simple, quiet landing]] It was *always* going to have to come from you.↘`,
+      `[[Sincere close]] *Thank* you.↘`,
+    ],
+  },
+  {
+    id: "s11",
+    title: "The 2 A.M. Sensor",
+    category: "Sales pitch",
+    targetDurationSeconds: 240,
+    paragraphs: [
+      `[[Big number opening — give it room to register]] *Every* year,↗ | small manufacturers in this *country* | lose an estimated forty *billion* dollars | to unplanned equipment *downtime.*↘ || Forty *billion.*↘ || *Not* from bad management.↘ || *Not* from bad workers.↘ || From a single failed part *nobody* saw coming,↗ | on a Tuesday *afternoon,*↗ | that shuts down an *entire* production line | for *six* hours | while someone drives to the nearest *supplier* | hoping they have the right one in *stock.*↘`,
+      `[[Blunt reaction — flat and certain]] We think that's *insane.*↘ || And we built a company to *fix* it.↘`,
+      `[[Introduce yourself and the company — steady, credible]] My name is *[Name],*↗ | and I'm the co-founder and CEO of [Company *Name].*↘ || *Before* this,↗ | I spent *nine* years running operations | at a mid-sized auto parts *manufacturer,*↗ | and I lived this problem *personally.*↘ || I've stood on a factory *floor* | at *2* a.m. | watching a six-hundred-thousand-dollar production line | sit completely *idle* | because of an eleven-dollar *sensor* | that failed with zero *warning.*↘`,
+      `[[Personal turn — let it land]] That night is the reason this company *exists.*↘`,
+      `[[Transition into the product — calm, confident]] Here's what we *built.*↘ || [Company Name] is a predictive maintenance *platform* | that uses low-cost vibration and temperature *sensors,*↗ | combined with a machine learning model *trained* | on failure data from over three *thousand* industrial machines,↗ | to tell manufacturers *exactly* | which part is going to *fail* — | and *roughly* when — | before it actually *happens.*↘`,
+      `[[Invite the room in — genuine, a little knowing]] Let me give you the *numbers,*↗ | because I know *that's* what you're here for.↘`,
+      `[[The core customer count — say it plainly]] We're currently live with *fourteen* manufacturing customers.↘ || In the last *twelve* months,↗ | those customers have *prevented* an average | of thirty-one hours of unplanned *downtime* each,↗ | per *year.*↘ || At an average cost of nine *thousand* dollars an hour | in lost *production,*↗ | that's roughly two hundred and eighty *thousand* dollars saved,↗ | per *customer,*↗ | per *year.*↘`,
+      `[[Confident aside — quick and sure, the contrast is the point]] Our platform costs them eighteen *thousand* dollars a year.↘`,
+      `[[Invite them to do the math with you — lean in]] Do that math with me for a *second* — | because I think it's the *whole* pitch | in *one* sentence.↘ || We are selling a fifteen-x *return,*↗ | with results customers can see within their first *ninety* days.↘`,
+      `[[Second proof point — build the credibility further]] That's why our net revenue *retention* | is sitting at one hundred and forty-one *percent.*↘ || *Nobody* churns off a fifteen-x return.↘ || If *anything,*↗ | they buy more *sensors.*↘`,
+      `[[The ask begins — lean in, direct]] We're raising four million dollars to do *three* things.↘ || *First,*↗ | triple our sales *team* | so we can *move* | from fourteen customers to sixty within *eighteen* months.↘ || *Second,*↗ | expand our model beyond *vibration* | and temperature into acoustic failure *detection,*↗ | which our current customers are already *asking* for.↘ || And *third,*↗ | build out the integration *layer* | that lets us plug *directly* | into the enterprise resource planning systems these manufacturers already *use,*↗ | so adoption stops *depending* | on a single champion inside each *company.*↘`,
+      `[[Confident, grounded statement]] The market here is *not* small.↘ || There are roughly two hundred and thirty *thousand* mid-sized manufacturers | in North America *alone,*↗ | and fewer than *four* percent of them | have any predictive maintenance system | in place *today.*↘ || We are *early.*↘ || We are *not* speculative.↘`,
+      `[[Transition into the close — settle the room]] I'll *leave* you with this.↘ || *Every* single manufacturer we've ever pitched | has had their own version | of my *2* a.m. story — | a night an eleven-dollar part cost them *six* figures.↘ || We're *not* selling them a hypothetical.↘ || We're selling them the *thing* | that would have saved them that *night.*↘`,
+      `[[Warm, direct ask to close]] We'd love to have you as part of *building* it.↘`,
+      `*Thank* you.↘`,
+    ],
+  },
+  {
+    id: "s12",
+    title: "The Worst Advice I Ever Got",
+    category: "Keynote",
+    targetDurationSeconds: 305,
+    paragraphs: [
+      `[[Set up the frame — unhurried, a little wry]] I want to *tell* you | about the *worst* piece of advice I ever received,↗ | because I think it's more *useful* to you | than the *best* advice I ever got.↘`,
+      `[[Quote the bad advice flatly — matter-of-fact]] Early in my *career,*↗ | a mentor I deeply respected *told* me:↘ | find the thing you're *best* at,↗ | and do that thing *forever.*↘ || *Specialize.*↘ || Stay in your *lane.*↘ || *Don't* get distracted chasing every shiny new idea | that crosses your *desk.*↘`,
+      `[[Set the timeframe — unhurried]] For about *six* years,↗ | I followed that advice almost *religiously.*↘ || And it *worked,*↗ | in the *sense* | that I got very good at *one* specific thing.↘ || I also got very *bored,*↗ | very anxious about the *future,*↗ | and very quietly *convinced* | that I'd built a career-shaped *cage* | for myself instead of a *career.*↘`,
+      `[[The reframe — stress 'noticing' when it comes]] Here's what *nobody* told me at the time:↘ | the world does *not* reward people | for staying in a *lane.*↘ || It rewards people for *noticing* | when the lane has changed *underneath* them,↗ | and having the nerve to *move.*↘`,
+      `[[Careful caveat — measured, not preachy]] I want to be *careful* here,↗ | because I'm *not* telling you to abandon discipline | or chase *every* new idea | that sounds exciting on a *Tuesday.*↘ || Depth still *matters.*↘ || Expertise still *matters.*↘ || But depth in a single *skill* | *isn't* the same thing | as depth in a single *job,*↗ | at a single *company,*↗ | doing a single *task,*↗ | *forever.*↘ || Those are very different kinds of *commitment,*↗ | and I think we confuse them *constantly.*↘`,
+      `[[First example — paint the contrast clearly]] Think about the person you *know* | who followed *one* path | in a straight line from twenty-two to *sixty-five.*↘ || Now think about the person you *know* | who *didn't* — | who tried the strange lateral *move,*↗ | who took the pay *cut,*↗ | who *started* over | in a field they *didn't* understand yet.↘ || I'd bet the *second* person has a much better story.↘ || I'd also bet they're more *interesting* | to sit next to at *dinner.*↘`,
+      `[[Transition into the personal story — settle in]] Let me tell you what actually changed *things* for me.↘ || At *thirty-four,*↗ | I left a job I was genuinely *excellent* at | to go do *something* I was,↗ | at *best,*↗ | *mediocre* at.↘ || I want to be *honest* with you:↘ | it was humiliating for about a *year.*↘ || I went from being the person other people asked for *help* | to being the person asking *everyone* else for help,↗ | in *meetings,*↗ | in *emails,*↗ | in front of people *half* my age | who'd been doing this for *years* | and clearly wondered what I was *doing* there.↘`,
+      `[[Transition into the reframe — calmer tone]] But *here's* the thing | about being bad at something *new.*↘ || It's the *fastest* way I know | to remember how to actually *learn* again.↘ || *Not* perform expertise.↘ || *Learn.*↘ || Ask the question that might sound *obvious.*↘ || Get something wrong in front of *people.*↘ || Get *corrected,*↗ | and say *thank* you,↗ | and *mean* it.↘`,
+      `[[The payoff begins — lift the energy]] *Two* years into that mediocre decision,↗ | I was running a *team.*↘ || *Five* years in,↗ | I'd built something that *didn't* exist | when I made that *jump.*↘ || *None* of that happens | if I stay in the *lane* | I was told to stay in *forever.*↘`,
+      `[[Turn to the direct address — steady and warm]] So here's what I actually want to leave you with *today,*↗ | on a day that's supposed to be about *endings* | and beginnings both at *once.*↘`,
+      `[[The universal warning — unhurried, let it register]] You are going to be *told,*↗ | probably many *times,*↗ | by people who genuinely *mean* well,↗ | to find your lane and *stay* in it.↘ || Sometimes that's good *advice.*↘ || *Often,*↗ | it's advice that made *sense* | for the person *giving* it,↗ | in their *decade,*↗ | in their *industry,*↗ | and it may *not* make sense for yours.↘`,
+      `[[The real rhetorical question of the talk]] Ask yourself this *instead:*↘ | am I choosing this *path* | because it's genuinely *right* for me,↗ | or because it's *comfortable,*↗ | and comfortable has quietly started masquerading as *right?*↗`,
+      `[[Let it sit before continuing]] That's *not* an easy question.↘ || I still ask myself a *version* of it | *every* couple of years,↗ | and the honest answer *changes.*↘`,
+      `[[The long list of who you don't owe — unhurried, deliberate]] You *don't* owe anyone — | *not* a mentor,↗ | *not* a parent,↗ | *not* the eighteen-year-old version of yourself | who picked a major *three* years ago — | a lifetime of staying exactly where you *started.*↘`,
+      `[[Thesis restated — deliberate pace]] Stay curious enough to *notice* | when the lane has *changed.*↘ || And be brave enough to *move* when it has.↘`,
+      `[[Big, warm close]] *Congratulations.*↘ || Go be *gloriously,*↗ | productively bad at something *new.*↘`,
+    ],
+  },
+];
+
+let parsed: Speech[] | null = null;
+
+export function getSpeeches(): Speech[] {
+  if (!parsed) {
+    parsed = SOURCES.map((s) => {
+      const marked = parseNotation(s.paragraphs.join(" "));
+      const paragraphs: number[] = [];
+      let at = 0;
+      for (const p of s.paragraphs) {
+        paragraphs.push(at);
+        at += parseNotation(p).text.split(/\s+/).filter(Boolean).length;
+      }
+      // A long pause between paragraphs.
+      const marks: Mark[] = [...marked.marks];
+      for (const start of paragraphs.slice(1)) {
+        if (!marks.some((m) => (m.kind === "pause" || m.kind === "long_pause") && m.afterWord === start - 1)) {
+          marks.push({ kind: "long_pause", afterWord: start - 1 });
+        }
+      }
+      return { id: s.id, title: s.title, category: s.category, targetDurationSeconds: s.targetDurationSeconds, text: marked.text, marks, paragraphs };
+    });
+  }
+  return parsed;
+}
+
+export function getSpeech(id: string): Speech | undefined {
+  return getSpeeches().find((s) => s.id === id);
+}

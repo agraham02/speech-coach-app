@@ -8,6 +8,7 @@ import { getAllPrompts } from "../db/promptsRepo";
 import { getRecentlyUsedPromptIds } from "../db/sessionsRepo";
 import { pickRandomPrompt } from "../../domain/pickTodaysPrompt";
 import { isFreeRecordPrompt } from "../../data/topics";
+import type { LineCategory } from "../../content/lines";
 
 type Nav = NavigationProp<RootStackParamList>;
 
@@ -23,6 +24,12 @@ export async function launchStep(navigation: Nav, step: LessonStep, practice: Pr
     case "drill":
       if (step.drill === "twister") {
         navigation.navigate("DrillSession", { twisterId: step.contentId, practice });
+      } else if (step.drill === "marked_reading") {
+        // contentId "cat:<category>" picks lines from one group; a plain id
+        // starts with that line.
+        const category = step.contentId?.startsWith("cat:") ? (step.contentId.slice(4) as LineCategory) : undefined;
+        const lineIds = step.contentId && !category ? [step.contentId] : undefined;
+        navigation.navigate("LineRep", { category, lineIds, practice });
       } else if (isConversationDrill(step.drill)) {
         navigation.navigate("Conversation", { drill: step.drill, contentId: step.contentId, practice });
       } else {

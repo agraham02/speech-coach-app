@@ -56,6 +56,8 @@ export interface SpeechNative {
   requestPermissionsAsync(): Promise<{ granted: boolean }>;
   isRecognitionAvailable(): boolean;
   supportsOnDeviceRecognition(): boolean;
+  // Android 13+ and iOS: can save the recognized audio to a WAV file.
+  supportsRecording?(): boolean;
   addListener(eventName: string, listener: (event: any) => void): Subscription;
 }
 
@@ -70,6 +72,9 @@ export interface LiveSpeechStartOptions {
   volumeMeter?: boolean;
   // Milliseconds between volume readings when volumeMeter is on.
   volumeIntervalMs?: number;
+  // Save what was heard to WAV files (one per recognition task) — for
+  // listen-back and pitch analysis. Ignored where unsupported.
+  persistAudio?: boolean;
 }
 
 export interface VolumeSample {
@@ -111,6 +116,8 @@ export class LiveSpeechSession {
   // so 10 readings a second don't re-render the screen.
   private volumeSamples: VolumeSample[] = [];
   private attemptStartedAt = 0;
+  // WAV files saved during this attempt (persistAudio), oldest first.
+  private recordings: string[] = [];
 
   constructor(
     private readonly native: SpeechNative | null,
@@ -148,6 +155,18 @@ export class LiveSpeechSession {
     return this.volumeSamples;
   }
 
+  getRecordings(): string[] {
+    return this.recordings;
+  }
+
+  canPersistAudio(): boolean {
+    try {
+      return !!this.native?.supportsRecording?.();
+    } catch {
+      return false;
+    }
+  }
+
   // --- lifecycle -----------------------------------------------------------
 
   async prepare(): Promise<"ready" | "denied" | "unavailable"> {
@@ -177,8 +196,10 @@ export class LiveSpeechSession {
       maxRestarts: options.maxRestarts ?? DEFAULT_MAX_RESTARTS,
       volumeMeter: options.volumeMeter ?? false,
       volumeIntervalMs: options.volumeIntervalMs ?? 200,
+      persistAudio: (options.persistAudio ?? false) && this.canPersistAudio(),
     };
     this.volumeSamples = [];
+    this.recordings = [];
     this.attemptStartedAt = this.clock.now();
     this.active = true;
     this.stopRequested = false;
@@ -280,6 +301,10 @@ export class LiveSpeechSession {
         ...(this.options.volumeMeter
           ? { volumeChangeEventOptions: { enabled: true, intervalMillis: this.options.volumeIntervalMs } }
           : {}),
+        // 16 kHz int16 on both platforms — what the pitch analysis decodes at.
+        ...(this.options.persistAudio
+          ? { recordingOptions: { persist: true, outputSampleRate: 16000, outputEncoding: "pcmFormatInt16" } }
+          : {}),
       });
     } catch (error) {
       this.active = false;
@@ -299,6 +324,9 @@ export class LiveSpeechSession {
       if (this.snapshot.audioStartedAtMs == null) {
         this.update({ audioStartedAtMs: event?.timestamp ?? this.clock.now() });
       }
+    });
+    on("audioend", (event: { uri?: string | null } | null) => {
+      if (event?.uri && this.options?.persistAudio) this.recordings.push(event.uri);
     });
     on("result", (event: { isFinal: boolean; results: { transcript: string }[] }) => {
       const transcript = event.results?.[0]?.transcript ?? "";

@@ -396,7 +396,7 @@ export function HomeScreen() {
         </Pressable>
 
         <View style={styles.shelf}>
-          <ShelfCard icon="document-text-outline" label="Script Practice" onPress={() => navigation.navigate("ScriptLibrary")} />
+          <ShelfCard icon="document-text-outline" label="Mark it up" onPress={() => navigation.navigate("MarkItUp")} />
           <ShelfCard icon="library-outline" label="Prompt Library" onPress={() => navigation.navigate("PromptLibrary")} />
           <ShelfCard icon="flash-outline" label="Tongue-Twister Drills" onPress={() => navigation.navigate("Drills")} />
         </View>

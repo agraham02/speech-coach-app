@@ -47,7 +47,7 @@ export function ChipGroup<T extends string>({
   ));
   if (scroll) {
     return (
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.group}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scroller} contentContainerStyle={styles.group}>
         {chips}
       </ScrollView>
     );
@@ -58,5 +58,7 @@ export function ChipGroup<T extends string>({
 const useStyles = makeStyles((t) => ({
   chip: { paddingHorizontal: t.space.md, paddingVertical: 7, borderRadius: t.radius.pill },
   group: { flexDirection: "row", gap: t.space.sm },
+  // Keeps a horizontal row from shrinking to a sliver inside a flex column.
+  scroller: { flexGrow: 0, flexShrink: 0 },
   wrap: { flexWrap: "wrap" },
 }));

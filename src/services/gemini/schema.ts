@@ -1,4 +1,6 @@
-import { tokenizeScript, type Script, type ScriptCue } from "../../domain/scriptTypes";
+import type { MarkLevel, Script } from "../../domain/scriptTypes";
+import { filterMarks } from "../../domain/cadence/marks";
+import { toNotation } from "../../domain/cadence/notation";
 import { hasAnyPlanText, type PlanText } from "../../domain/planYourPoint";
 
 // Response schema for the Gemini rubric call. Covers Phase 1 (transcripts),
@@ -298,15 +300,15 @@ Be specific and reference actual moments/words from the response wherever possib
 Respond only with JSON matching the provided schema.`;
 }
 
-// A few words of context on either side of the cued word, taken from the
-// script's own tokenization — gives Gemini something it can actually locate
-// in the audio (an exact word index means nothing to it), the same way
-// annotation quotes elsewhere in this app are grounded by text, not offsets.
-function cueContextSnippet(script: Script, cue: ScriptCue, radius = 3): string {
-  const tokens = tokenizeScript(script.text);
-  const start = Math.max(0, cue.wordIndex - radius);
-  const end = Math.min(tokens.length, cue.wordIndex + radius + 1);
-  return tokens.slice(start, end).join(" ");
+// The script rewritten in the app's mark notation, with a legend — compact
+// enough for a full speech, and text-anchored so Gemini can locate each
+// mark in the audio (a word index means nothing to it).
+const MARK_LEGEND = `*word* = stress this word · word↗ / word↘ = pitch rises / falls at the end of this word · | = short pause · || = long pause · {slow …} {fast …} {louder …} {softer …} = a stretch said that way · [[…]] = a tone direction for what follows`;
+
+function markedScriptText(script: Script, level: MarkLevel): string | null {
+  const marks = filterMarks(script.marks, level);
+  if (!marks.length) return null;
+  return toNotation({ text: script.text, marks });
 }
 
 // Script Practice mode: the speaker was reading a fixed script, not
@@ -315,13 +317,9 @@ function cueContextSnippet(script: Script, cue: ScriptCue, radius = 3): string {
 // improvisation, and the real signal is DELIVERY, PRESENCE, and (if cues were
 // shown) CUE COMPLIANCE. Reuses the same grading-philosophy and dimension
 // instructions as buildSystemPrompt so the two rubrics never drift apart.
-export function buildScriptSystemPrompt(script: Script, cuesEnabled: boolean): string {
-  const showCues = cuesEnabled && script.cues.length > 0;
-  const cueListText = showCues
-    ? script.cues
-        .map((cue) => `- Near "...${cueContextSnippet(script, cue)}...": ${cue.type} — ${cue.label}`)
-        .join("\n")
-    : null;
+export function buildScriptSystemPrompt(script: Script, markLevel: MarkLevel): string {
+  const markedText = markedScriptText(script, markLevel);
+  const showCues = markedText !== null;
 
   return `You are a rigorous, critical speaking coach grading a SCRIPTED practice session — not a supportive cheerleader. Analyze this video of someone reading the following fixed script aloud on camera. This was NOT a spontaneous response — the words were given to them in advance.
 
@@ -362,8 +360,13 @@ Grade the COMBINED dimension:
 
 ${
   showCues
-    ? `The speaker was shown these ON-SCREEN DELIVERY CUES while recording — short instructions tied to specific moments in the script:\n${cueListText}\n\nGrade CUE COMPLIANCE (cue_compliance, 1-10): for each cue above, did their actual delivery at that moment follow the instruction? Name specific hits and misses (e.g. "paused well after 'seconds.' but did not raise pitch on the closing question"). Score generously if most cues visibly shaped the delivery — this is about whether the cues were followed with reasonable fidelity, not pixel-perfect execution.`
-    : `Cues were NOT shown during this recording, so do not include a cue_compliance field.`
+    ? `The speaker was shown the script with these DELIVERY MARKS while recording (${MARK_LEGEND}):
+"""
+${markedText}
+"""
+
+Grade CUE COMPLIANCE (cue_compliance, 1-10): did their actual delivery follow the marks — the pauses, the stressed words, the rises and falls, the slow and soft stretches? Name specific hits and misses, quoting the words (e.g. "held the long pause after 'seconds.' but stressed 'have' instead of 'phone'"). Score generously if most marks visibly shaped the delivery — this is about reasonable fidelity, not pixel-perfect execution.`
+    : `Delivery marks were NOT shown during this recording, so do not include a cue_compliance field.`
 }
 
 Produce ANNOTATIONS: 4-8 of the most impactful specific moments backing up the scores above. Each quote must be an EXACT, word-for-word substring of transcript_verbatim, 3-12 words, located by exact string search. If a phrase occurs more than once, include enough surrounding words to uniquely identify the occurrence you mean. Do not annotate filler words here — those are handled separately on-device.

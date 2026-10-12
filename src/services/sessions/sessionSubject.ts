@@ -51,7 +51,7 @@ export async function gradingContextFromSession(session: Session): Promise<Gradi
   const subject = await subjectFromSession(session);
   if (!subject) return null;
   return subject.kind === "script"
-    ? { kind: "script", script: subject.script, cuesEnabled: subject.cuesEnabled }
+    ? { kind: "script", script: subject.script, cuesEnabled: subject.cuesEnabled, markLevel: subject.markLevel }
     : { kind: "prompt", promptText: subject.prompt.text, planText: subject.planText };
 }
 
@@ -65,7 +65,7 @@ const TYPE_LABELS: Record<Session["sessionType"], string> = {
   spontaneous: "Impromptu",
   concise: "Concise",
   free_record: "Free record",
-  script_practice: "Script",
+  script_practice: "Speech",
 };
 
 // What to show for a session in lists and the journal.

@@ -32,7 +32,12 @@ import { ProcessingScreen } from "../screens/ProcessingScreen";
 import { ResultScreen } from "../screens/ResultScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
 import { TipsScreen } from "../screens/TipsScreen";
-import { ScriptLibraryScreen } from "../screens/ScriptLibraryScreen";
+import { MarkItUpScreen } from "../screens/MarkItUpScreen";
+import { LineRepScreen } from "../screens/LineRepScreen";
+import { AddTextScreen } from "../screens/AddTextScreen";
+import { MarkEditScreen } from "../screens/MarkEditScreen";
+import { SpeechStudyScreen } from "../screens/SpeechStudyScreen";
+import { RehearseScreen } from "../screens/RehearseScreen";
 import { PromptLibraryScreen } from "../screens/PromptLibraryScreen";
 import { AddPromptScreen } from "../screens/AddPromptScreen";
 import { PlanYourPointScreen } from "../screens/PlanYourPointScreen";
@@ -43,6 +48,8 @@ import { navigationRef } from "./navigationRef";
 import { syncDailyReminder } from "../services/notifications/reminderScheduler";
 import { logger } from "../utils/logger";
 import type { Prompt, RecordingSubject } from "../domain/sessionTypes";
+import type { LineCategory } from "../content/lines";
+import type { MarkLevel } from "../domain/cadence/marks";
 import { useTheme } from "../theme/ThemeProvider";
 
 export { navigationRef };
@@ -58,7 +65,12 @@ export type TabParamList = {
 export type RootStackParamList = {
   Tabs: NavigatorScreenParams<TabParamList> | undefined;
   Settings: undefined;
-  ScriptLibrary: undefined;
+  MarkItUp: { shelf?: "lines" | "mine" | "speeches" } | undefined;
+  LineRep: { lineIds?: string[]; mineIds?: string[]; category?: LineCategory; mode?: "rep" | "lineOfDay"; practice?: PracticeContext } | undefined;
+  AddText: undefined;
+  MarkEdit: { id: string };
+  SpeechStudy: { speechId: string };
+  Rehearse: { speechId: string; markLevel?: MarkLevel };
   PromptLibrary: undefined;
   AddPrompt: undefined;
   PlanYourPoint: { prompt: Prompt };
@@ -284,7 +296,12 @@ export function AppNavigator() {
         <Stack.Screen name="ConversationLog" component={ConversationLogScreen} />
         <Stack.Screen name="Lesson" component={LessonScreen} />
         <Stack.Screen name="DailySession" component={DailySessionScreen} />
-        <Stack.Screen name="ScriptLibrary" component={ScriptLibraryScreen} />
+        <Stack.Screen name="MarkItUp" component={MarkItUpScreen} />
+        <Stack.Screen name="LineRep" component={LineRepScreen} />
+        <Stack.Screen name="AddText" component={AddTextScreen} />
+        <Stack.Screen name="MarkEdit" component={MarkEditScreen} />
+        <Stack.Screen name="SpeechStudy" component={SpeechStudyScreen} />
+        <Stack.Screen name="Rehearse" component={RehearseScreen} />
         <Stack.Screen name="PromptLibrary" component={PromptLibraryScreen} />
         <Stack.Screen name="AddPrompt" component={AddPromptScreen} options={{ presentation: "modal" }} />
         <Stack.Screen name="PlanYourPoint" component={PlanYourPointScreen} />

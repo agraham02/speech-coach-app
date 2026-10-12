@@ -557,6 +557,26 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
     await addColumnIfMissing(db, "sessions", "session_score", "REAL");
     currentVersion = await commitVersion(db, 17);
   }
+
+  if (currentVersion < 18) {
+    // Mark It Up: your own marked lines (built-in lines and speeches stay
+    // static content; only your texts and edited copies live here).
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS marked_texts (
+        id TEXT PRIMARY KEY NOT NULL,
+        title TEXT NOT NULL,
+        shelf TEXT NOT NULL,
+        source_id TEXT,
+        text TEXT NOT NULL,
+        marks_json TEXT NOT NULL,
+        auto_marked INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        last_practiced_at TEXT,
+        deleted_at TEXT
+      );
+    `);
+    currentVersion = await commitVersion(db, 18);
+  }
 }
 
 // Commits each migration's version as soon as that migration finishes.

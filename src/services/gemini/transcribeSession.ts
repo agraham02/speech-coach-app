@@ -17,7 +17,7 @@ import {
   type TranscriptAnnotation,
   type UploadedGeminiFile,
 } from "./types";
-import type { Script } from "../../domain/scriptTypes";
+import type { MarkLevel, Script } from "../../domain/scriptTypes";
 import type { PlanText } from "../../domain/planYourPoint";
 import { logger } from "../../utils/logger";
 
@@ -37,7 +37,7 @@ export type TranscribeProgressStep =
 // re-transcribe from scratch. See sessionProcessor.ts for where it's sourced.
 export type GradingContext =
   | { kind: "prompt"; promptText: string; planText?: PlanText; groundingTranscript?: string }
-  | { kind: "script"; script: Script; cuesEnabled: boolean };
+  | { kind: "script"; script: Script; cuesEnabled: boolean; markLevel?: MarkLevel };
 
 // Shared by transcribeSession and transcribeOnly: upload the recording to the
 // Gemini Files API and wait for it to become ACTIVE before generateContent
@@ -139,10 +139,10 @@ export async function analyzeUploadedVideo(
 ): Promise<GeminiSessionAnalysis> {
   const systemPrompt =
     context.kind === "script"
-      ? buildScriptSystemPrompt(context.script, context.cuesEnabled)
+      ? buildScriptSystemPrompt(context.script, context.cuesEnabled ? context.markLevel ?? "full" : "none")
       : buildSystemPrompt(context.promptText, context.planText, context.groundingTranscript);
   const showsCueCompliance =
-    context.kind === "script" && context.cuesEnabled && context.script.cues.length > 0;
+    context.kind === "script" && context.cuesEnabled && context.script.marks.length > 0;
   const responseSchema = showsCueCompliance ? buildResponseSchemaWithCueCompliance() : RESPONSE_SCHEMA;
 
   onProgress?.("transcribing");

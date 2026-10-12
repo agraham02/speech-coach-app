@@ -70,10 +70,10 @@ function formatSessionDate(isoDatetime: string): string {
     date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
-const COLLECTIONS: { route: "Practice" | "PromptLibrary" | "ScriptLibrary" | "Drills" | "Frameworks"; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+const COLLECTIONS: { route: "Practice" | "PromptLibrary" | "MarkItUp" | "Drills" | "Frameworks"; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { route: "Practice", label: "Free practice", icon: "mic-outline" },
   { route: "PromptLibrary", label: "Prompts", icon: "library-outline" },
-  { route: "ScriptLibrary", label: "Scripts", icon: "document-text-outline" },
+  { route: "MarkItUp", label: "Mark it up", icon: "document-text-outline" },
   { route: "Drills", label: "Twisters", icon: "flash-outline" },
   { route: "Frameworks", label: "Frameworks", icon: "book-outline" },
 ];

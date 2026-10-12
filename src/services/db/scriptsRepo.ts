@@ -1,14 +1,25 @@
-import scriptsData from "../../data/scripts.json";
-import type { Script } from "../../domain/scriptTypes";
+import { getSpeeches } from "../../content/speeches";
+import { tokenizeScript, type Script } from "../../domain/scriptTypes";
 
-// Scripts are a static curated list (no AI, no DB table), same pattern as
-// promptsRepo.ts's TOPICS.
-const SCRIPTS = scriptsData as Script[];
+// Scripts are the Speeches shelf: static content (content/speeches.ts) with
+// marks, no DB table.
+let scripts: Script[] | null = null;
 
 export function getAllScripts(): Script[] {
-  return SCRIPTS;
+  if (!scripts) {
+    scripts = getSpeeches().map((s) => ({
+      id: s.id,
+      title: s.title,
+      category: s.category,
+      text: s.text,
+      wordCount: tokenizeScript(s.text).length,
+      targetDurationSeconds: s.targetDurationSeconds,
+      marks: s.marks,
+    }));
+  }
+  return scripts;
 }
 
 export function getScriptById(id: string): Script | undefined {
-  return SCRIPTS.find((s) => s.id === id);
+  return getAllScripts().find((s) => s.id === id);
 }

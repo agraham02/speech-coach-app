@@ -1,5 +1,5 @@
 import type { GeminiQuoteAnnotation } from "./transcriptAnnotations";
-import type { Script } from "./scriptTypes";
+import type { MarkLevel, Script } from "./scriptTypes";
 import type { PlanText } from "./planYourPoint";
 import type { PracticeContext } from "./practice";
 
@@ -62,7 +62,9 @@ export type RecordingSubject =
       // Plan/lesson step this rep completes (not persisted with the session).
       practice?: PracticeContext;
     }
-  | { kind: "script"; script: Script; cuesEnabled: boolean };
+  // cuesEnabled is what's persisted (marks shown or not); markLevel is the
+  // finer choice made on the Study screen.
+  | { kind: "script"; script: Script; cuesEnabled: boolean; markLevel?: MarkLevel };
 
 // 'whisper_ondevice' is the default free path (react-native-executorch,
 // Phase 2 — the plan originally targeted Moonshine, but the installed
