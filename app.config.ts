@@ -21,6 +21,7 @@ export default (): ExpoConfig => ({
     // Follows the system light/dark setting (needs expo-system-ui on
     // Android). The JS ThemeProvider decides what the app actually renders.
     userInterfaceStyle: "automatic",
+    // Rendered from assets/brand (python assets/brand/render.py).
     icon: "./assets/icon.png",
     ios: {
         bundleIdentifier: "com.ahmadgraham.speechcoach",
@@ -32,7 +33,7 @@ export default (): ExpoConfig => ({
     android: {
         package: "com.ahmadgraham.speechcoach",
         adaptiveIcon: {
-            backgroundColor: "#E6F4FE",
+            backgroundColor: "#0E0E0C",
             foregroundImage: "./assets/android-icon-foreground.png",
             backgroundImage: "./assets/android-icon-background.png",
             monochromeImage: "./assets/android-icon-monochrome.png",
@@ -58,6 +59,22 @@ export default (): ExpoConfig => ({
     },
     plugins: [
         "expo-sqlite",
+        // The mark on the theme's background — paper in light mode, ink in
+        // dark — so launch flows straight into the first screen. App.tsx
+        // holds it until fonts are loaded and navigation is ready.
+        [
+            "expo-splash-screen",
+            {
+                image: "./assets/splash-icon.png",
+                imageWidth: 124,
+                resizeMode: "contain",
+                backgroundColor: "#F6F5F1",
+                dark: {
+                    image: "./assets/splash-icon-dark.png",
+                    backgroundColor: "#0E0E0C",
+                },
+            },
+        ],
         "expo-video",
         "expo-font",
         "expo-notifications",

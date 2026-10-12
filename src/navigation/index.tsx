@@ -256,7 +256,9 @@ function Tabs() {
   return Platform.OS === "ios" ? <NativeTabs /> : <JSTabs />;
 }
 
-export function AppNavigator() {
+// `onReady` fires once the first screen is mounted (App.tsx hides the
+// splash then).
+export function AppNavigator({ onReady }: { onReady?: () => void }) {
   const { scheme, colors } = useTheme();
   // Keeps React Navigation's own backgrounds (screen transitions, modals)
   // in step with the app's palette instead of its default light theme.
@@ -303,7 +305,7 @@ export function AppNavigator() {
   }, []);
 
   return (
-    <NavigationContainer ref={navigationRef} theme={navTheme}>
+    <NavigationContainer ref={navigationRef} theme={navTheme} onReady={onReady}>
       <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={isOnboardingComplete() ? "Tabs" : "OnboardingGate"}>
         <Stack.Screen name="Tabs" component={Tabs} />
         <Stack.Screen name="OnboardingGate" component={OnboardingGateScreen} />

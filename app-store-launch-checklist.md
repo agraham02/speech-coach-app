@@ -26,11 +26,11 @@ Already done:
 - [x] Build numbers auto-increment on EAS (`eas.json` → production `autoIncrement: true`, version source `remote`).
 - [x] Reset app exists (Settings → Start over), and old installs are offered a fresh start.
 - [x] Built-in quotes are all public domain: Lincoln, Shakespeare, Dickens, JFK and others. The speeches are original writing.
+- [x] New app icon in the Quiet Studio palette: a spoken phrase that rises, falls and lands, then a red full stop. It's 1024×1024 with no transparency, and Android gets adaptive and themed (monochrome) layers. The masters are in `assets/brand/`, and `python assets/brand/render.py` regenerates every PNG.
+- [x] Splash screen (`expo-splash-screen`): the mark on paper in light mode and on ink in dark mode. It stays up until fonts load and the first screen is ready, then fades. Check it on the TestFlight build; development builds don't show every splash setting.
 
 Still to do:
 
-- [ ] **Splash screen.** None is configured, so iOS shows a plain default launch screen. Add the `expo-splash-screen` config plugin with the "Quiet Studio" background, plus a dark variant, so launch doesn't flash white in dark mode. Read the SDK 57 docs first (docs.expo.dev/versions/v57.0.0/sdk/splash-screen). This needs a native rebuild.
-- [ ] **App icon.** `assets/icon.png` is valid (1024×1024, no transparency), but it is the old purple gradient from before the design refresh. Decide whether to redraw it in the warm-neutral palette. The icon is the biggest part of the first impression in search results.
 - [ ] **Version.** `version` in `app.config.ts` is `1.0.0`, which is what users see. Bump it in the app config for each App Store release. EAS only bumps the build number.
 - [ ] **Health check.** Run `npx expo-doctor` and `npx expo install --check`, and fix anything they flag.
 - [ ] **Privacy manifest.** Expo packages and React Native ship their own `PrivacyInfo.xcprivacy` files, but Apple doesn't read all of them from static CocoaPods. After the first upload (step 4), watch your email: Apple lists any missing "required reason" APIs within minutes. Add those reasons under `ios.privacyManifests` in `app.config.ts` and rebuild. Expo's guide: docs.expo.dev/guides/apple-privacy.
