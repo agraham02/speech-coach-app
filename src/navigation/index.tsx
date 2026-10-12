@@ -87,7 +87,8 @@ export type RootStackParamList = {
   Debrief: { eventId?: string } | undefined;
   ConversationLog: undefined;
   Lesson: { lessonId: string };
-  DailySession: undefined;
+  // slot 1-2: a daily-goal top-up instead of the main plan.
+  DailySession: { slot?: 1 | 2 } | undefined;
   Practice: undefined;
   Frameworks: undefined;
   Trends: undefined;

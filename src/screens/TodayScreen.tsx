@@ -15,8 +15,9 @@ import { ListRow } from "../components/common/ListRow";
 import { ConversationTodayCard } from "../components/conversation/ConversationTodayCard";
 import { FeelingWeekCard } from "../components/feelings/FeelingWeekCard";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
-import { getSkillStates, getTodaysPlan, getPracticeDates, type StoredPlan } from "../services/db/progressRepo";
-import { getPlanMinutes, setPlanMinutes } from "../services/prefs/prefsStore";
+import { getCompletedTopUpSlots, getSkillStates, getTodaysPlan, getTopUpPlan, getPracticeDates, getSessionsDoneToday, type StoredPlan } from "../services/db/progressRepo";
+import { getDailySessionGoal, getPlanMinutes, getPracticeAnchor, getReminderSettings, setPlanMinutes } from "../services/prefs/prefsStore";
+import { formatReminderHour, reminderHours } from "../domain/reminderSettings";
 import { computeStreaks } from "../domain/streaks";
 import { SKILLS } from "../domain/mastery";
 import { getLesson } from "../content/lessons";
@@ -48,12 +49,24 @@ export function TodayScreen() {
   const [stored, setStored] = useState<StoredPlan | null>(null);
   const [mastery, setMastery] = useState<Record<SkillId, number> | null>(null);
   const [streak, setStreak] = useState(0);
+  const [goal, setGoal] = useState(getDailySessionGoal());
+  const [doneToday, setDoneToday] = useState(0);
+  const [topUp, setTopUp] = useState<{ slot: 1 | 2; stored: StoredPlan } | null>(null);
+  const anchor = getPracticeAnchor();
 
   const load = useCallback(
     (m = minutes) => {
       getTodaysPlan(m).then(setStored);
       getSkillStates().then((s) => setMastery(Object.fromEntries(SKILLS.map((k) => [k, s[k].rating])) as Record<SkillId, number>));
-      getPracticeDates().then((dates) => setStreak(computeStreaks(dates).currentStreak));
+      getPracticeDates().then((dates) => setStreak(computeStreaks(dates, new Date(), getReminderSettings().practiceDays).currentStreak));
+      const g = getDailySessionGoal();
+      setGoal(g);
+      getSessionsDoneToday().then(setDoneToday);
+      // The next top-up, once the main plan is finished.
+      Promise.all([getTodaysPlan(m), getCompletedTopUpSlots()]).then(async ([main, slots]) => {
+        const next = ([1, 2] as const).find((s) => s < g && !slots.includes(s));
+        setTopUp(main.completedAt && next ? { slot: next, stored: await getTopUpPlan(next) } : null);
+      });
     },
     [minutes],
   );
@@ -95,6 +108,24 @@ export function TodayScreen() {
             </Txt>
           </View>
         ) : null}
+
+        {goal > 1 ? (
+          <View style={styles.goalRow} accessibilityLabel={`${Math.min(doneToday, goal)} of ${goal} sessions today`}>
+            {Array.from({ length: goal }, (_, i) => (
+              <View key={i} style={[styles.goalDot, i < doneToday && { backgroundColor: colors.success, borderColor: colors.success }]} />
+            ))}
+            <Txt variant="footnote" tone="secondary">
+              {Math.min(doneToday, goal)} of {goal} sessions today{doneToday >= goal ? " · goal met" : ""}
+            </Txt>
+          </View>
+        ) : null}
+        {anchor && doneToday === 0 ? (
+          <Txt variant="footnote" tone="muted">
+            Your plan: {anchor.charAt(0).toLowerCase() + anchor.slice(1)}, practice.
+          </Txt>
+        ) : null}
+
+        {topUp ? <TopUpCard slot={topUp.slot} stored={topUp.stored} goal={goal} onStart={() => navigation.navigate("DailySession", { slot: topUp.slot })} /> : null}
 
         {plan && lesson && focus ? (
           <Card style={styles.planCard}>
@@ -184,7 +215,52 @@ export function TodayScreen() {
   );
 }
 
+function TopUpCard({ slot, stored, goal, onStart }: { slot: 1 | 2; stored: StoredPlan; goal: number; onStart: () => void }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const focus = colors.skill[stored.plan.focusSkill];
+  const minutes = stored.plan.steps.reduce((m, s) => m + s.minutes, 0);
+  const hour = reminderHours(getReminderSettings(), goal)[slot];
+  const suggestion =
+    hour != null && new Date().getHours() < hour
+      ? `Best around ${formatReminderHour(hour)} — spacing sessions out helps them stick.`
+      : "A good time for it now.";
+  return (
+    <Card style={styles.planCard}>
+      <View style={styles.planHeader}>
+        <Txt variant="caption2" tone="muted" uppercase>
+          Top-up · session {slot + 1} of {goal} · {minutes} min
+        </Txt>
+        <View style={[styles.focusPill, { backgroundColor: focus.bg }]}>
+          <Txt variant="caption1" weight="700" color={focus.fg}>
+            {SKILL_LABELS[stored.plan.focusSkill]}
+          </Txt>
+        </View>
+      </View>
+      <View style={styles.steps}>
+        {stored.plan.steps.map((step) => (
+          <View key={step.id} style={styles.step}>
+            <Ionicons name={stored.completedStepIds.includes(step.id) ? "checkmark-circle" : STEP_ICONS[step.kind]} size={20} color={colors.textSecondary} />
+            <Txt variant="callout" style={styles.flex}>
+              {step.title}
+            </Txt>
+            <Txt variant="footnote" tone="muted">
+              {step.minutes} min
+            </Txt>
+          </View>
+        ))}
+      </View>
+      <Txt variant="footnote" tone="secondary">
+        {suggestion}
+      </Txt>
+      <PrimaryButton label={stored.completedStepIds.length ? "Continue top-up" : "Start top-up"} onPress={onStart} />
+    </Card>
+  );
+}
+
 const useStyles = makeStyles((t) => ({
+  goalRow: { flexDirection: "row", alignItems: "center", gap: t.space.xs },
+  goalDot: { width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: t.colors.textMuted },
   container: { gap: t.space.md, paddingBottom: 0 },
   scroll: { gap: t.space.md },
   streak: { flexDirection: "row", alignItems: "center", gap: t.space.xs },

@@ -8,6 +8,7 @@ import {
 } from "../../domain/recordingSettings";
 import { DEFAULT_REMINDER_SETTINGS, type ReminderSettings } from "../../domain/reminderSettings";
 import { DEFAULT_CURRICULUM_LEVEL } from "../../domain/curriculum";
+import type { DailyGoal } from "../../domain/dailyGoal";
 
 const storage = createMMKV({ id: "speech-coach-prefs" });
 
@@ -24,6 +25,8 @@ const KEYS = {
   curriculumAutoLevel: "curriculumAutoLevel",
   recordingDurationManuallySet: "recordingDurationManuallySet",
   prepSettingsManuallySet: "prepSettingsManuallySet",
+  dailySessionGoal: "dailySessionGoal",
+  practiceAnchor: "practiceAnchor",
 } as const;
 
 export function getRecordBlindPref(): boolean {
@@ -179,4 +182,26 @@ export function getPlanMinutes(): 5 | 8 | 12 {
 
 export function setPlanMinutes(minutes: 5 | 8 | 12): void {
   storage.set(PLAN_MINUTES_KEY, minutes);
+}
+
+// How many practice sessions a day you're aiming for (1-3). The first is the
+// daily plan; the rest are short top-ups. See domain/dailyGoal.ts.
+export function getDailySessionGoal(): DailyGoal {
+  const n = storage.getNumber(KEYS.dailySessionGoal);
+  return n === 2 || n === 3 ? n : 1;
+}
+
+export function setDailySessionGoal(goal: DailyGoal): void {
+  storage.set(KEYS.dailySessionGoal, goal);
+}
+
+// The habit practice is tied to ("After my morning coffee"), from onboarding
+// — used in reminder copy and on Today. null when not set.
+export function getPracticeAnchor(): string | null {
+  return storage.getString(KEYS.practiceAnchor) ?? null;
+}
+
+export function setPracticeAnchor(anchor: string | null): void {
+  if (anchor) storage.set(KEYS.practiceAnchor, anchor);
+  else storage.remove(KEYS.practiceAnchor);
 }

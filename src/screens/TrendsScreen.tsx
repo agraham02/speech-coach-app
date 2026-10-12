@@ -20,7 +20,7 @@ import {
 } from "../domain/curriculum";
 import { getCompletedSessionDates, getScoredSessionSummaries } from "../services/db/statsRepo";
 import { getCurriculumHistory, recomputeCurriculumLevel } from "../services/db/curriculumRepo";
-import { getCurriculumOverride } from "../services/prefs/prefsStore";
+import { getCurriculumOverride, getReminderSettings } from "../services/prefs/prefsStore";
 import { subscribeToAllSessions } from "../services/pipeline/processingEvents";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
 import { fontDisplay, spacing, typography } from "../theme/theme";
@@ -101,7 +101,7 @@ export function TrendsScreen() {
   const refresh = useCallback(async () => {
     const dates = await getCompletedSessionDates();
     setTotalSessions(dates.length);
-    setStreaks(computeStreaks(dates));
+    setStreaks(computeStreaks(dates, new Date(), getReminderSettings().practiceDays));
 
     const summaries = await getScoredSessionSummaries();
     setWeekly(computeThisWeekVsLastWeek(summaries));

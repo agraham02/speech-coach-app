@@ -589,6 +589,21 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
     `);
     currentVersion = await commitVersion(db, 19);
   }
+
+  if (currentVersion < 20) {
+    // Daily goal: top-up sessions 2 and 3 (session 1 stays in daily_plans).
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS daily_topups (
+        date TEXT NOT NULL,
+        slot INTEGER NOT NULL,
+        plan_json TEXT NOT NULL,
+        completed_steps_json TEXT NOT NULL DEFAULT '[]',
+        completed_at TEXT,
+        PRIMARY KEY (date, slot)
+      );
+    `);
+    currentVersion = await commitVersion(db, 20);
+  }
 }
 
 // Commits each migration's version as soon as that migration finishes.

@@ -14,7 +14,9 @@ import { MetricChart } from "../components/common/MetricChart";
 import { StatTile } from "../components/common/StatTile";
 import { ConversationProgress } from "../components/conversation/ConversationProgress";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
-import { getAllDrillLevels, getPracticeDates, getRecentDrillAttempts, getSkillStates } from "../services/db/progressRepo";
+import { getAllDrillLevels, getDailySessionCounts, getPracticeDates, getRecentDrillAttempts, getSkillStates } from "../services/db/progressRepo";
+import { getDailySessionGoal, getReminderSettings } from "../services/prefs/prefsStore";
+import { goalDays } from "../domain/dailyGoal";
 import { getSessionMetricSeries, getWeeklySummaries, type SessionMetricPoint, type WeekSummary } from "../services/db/statsRepo";
 import { computeStreaks } from "../domain/streaks";
 import { DRILL_SKILL, DRILL_TITLES, type DrillType } from "../domain/drills/drillSpecs";
@@ -47,6 +49,8 @@ export function ProgressScreen() {
   const [practiceDays, setPracticeDays] = useState<Set<string>>(new Set());
   const [streak, setStreak] = useState({ current: 0, longest: 0 });
   const [weeks2, setWeeks2] = useState<{ thisWeek: WeekSummary; lastWeek: WeekSummary } | null>(null);
+  // Daily goal above 1: days in the last week the goal was met.
+  const [goalWeek, setGoalWeek] = useState<{ goal: number; met: number; of: number } | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -69,8 +73,14 @@ export function ProgressScreen() {
       );
       getSessionMetricSeries(30).then(setSeries);
       getWeeklySummaries().then(setWeeks2);
+      const goal = getDailySessionGoal();
+      if (goal > 1) {
+        getDailySessionCounts().then((counts) => setGoalWeek({ goal, ...goalDays(counts, goal, new Date(), 7, getReminderSettings().practiceDays) }));
+      } else {
+        setGoalWeek(null);
+      }
       getPracticeDates().then((dates) => {
-        const s = computeStreaks(dates);
+        const s = computeStreaks(dates, new Date(), getReminderSettings().practiceDays);
         setStreak({ current: s.currentStreak, longest: s.longestStreak });
         setPracticeDays(new Set(dates.map(localDay)));
       });
@@ -115,6 +125,7 @@ export function ProgressScreen() {
           <View style={styles.row}>
             <StatTile value={`${streak.current}`} label="day streak" color={colors.warning} />
             <StatTile value={`${streak.longest}`} label="longest" />
+            {goalWeek ? <StatTile value={`${goalWeek.met}/${goalWeek.of}`} label={`days at ${goalWeek.goal} a day`} color={goalWeek.met ? colors.success : undefined} /> : null}
           </View>
           <View style={styles.calendar}>
             {weeks.map((row, i) => (

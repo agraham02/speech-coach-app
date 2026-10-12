@@ -38,6 +38,7 @@ import {
   getPrepSettingsManuallySet,
   getRecordingDurationManuallySet,
   getRecordingDurationSettings,
+  getReminderSettings,
   getWarmUpEnabled,
   setConciseModeSeconds,
   setPrepPhaseSettings,
@@ -166,7 +167,7 @@ export function HomeScreen() {
         .catch(() => setAlreadyPracticedToday(false));
 
       getCompletedSessionDates()
-        .then((dates) => setStreak(computeStreaks(dates)))
+        .then((dates) => setStreak(computeStreaks(dates, new Date(), getReminderSettings().practiceDays)))
         .catch(() => setStreak(EMPTY_STREAK));
 
       const manuallySet = getRecordingDurationManuallySet();

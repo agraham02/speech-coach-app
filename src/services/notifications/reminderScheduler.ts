@@ -1,7 +1,8 @@
 import * as Notifications from "expo-notifications";
-import { computeNextReminderDate } from "../../domain/reminderSettings";
-import { getReminderSettings } from "../prefs/prefsStore";
-import { getTodaysSession } from "../db/sessionsRepo";
+import { reminderHours } from "../../domain/reminderSettings";
+import { reminderDates } from "../../domain/dailyGoal";
+import { getDailySessionGoal, getPracticeAnchor, getReminderSettings } from "../prefs/prefsStore";
+import { getSessionsDoneToday } from "../db/progressRepo";
 import { logger } from "../../utils/logger";
 
 const REMINDER_IDENTIFIER = "daily-practice-reminder";
@@ -25,44 +26,57 @@ export async function requestNotificationPermission(): Promise<boolean> {
   return requested.granted;
 }
 
-// Re-arms the daily reminder as a single one-shot notification for the next
-// moment you haven't practiced yet: later today if the reminder hour hasn't
-// passed and today's session isn't done, otherwise tomorrow at the same hour.
-// A one-shot (rather than a recurring DAILY trigger, which fires
-// unconditionally every day regardless of app state) is what lets a day
-// you've already practiced skip the nudge entirely — since it only fires
-// once, call this again any time the underlying state could have changed
-// (settings changed, a session just completed, the app relaunched) to keep
-// it armed; see SettingsScreen, sessionProcessor, and AppNavigator.
+// Re-arms the practice reminders as one-shot notifications — one for each of
+// today's remaining sessions (daily goal) whose hour hasn't passed and that
+// isn't done yet, plus the first session of the next practice day. One-shots
+// (rather than recurring DAILY triggers, which fire unconditionally) are what
+// let a session you've already done skip its nudge — so this is called again
+// whenever that could have changed: settings, a finished session or step,
+// and every launch (see SettingsScreen, practiceEvents and AppNavigator).
 export async function syncDailyReminder(): Promise<void> {
   const settings = getReminderSettings();
-  if (!settings.enabled) {
-    await cancelDailyReminder();
-    return;
+  await cancelDailyReminder();
+  if (!settings.enabled) return;
+
+  const goal = getDailySessionGoal();
+  const doneToday = await getSessionsDoneToday().catch(() => 0);
+  const dates = reminderDates(reminderHours(settings, goal), doneToday, new Date(), settings.practiceDays ?? []);
+  const anchor = getPracticeAnchor();
+
+  for (const [i, date] of dates.entries()) {
+    const slot = isToday(date) ? Math.min(doneToday, goal - 1) + i : 0;
+    await Notifications.scheduleNotificationAsync({
+      identifier: `${REMINDER_IDENTIFIER}-${i}`,
+      content: { title: "Speech Coach", body: messageFor(slot, anchor) },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date },
+    });
   }
-
-  await Notifications.cancelScheduledNotificationAsync(REMINDER_IDENTIFIER).catch(() => undefined);
-
-  const todaysSession = await getTodaysSession().catch(() => null);
-  const hasPracticedToday = todaysSession?.status === "done";
-  const nextDate = computeNextReminderDate(settings.hour, hasPracticedToday);
-
-  const body = REMINDER_MESSAGES[Math.floor(Math.random() * REMINDER_MESSAGES.length)];
-  await Notifications.scheduleNotificationAsync({
-    identifier: REMINDER_IDENTIFIER,
-    content: {
-      title: "Speech Coach",
-      body,
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DATE,
-      date: nextDate,
-    },
-  });
-  logger.info(`[reminders] armed for ${nextDate.toLocaleString()}`);
+  logger.info(`[reminders] armed ${dates.map((d) => d.toLocaleString()).join(", ")}`);
 }
+
+function isToday(date: Date): boolean {
+  const now = new Date();
+  return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
+}
+
+function messageFor(slot: number, anchor: string | null): string {
+  if (slot > 0) return TOP_UP_MESSAGES[Math.floor(Math.random() * TOP_UP_MESSAGES.length)];
+  // The if-then plan from onboarding ("After my morning coffee…") makes the
+  // nudge land on the habit it's tied to.
+  if (anchor) return `${anchor} — time for today's practice.`;
+  return REMINDER_MESSAGES[Math.floor(Math.random() * REMINDER_MESSAGES.length)];
+}
+
+const TOP_UP_MESSAGES = [
+  "Quick top-up? Four minutes on something new.",
+  "A short second session — spacing it out is what makes it stick.",
+];
+
+const MAX_REMINDERS = 4;
 
 export async function cancelDailyReminder(): Promise<void> {
   await Notifications.cancelScheduledNotificationAsync(REMINDER_IDENTIFIER).catch(() => undefined);
-  logger.info("[reminders] cancelled daily reminder");
+  for (let i = 0; i < MAX_REMINDERS; i++) {
+    await Notifications.cancelScheduledNotificationAsync(`${REMINDER_IDENTIFIER}-${i}`).catch(() => undefined);
+  }
 }

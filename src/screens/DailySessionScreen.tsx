@@ -9,7 +9,8 @@ import { Header } from "../components/common/Header";
 import { Card } from "../components/common/Card";
 import { Txt } from "../components/common/Txt";
 import { PrimaryButton } from "../components/common/PrimaryButton";
-import { getTodaysPlan, completePlanStep, type StoredPlan } from "../services/db/progressRepo";
+import { getTodaysPlan, getTopUpPlan, completePlanStep, completeTopUpStep, type StoredPlan } from "../services/db/progressRepo";
+import { SKILL_LABELS } from "../theme/tokens";
 import { getAllSessions } from "../services/db/sessionsRepo";
 import { getPlanMinutes } from "../services/prefs/prefsStore";
 import { launchStep } from "../services/practice/launchStep";
@@ -24,15 +25,16 @@ type Props = NativeStackScreenProps<RootStackParamList, "DailySession">;
 
 // Runs today's plan one step at a time. Progress is saved per step, so
 // leaving and coming back (or a restart) picks up where you left off.
-export function DailySessionScreen({ navigation }: Props) {
+export function DailySessionScreen({ route, navigation }: Props) {
+  const slot = route.params?.slot;
   const styles = useStyles();
   const { colors } = useTheme();
   const [stored, setStored] = useState<StoredPlan | null>(null);
   const [launching, setLaunching] = useState(false);
 
   const load = useCallback(() => {
-    getTodaysPlan(getPlanMinutes()).then(setStored);
-  }, []);
+    (slot ? getTopUpPlan(slot) : getTodaysPlan(getPlanMinutes())).then(setStored);
+  }, [slot]);
 
   useFocusEffect(load);
   useEffect(() => subscribePracticeSteps(() => load()), [load]);
@@ -47,7 +49,7 @@ export function DailySessionScreen({ navigation }: Props) {
     if (launching) return;
     setLaunching(true);
     try {
-      const practice = { planDate: plan.date, planStepId: step.id, lessonId: plan.lessonId };
+      const practice = { planDate: plan.date, planStepId: step.id, planSlot: slot, lessonId: plan.lessonId || undefined };
       if (step.kind === "review") {
         // Review today's rep with the three-pass player.
         const today = todayISODate();
@@ -73,13 +75,17 @@ export function DailySessionScreen({ navigation }: Props) {
   }
 
   async function skip(step: PlanStep) {
-    const updated = await completePlanStep(plan.date, step.id);
+    const updated = slot ? await completeTopUpStep(plan.date, slot, step.id) : await completePlanStep(plan.date, step.id);
     if (updated) setStored(updated);
   }
 
   return (
     <ScreenContainer style={styles.container}>
-      <Header eyebrow={`Today · ${plan.minutes} min`} title={lesson?.title ?? "Daily session"} onBack={() => navigation.goBack()} />
+      <Header
+        eyebrow={slot ? `Top-up ${slot + 1} · about ${plan.steps.reduce((m, s) => m + s.minutes, 0)} min` : `Today · ${plan.minutes} min`}
+        title={slot ? `${SKILL_LABELS[plan.focusSkill]} top-up` : lesson?.title ?? "Daily session"}
+        onBack={() => navigation.goBack()}
+      />
       <ScrollView contentContainerStyle={styles.scroll}>
         {lesson ? (
           <Card style={styles.teach}>
@@ -137,10 +143,10 @@ export function DailySessionScreen({ navigation }: Props) {
           <Card style={styles.done}>
             <Ionicons name="trophy" size={32} color={colors.success} />
             <Txt variant="title3" align="center">
-              That's today done.
+              {slot ? "Top-up done." : "That's today done."}
             </Txt>
             <Txt variant="subhead" tone="secondary" align="center">
-              Short daily reps beat occasional long ones. See you tomorrow.
+              {slot ? "Spread-out sessions stick better than one long one." : "Short daily reps beat occasional long ones. See you tomorrow."}
             </Txt>
             <PrimaryButton label="Back to Today" onPress={() => navigation.goBack()} style={styles.doneButton} />
           </Card>

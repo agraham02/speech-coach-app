@@ -17,6 +17,7 @@ import type { DifficultyTier } from "../domain/sessionTypes";
 import { spacing, typography } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import type { Colors } from "../theme/theme";
+import { getReminderSettings } from "../services/prefs/prefsStore";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Drills">;
 
@@ -50,7 +51,7 @@ export function DrillsScreen({ navigation }: Props) {
   useFocusEffect(
     useCallback(() => {
       getDrillCompletionDates()
-        .then((dates) => setStreak(computeStreaks(dates)))
+        .then((dates) => setStreak(computeStreaks(dates, new Date(), getReminderSettings().practiceDays)))
         .catch(() => setStreak(EMPTY_STREAK));
     }, []),
   );

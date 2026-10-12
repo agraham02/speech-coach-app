@@ -3,6 +3,8 @@
 export interface PracticeContext {
   planDate?: string;
   planStepId?: string;
+  // 0 (or missing) = the daily plan; 1-2 = a top-up session.
+  planSlot?: number;
   lessonId?: string;
   lessonStepIndex?: number;
 }

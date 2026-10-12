@@ -1,4 +1,5 @@
 import * as Haptics from "expo-haptics";
+import { getReminderSettings } from "../prefs/prefsStore";
 import { insertSession, getSessionById, updateSessionWants } from "../db/sessionsRepo";
 import { getSessionSteps, seedSessionSteps, setStepStatus } from "../db/stepsRepo";
 import { getScoresBySessionId } from "../db/scoresRepo";
@@ -219,7 +220,7 @@ async function announceCompletion(sessionId: string, ranCloudReview: boolean): P
   }
   if (scores) await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
 
-  const { currentStreak, longestStreak } = computeStreaks(await getCompletedSessionDates());
+  const { currentStreak, longestStreak } = computeStreaks(await getCompletedSessionDates(), new Date(), getReminderSettings().practiceDays);
   const milestone = streakMilestoneReached(currentStreak);
   if (milestone) {
     showGlobalToast(`🏆 ${milestone}-day streak milestone!`, "success");

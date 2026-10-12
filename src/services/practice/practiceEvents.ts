@@ -1,5 +1,6 @@
 import type { PracticeContext } from "../../domain/practice";
-import { completePlanStep } from "../db/progressRepo";
+import { completePlanStep, completeTopUpStep } from "../db/progressRepo";
+import { syncDailyReminder } from "../notifications/reminderScheduler";
 import { logger } from "../../utils/logger";
 
 export interface PracticeStepDone {
@@ -23,7 +24,12 @@ export function subscribePracticeSteps(listener: Listener): () => void {
 export async function completePracticeStep(context: PracticeContext | undefined, score: number | null): Promise<void> {
   if (!context) return;
   try {
-    if (context.planDate && context.planStepId) await completePlanStep(context.planDate, context.planStepId);
+    if (context.planDate && context.planStepId) {
+      if (context.planSlot) await completeTopUpStep(context.planDate, context.planSlot, context.planStepId);
+      else await completePlanStep(context.planDate, context.planStepId);
+      // A finished session may satisfy a reminder that's still armed.
+      syncDailyReminder().catch(() => undefined);
+    }
   } catch (error) {
     logger.error(`[practice] couldn't save plan progress — ${(error as Error).message}`);
   }

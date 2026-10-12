@@ -29,6 +29,9 @@ import {
   setNotionToken,
 } from "../services/secrets/secretsStore";
 import { formatReminderHour, REMINDER_HOUR_MAX, REMINDER_HOUR_MIN } from "../domain/reminderSettings";
+import { defaultExtraHours, type DailyGoal } from "../domain/dailyGoal";
+import { ChipGroup } from "../components/common/Chip";
+import { getDailySessionGoal, setDailySessionGoal } from "../services/prefs/prefsStore";
 import { cancelDailyReminder, requestNotificationPermission, syncDailyReminder } from "../services/notifications/reminderScheduler";
 import { spacing, typography } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
@@ -91,6 +94,7 @@ export function SettingsScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const showToast = useToast();
   const [reminderSettings, setReminderSettingsState] = useState(getReminderSettings());
+  const [goal, setGoalState] = useState<DailyGoal>(getDailySessionGoal());
   const [planYourPointEnabled, setPlanYourPointEnabledState] = useState(getPlanYourPointEnabled());
   const [geminiKey, setGeminiKeyField] = useState("");
   const [notionToken, setNotionTokenField] = useState("");
@@ -150,6 +154,39 @@ export function SettingsScreen({ navigation }: Props) {
     }
   }
 
+  async function handleGoalChange(key: string) {
+    const next = Number(key) as DailyGoal;
+    setGoalState(next);
+    setDailySessionGoal(next);
+    // Spread the top-up reminders through the day the first time.
+    const extra = reminderSettings.extraHours ?? [];
+    if (extra.length < next - 1) {
+      const settings = { ...reminderSettings, extraHours: defaultExtraHours(reminderSettings.hour, next) };
+      setReminderSettingsState(settings);
+      setReminderSettings(settings);
+    }
+    await syncDailyReminder();
+  }
+
+  async function handleExtraHourChange(index: number, hour: number) {
+    const extraHours = [...(reminderSettings.extraHours ?? defaultExtraHours(reminderSettings.hour, goal))];
+    extraHours[index] = hour;
+    const next = { ...reminderSettings, extraHours };
+    setReminderSettingsState(next);
+    setReminderSettings(next);
+    if (next.enabled) await syncDailyReminder();
+  }
+
+  async function handleToggleDay(day: number) {
+    const current = reminderSettings.practiceDays?.length ? reminderSettings.practiceDays : [0, 1, 2, 3, 4, 5, 6];
+    const days = current.includes(day) ? current.filter((d) => d !== day) : [...current, day].sort();
+    if (!days.length) return;
+    const next = { ...reminderSettings, practiceDays: days.length === 7 ? [] : days };
+    setReminderSettingsState(next);
+    setReminderSettings(next);
+    if (next.enabled) await syncDailyReminder();
+  }
+
   const [appleCoach] = useState(() => isAppleModelAvailable());
   const [videoBytes, setVideoBytes] = useState(() => getVideoStorageBytes());
 
@@ -204,10 +241,47 @@ export function SettingsScreen({ navigation }: Props) {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       <Text style={styles.groupLabel}>PRACTICE</Text>
       <Card style={styles.section}>
+        <View style={styles.sectionHeaderText}>
+          <Text style={styles.sectionTitle}>Daily goal</Text>
+          <Text style={styles.sectionSubtitle}>
+            Sessions a day. The first is your daily plan; the rest are 4-minute top-ups. Your streak only ever needs one.
+          </Text>
+        </View>
+        <ChipGroup
+          options={[
+            { key: "1", label: "1 a day" },
+            { key: "2", label: "2 a day" },
+            { key: "3", label: "3 a day" },
+          ]}
+          value={String(goal)}
+          onChange={handleGoalChange}
+        />
+        <View style={styles.sectionHeaderText}>
+          <Text style={styles.sectionSubtitle}>Practice days — a day you leave off never breaks your streak.</Text>
+        </View>
+        <View style={styles.dayRow}>
+          {["S", "M", "T", "W", "T", "F", "S"].map((label, day) => {
+            const on = !reminderSettings.practiceDays?.length || reminderSettings.practiceDays.includes(day);
+            return (
+              <Pressable
+                key={day}
+                onPress={() => handleToggleDay(day)}
+                style={[styles.dayChip, on && { backgroundColor: colors.accent }]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+                accessibilityLabel={["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][day]}
+              >
+                <Text style={[styles.dayText, on && { color: colors.onAccent }]}>{label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </Card>
+      <Card style={styles.section}>
         <View style={styles.sectionHeaderRow}>
           <View style={styles.sectionHeaderText}>
-            <Text style={styles.sectionTitle}>Daily reminder</Text>
-            <Text style={styles.sectionSubtitle}>A nudge to practice, once a day.</Text>
+            <Text style={styles.sectionTitle}>Reminders</Text>
+            <Text style={styles.sectionSubtitle}>{goal > 1 ? "A nudge for each session — skipped once it's done." : "A nudge to practice, once a day."}</Text>
           </View>
           <Switch
             value={reminderSettings.enabled}
@@ -218,7 +292,7 @@ export function SettingsScreen({ navigation }: Props) {
         {reminderSettings.enabled ? (
           <>
             <LabeledSlider
-              label="Time"
+              label={goal > 1 ? "Session 1" : "Time"}
               value={reminderSettings.hour}
               minimumValue={REMINDER_HOUR_MIN}
               maximumValue={REMINDER_HOUR_MAX}
@@ -226,6 +300,18 @@ export function SettingsScreen({ navigation }: Props) {
               formatValue={formatReminderHour}
               onChange={handleReminderHourChange}
             />
+            {Array.from({ length: goal - 1 }, (_, i) => (
+              <LabeledSlider
+                key={i}
+                label={`Session ${i + 2}`}
+                value={(reminderSettings.extraHours ?? defaultExtraHours(reminderSettings.hour, goal))[i] ?? REMINDER_HOUR_MAX}
+                minimumValue={REMINDER_HOUR_MIN}
+                maximumValue={REMINDER_HOUR_MAX}
+                step={1}
+                formatValue={formatReminderHour}
+                onChange={(h) => handleExtraHourChange(i, h)}
+              />
+            ))}
             <Pressable onPress={() => Linking.openSettings()}>
               <Text style={styles.linkText}>Open iOS notification settings</Text>
             </Pressable>
@@ -385,6 +471,9 @@ const useStyles = makeStyles(({ colors }) => ({
   switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   switchLabel: { color: colors.textSecondary, fontSize: typography.body },
   linkText: { color: colors.accent, fontSize: typography.caption, fontWeight: "600" },
+  dayRow: { flexDirection: "row", justifyContent: "space-between" },
+  dayChip: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceRaised },
+  dayText: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "700" },
   secretField: { gap: spacing.xs },
   secretInputRow: {
     flexDirection: "row",
