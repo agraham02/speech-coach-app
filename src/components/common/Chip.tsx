@@ -61,7 +61,7 @@ export function ChipGroup<T extends string>({
   const chips = options.map((o) => <Chip key={o.key} label={o.label} selected={o.key === value} onPress={() => onChange(o.key)} />);
   if (scroll) {
     return (
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scroller} contentContainerStyle={styles.group}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scroller} contentContainerStyle={[styles.group, styles.bleedContent]}>
         {chips}
       </ScrollView>
     );
@@ -73,7 +73,10 @@ const useStyles = makeStyles((t) => ({
   chip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: t.radius.pill },
   dot: { width: 7, height: 7, borderRadius: 4 },
   group: { flexDirection: "row", gap: t.space.sm },
-  // Keeps a horizontal row from shrinking to a sliver inside a flex column.
-  scroller: { flexGrow: 0, flexShrink: 0 },
+  // Keeps a horizontal row from shrinking to a sliver inside a flex column,
+  // and runs it to the screen edges so chips scroll under the gutter (a
+  // scrolling row is always at screen level).
+  scroller: { flexGrow: 0, flexShrink: 0, marginHorizontal: -t.layout.gutter },
+  bleedContent: { paddingHorizontal: t.layout.gutter },
   wrap: { flexWrap: "wrap" },
 }));

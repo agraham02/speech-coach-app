@@ -45,7 +45,7 @@ export function Header({ title, eyebrow, onBack, backIcon = "chevron-back", righ
         </View>
       ) : null}
       {eyebrow || title ? (
-        <View style={styles.text}>
+        <View style={styles.textStacked}>
           {eyebrow ? (
             <Txt variant="footnote" weight="500" tone="secondary">
               {eyebrow}
@@ -67,6 +67,9 @@ const useStyles = makeStyles((t) => ({
   bar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 40 },
   large: { flexDirection: "row", alignItems: "flex-end", gap: t.space.sm, paddingTop: t.space.sm },
   text: { flex: 1, gap: 2 },
+  // Under the bar the block sizes to its content (flex: 1 in an auto-height
+  // column would collapse it to nothing).
+  textStacked: { gap: 2 },
   right: { flexDirection: "row", alignItems: "center", gap: t.space.sm },
   rightLarge: { flexDirection: "row", alignItems: "center", gap: t.space.sm, paddingBottom: 6 },
 }));

@@ -312,11 +312,11 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
       return (
         <Card style={styles.card}>
           {statuses ? (
-            <Txt variant="title3" style={styles.passage}>
+            <Txt variant="quote" style={styles.passage}>
               {target.map((w, i) => (
                 <Txt
                   key={i}
-                  variant="title3"
+                  variant="quote"
                   color={
                     statuses[i] === "hit"
                       ? colors.success
@@ -333,7 +333,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
               ))}
             </Txt>
           ) : (
-            <Txt variant="title3" style={styles.passage}>
+            <Txt variant="quote" style={styles.passage}>
               {setup.displayText}
             </Txt>
           )}
@@ -530,7 +530,7 @@ const useStyles = makeStyles((t) => ({
   scroll: { gap: t.space.md, paddingBottom: t.space.lg },
   center: { alignItems: "center", gap: t.space.md },
   card: { gap: t.space.sm },
-  passage: { lineHeight: 30 },
+  passage: { fontSize: 26, lineHeight: 34 },
   current: { textDecorationLine: "underline" },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: t.space.sm },
   row: { flexDirection: "row", gap: t.space.sm },
