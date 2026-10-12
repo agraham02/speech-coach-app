@@ -87,6 +87,12 @@ export function reminderDates(hours: number[], doneToday: number, now: Date, pra
   return out;
 }
 
+// Every session's reminder hour, first to last: the user's picks, with the
+// spaced defaults filling any session they haven't set.
+export function sessionHours(firstHour: number, extraHours: number[] | undefined, goal: DailyGoal): number[] {
+  return [firstHour, ...defaultExtraHours(firstHour, goal).map((h, i) => extraHours?.[i] ?? h)];
+}
+
 // Spaced default hours for a goal, anchored on the first reminder.
 export function defaultExtraHours(firstHour: number, goal: DailyGoal): number[] {
   if (goal === 1) return [];

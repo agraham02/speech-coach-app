@@ -16,7 +16,6 @@ import { exportPracticeData, formatBytes, getVideoStorageBytes } from "../servic
 import { deleteOldVideos } from "../services/data/videoKeepsakes";
 import { isAppleModelAvailable } from "../services/onDeviceLlm/onDeviceCoach";
 import { Card } from "../components/common/Card";
-import { LabeledSlider } from "../components/common/LabeledSlider";
 import { useToast } from "../components/common/ToastProvider";
 import {
   getPlanYourPointEnabled,
@@ -24,8 +23,9 @@ import {
   setPlanYourPointEnabled,
   setReminderSettings,
 } from "../services/prefs/prefsStore";
-import { formatReminderHour, REMINDER_HOUR_MAX, REMINDER_HOUR_MIN } from "../domain/reminderSettings";
-import { defaultExtraHours, type DailyGoal } from "../domain/dailyGoal";
+import { formatReminderHour } from "../domain/reminderSettings";
+import { ReminderHours } from "../components/settings/ReminderHours";
+import { defaultExtraHours, sessionHours, type DailyGoal } from "../domain/dailyGoal";
 import { getDailySessionGoal, getVideoRetentionDays, setDailySessionGoal } from "../services/prefs/prefsStore";
 import { cancelDailyReminder, requestNotificationPermission, syncDailyReminder } from "../services/notifications/reminderScheduler";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
@@ -92,7 +92,7 @@ export function SettingsScreen({ navigation }: Props) {
   }
 
   async function handleExtraHourChange(index: number, hour: number) {
-    const extraHours = [...(reminderSettings.extraHours ?? defaultExtraHours(reminderSettings.hour, goal))];
+    const extraHours = sessionHours(reminderSettings.hour, reminderSettings.extraHours, goal).slice(1);
     extraHours[index] = hour;
     const next = { ...reminderSettings, extraHours };
     setReminderSettingsState(next);
@@ -254,27 +254,10 @@ export function SettingsScreen({ navigation }: Props) {
         />
         {reminderSettings.enabled ? (
           <>
-            <LabeledSlider
-              label={goal > 1 ? "Session 1" : "Time"}
-              value={reminderSettings.hour}
-              minimumValue={REMINDER_HOUR_MIN}
-              maximumValue={REMINDER_HOUR_MAX}
-              step={1}
-              formatValue={formatReminderHour}
-              onChange={handleReminderHourChange}
+            <ReminderHours
+              hours={sessionHours(reminderSettings.hour, reminderSettings.extraHours, goal)}
+              onChange={(i, h) => (i === 0 ? handleReminderHourChange(h) : handleExtraHourChange(i - 1, h))}
             />
-            {Array.from({ length: goal - 1 }, (_, i) => (
-              <LabeledSlider
-                key={i}
-                label={`Session ${i + 2}`}
-                value={(reminderSettings.extraHours ?? defaultExtraHours(reminderSettings.hour, goal))[i] ?? REMINDER_HOUR_MAX}
-                minimumValue={REMINDER_HOUR_MIN}
-                maximumValue={REMINDER_HOUR_MAX}
-                step={1}
-                formatValue={formatReminderHour}
-                onChange={(h) => handleExtraHourChange(i, h)}
-              />
-            ))}
             <PrimaryButton label="Notification settings" variant="secondary" size="sm" icon="open-outline" onPress={() => Linking.openSettings()} style={styles.inlineButton} />
           </>
         ) : null}

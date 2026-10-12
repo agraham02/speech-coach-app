@@ -1,4 +1,5 @@
-import { buildTopUpPlan, defaultExtraHours, goalDays, reminderDates } from "../dailyGoal";
+import { buildTopUpPlan, defaultExtraHours, goalDays, reminderDates, sessionHours } from "../dailyGoal";
+import { formatReminderHour } from "../reminderSettings";
 import type { PlanInput } from "../dailyPlan";
 
 const base: PlanInput = {
@@ -62,5 +63,22 @@ describe("daily goal", () => {
     const counts = { "2026-10-12": 2, "2026-10-11": 1, "2026-10-10": 3 };
     expect(goalDays(counts, 2, today)).toEqual({ met: 2, of: 7 });
     expect(goalDays(counts, 2, today, 7, [1, 2, 3, 4, 5])).toEqual({ met: 1, of: 5 });
+  });
+});
+
+describe("sessionHours", () => {
+  it("keeps the user's picks and fills unset sessions with the spaced defaults", () => {
+    expect(sessionHours(8, undefined, 3)).toEqual([8, ...defaultExtraHours(8, 3)]);
+    expect(sessionHours(8, [12], 3)).toEqual([8, 12, defaultExtraHours(8, 3)[1]]);
+    expect(sessionHours(8, [12, 15, 20], 2)).toEqual([8, 12]);
+    expect(sessionHours(19, [9], 1)).toEqual([19]);
+  });
+});
+
+describe("formatReminderHour", () => {
+  it("reads as a whole hour", () => {
+    expect(formatReminderHour(6)).toBe("6 AM");
+    expect(formatReminderHour(12)).toBe("12 PM");
+    expect(formatReminderHour(22)).toBe("10 PM");
   });
 });

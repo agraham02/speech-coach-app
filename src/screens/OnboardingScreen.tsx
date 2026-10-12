@@ -16,7 +16,7 @@ import { Card } from "../components/common/Card";
 import { Chip } from "../components/common/Chip";
 import { PrimaryButton } from "../components/common/PrimaryButton";
 import { RatingScale } from "../components/common/RatingScale";
-import { LabeledSlider } from "../components/common/LabeledSlider";
+import { ReminderHours } from "../components/settings/ReminderHours";
 import {
   ANCHOR_OPTIONS,
   CHAPTERS,
@@ -34,8 +34,7 @@ import {
   type Option,
 } from "../content/onboarding";
 import { defaultsFromProfile, EMPTY_PROFILE, type UserProfile } from "../domain/profile";
-import { defaultExtraHours, type DailyGoal } from "../domain/dailyGoal";
-import { formatReminderHour, REMINDER_HOUR_MAX, REMINDER_HOUR_MIN } from "../domain/reminderSettings";
+import { defaultExtraHours, sessionHours, type DailyGoal } from "../domain/dailyGoal";
 import {
   getDailySessionGoal,
   getPlanMinutes,
@@ -154,7 +153,7 @@ export function OnboardingScreen({ route, navigation }: Props) {
       case "reminders": {
         let enabled = remind;
         if (enabled) enabled = await requestNotificationPermission();
-        const hours = extraHours.length >= goal - 1 ? extraHours : defaultExtraHours(hour, goal);
+        const hours = sessionHours(hour, extraHours, goal).slice(1);
         setReminderSettings({ enabled, hour, extraHours: hours, practiceDays: days.length === 7 ? [] : days });
         await syncDailyReminder().catch(() => undefined);
         return;
@@ -358,28 +357,17 @@ export function OnboardingScreen({ route, navigation }: Props) {
             />
             {remind ? (
               <Card style={styles.block}>
-                <LabeledSlider key={`h${hour}`} label={goal > 1 ? "Session 1" : "Time"} value={hour} minimumValue={REMINDER_HOUR_MIN} maximumValue={REMINDER_HOUR_MAX} step={1} formatValue={formatReminderHour} onChange={setHour} />
-                {Array.from({ length: goal - 1 }, (_, i) => {
-                  const value = (extraHours.length >= goal - 1 ? extraHours : defaultExtraHours(hour, goal))[i];
-                  return (
-                    <LabeledSlider
-                      key={`e${i}${value}`}
-                      label={`Session ${i + 2}`}
-                      value={value}
-                      minimumValue={REMINDER_HOUR_MIN}
-                      maximumValue={REMINDER_HOUR_MAX}
-                      step={1}
-                      formatValue={formatReminderHour}
-                      onChange={(h) =>
-                        setExtraHours((prev) => {
-                          const next = [...(prev.length >= goal - 1 ? prev : defaultExtraHours(hour, goal))];
-                          next[i] = h;
-                          return next;
-                        })
-                      }
-                    />
-                  );
-                })}
+                <ReminderHours
+                  hours={sessionHours(hour, extraHours, goal)}
+                  onChange={(i, h) => {
+                    if (i === 0) return setHour(h);
+                    setExtraHours((prev) => {
+                      const next = sessionHours(hour, prev, goal).slice(1);
+                      next[i - 1] = h;
+                      return next;
+                    });
+                  }}
+                />
               </Card>
             ) : null}
           </View>

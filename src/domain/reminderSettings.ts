@@ -20,8 +20,9 @@ export const DEFAULT_REMINDER_SETTINGS: ReminderSettings = {
   hour: 19,
 };
 
+// Reminders are on the hour, so "7 PM" rather than "7:00 PM".
 export function formatReminderHour(hour: number): string {
   const period = hour < 12 ? "AM" : "PM";
   const displayHour = hour % 12 === 0 ? 12 : hour % 12;
-  return `${displayHour}:00 ${period}`;
+  return `${displayHour} ${period}`;
 }
