@@ -18,6 +18,7 @@ export type DrillType =
   | "chain_bridge"
   | "shadowing"
   | "marked_reading"
+  | "move_it"
   | "projection"
   | "guided"
   | "warmup"
@@ -65,6 +66,7 @@ export const DRILL_SKILL: Record<DrillType, SkillId> = {
   pause_reading: "cadence",
   shadowing: "cadence",
   marked_reading: "cadence",
+  move_it: "cadence",
   category_fluency: "impromptu",
   letter_fluency: "impromptu",
   random_word_story: "impromptu",
@@ -102,6 +104,7 @@ export const DRILL_TITLES: Record<DrillType, string> = {
   chain_bridge: "Bridge chain",
   shadowing: "Shadowing",
   marked_reading: "Mark it up",
+  move_it: "Move it",
   projection: "Projection",
   guided: "Guided exercise",
   warmup: "Warm-up",

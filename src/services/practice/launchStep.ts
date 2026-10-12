@@ -30,6 +30,8 @@ export async function launchStep(navigation: Nav, step: LessonStep, practice: Pr
         const category = step.contentId?.startsWith("cat:") ? (step.contentId.slice(4) as LineCategory) : undefined;
         const lineIds = step.contentId && !category ? [step.contentId] : undefined;
         navigation.navigate("LineRep", { category, lineIds, practice });
+      } else if (step.drill === "move_it") {
+        navigation.navigate("MoveIt", { practice });
       } else if (isConversationDrill(step.drill)) {
         navigation.navigate("Conversation", { drill: step.drill, contentId: step.contentId, practice });
       } else {
