@@ -82,7 +82,7 @@ export function OnboardingGateScreen({ navigation }: NativeStackScreenProps<Root
           </View>
         </Enter>
         <Enter index={1}>
-          <Txt variant="largeTitle">A new version of Speech Coach</Txt>
+          <Txt variant="largeTitle">A new version of Tono</Txt>
         </Enter>
         <Enter index={2}>
           <Txt variant="body" tone="secondary">

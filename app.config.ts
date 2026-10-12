@@ -6,17 +6,21 @@ import type { ExpoConfig } from "expo/config";
 // microphone string is set by two plugins (VisionCamera and
 // expo-speech-recognition); both get this one so they can't disagree.
 const CAMERA_PERMISSION =
-    "Speech Coach records video of your practice so you can watch yourself back and see how often you look at the camera. Videos stay on this iPhone unless you send one for an AI deep review.";
+    "Tono records video of your practice so you can watch yourself back and see how often you look at the camera. Videos stay on this iPhone unless you send one for an AI deep review.";
 const MICROPHONE_PERMISSION =
-    "Speech Coach records your voice while you practice to measure pace, pauses, filler words and pitch. Recordings stay on this iPhone unless you send one for an AI deep review.";
+    "Tono records your voice while you practice to measure pace, pauses, filler words and pitch. Recordings stay on this iPhone unless you send one for an AI deep review.";
 const SPEECH_RECOGNITION_PERMISSION =
-    "Speech Coach uses speech recognition to follow along as you speak in drills, rehearsals and conversation practice, so it can keep your place, count your words and score reps. It runs on your iPhone when it can; otherwise Apple processes the audio.";
+    "Tono uses speech recognition to follow along as you speak in drills, rehearsals and conversation practice, so it can keep your place, count your words and score reps. It runs on your iPhone when it can; otherwise Apple processes the audio.";
 
 export default (): ExpoConfig => ({
-    name: "Speech Coach",
+    // Shown under the icon and in the app. The App Store listing is
+    // "Tono: Speaking Coach" (set in App Store Connect).
+    name: "Tono",
+    // The EAS project's slug — internal, and renaming it would unlink the
+    // project, so it keeps the old name.
     slug: "speech-coach-app",
     version: "1.0.0",
-    scheme: "speechcoach",
+    scheme: "tono",
     orientation: "portrait",
     // Follows the system light/dark setting (needs expo-system-ui on
     // Android). The JS ThemeProvider decides what the app actually renders.
@@ -24,14 +28,14 @@ export default (): ExpoConfig => ({
     // Rendered from assets/brand (python assets/brand/render.py).
     icon: "./assets/icon.png",
     ios: {
-        bundleIdentifier: "com.ahmadgraham.speechcoach",
+        bundleIdentifier: "com.ahmadgraham.tono",
         supportsTablet: false,
         infoPlist: {
             ITSAppUsesNonExemptEncryption: false,
         },
     },
     android: {
-        package: "com.ahmadgraham.speechcoach",
+        package: "com.ahmadgraham.tono",
         adaptiveIcon: {
             backgroundColor: "#0E0E0C",
             foregroundImage: "./assets/android-icon-foreground.png",

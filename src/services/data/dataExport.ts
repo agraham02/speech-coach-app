@@ -23,13 +23,13 @@ export async function exportPracticeData(): Promise<void> {
   const source = new File(Paths.document, "SQLite", DB_NAME);
   if (!source.exists) throw new Error("Couldn't find the practice database to export.");
   const stamp = new Date().toISOString().slice(0, 10);
-  const copy = new File(Paths.cache, `speech-coach-${stamp}.db`);
+  const copy = new File(Paths.cache, `tono-${stamp}.db`);
   if (copy.exists) copy.delete();
   await source.copy(copy);
   const bytes = new File(copy.uri).size ?? 0;
   if (bytes === 0) throw new Error("The database copy came out empty.");
   logger.info(`[data] exported database (${Math.round(bytes / 1024)} KB)`);
-  await Share.share({ url: copy.uri, title: "Speech Coach data" });
+  await Share.share({ url: copy.uri, title: "Tono data" });
 }
 
 export function getVideoStorageBytes(): number {

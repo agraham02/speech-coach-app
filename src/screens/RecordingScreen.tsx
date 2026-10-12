@@ -240,7 +240,7 @@ export function RecordingScreen({ route, navigation }: Props) {
           <Ionicons name="videocam-outline" size={48} color={colors.accent} />
           <Text style={styles.permissionTitle}>Camera & microphone access</Text>
           <Text style={styles.permissionText}>
-            Speech Coach needs both to record your practice sessions. Nothing is uploaded until you finish recording.
+            Tono needs both to record your practice sessions. Nothing is uploaded until you finish recording.
           </Text>
         </View>
         <PrimaryButton

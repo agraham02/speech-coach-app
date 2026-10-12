@@ -100,7 +100,7 @@ function extractJsonObject(text: string): string {
 
 async function callOpenRouter({ model, system, user, schemaName, schema }: TextCall): Promise<string> {
   const key = await requireKey("openrouter");
-  const headers = { Authorization: `Bearer ${key}`, "X-Title": "Speech Coach" };
+  const headers = { Authorization: `Bearer ${key}`, "X-Title": "Tono" };
   const messages = [
     { role: "system", content: system },
     { role: "user", content: user },

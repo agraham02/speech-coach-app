@@ -65,7 +65,7 @@ export function DeepReviewSettings() {
         Deep reviews — bring your own key
       </Txt>
       <Txt variant="subhead" tone="secondary" style={styles.intro}>
-        Speech Coach is free and works fully on your phone. For an optional AI deep review of a take, connect your own key from one of these
+        Tono is free and works fully on your phone. For an optional AI deep review of a take, connect your own key from one of these
         providers — you pay them directly, usually a few cents a review.
       </Txt>
       <ChoiceList

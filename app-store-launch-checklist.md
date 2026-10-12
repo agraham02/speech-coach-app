@@ -8,7 +8,7 @@ The app's shape matters for several answers below: there is **no account and no 
 
 ## 1. Decide before you build
 
-- [ ] **App name.** Names are unique across the store, and "Speech Coach" is probably taken. Check it while creating the App Store Connect record (step 3) and have a backup ready. Limits: name 30 characters, subtitle 30.
+- [x] **App name.** The App Store listing is **Tono: Speaking Coach**, and the app calls itself **Tono** (`name` in `app.config.ts`). Names are unique across the store, so reserve it as soon as you create the App Store Connect record (step 3). Run a quick USPTO trademark search first. Limits: name 30 characters, subtitle 30.
 - [ ] **Where the privacy policy and support pages live.** Both URLs are required. A free GitHub Pages site or any simple one-page host is enough. You need the URLs before you can submit.
 - [ ] **Category.** Education as primary, with Productivity as an optional secondary.
 - [ ] **Price.** Free, no in-app purchases.
@@ -37,7 +37,7 @@ Still to do:
 
 ## 3. App Store Connect record
 
-- [ ] App Store Connect → Apps → **+** → New App. Choose iOS, your app name, primary language English (U.S.), bundle ID `com.ahmadgraham.speechcoach`, and a SKU such as `speechcoach`. The bundle ID has to be registered first. EAS registers it on the first build, or you can register it under Certificates, Identifiers & Profiles. `eas submit` can also create the record for you when it doesn't find one.
+- [ ] App Store Connect → Apps → **+** → New App. Choose iOS, your app name, primary language English (U.S.), bundle ID `com.ahmadgraham.tono`, and a SKU such as `tono`. The bundle ID has to be registered first. EAS registers it on the first build, or you can register it under Certificates, Identifiers & Profiles. `eas submit` can also create the record for you when it doesn't find one.
 - [ ] Under **App Information**, set the subtitle, category, content rights (answer **Yes**, it shows third-party content, and **Yes**, you have the rights: the built-in quotes are public domain, and AI review text comes from the user's own provider account), and the age rating questionnaire. Nothing in the app should push the age rating above the lowest tier. Answer honestly that it shows AI-generated text, though only in user-requested deep reviews.
 - [ ] Under **Pricing and Availability**, choose Free and pick countries. All countries is fine: the app is English-only, but that doesn't block other storefronts.
 
@@ -93,7 +93,7 @@ A production build behaves differently from the dev client: there's no Metro, no
 
 - [ ] Choose the build, fill in the **App Review Information** contact, and add review notes. Draft:
 
-  > Speech Coach is a public-speaking practice app. It needs no account and works fully offline after a one-time speech-model download (100–200 MB), which starts with the first transcription.
+  > Tono is a public-speaking practice app. It needs no account and works fully offline after a one-time speech-model download (100–200 MB), which starts with the first transcription.
   >
   > To try it: finish onboarding, tap Record on Today, speak for 30 seconds, and stop — the result screen shows pace, pauses, filler words and eye contact, all computed on the device.
   >

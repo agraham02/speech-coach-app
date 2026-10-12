@@ -47,7 +47,7 @@ export async function syncDailyReminder(): Promise<void> {
     const slot = isToday(date) ? Math.min(doneToday, goal - 1) + i : 0;
     await Notifications.scheduleNotificationAsync({
       identifier: `${REMINDER_IDENTIFIER}-${i}`,
-      content: { title: "Speech Coach", body: messageFor(slot, anchor) },
+      content: { title: "Tono", body: messageFor(slot, anchor) },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date },
     });
   }

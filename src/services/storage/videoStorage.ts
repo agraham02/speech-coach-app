@@ -76,7 +76,7 @@ export function deleteAllRecordings(): void {
 // Temporary media the app leaves in the cache: the speech recognizer's WAV
 // takes, the camera's unsaved recordings, empty PCM scratch files, exported
 // database copies. The OS clears caches eventually; Reset app does it now.
-const TEMP_MEDIA = /^(recording_.*\.wav|mrousavy.*\.(mp4|mov)|temp_.*\.pcm|speech-coach-.*\.db|asr-lab\.wav)$/;
+const TEMP_MEDIA = /^(recording_.*\.wav|mrousavy.*\.(mp4|mov)|temp_.*\.pcm|(tono|speech-coach)-.*\.db|asr-lab\.wav)$/;
 
 export function deleteTempMedia(): number {
   let deleted = 0;

@@ -261,7 +261,7 @@ That's 16 pauses, 11 inflections and 7 emphases across these 6 sentences. The cu
 ### 4.8 Getting text in
 - Paste. On iOS the keyboard's **Scan Text** (Live Text) turns a camera photo of a book page into text for free, so OCR needs no code.
 - Built-in Lines (and the Speeches shelf for full read-throughs).
-- Later: a share-sheet extension ("Share → Speech Coach" from Safari or Books).
+- Later: a share-sheet extension ("Share → Tono" from Safari or Books).
 
 ### 4.9 Auto-marking
 1. **On-device model** (`src/services/onDeviceLlm/onDeviceCoach.ts`, `getAppleProvider()`): prompt it for `Mark[]` JSON given the tokenized text. Validate the indices and kinds and drop anything invalid.

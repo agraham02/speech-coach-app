@@ -1,4 +1,4 @@
-# Speech Coach App
+# Tono
 
 Personal, unpublished daily speaking-practice app. Full product spec, phase-by-phase status, and changelog are in [plan.md](./plan.md). Phases 1, 3, 4, 5, plus unplanned Phases 6 (UI/UX pass), 7 (daily reminder), and 8 (Free Record + preview/discard + per-session opt-in grading) are built; Phase 2 (on-device transcription toggle) is deferred.
 
