@@ -247,7 +247,20 @@ export const LESSONS: Lesson[] = [
       how: ["Say the first word that comes — no editing", "Jump to a sub-group when you stall (pets → farm animals)", "Keep your mouth moving"],
       source: "Verbal-fluency training (category naming)",
     },
-    steps: [{ kind: "drill", drill: "category_fluency" }, { kind: "drill", drill: "letter_fluency" }],
+    steps: [{ kind: "drill", drill: "category_fluency" }, { kind: "drill", drill: "letter_fluency" }, { kind: "drill", drill: "word_chain" }],
+  },
+  {
+    id: "imp_chain",
+    skill: "impromptu",
+    unitId: "imp_start",
+    title: "Keep the thread",
+    minutes: 4,
+    teach: {
+      why: "In conversation every reply has to connect to what was just said — that's where blanks happen. A word chain trains exactly that jump: from this word to the next related one, fast, without editing.",
+      how: ["Say the first link that comes — weird ones count", "If you blank, take the fresh word and keep going", "Then say why each link connects"],
+      source: "Verbal-fluency and free-association training",
+    },
+    steps: [{ kind: "drill", drill: "word_chain" }, { kind: "drill", drill: "chain_bridge" }, { kind: "rep", focus: "Make every sentence connect to the one before it." }],
   },
   {
     id: "imp_2_minute",

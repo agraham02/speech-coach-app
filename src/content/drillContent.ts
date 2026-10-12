@@ -100,6 +100,16 @@ export const RANDOM_WORDS = [
   "jacket", "whistle", "honey", "anchor", "castle", "skateboard", "notebook", "rainbow", "chimney", "ticket",
 ];
 
+// Word chain seeds: everyday, concrete words with lots of associations, so
+// the first link is easy and the chain can wander anywhere from there.
+export const CHAIN_SEEDS = [
+  "pen", "coffee", "ocean", "winter", "kitchen", "guitar", "airport", "forest", "candle", "bread",
+  "football", "moon", "school", "garden", "phone", "rain", "city", "dog", "mountain", "birthday",
+  "music", "train", "fire", "beach", "money", "doctor", "book", "window", "summer", "bicycle",
+  "chocolate", "storm", "camera", "island", "clock", "festival", "river", "office", "hat", "paint",
+  "tree", "market", "ice", "cinema", "bridge", "horse", "letter", "salt", "rocket", "mirror",
+];
+
 // Same sentence, stress a different word each time — each version means
 // something different. Classic emphasis drill.
 export const EMPHASIS_SENTENCES = [

@@ -1,4 +1,5 @@
 import {
+  CHAIN_SEEDS,
   FLUENCY_CATEGORIES,
   FLUENCY_LETTERS,
   MINIMAL_PAIRS,
@@ -11,7 +12,7 @@ import { contentLevel, paramsFor, type DrillParams, type DrillType } from "./dri
 // Turns (drill type, difficulty level, optional content id, seed) into
 // everything the drill screen needs to show and score. Pure.
 
-export type LiveMode = "follow" | "count" | "story" | "free" | "volume";
+export type LiveMode = "follow" | "count" | "story" | "free" | "volume" | "chain";
 
 export interface DrillSetup {
   type: DrillType;
@@ -139,6 +140,22 @@ export function prepareDrill(type: DrillType, level: number, seed: number, conte
         words,
         seconds: params.seconds,
         prepSeconds: params.prepSeconds,
+      };
+    }
+    case "word_chain":
+    case "chain_bridge": {
+      const start = contentId ?? pick(CHAIN_SEEDS, seed);
+      const bridge = type === "chain_bridge";
+      return {
+        ...base,
+        contentId: start,
+        title: bridge ? "Bridge chain" : "Word chain",
+        instructions: bridge
+          ? `Start from “${start}”. Say the next word and why it connects — “pen… ink, because pens need ink… octopus, because octopuses squirt ink.” Target: ${params.target} links with a reason in ${params.seconds} seconds.`
+          : `Start from “${start}”. Say a word it makes you think of, then a word that one makes you think of, and keep going — pen, ink, octopus, aquarium. Target: ${params.target} links in ${params.seconds} seconds. Go quiet for ${params.stallSeconds} seconds and a fresh word appears; just pick up from there.`,
+        live: "chain",
+        words: [start],
+        seconds: params.seconds,
       };
     }
     case "just_a_minute": {

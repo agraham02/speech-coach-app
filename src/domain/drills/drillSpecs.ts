@@ -14,6 +14,8 @@ export type DrillType =
   | "letter_fluency"
   | "random_word_story"
   | "just_a_minute"
+  | "word_chain"
+  | "chain_bridge"
   | "shadowing"
   | "projection"
   | "guided"
@@ -65,6 +67,8 @@ export const DRILL_SKILL: Record<DrillType, SkillId> = {
   letter_fluency: "impromptu",
   random_word_story: "impromptu",
   just_a_minute: "impromptu",
+  word_chain: "impromptu",
+  chain_bridge: "impromptu",
   projection: "confidence",
   guided: "confidence",
   warmup: "confidence",
@@ -92,6 +96,8 @@ export const DRILL_TITLES: Record<DrillType, string> = {
   letter_fluency: "Letter sprint",
   random_word_story: "Random-word story",
   just_a_minute: "Just a Minute",
+  word_chain: "Word chain",
+  chain_bridge: "Bridge chain",
   shadowing: "Shadowing",
   projection: "Projection",
   guided: "Guided exercise",
@@ -142,6 +148,8 @@ export interface DrillParams {
   targetWpm?: number;
   // allowed slips (just a minute)
   allowedHesitations?: number;
+  // word chain: silence (s) before a fresh seed word appears
+  stallSeconds?: number;
   // projection meter target (-2..10 native scale)
   volumeTarget?: number;
   // impromptu rep
@@ -183,6 +191,18 @@ export function paramsFor(type: DrillType, level: number): DrillParams {
       return { target: 2 + Math.floor(l / 4), seconds: 30 + l * 5, prepSeconds: Math.max(0, Math.round(15 - l * 1.5)) };
     case "just_a_minute":
       return { seconds: Math.min(75, 30 + l * 5), allowedHesitations: Math.max(0, 3 - Math.floor(l / 3)) };
+    // More links in less forgiving silence. Level 1 asks for 8 links in 30 s
+    // with a 3 s grace before a fresh word; level 10, 25 links in 60 s.
+    case "word_chain":
+      return {
+        seconds: l <= 3 ? 30 : l <= 6 ? 45 : 60,
+        target: Math.round(6 + l * 1.9),
+        stallSeconds: l <= 3 ? 3 : l <= 6 ? 2.5 : l <= 8 ? 2 : 1.5,
+      };
+    // Each link comes with its reason, so far fewer of them — and a longer
+    // grace, since explaining takes thought.
+    case "chain_bridge":
+      return { seconds: l <= 4 ? 45 : 60, target: 3 + Math.floor(l / 2), stallSeconds: l <= 5 ? 4 : 3 };
     case "shadowing":
       return { target: 80 };
     case "projection":
@@ -265,6 +285,21 @@ export function scoreCount(count: number, target: number, unit: string): DrillOu
 export function scoreStory(wordsUsed: number, wordsRequired: number, spokeRatio: number): DrillOutcome {
   const score = (wordsUsed / Math.max(wordsRequired, 1)) * 0.7 + Math.min(1, spokeRatio) * 0.3;
   return outcome(score, `${wordsUsed} of ${wordsRequired} words worked in`, wordsUsed === wordsRequired && spokeRatio >= 0.6);
+}
+
+// Each fresh start after the first costs a little — blanking happens, and
+// picking the chain back up is the point, so it's never a big penalty.
+const RESET_COST = 0.05;
+
+export function scoreChain(links: number, target: number, resets: number, penalizeResets = true): DrillOutcome {
+  const cost = penalizeResets ? Math.max(0, resets - 1) * RESET_COST : 0;
+  const starts = resets === 1 ? " · 1 fresh start" : resets > 1 ? ` · ${resets} fresh starts` : "";
+  return outcome(Math.min(1, links / Math.max(target, 1)) - cost, `${links} links (target ${target})${starts}`);
+}
+
+export function scoreBridges(bridges: number, target: number, resets: number, penalizeResets = true): DrillOutcome {
+  const cost = penalizeResets ? Math.max(0, resets - 1) * RESET_COST : 0;
+  return outcome(Math.min(1, bridges / Math.max(target, 1)) - cost, `${bridges} links explained (target ${target})`);
 }
 
 export function scoreJustAMinute(hesitations: number, fillers: number, allowed: number, spokeRatio: number): DrillOutcome {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, View } from "react-native";
 import * as Speech from "expo-speech";
+import * as Haptics from "expo-haptics";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
@@ -19,6 +20,8 @@ import { prepareDrill, type DrillSetup } from "../domain/drills/prepareDrill";
 import { evaluateDrill, type DrillDetails } from "../domain/drills/evaluateDrill";
 import { DRILL_TITLES, type DrillOutcome } from "../domain/drills/drillSpecs";
 import { uniqueContentWords, usedWord } from "../domain/dsp/volumePauses";
+import { chainWords, nextSeed } from "../domain/drills/wordChain";
+import { CHAIN_SEEDS } from "../content/drillContent";
 import { getDrillLevel, recordDrillOutcome } from "../services/db/progressRepo";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { showGlobalToast } from "../components/common/ToastProvider";
@@ -45,6 +48,11 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
   const startedAtRef = useRef(0);
   const finishingRef = useRef(false);
   const seedRef = useRef(Math.floor(Math.random() * 100_000));
+  // Word chain: every seed shown so far, and where in the transcript the
+  // current one started (the chain on screen restarts with each seed).
+  const [seeds, setSeeds] = useState<string[]>([]);
+  const [segmentStart, setSegmentStart] = useState(0);
+  const lastActivityRef = useRef(0);
 
   useEffect(() => {
     getDrillLevel(drill).then((level) => setSetup(prepareDrill(drill, level, seedRef.current, contentId)));
@@ -56,7 +64,19 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
     const timer = setInterval(() => {
       const ms = Date.now() - startedAtRef.current;
       setElapsedMs(ms);
-      if (setup?.seconds && ms >= setup.seconds * 1000) finish();
+      if (setup?.seconds && ms >= setup.seconds * 1000) {
+        finish();
+        return;
+      }
+      // Word chain: a blank brings up a fresh word instead of ending it.
+      const stall = setup?.params.stallSeconds;
+      // Recognition lags speech a little, so allow for that on top of the grace.
+      if (setup?.live === "chain" && stall && Date.now() - lastActivityRef.current > stall * 1000 + FIRST_RESULT_LATENCY_MS) {
+        lastActivityRef.current = Date.now();
+        setSeeds((current) => [...current, nextSeed(CHAIN_SEEDS, current, seedRef.current + current.length * 7)]);
+        setSegmentStart(heardCountRef.current);
+        Haptics.selectionAsync().catch(() => undefined);
+      }
     }, 250);
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -76,6 +96,15 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
 
   const target = useMemo(() => (setup?.targetText ? buildTarget(setup.targetText, 1) : []), [setup]);
   const heard = useMemo(() => tokenizeHeard(speech.text).tokens, [speech.text]);
+  const heardCountRef = useRef(0);
+  heardCountRef.current = heard.length;
+
+  // A new recognized word counts as still going (word chain). The volume
+  // meter isn't used: background noise keeps it above "silent" in a lot of
+  // real rooms, so a blank would never be noticed.
+  useEffect(() => {
+    if (stage === "listening") lastActivityRef.current = Date.now();
+  }, [heard.length, stage]);
   const following = stage === "listening" || stage === "finalizing";
   const live = useMemo(
     () => (following && setup?.live === "follow" && target.length ? followLive(target, heard) : null),
@@ -126,6 +155,9 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
 
   function beginListening() {
     if (!setup) return;
+    setSeeds(setup.words ?? []);
+    setSegmentStart(0);
+    lastActivityRef.current = Date.now();
     speech.session.start({
       volumeMeter: true,
       volumeIntervalMs: 100,
@@ -161,6 +193,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         transcript: text,
         speakingMs,
         volume,
+        seedWords: setup.live === "chain" ? seeds : undefined,
       });
       const change = await recordDrillOutcome({
         drillType: setup.type,
@@ -326,6 +359,37 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         </Card>
       );
     }
+    if (setup.live === "chain") {
+      const current = seeds[seeds.length - 1] ?? setup.words?.[0] ?? "";
+      const bridge = setup.type === "chain_bridge";
+      const links = showHeard && !bridge ? chainWords(heard.slice(segmentStart), seeds) : [];
+      const said = showHeard && bridge ? heard.slice(segmentStart).slice(-16).join(" ") : "";
+      return (
+        <Card style={styles.card}>
+          <Txt variant="caption2" tone="muted" uppercase>
+            {seeds.length > 1 ? "Fresh word — start here" : "Start from"}
+          </Txt>
+          <Txt variant="largeTitle" tone="accent">
+            {current}
+          </Txt>
+          {links.length ? (
+            <Txt variant="title3" style={styles.passage}>
+              {links.map((w, i) => (
+                <Txt key={`${w}-${i}`} variant="title3" tone={i === links.length - 1 ? "primary" : "secondary"}>
+                  {"→ "}
+                  {w}{" "}
+                </Txt>
+              ))}
+            </Txt>
+          ) : null}
+          {said ? (
+            <Txt variant="callout" tone="secondary">
+              …{said}
+            </Txt>
+          ) : null}
+        </Card>
+      );
+    }
     if (setup.live === "free" && setup.category) {
       return (
         <Card style={styles.card}>
@@ -380,6 +444,17 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         </View>
       );
     }
+    if (setup.live === "chain") {
+      const target = setup.params.target ?? 8;
+      const links = setup.type === "chain_bridge" ? null : chainWords(heard, seeds).length;
+      return (
+        <View style={styles.row}>
+          {links != null ? <StatTile value={`${links}`} label={`of ${target} links`} color={links >= target ? colors.success : undefined} /> : null}
+          <StatTile value={`${secondsLeft}`} label="seconds left" />
+          <StatTile value={`${Math.max(0, seeds.length - 1)}`} label="fresh words" />
+        </View>
+      );
+    }
     if (setup.live === "count") {
       const count = uniqueContentWords(heard, setup.letter).length;
       return (
@@ -418,6 +493,16 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
               </Txt>
             ))}
           </View>
+        ) : null}
+        {setup.type === "word_chain" && details.counted && details.counted.length > 0 ? (
+          <Txt variant="footnote" tone="secondary">
+            {[seeds[0] ?? setup.words?.[0], ...details.counted].join(" → ")}
+          </Txt>
+        ) : null}
+        {setup.live === "chain" && (details.resets ?? 0) > 0 ? (
+          <Txt variant="footnote" tone="muted">
+            You blanked {details.resets === 1 ? "once" : `${details.resets} times`} and picked it back up. That recovery is the skill.
+          </Txt>
         ) : null}
         {details.missingWords && details.missingWords.length > 0 ? (
           <Txt variant="footnote" tone="secondary">
