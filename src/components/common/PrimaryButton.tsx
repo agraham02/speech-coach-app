@@ -1,67 +1,95 @@
-import { ActivityIndicator, Pressable, Text, type StyleProp, type ViewStyle } from "react-native";
+import { ActivityIndicator, View, type StyleProp, type ViewStyle } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
+import { PressableScale } from "./PressableScale";
+import { Txt } from "./Txt";
 
 interface PrimaryButtonProps {
   label: string;
   onPress: () => void;
   disabled?: boolean;
   loading?: boolean;
+  // primary: the one ink action on a screen. secondary: a quiet filled
+  // button. ghost: text only. danger: destructive.
   variant?: "primary" | "danger" | "secondary" | "ghost";
+  size?: "lg" | "md" | "sm";
+  icon?: keyof typeof Ionicons.glyphMap;
+  iconRight?: keyof typeof Ionicons.glyphMap;
   // Escape hatch for layout only (e.g. `flex: 1` to split a row evenly) —
   // merged after the variant styles, so it can't override the button's own
   // color/appearance rules.
   style?: StyleProp<ViewStyle>;
+  accessibilityLabel?: string;
 }
 
-export function PrimaryButton({ label, onPress, disabled, loading, variant = "primary", style }: PrimaryButtonProps) {
+const HEIGHT = { lg: 56, md: 46, sm: 36 } as const;
+
+export function PrimaryButton({
+  label,
+  onPress,
+  disabled,
+  loading,
+  variant = "primary",
+  size = "lg",
+  icon,
+  iconRight,
+  style,
+  accessibilityLabel,
+}: PrimaryButtonProps) {
   const isDisabled = disabled || loading;
   const styles = useStyles();
   const { colors } = useTheme();
+  const fg = {
+    primary: colors.onAccent,
+    danger: colors.onAccent,
+    secondary: colors.textPrimary,
+    ghost: colors.textPrimary,
+  }[variant];
+  const iconSize = size === "sm" ? 16 : 19;
 
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
       disabled={isDisabled}
-      style={({ pressed }) => [
+      haptic={variant === "primary" ? "tap" : undefined}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ disabled: !!isDisabled, busy: !!loading }}
+      style={[
         styles.button,
+        { minHeight: HEIGHT[size], paddingHorizontal: size === "sm" ? 14 : 22 },
         variant === "danger" && styles.danger,
         variant === "secondary" && styles.secondary,
         variant === "ghost" && styles.ghost,
         isDisabled && styles.disabled,
-        pressed && !isDisabled && styles.pressed,
         style,
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={variant === "secondary" || variant === "ghost" ? colors.accent : colors.onAccent} />
+        <ActivityIndicator color={fg} />
       ) : (
-        <Text
-          style={[
-            styles.label,
-            (variant === "secondary" || variant === "ghost") && styles.labelMuted,
-          ]}
-        >
-          {label}
-        </Text>
+        <View style={styles.content}>
+          {icon ? <Ionicons name={icon} size={iconSize} color={fg} /> : null}
+          <Txt variant={size === "lg" ? "headline" : size === "md" ? "callout" : "footnote"} weight="600" color={fg} numberOfLines={1}>
+            {label}
+          </Txt>
+          {iconRight ? <Ionicons name={iconRight} size={iconSize} color={fg} /> : null}
+        </View>
       )}
-    </Pressable>
+    </PressableScale>
   );
 }
 
 const useStyles = makeStyles((t) => ({
   button: {
     backgroundColor: t.colors.accent,
-    paddingVertical: t.space.md,
-    borderRadius: t.radius.md,
+    borderRadius: t.radius.pill,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 54,
   },
+  content: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: t.space.sm },
   danger: { backgroundColor: t.colors.danger },
-  secondary: { backgroundColor: t.colors.surfaceRaised, borderWidth: 1, borderColor: t.colors.border },
+  secondary: { backgroundColor: t.colors.surfaceRaised },
   ghost: { backgroundColor: "transparent" },
-  disabled: { opacity: 0.4 },
-  pressed: { opacity: 0.85 },
-  label: { color: t.colors.onAccent, ...t.type.headline, fontSize: 17 },
-  labelMuted: { color: t.colors.accent },
+  disabled: { opacity: 0.35 },
 }));

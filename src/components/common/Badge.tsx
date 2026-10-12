@@ -1,34 +1,41 @@
-import { StyleSheet, Text, View } from "react-native";
-import { radii, spacing, typography } from "../../theme/theme";
-import { useTheme } from "../../theme/ThemeProvider";
+import { View } from "react-native";
+import { makeStyles, useTheme } from "../../theme/ThemeProvider";
+import { Txt } from "./Txt";
 
 interface BadgeProps {
   label: string;
-  // Defaults to the standard accent-blue treatment — pass colorForCategory(...)
-  // (see domain/categoryColor.ts) to color-code by category instead.
+  // Defaults to a neutral treatment — pass colorForCategory(...) (see
+  // domain/categoryColor.ts) or a skill color to color-code instead.
   fg?: string;
   bg?: string;
+  // A leading dot in `fg` (skills, status).
+  dot?: boolean;
 }
 
-export function Badge({ label, fg, bg }: BadgeProps) {
+// A small sentence-case pill.
+export function Badge({ label, fg, bg, dot }: BadgeProps) {
+  const styles = useStyles();
   const { colors } = useTheme();
+  const color = fg ?? colors.textSecondary;
   return (
-    <View style={[styles.badge, { backgroundColor: bg ?? colors.accentMuted }]}>
-      <Text style={[styles.text, { color: fg ?? colors.accent }]}>{label.toUpperCase()}</Text>
+    <View style={[styles.badge, { backgroundColor: bg ?? colors.surfaceRaised }]}>
+      {dot ? <View style={[styles.dot, { backgroundColor: color }]} /> : null}
+      <Txt variant="caption1" weight="600" color={color} numberOfLines={1}>
+        {label}
+      </Txt>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   badge: {
     alignSelf: "flex-start",
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: spacing.xs,
-    borderRadius: radii.pill,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: t.radius.pill,
   },
-  text: {
-    fontSize: typography.caption - 1,
-    fontWeight: "700",
-    letterSpacing: 0.6,
-  },
-});
+  dot: { width: 6, height: 6, borderRadius: 3 },
+}));

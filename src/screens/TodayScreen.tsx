@@ -1,27 +1,43 @@
 import { useCallback, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
-import { ScreenContainer } from "../components/common/ScreenContainer";
-import { Header } from "../components/common/Header";
+import { Screen } from "../components/common/Screen";
 import { Card } from "../components/common/Card";
+import { HeroCard } from "../components/common/HeroCard";
 import { Txt } from "../components/common/Txt";
-import { ChipGroup } from "../components/common/Chip";
+import { Badge } from "../components/common/Badge";
+import { IconButton } from "../components/common/IconButton";
+import { SegmentedControl } from "../components/common/SegmentedControl";
 import { PrimaryButton } from "../components/common/PrimaryButton";
+import { SectionHeader } from "../components/common/SectionHeader";
 import { SkillRings } from "../components/common/SkillRings";
-import { ListRow } from "../components/common/ListRow";
+import { StepTimeline } from "../components/common/StepTimeline";
+import { ListGroup, ListRow } from "../components/common/ListRow";
 import { ConversationTodayCard } from "../components/conversation/ConversationTodayCard";
 import { FeelingWeekCard } from "../components/feelings/FeelingWeekCard";
 import { TodaySkillCheckCard } from "../components/onboarding/SkillCheckCards";
-import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
-import { getCompletedTopUpSlots, getSkillStates, getTodaysPlan, getTopUpPlan, getPracticeDates, getSessionsDoneToday, type StoredPlan } from "../services/db/progressRepo";
-import { getDailySessionGoal, getPlanMinutes, getPracticeAnchor, getReminderSettings, setPlanMinutes } from "../services/prefs/prefsStore";
+import {
+  getCompletedTopUpSlots,
+  getSkillStates,
+  getTodaysPlan,
+  getTopUpPlan,
+  getPracticeDates,
+  getSessionsDoneToday,
+  type StoredPlan,
+} from "../services/db/progressRepo";
+import { getDailySessionGoal, getPlanMinutes, getPracticeAnchor, getReminderSettings, getUserProfile, setPlanMinutes } from "../services/prefs/prefsStore";
 import { formatReminderHour, reminderHours } from "../domain/reminderSettings";
 import { daysUntilEvent, defaultsFromProfile, type EventKind } from "../domain/profile";
-import { getUserProfile } from "../services/prefs/prefsStore";
 import { todayISODate } from "../utils/dateUtils";
+import { computeStreaks } from "../domain/streaks";
+import { SKILLS } from "../domain/mastery";
+import { getLesson } from "../content/lessons";
+import { SKILL_LABELS, type SkillId } from "../theme/tokens";
+import { makeStyles, useTheme } from "../theme/ThemeProvider";
+import { success } from "../utils/haptics";
 
 const EVENT_LABELS: Record<EventKind, string> = {
   interview: "interview",
@@ -31,33 +47,22 @@ const EVENT_LABELS: Record<EventKind, string> = {
   date: "date",
   other: "big day",
 };
-import { computeStreaks } from "../domain/streaks";
-import { SKILLS } from "../domain/mastery";
-import { getLesson } from "../content/lessons";
-import { SKILL_LABELS, type SkillId } from "../theme/tokens";
-import type { PlanStepKind } from "../domain/dailyPlan";
-import { makeStyles, useTheme } from "../theme/ThemeProvider";
-
-const STEP_ICONS: Record<PlanStepKind, keyof typeof Ionicons.glyphMap> = {
-  warmup: "body-outline",
-  line: "text-outline",
-  drill: "pulse-outline",
-  guided: "list-outline",
-  rep: "videocam-outline",
-  review: "eye-outline",
-};
 
 function greeting(): string {
   const h = new Date().getHours();
   return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
 }
 
-// The home of the app: one short daily session, chosen for you.
+function todayLabel(): string {
+  return new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+}
+
+// The home of the app: one short daily session, chosen for you — the one
+// thing on screen that stands out — and everything else quieter below it.
 export function TodayScreen() {
   const styles = useStyles();
   const { colors } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const tabBarInset = useTabBarBottomInset();
   const [minutes, setMinutes] = useState(getPlanMinutes());
   const [stored, setStored] = useState<StoredPlan | null>(null);
   const [mastery, setMastery] = useState<Record<SkillId, number> | null>(null);
@@ -102,152 +107,154 @@ export function TodayScreen() {
   const started = done.size > 0;
   const finished = !!stored?.completedAt;
   const focus = plan ? colors.skill[plan.focusSkill] : null;
+  const firstOpen = plan?.steps.findIndex((s) => !done.has(s.id)) ?? -1;
 
   return (
-    <ScreenContainer style={styles.container} edges={["top", "left", "right"]}>
-      <Header
-        eyebrow={profile?.name ? `${greeting()}, ${profile.name}` : greeting()}
-        title="Today"
-        large
-        right={
-          <Pressable onPress={() => navigation.navigate("Settings")} hitSlop={12} accessibilityRole="button" accessibilityLabel="Settings">
-            <Ionicons name="settings-outline" size={24} color={colors.textSecondary} />
-          </Pressable>
-        }
-      />
-      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: tabBarInset + 24 }]} showsVerticalScrollIndicator={false}>
-        {streak > 0 ? (
-          <View style={styles.streak}>
-            <Ionicons name="flame" size={16} color={colors.warning} />
-            <Txt variant="subhead" weight="600">
-              {streak}-day streak
-            </Txt>
-          </View>
-        ) : null}
-
-        {eventDays != null && profile?.event ? (
-          <View style={styles.streak}>
-            <Ionicons name="calendar-outline" size={16} color={colors.accent} />
-            <Txt variant="subhead" weight="600">
-              {eventDays === 0 ? "Your " : `${eventDays} day${eventDays === 1 ? "" : "s"} to your `}
-              {profile.event.note?.trim() || EVENT_LABELS[profile.event.kind]}
-              {eventDays === 0 ? " is today — you've practiced for this." : ""}
-            </Txt>
-          </View>
-        ) : null}
-        {goal > 1 ? (
-          <View style={styles.goalRow} accessibilityLabel={`${Math.min(doneToday, goal)} of ${goal} sessions today`}>
-            {Array.from({ length: goal }, (_, i) => (
-              <View key={i} style={[styles.goalDot, i < doneToday && { backgroundColor: colors.success, borderColor: colors.success }]} />
-            ))}
-            <Txt variant="footnote" tone="secondary">
-              {Math.min(doneToday, goal)} of {goal} sessions today{doneToday >= goal ? " · goal met" : ""}
-            </Txt>
-          </View>
-        ) : null}
-        {streak === 0 && profile?.why ? (
-          <Card style={styles.card}>
-            <Txt variant="caption2" tone="muted" uppercase>
-              Why you started
-            </Txt>
-            <Txt variant="callout">“{profile.why}”</Txt>
-          </Card>
-        ) : null}
+    <Screen
+      tabRoot
+      large
+      eyebrow={profile?.name ? `${greeting()}, ${profile.name}` : greeting()}
+      title="Today"
+      right={<IconButton icon="settings-outline" onPress={() => navigation.navigate("Settings")} accessibilityLabel="Settings" />}
+    >
+      <View style={styles.meta}>
+        <Txt variant="subhead" tone="secondary">
+          {todayLabel()}
+        </Txt>
+        <View style={styles.pills}>
+          {streak > 0 ? (
+            <View style={styles.pill}>
+              <Ionicons name="flame" size={14} color={colors.warning} />
+              <Txt variant="footnote" weight="600" tabular>
+                {streak}-day streak
+              </Txt>
+            </View>
+          ) : null}
+          {goal > 1 ? (
+            <View style={styles.pill} accessibilityLabel={`${Math.min(doneToday, goal)} of ${goal} sessions today`}>
+              {Array.from({ length: goal }, (_, i) => (
+                <View key={i} style={[styles.goalDot, i < doneToday && styles.goalDotDone]} />
+              ))}
+              <Txt variant="footnote" weight="600" tabular>
+                {Math.min(doneToday, goal)} of {goal} today
+              </Txt>
+            </View>
+          ) : null}
+          {eventDays != null && profile?.event ? (
+            <View style={styles.pill}>
+              <Ionicons name="calendar-clear-outline" size={14} color={colors.textSecondary} />
+              <Txt variant="footnote" weight="600">
+                {eventDays === 0
+                  ? `Your ${profile.event.note?.trim() || EVENT_LABELS[profile.event.kind]} is today`
+                  : `${eventDays} day${eventDays === 1 ? "" : "s"} to your ${profile.event.note?.trim() || EVENT_LABELS[profile.event.kind]}`}
+              </Txt>
+            </View>
+          ) : null}
+        </View>
         {anchor && doneToday === 0 ? (
           <Txt variant="footnote" tone="muted">
             Your plan: {anchor.charAt(0).toLowerCase() + anchor.slice(1)}, practice.
           </Txt>
         ) : null}
+      </View>
 
-        <TodaySkillCheckCard />
-
-        {topUp ? <TopUpCard slot={topUp.slot} stored={topUp.stored} goal={goal} onStart={() => navigation.navigate("DailySession", { slot: topUp.slot })} /> : null}
-
-        {plan && lesson && focus ? (
-          <Card style={styles.planCard}>
-            <View style={styles.planHeader}>
-              <Txt variant="caption2" tone="muted" uppercase>
-                Today · {plan.minutes} min
-              </Txt>
-              <View style={[styles.focusPill, { backgroundColor: focus.bg }]}>
-                <Txt variant="caption1" weight="700" color={focus.fg}>
-                  {SKILL_LABELS[plan.focusSkill]}
-                </Txt>
+      {plan && lesson && focus ? (
+        <HeroCard accent={focus.fg} contentStyle={styles.hero}>
+          <View style={styles.heroTop}>
+            <Badge label={SKILL_LABELS[plan.focusSkill]} fg={focus.fg} bg={focus.bg} dot />
+            {!started ? (
+              <View style={styles.length}>
+                <SegmentedControl
+                  size="sm"
+                  options={[
+                    { key: "5", label: "5 min" },
+                    { key: "8", label: "8 min" },
+                    { key: "12", label: "12 min" },
+                  ]}
+                  value={String(minutes)}
+                  onChange={changeMinutes}
+                />
               </View>
-            </View>
-            <Txt variant="title2">{lesson.title}</Txt>
-            <Txt variant="subhead" tone="secondary">
+            ) : (
+              <Txt variant="footnote" tone="secondary" tabular>
+                {done.size} of {plan.steps.length} done
+              </Txt>
+            )}
+          </View>
+          <View style={styles.heroTitle}>
+            <Txt variant="title1">{lesson.title}</Txt>
+            <Txt variant="callout" tone="secondary" numberOfLines={3}>
               {plan.isReview ? "Review — " : ""}
               {lesson.teach.why.split(". ")[0]}.
             </Txt>
-            <View style={styles.steps}>
-              {plan.steps.map((step) => {
-                const isDone = done.has(step.id);
-                return (
-                  <View key={step.id} style={styles.step}>
-                    <Ionicons
-                      name={isDone ? "checkmark-circle" : STEP_ICONS[step.kind]}
-                      size={20}
-                      color={isDone ? colors.success : colors.textSecondary}
-                    />
-                    <Txt variant="callout" tone={isDone ? "muted" : "primary"} style={styles.flex}>
-                      {step.title}
-                    </Txt>
-                    <Txt variant="footnote" tone="muted">
-                      {step.minutes} min
-                    </Txt>
-                  </View>
-                );
-              })}
+          </View>
+          <StepTimeline
+            color={focus.fg}
+            dense
+            steps={plan.steps.map((step, i) => ({
+              id: step.id,
+              title: step.title,
+              meta: `${step.minutes} min`,
+              state: done.has(step.id) ? "done" : i === firstOpen && started ? "current" : "todo",
+            }))}
+          />
+          {finished ? (
+            <View style={styles.finished}>
+              <Ionicons name="checkmark-circle" size={22} color={colors.success} />
+              <Txt variant="headline">Done for today</Txt>
             </View>
-            {finished ? (
-              <View style={styles.finished}>
-                <Ionicons name="trophy-outline" size={20} color={colors.success} />
-                <Txt variant="headline" tone="success">
-                  Done for today
-                </Txt>
-              </View>
-            ) : (
-              <PrimaryButton label={started ? "Continue" : "Start session"} onPress={() => navigation.navigate("DailySession")} />
-            )}
-            {!started ? (
-              <ChipGroup
-                options={[
-                  { key: "5", label: "5 min" },
-                  { key: "8", label: "8 min" },
-                  { key: "12", label: "12 min" },
-                ]}
-                value={String(minutes)}
-                onChange={changeMinutes}
-              />
-            ) : null}
-          </Card>
-        ) : null}
+          ) : (
+            <PrimaryButton
+              label={started ? "Continue" : "Start session"}
+              iconRight="arrow-forward"
+              onPress={() => navigation.navigate("DailySession")}
+            />
+          )}
+        </HeroCard>
+      ) : (
+        <HeroCard contentStyle={styles.hero}>
+          <View style={styles.placeholder} />
+        </HeroCard>
+      )}
 
-        <FeelingWeekCard featured={defaults.featureFeelings} />
+      {topUp ? <TopUpCard slot={topUp.slot} stored={topUp.stored} goal={goal} onStart={() => navigation.navigate("DailySession", { slot: topUp.slot })} /> : null}
 
-        <ConversationTodayCard />
+      <TodaySkillCheckCard />
 
-        {mastery ? (
-          <Card style={styles.card}>
-            <Txt variant="caption2" tone="muted" uppercase>
-              Your skills
-            </Txt>
+      {streak === 0 && profile?.why ? (
+        <View style={styles.why}>
+          <Txt variant="footnote" weight="500" tone="secondary">
+            Why you started
+          </Txt>
+          <Txt variant="quote" italic>
+            “{profile.why}”
+          </Txt>
+        </View>
+      ) : null}
+
+      <FeelingWeekCard featured={defaults.featureFeelings} />
+
+      <ConversationTodayCard />
+
+      {mastery ? (
+        <View style={styles.section}>
+          <SectionHeader title="Your skills" action="Progress" onAction={() => navigation.navigate("Tabs", { screen: "Progress" })} />
+          <Card>
             <SkillRings mastery={mastery} focus={plan?.focusSkill} />
           </Card>
-        ) : null}
+        </View>
+      ) : null}
 
-        <Card style={styles.card}>
-          <ListRow
-            icon="mic-outline"
-            title="Practice something else"
-            subtitle="Today's prompt, free record, scripts, drills"
-            chevron
-            onPress={() => navigation.navigate("Practice")}
-          />
-        </Card>
-      </ScrollView>
-    </ScreenContainer>
+      <ListGroup>
+        <ListRow
+          icon="mic-outline"
+          title="Practice something else"
+          subtitle="A prompt, free recording, Mark it up, drills"
+          chevron
+          onPress={() => navigation.navigate("Practice")}
+        />
+      </ListGroup>
+    </Screen>
   );
 }
 
@@ -261,51 +268,61 @@ function TopUpCard({ slot, stored, goal, onStart }: { slot: 1 | 2; stored: Store
     hour != null && new Date().getHours() < hour
       ? `Best around ${formatReminderHour(hour)} — spacing sessions out helps them stick.`
       : "A good time for it now.";
+  const done = new Set(stored.completedStepIds);
   return (
-    <Card style={styles.planCard}>
-      <View style={styles.planHeader}>
-        <Txt variant="caption2" tone="muted" uppercase>
+    <Card style={styles.topUp}>
+      <View style={styles.heroTop}>
+        <Txt variant="footnote" weight="500" tone="secondary">
           Top-up · session {slot + 1} of {goal} · {minutes} min
         </Txt>
-        <View style={[styles.focusPill, { backgroundColor: focus.bg }]}>
-          <Txt variant="caption1" weight="700" color={focus.fg}>
-            {SKILL_LABELS[stored.plan.focusSkill]}
-          </Txt>
-        </View>
+        <Badge label={SKILL_LABELS[stored.plan.focusSkill]} fg={focus.fg} bg={focus.bg} dot />
       </View>
-      <View style={styles.steps}>
-        {stored.plan.steps.map((step) => (
-          <View key={step.id} style={styles.step}>
-            <Ionicons name={stored.completedStepIds.includes(step.id) ? "checkmark-circle" : STEP_ICONS[step.kind]} size={20} color={colors.textSecondary} />
-            <Txt variant="callout" style={styles.flex}>
-              {step.title}
-            </Txt>
-            <Txt variant="footnote" tone="muted">
-              {step.minutes} min
-            </Txt>
-          </View>
-        ))}
-      </View>
+      <StepTimeline
+        color={focus.fg}
+        dense
+        steps={stored.plan.steps.map((step) => ({
+          id: step.id,
+          title: step.title,
+          meta: `${step.minutes} min`,
+          state: done.has(step.id) ? "done" : "todo",
+        }))}
+      />
       <Txt variant="footnote" tone="secondary">
         {suggestion}
       </Txt>
-      <PrimaryButton label={stored.completedStepIds.length ? "Continue top-up" : "Start top-up"} onPress={onStart} />
+      <PrimaryButton
+        label={stored.completedStepIds.length ? "Continue top-up" : "Start top-up"}
+        variant="secondary"
+        onPress={() => {
+          success();
+          onStart();
+        }}
+      />
     </Card>
   );
 }
 
 const useStyles = makeStyles((t) => ({
-  goalRow: { flexDirection: "row", alignItems: "center", gap: t.space.xs },
-  goalDot: { width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: t.colors.textMuted },
-  container: { gap: t.space.md, paddingBottom: 0 },
-  scroll: { gap: t.space.md },
-  streak: { flexDirection: "row", alignItems: "center", gap: t.space.xs },
-  planCard: { gap: t.space.md },
-  planHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  focusPill: { paddingHorizontal: t.space.sm + 2, paddingVertical: 4, borderRadius: t.radius.pill },
-  steps: { gap: t.space.sm },
-  step: { flexDirection: "row", alignItems: "center", gap: t.space.md },
-  flex: { flex: 1 },
+  meta: { gap: t.space.sm, marginTop: -4 },
+  pills: { flexDirection: "row", flexWrap: "wrap", gap: t.space.sm },
+  pill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: t.radius.pill,
+    backgroundColor: t.colors.surfaceRaised,
+  },
+  goalDot: { width: 8, height: 8, borderRadius: 4, borderWidth: 1.5, borderColor: t.colors.textMuted },
+  goalDotDone: { backgroundColor: t.colors.success, borderColor: t.colors.success },
+  hero: { gap: t.space.lg - 4 },
+  heroTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: t.space.md },
+  length: { width: 190 },
+  heroTitle: { gap: t.space.sm },
   finished: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: t.space.sm, paddingVertical: t.space.sm },
-  card: { gap: t.space.md },
+  placeholder: { height: 320 },
+  topUp: { gap: t.space.md },
+  why: { gap: t.space.xs, paddingHorizontal: 4, paddingVertical: t.space.sm },
+  section: { gap: t.space.sm + 4 },
 }));

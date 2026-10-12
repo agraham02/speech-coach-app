@@ -1,9 +1,8 @@
 import { useCallback, useState } from "react";
-import { Pressable, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import * as Haptics from "expo-haptics";
 import type { RootStackParamList } from "../../navigation";
 import { Card } from "../common/Card";
 import { Txt } from "../common/Txt";
@@ -14,6 +13,8 @@ import { getBlankMoments, getOpenEvents, type SocialEvent } from "../../services
 import { todayISODate } from "../../utils/dateUtils";
 import { logger } from "../../utils/logger";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
+import { tick } from "../../utils/haptics";
+import Animated, { ZoomIn } from "react-native-reanimated";
 
 // Today's real-world side of the Conversation skill: two tiny missions,
 // Prime before an event / Debrief after, and replaying moments you blanked.
@@ -38,7 +39,7 @@ export function ConversationTodayCard() {
   );
 
   async function tap(missionId: string, target: number) {
-    Haptics.selectionAsync().catch(() => undefined);
+    tick();
     try {
       const p = await logMission(date, missionId, target);
       setProgress((prev) => ({ ...prev, [missionId]: p }));
@@ -62,10 +63,11 @@ export function ConversationTodayCard() {
   return (
     <Card style={styles.card}>
       <View style={styles.header}>
-        <Txt variant="caption2" tone="muted" uppercase>
+        <View style={[styles.dot, { backgroundColor: c.fg }]} />
+        <Txt variant="title3" style={styles.flex}>
           Conversations
         </Txt>
-        <Txt variant="caption1" tone="muted">
+        <Txt variant="footnote" tone="muted">
           Today's missions
         </Txt>
       </View>
@@ -82,7 +84,13 @@ export function ConversationTodayCard() {
             accessibilityRole="button"
             accessibilityLabel={`${m.text} ${done ? "done" : m.target > 1 ? `${count} of ${m.target}` : "not done yet"}. Long press to undo.`}
           >
-            <Ionicons name={done ? "checkmark-circle" : "ellipse-outline"} size={22} color={done ? colors.success : c.fg} />
+            {done ? (
+              <Animated.View entering={ZoomIn.duration(240)} style={[styles.check, { backgroundColor: c.fg }]}>
+                <Ionicons name="checkmark" size={14} color={colors.background} />
+              </Animated.View>
+            ) : (
+              <View style={[styles.check, styles.checkOpen]} />
+            )}
             <Txt variant="callout" tone={done ? "muted" : "primary"} style={styles.flex}>
               {m.text}
             </Txt>
@@ -94,6 +102,7 @@ export function ConversationTodayCard() {
           </Pressable>
         );
       })}
+      <View style={styles.rule} />
       <View style={styles.links}>
         {open ? (
           <ListRow
@@ -145,10 +154,14 @@ export function ConversationTodayCard() {
 }
 
 const useStyles = makeStyles((t) => ({
-  card: { gap: t.space.sm },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  mission: { flexDirection: "row", alignItems: "center", gap: t.space.md, minHeight: 44 },
+  card: { gap: t.space.xs },
+  header: { flexDirection: "row", alignItems: "center", gap: t.space.sm, marginBottom: t.space.xs },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  mission: { flexDirection: "row", alignItems: "center", gap: t.space.md - 2, minHeight: 46 },
+  check: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  checkOpen: { borderWidth: 1.5, borderColor: t.colors.textMuted },
   pressed: { opacity: 0.6 },
   flex: { flex: 1 },
-  links: { marginTop: t.space.xs },
+  rule: { height: StyleSheet.hairlineWidth, backgroundColor: t.colors.separator, marginVertical: t.space.xs },
+  links: {},
 }));

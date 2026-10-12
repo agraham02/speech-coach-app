@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 import Slider from "@react-native-community/slider";
-import { spacing, typography } from "../../theme/theme";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
+import { Txt } from "./Txt";
 
 interface LabeledSliderProps {
   label: string;
@@ -47,8 +47,12 @@ export function LabeledSlider({
   return (
     <View style={[styles.container, disabled && styles.disabled]}>
       <View style={styles.header}>
-        <Text style={styles.label}>{label}</Text>
-        <Text style={styles.value}>{formatValue(displayValue)}</Text>
+        <Txt variant="subhead" weight="500" tone="secondary">
+          {label}
+        </Txt>
+        <Txt variant="subhead" weight="600" tabular>
+          {formatValue(displayValue)}
+        </Txt>
       </View>
       <Slider
         key={value}
@@ -60,17 +64,15 @@ export function LabeledSlider({
         onValueChange={setDisplayValue}
         onSlidingComplete={onChange}
         minimumTrackTintColor={colors.accent}
-        maximumTrackTintColor={colors.border}
+        maximumTrackTintColor={colors.switchTrackOff}
         thumbTintColor={colors.accent}
       />
     </View>
   );
 }
 
-const useStyles = makeStyles(({ colors }) => ({
-  container: { gap: spacing.xs },
+const useStyles = makeStyles((t) => ({
+  container: { gap: t.space.xs },
   disabled: { opacity: 0.4 },
   header: { flexDirection: "row", justifyContent: "space-between" },
-  label: { color: colors.textSecondary, fontSize: typography.body, fontWeight: "600" },
-  value: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "700" },
 }));

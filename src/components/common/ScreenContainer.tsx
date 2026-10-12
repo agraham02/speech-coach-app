@@ -11,6 +11,9 @@ interface ScreenContainerProps extends ViewProps {
 
 const DEFAULT_EDGES: Edge[] = ["top", "bottom", "left", "right"];
 
+// The plain screen frame: safe area, background and the side gutter. Most
+// scrolling screens use Screen (Screen.tsx) instead, which adds the
+// collapsing title and a pinned footer.
 export function ScreenContainer({ style, children, edges = DEFAULT_EDGES, ...props }: ScreenContainerProps) {
   const styles = useStyles();
   return (
@@ -24,5 +27,5 @@ export function ScreenContainer({ style, children, edges = DEFAULT_EDGES, ...pro
 
 const useStyles = makeStyles((t) => ({
   safeArea: { flex: 1, backgroundColor: t.colors.background },
-  container: { flex: 1, padding: t.space.lg },
+  container: { flex: 1, paddingHorizontal: t.layout.gutter, paddingTop: t.space.sm, paddingBottom: t.space.md },
 }));

@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -11,6 +11,8 @@ import { ANGLES, getEmotion } from "../../domain/feelings";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 // The weekly ritual on Today — outside the skill rotation, on its own beat.
+// `featured` (from onboarding: feelings are hard to put into words) gives it
+// a colored edge until this week's rep is done.
 export function FeelingWeekCard({ featured = false }: { featured?: boolean }) {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -27,33 +29,39 @@ export function FeelingWeekCard({ featured = false }: { featured?: boolean }) {
   const emotion = getEmotion(week.emotion);
   const done = week.reps > 0;
   const next = ANGLES[week.reps % ANGLES.length].title(emotion.label);
+  const c = colors.skill.conversation;
 
   return (
-    <Pressable onPress={() => navigation.navigate("Feeling")} accessibilityRole="button" accessibilityLabel={`Feeling of the week: ${emotion.label}`}>
-      <Card style={[styles.card, featured && !done && { borderColor: colors.skill.conversation.fg }]}>
-        <View style={styles.row}>
-          <View style={[styles.icon, { backgroundColor: colors.skill.conversation.bg }]}>
-            <Ionicons name={done ? "checkmark" : "heart-outline"} size={20} color={colors.skill.conversation.fg} />
-          </View>
-          <View style={styles.flex}>
-            <Txt variant="caption2" tone="muted" uppercase>
-              Feeling of the week
-            </Txt>
-            <Txt variant="headline">{emotion.label}</Txt>
-            <Txt variant="footnote" tone="secondary">
-              {done ? `Done this week · another angle: ${next.toLowerCase()}` : `${next} — a minute or two, as honest as you can.`}
-            </Txt>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+    <Card
+      onPress={() => navigation.navigate("Feeling")}
+      accessibilityLabel={`Feeling of the week: ${emotion.label}`}
+      style={[styles.card, featured && !done && { borderWidth: 1.5, borderColor: c.fg }]}
+    >
+      <View style={styles.row}>
+        <View style={[styles.icon, { backgroundColor: c.bg }]}>
+          <Ionicons name={done ? "checkmark" : "heart"} size={20} color={c.fg} />
         </View>
-      </Card>
-    </Pressable>
+        <View style={styles.flex}>
+          <Txt variant="footnote" weight="500" tone="secondary">
+            Feeling of the week
+          </Txt>
+          <Txt variant="title1" style={styles.emotion}>
+            {emotion.label}
+          </Txt>
+          <Txt variant="footnote" tone="secondary">
+            {done ? `Done this week · another angle: ${next.toLowerCase()}` : `${next} — a minute or two, as honest as you can.`}
+          </Txt>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+      </View>
+    </Card>
   );
 }
 
 const useStyles = makeStyles((t) => ({
-  card: { padding: t.space.md },
+  card: { paddingVertical: t.space.md + 2 },
   row: { flexDirection: "row", alignItems: "center", gap: t.space.md },
-  icon: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
-  flex: { flex: 1, gap: 2 },
+  icon: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
+  flex: { flex: 1, gap: 1 },
+  emotion: { fontSize: 26, lineHeight: 30 },
 }));

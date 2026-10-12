@@ -1,22 +1,28 @@
-import { darkPalette, lightPalette, type Palette } from "./tokens";
+import { darkPalette, fontFamilies, lightPalette, radius, type Palette } from "./tokens";
+
+export { font } from "./tokens";
 
 export type SchemeName = "light" | "dark";
 
 // Colors that aren't part of the semantic palette: subtle fills and the
-// decorative accent hues used by older screens. They differ per scheme.
+// annotation hues used by the transcript and a few charts. They differ per
+// scheme.
 function extras(scheme: SchemeName) {
   const light = scheme === "light";
   return {
-    subtleFill: light ? "rgba(15,18,30,0.05)" : "rgba(255,255,255,0.06)",
-    heroBorder: light ? "rgba(15,18,30,0.10)" : "rgba(255,255,255,0.14)",
-    violet: light ? "#6D28D9" : "#8B5CF6",
-    violetMuted: light ? "rgba(109,40,217,0.12)" : "rgba(139,92,246,0.18)",
-    pink: light ? "#BE185D" : "#EC4899",
-    pinkMuted: light ? "rgba(190,24,93,0.12)" : "rgba(236,72,153,0.18)",
-    teal: light ? "#0F766E" : "#14B8A6",
-    tealMuted: light ? "rgba(15,118,110,0.12)" : "rgba(20,184,166,0.18)",
-    indigo: light ? "#4338CA" : "#6366F1",
-    indigoMuted: light ? "rgba(67,56,202,0.12)" : "rgba(99,102,241,0.18)",
+    subtleFill: light ? "rgba(28,25,15,0.045)" : "rgba(255,250,235,0.055)",
+    heroBorder: light ? "rgba(28,25,15,0.08)" : "rgba(255,250,235,0.10)",
+    violet: light ? "#6A3FD6" : "#B3A1FF",
+    violetMuted: light ? "rgba(106,63,214,0.10)" : "rgba(179,161,255,0.16)",
+    pink: light ? "#B8285F" : "#FF92B8",
+    pinkMuted: light ? "rgba(184,40,95,0.10)" : "rgba(255,146,184,0.16)",
+    teal: light ? "#0E7563" : "#5FE0C3",
+    tealMuted: light ? "rgba(14,117,99,0.10)" : "rgba(95,224,195,0.16)",
+    indigo: light ? "#3F51C9" : "#8C9BFF",
+    indigoMuted: light ? "rgba(63,81,201,0.10)" : "rgba(140,155,255,0.16)",
+    // A real blue for the few places that need "interactive" without ink
+    // (an annotation category, a chart series).
+    blue: light ? "#2F5BD3" : "#7EA2FF",
   };
 }
 
@@ -43,7 +49,7 @@ export function getAnnotationColors(
   return {
     filler: c.warning,
     structure: c.violet,
-    delivery: c.accent,
+    delivery: c.blue,
     presence: c.pink,
     content: c.teal,
     // The primary lever for the user's actual "I ramble/repeat myself"
@@ -57,6 +63,8 @@ export function getAnnotationColors(
   };
 }
 
+// Legacy scale for older screens (newer code uses the theme's `space`,
+// `radius` and `type` through makeStyles). Kept in step with the tokens.
 export const spacing = {
   xs: 4,
   sm: 8,
@@ -67,10 +75,10 @@ export const spacing = {
 } as const;
 
 export const radii = {
-  sm: 8,
-  md: 14,
-  lg: 20,
-  pill: 999,
+  sm: radius.sm,
+  md: radius.md,
+  lg: radius.lg,
+  pill: radius.pill,
 } as const;
 
 export const typography = {
@@ -81,12 +89,8 @@ export const typography = {
   headline: 28,
 } as const;
 
-// Sora, loaded via expo-font in App.tsx — reserved for the "hero" numbers
-// (overall score, streak count, recording timer) that the visual-direction
-// pass calls out as display moments; everything else stays on the system
-// font. Falls back to the system font automatically if used before the
-// fonts finish loading, since an unregistered fontFamily name just no-ops.
+// The display face for hero numbers (score, streak) and titles.
 export const fontDisplay = {
-  regular: "Sora-Regular",
-  bold: "Sora-Bold",
+  regular: fontFamilies.serif,
+  bold: fontFamilies.serif,
 } as const;

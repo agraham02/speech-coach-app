@@ -60,6 +60,7 @@ import type { Prompt, RecordingSubject } from "../domain/sessionTypes";
 import type { LineCategory } from "../content/lines";
 import type { MarkLevel } from "../domain/cadence/marks";
 import { useTheme } from "../theme/ThemeProvider";
+import { TabBar } from "../components/common/TabBar";
 
 export { navigationRef };
 
@@ -132,11 +133,10 @@ function JSTabs() {
   const { colors } = useTheme();
   return (
     <JSTab.Navigator
+      tabBar={(props) => <TabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.textMuted,
-        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
+        sceneStyle: { backgroundColor: colors.background },
       }}
     >
       <JSTab.Screen
@@ -199,7 +199,7 @@ function NativeTabs() {
       // effect. Unconfirmed — remove if it doesn't help.
       minimizeBehavior="never"
       scrollEdgeAppearance="opaque"
-      tabBarStyle={{ backgroundColor: colors.surface }}
+      tabBarStyle={{ backgroundColor: colors.background }}
       screenOptions={{
         tabBarActiveTintColor: colors.accent,
         // Without this, the native wrapper immediately behind each screen's

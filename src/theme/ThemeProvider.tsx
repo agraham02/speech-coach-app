@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { StyleSheet, useColorScheme } from "react-native";
 import { buildColors, type Colors, type SchemeName } from "./theme";
-import { radius, space, typeScale } from "./tokens";
+import { font, layout, radius, shadows, space, typeScale } from "./tokens";
 
 export type { SchemeName } from "./theme";
 
@@ -11,13 +11,17 @@ export interface Theme {
   type: typeof typeScale;
   space: typeof space;
   radius: typeof radius;
+  layout: typeof layout;
+  shadow: ReturnType<typeof shadows>;
+  // The sans family for a weight — styles use this instead of fontWeight.
+  font: typeof font;
 }
 
 // Follows the system appearance live: useColorScheme() re-renders the tree
 // when it changes, and makeStyles hands each scheme its own StyleSheet.
 
 function buildTheme(scheme: SchemeName): Theme {
-  return { scheme, colors: buildColors(scheme), type: typeScale, space, radius };
+  return { scheme, colors: buildColors(scheme), type: typeScale, space, radius, layout, shadow: shadows(scheme), font };
 }
 
 const DARK_THEME = buildTheme("dark");

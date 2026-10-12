@@ -11,7 +11,7 @@ import { Txt } from "./Txt";
 export function SkillRings({
   mastery,
   focus,
-  size = 56,
+  size = 54,
 }: {
   mastery: Record<SkillId, number>;
   focus?: SkillId | null;
@@ -24,21 +24,15 @@ export function SkillRings({
       {SKILLS.map((skill) => {
         const value = Math.round(mastery[skill] ?? 0);
         const c = colors.skill[skill];
+        const isFocus = focus === skill;
         return (
           <View key={skill} style={styles.item} accessibilityLabel={`${SKILL_LABELS[skill]} ${value} out of 100`}>
-            <ProgressRing size={size} strokeWidth={6} progress={value / 100} color={c.fg} trackColor={c.bg}>
-              <Txt variant="headline" color={c.fg}>
+            <ProgressRing size={size} strokeWidth={isFocus ? 5 : 4} progress={value / 100} color={c.fg} trackColor={c.bg}>
+              <Txt variant="headline" tabular>
                 {value}
               </Txt>
             </ProgressRing>
-            <Txt
-              variant="caption1"
-              tone={focus === skill ? "primary" : "muted"}
-              weight={focus === skill ? "700" : "400"}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.75}
-            >
+            <Txt variant="caption1" tone={isFocus ? "primary" : "muted"} weight={isFocus ? "600" : "500"} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
               {SKILL_LABELS[skill]}
             </Txt>
           </View>
@@ -50,5 +44,5 @@ export function SkillRings({
 
 const useStyles = makeStyles((t) => ({
   row: { flexDirection: "row", justifyContent: "space-between" },
-  item: { alignItems: "center", gap: t.space.xs, flex: 1, minWidth: 0, paddingHorizontal: 2 },
+  item: { alignItems: "center", gap: t.space.sm - 2, flex: 1, minWidth: 0, paddingHorizontal: 2 },
 }));
