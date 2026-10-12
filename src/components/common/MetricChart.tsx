@@ -1,9 +1,11 @@
 import { View } from "react-native";
 import { LineChart } from "react-native-gifted-charts";
-import { useTheme } from "../../theme/ThemeProvider";
+import { makeStyles, useTheme } from "../../theme/ThemeProvider";
+import { fontFamilies } from "../../theme/tokens";
 import { Txt } from "./Txt";
 
-// A small themed line chart for one metric over time.
+// A small themed line chart for one metric over time, with the latest value
+// called out.
 export function MetricChart({
   title,
   values,
@@ -19,45 +21,57 @@ export function MetricChart({
   unit?: string;
   emptyText?: string;
 }) {
+  const styles = useStyles();
   const { colors } = useTheme();
   const stroke = color ?? colors.accent;
   const latest = values[values.length - 1];
   const max = maxValue ?? Math.max(10, Math.ceil((Math.max(...values, 1) * 1.2) / 10) * 10);
   return (
-    <View style={{ gap: 8 }}>
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" }}>
-        <Txt variant="headline">{title}</Txt>
+    <View style={styles.wrap}>
+      <View style={styles.head}>
+        <Txt variant="headline" style={styles.title}>
+          {title}
+        </Txt>
         {latest != null ? (
-          <Txt variant="subhead" weight="700" color={stroke}>
-            {Math.round(latest)}
-            {unit ? ` ${unit}` : ""}
-          </Txt>
+          <View style={styles.latest}>
+            <Txt variant="title1" style={styles.value}>
+              {Math.round(latest)}
+            </Txt>
+            {unit ? (
+              <Txt variant="footnote" tone="secondary">
+                {unit}
+              </Txt>
+            ) : null}
+          </View>
         ) : null}
       </View>
       {values.length >= 2 ? (
         <LineChart
           data={values.map((value) => ({ value }))}
-          height={110}
+          height={100}
           color={stroke}
-          thickness={3}
+          thickness={2.5}
           curved
           areaChart
           startFillColor={stroke}
-          startOpacity={0.2}
+          startOpacity={0.22}
           endOpacity={0}
           maxValue={max}
           noOfSections={3}
-          initialSpacing={8}
-          endSpacing={8}
+          initialSpacing={6}
+          endSpacing={6}
           adjustToWidth
           hideDataPoints={values.length > 12}
           dataPointsColor={stroke}
+          dataPointsRadius={3}
           rulesColor={colors.separator}
           rulesType="dashed"
-          xAxisColor={colors.border}
+          xAxisColor="transparent"
           yAxisColor="transparent"
-          yAxisTextStyle={{ color: colors.textMuted, fontSize: 10 }}
+          yAxisTextStyle={{ color: colors.textMuted, fontSize: 10, fontFamily: fontFamilies.regular }}
           yAxisLabelWidth={28}
+          isAnimated
+          animationDuration={700}
         />
       ) : (
         <Txt variant="footnote" tone="muted">
@@ -67,3 +81,11 @@ export function MetricChart({
     </View>
   );
 }
+
+const useStyles = makeStyles((t) => ({
+  wrap: { gap: t.space.sm },
+  head: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", gap: t.space.md },
+  title: { flex: 1, paddingBottom: 4 },
+  latest: { flexDirection: "row", alignItems: "baseline", gap: 4 },
+  value: { fontSize: 28, lineHeight: 32 },
+}));

@@ -8,8 +8,9 @@ import { Txt } from "./Txt";
 export interface TimelineStep {
   id: string;
   title: string;
-  // Right-aligned meta ("2 min").
+  // Right-aligned meta ("2 min"), optionally colored ("Review due").
   meta?: string;
+  metaColor?: string;
   subtitle?: string;
   state: "done" | "current" | "todo";
   onPress?: () => void;
@@ -53,7 +54,7 @@ export function StepTimeline({ steps, color, dense }: { steps: TimelineStep[]; c
               ) : null}
             </View>
             {step.meta ? (
-              <Txt variant="footnote" tone="muted" tabular>
+              <Txt variant="footnote" tone="muted" weight={step.metaColor ? "600" : undefined} color={step.metaColor} tabular>
                 {step.meta}
               </Txt>
             ) : null}
