@@ -1,6 +1,17 @@
 import "dotenv/config";
 import type { ExpoConfig } from "expo/config";
 
+// iOS permission prompts. Apple rejects vague purpose strings (Guideline
+// 5.1.1), so each says what the access is for and where the data goes. The
+// microphone string is set by two plugins (VisionCamera and
+// expo-speech-recognition); both get this one so they can't disagree.
+const CAMERA_PERMISSION =
+    "Speech Coach records video of your practice so you can watch yourself back and see how often you look at the camera. Videos stay on this iPhone unless you send one for an AI deep review.";
+const MICROPHONE_PERMISSION =
+    "Speech Coach records your voice while you practice to measure pace, pauses, filler words and pitch. Recordings stay on this iPhone unless you send one for an AI deep review.";
+const SPEECH_RECOGNITION_PERMISSION =
+    "Speech Coach uses speech recognition to follow along as you speak in drills, rehearsals and conversation practice, so it can keep your place, count your words and score reps. It runs on your iPhone when it can; otherwise Apple processes the audio.";
+
 export default (): ExpoConfig => ({
     name: "Speech Coach",
     slug: "speech-coach-app",
@@ -50,7 +61,10 @@ export default (): ExpoConfig => ({
         "expo-video",
         "expo-font",
         "expo-notifications",
-        "expo-secure-store",
+        // Keys never ask for Face ID (no requireAuthentication), so drop the
+        // plugin's generic Face ID prompt rather than declare an unused
+        // permission. `false` deletes the key (config-plugins applyPermissions).
+        ["expo-secure-store", { faceIDPermission: false }],
         "react-native-bottom-tabs",
         // MediaPipe + ExecuTorch both set a conditional linker flag that
         // CocoaPods can't merge (it drops both); see the plugin for details.
@@ -58,11 +72,9 @@ export default (): ExpoConfig => ({
         [
             "react-native-vision-camera",
             {
-                cameraPermissionText:
-                    "Speech Coach needs camera access to record your practice sessions.",
+                cameraPermissionText: CAMERA_PERMISSION,
                 enableMicrophonePermission: true,
-                microphonePermissionText:
-                    "Speech Coach needs microphone access to record your voice.",
+                microphonePermissionText: MICROPHONE_PERMISSION,
                 enableCodeScanner: false,
                 enableFrameProcessors: true,
             },
@@ -97,8 +109,9 @@ export default (): ExpoConfig => ({
                 androidPermissions: [],
             },
         ],
-        // Live on-device STT for the Tongue-Twister Drill mode (Phase 3) —
-        // separate from react-native-audio-api's offline file decode above.
+        // Live STT for drills, rehearse, conversation practice and the setup
+        // check — separate from react-native-audio-api's offline file decode
+        // above.
         // NOTE: this package's versioning now tracks Expo SDK numbers
         // directly (56.x.x = SDK 56); no 57.x.x release exists yet even
         // though this project is on SDK 57 (installed 56.0.1 anyway, since
@@ -108,8 +121,8 @@ export default (): ExpoConfig => ({
         [
             "expo-speech-recognition",
             {
-                microphonePermission: "Speech Coach needs microphone access for live tongue-twister drills.",
-                speechRecognitionPermission: "Speech Coach uses speech recognition to score your tongue-twister drills.",
+                microphonePermission: MICROPHONE_PERMISSION,
+                speechRecognitionPermission: SPEECH_RECOGNITION_PERMISSION,
                 androidSpeechServicePackages: ["com.google.android.googlequicksearchbox"],
             },
         ],
