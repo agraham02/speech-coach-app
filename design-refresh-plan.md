@@ -157,7 +157,7 @@ possible so screens change with little or no edit.
 | `PrimaryButton` | Pill, 56 tall (`size="md"` is 44, `"sm"` is 36). Primary is ink; secondary is a raised fill; ghost is text; danger is red. Optional leading/trailing icon. Light haptic. |
 | `IconButton` (new) | 40px circle with a subtle fill, for back, close, settings and more. |
 | `Card` | Borderless. Optional `onPress` (it scales), `tone="raised"`, `padding`. |
-| `HeroCard` | "Aura": a soft glow in a skill color, layered radial-style gradients, a slow 8s breathing drift. Used once per screen at most. |
+| `HeroCard` / `Aura` | A soft glow in a meaningful color: two SVG radial gradients that fade in on mount and stay still. Used once per screen at most. |
 | `Header` | IconButton back; serif title (large on roots); sentence-case eyebrow. |
 | `Screen` (new) | The layout primitive: safe area, gutter and optional scroll. A large serif title that hands off to a compact title in the bar as you scroll. A sticky footer for the primary action, with a fade. Staggered enter. Handles the tab bar inset. |
 | `ScreenContainer` | Kept for camera and custom screens, with the new gutter. |
@@ -244,10 +244,49 @@ Each step is a commit on `feature/design-refresh`.
 - No all-caps labels.
 - Only the primary action is ink. At most one per screen.
 - Serif only for titles, prompts, lines and big numbers. Never serif for
-  controls or body text.
+  controls or body text. Marked lines (Mark It Up) stay in sans: stress is
+  shown in bold, which the serif doesn't have.
 - Custom fonts never get `fontWeight`. Use `Txt weight` or `t.font()`.
 - Camera screens stay dark in both schemes (`darkColors`).
 
 ## Status
 
-(Updated as the build goes.)
+Built 2026-10-12 on `feature/design-refresh`, checked on the Android
+emulator in dark and light mode. tsc is clean and all 451 tests pass.
+
+**Done**
+- **Foundation:** tokens (palettes, type, radius, layout, shadows), motion
+  and haptics, Instrument Sans and Serif loaded at runtime, and the legacy
+  `theme.ts` mapped onto the new values. Sora is removed.
+- **Components:**
+  - basics: `Txt`, `PressableScale`, buttons, `IconButton`, `Card`;
+  - layout: `HeroCard`/`Aura`, `Header`, `Screen` (collapsing title, pinned
+    footer), `ListGroup`/`ListRow`/`SwitchRow`, `StepTimeline`, `Enter`;
+  - controls: `Chip`, `SegmentedControl`, `ChoiceList`;
+  - data display: rings, `StatTile`, `MetricChart`, `Badge`, `Banner`,
+    `SectionHeader`, `EmptyState`;
+  - feedback: toast, `Skeleton`;
+  - the Android tab bar.
+- **Redesigned screens:**
+  - home and core: Today, Learn, Progress, Library, Settings, Practice;
+  - first run: onboarding (welcome and questions);
+  - after a take: Result;
+  - practice flow: Daily session, Lesson;
+  - recording: record button, prep overlay, prompt banner.
+- **Swept:** every text style is on Instrument Sans (codemod). All-caps
+  labels are now sentence case. Older screens use the shared `Header`.
+  Outlined inputs and chips are now filled. Sheets have 28pt corners and
+  serif titles. Switches are green. Spoken words are serif (prompts, drill
+  passages, feeling prompts, line reps).
+
+**Left as is** (they use the shared components, so they already follow the
+look, but their layouts weren't reworked):
+- setup check, skill check, starting point;
+- drill and conversation runners, guided exercises;
+- Prime, Debrief and the conversation log;
+- Mark It Up's study, rehearse and edit screens, and Move It;
+- Preview, Trends, Curriculum, Frameworks, the prompt library, the dev
+  screens.
+
+**Not verified on device:** the iOS native tab bar with the ink tint; light
+mode beyond Today and Progress; large text (font scale 1.3).
