@@ -14,10 +14,23 @@ import { SkillRings } from "../components/common/SkillRings";
 import { ListRow } from "../components/common/ListRow";
 import { ConversationTodayCard } from "../components/conversation/ConversationTodayCard";
 import { FeelingWeekCard } from "../components/feelings/FeelingWeekCard";
+import { TodaySkillCheckCard } from "../components/onboarding/SkillCheckCards";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
 import { getCompletedTopUpSlots, getSkillStates, getTodaysPlan, getTopUpPlan, getPracticeDates, getSessionsDoneToday, type StoredPlan } from "../services/db/progressRepo";
 import { getDailySessionGoal, getPlanMinutes, getPracticeAnchor, getReminderSettings, setPlanMinutes } from "../services/prefs/prefsStore";
 import { formatReminderHour, reminderHours } from "../domain/reminderSettings";
+import { daysUntilEvent, defaultsFromProfile, type EventKind } from "../domain/profile";
+import { getUserProfile } from "../services/prefs/prefsStore";
+import { todayISODate } from "../utils/dateUtils";
+
+const EVENT_LABELS: Record<EventKind, string> = {
+  interview: "interview",
+  talk: "talk",
+  toast: "toast",
+  pitch: "pitch",
+  date: "date",
+  other: "big day",
+};
 import { computeStreaks } from "../domain/streaks";
 import { SKILLS } from "../domain/mastery";
 import { getLesson } from "../content/lessons";
@@ -53,6 +66,9 @@ export function TodayScreen() {
   const [doneToday, setDoneToday] = useState(0);
   const [topUp, setTopUp] = useState<{ slot: 1 | 2; stored: StoredPlan } | null>(null);
   const anchor = getPracticeAnchor();
+  const profile = getUserProfile();
+  const defaults = defaultsFromProfile(profile);
+  const eventDays = daysUntilEvent(profile, todayISODate());
 
   const load = useCallback(
     (m = minutes) => {
@@ -65,7 +81,7 @@ export function TodayScreen() {
       // The next top-up, once the main plan is finished.
       Promise.all([getTodaysPlan(m), getCompletedTopUpSlots()]).then(async ([main, slots]) => {
         const next = ([1, 2] as const).find((s) => s < g && !slots.includes(s));
-        setTopUp(main.completedAt && next ? { slot: next, stored: await getTopUpPlan(next) } : null);
+        setTopUp(main.completedAt && next ? { slot: next, stored: await getTopUpPlan(next, { quiet: defaultsFromProfile(getUserProfile()).quiet }) } : null);
       });
     },
     [minutes],
@@ -90,7 +106,7 @@ export function TodayScreen() {
   return (
     <ScreenContainer style={styles.container} edges={["top", "left", "right"]}>
       <Header
-        eyebrow={greeting()}
+        eyebrow={profile?.name ? `${greeting()}, ${profile.name}` : greeting()}
         title="Today"
         large
         right={
@@ -109,6 +125,16 @@ export function TodayScreen() {
           </View>
         ) : null}
 
+        {eventDays != null && profile?.event ? (
+          <View style={styles.streak}>
+            <Ionicons name="calendar-outline" size={16} color={colors.accent} />
+            <Txt variant="subhead" weight="600">
+              {eventDays === 0 ? "Your " : `${eventDays} day${eventDays === 1 ? "" : "s"} to your `}
+              {profile.event.note?.trim() || EVENT_LABELS[profile.event.kind]}
+              {eventDays === 0 ? " is today — you've practiced for this." : ""}
+            </Txt>
+          </View>
+        ) : null}
         {goal > 1 ? (
           <View style={styles.goalRow} accessibilityLabel={`${Math.min(doneToday, goal)} of ${goal} sessions today`}>
             {Array.from({ length: goal }, (_, i) => (
@@ -119,11 +145,21 @@ export function TodayScreen() {
             </Txt>
           </View>
         ) : null}
+        {streak === 0 && profile?.why ? (
+          <Card style={styles.card}>
+            <Txt variant="caption2" tone="muted" uppercase>
+              Why you started
+            </Txt>
+            <Txt variant="callout">“{profile.why}”</Txt>
+          </Card>
+        ) : null}
         {anchor && doneToday === 0 ? (
           <Txt variant="footnote" tone="muted">
             Your plan: {anchor.charAt(0).toLowerCase() + anchor.slice(1)}, practice.
           </Txt>
         ) : null}
+
+        <TodaySkillCheckCard />
 
         {topUp ? <TopUpCard slot={topUp.slot} stored={topUp.stored} goal={goal} onStart={() => navigation.navigate("DailySession", { slot: topUp.slot })} /> : null}
 
@@ -188,7 +224,7 @@ export function TodayScreen() {
           </Card>
         ) : null}
 
-        <FeelingWeekCard />
+        <FeelingWeekCard featured={defaults.featureFeelings} />
 
         <ConversationTodayCard />
 

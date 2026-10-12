@@ -5,7 +5,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import MaskedView from "@react-native-masked-view/masked-view";
 import { tokenizeScript, type Script } from "../../domain/scriptTypes";
-import { filterMarks, marksByWord, type MarkLevel, type WordMarks } from "../../domain/cadence/marks";
+import { fillPlaceholder, filterMarks, marksByWord, type MarkLevel, type WordMarks } from "../../domain/cadence/marks";
+import { getUserProfile } from "../../services/prefs/prefsStore";
 import { darkColors as colors, radii, spacing, typography } from "../../theme/theme";
 import { logger } from "../../utils/logger";
 
@@ -112,6 +113,7 @@ export function ScriptTeleprompterOverlay({ script, markLevel, isRecording, bott
   const words = useMemo(() => marksByWord({ text: script.text, marks: filterMarks(script.marks, markLevel) }), [script, markLevel]);
   const cumulativeFractions = useMemo(() => buildCumulativeFractions(computeWordWeights(tokens, words)), [tokens, words]);
   const phraseLines = markLevel !== "none";
+  const name = useMemo(() => getUserProfile()?.name?.trim() || undefined, []);
 
   const [viewportHeight, setViewportHeight] = useState(0);
   const [contentHeight, setContentHeight] = useState(0);
@@ -191,7 +193,7 @@ export function ScriptTeleprompterOverlay({ script, markLevel, isRecording, bott
             {words.map((w, index) => (
               <Fragment key={index}>
                 {w.note && phraseLines ? <Text style={styles.note}>{`${index > 0 ? "\n" : ""}${w.note}\n`}</Text> : null}
-                <Text style={wordStyle(w, isRecording && index === currentWordIndex)}>{w.word}</Text>
+                <Text style={wordStyle(w, isRecording && index === currentWordIndex)}>{fillPlaceholder(w.word, name)}</Text>
                 {w.inflection ? <Text style={styles.arrow}>{w.inflection === "rise" ? "↗" : "↘"}</Text> : null}
                 {w.gapAfter && phraseLines ? (
                   <Text style={styles.gap}>{w.gapAfter === "long_pause" ? "  ‖\n\n" : "  |\n"}</Text>

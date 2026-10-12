@@ -10,6 +10,7 @@ import {
   phrases,
   sanitizeMarks,
   sliceMarked,
+  fillPlaceholder,
   toggleEmphasis,
   toggleInflection,
   type Mark,
@@ -253,5 +254,13 @@ describe("sliceMarked", () => {
         { kind: "slow", from: 0, to: 1 },
       ]),
     );
+  });
+});
+
+describe("placeholders", () => {
+  it("fills [Name] for display only", () => {
+    expect(fillPlaceholder("[Name],", "Sam")).toBe("Sam,");
+    expect(fillPlaceholder("[Groom]'s", "Sam")).toBe("[Groom]'s");
+    expect(fillPlaceholder("[Name].", undefined)).toBe("[Name].");
   });
 });

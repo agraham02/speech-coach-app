@@ -10,8 +10,10 @@ import { VideoPlayback } from "../components/result/VideoPlayback";
 import { isFreeRecordPrompt } from "../data/topics";
 import { deleteRecording } from "../services/storage/videoStorage";
 import { createSessionFromTake } from "../services/pipeline/sessionPipeline";
+import { setVideoKeepsake } from "../services/data/videoKeepsakes";
 import { logger } from "../utils/logger";
 import { completePracticeStep } from "../services/practice/practiceEvents";
+import { getCloudReviewDefault, getNotionDefault } from "../services/prefs/prefsStore";
 import { spacing, typography } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
@@ -25,11 +27,11 @@ export function PreviewScreen({ route, navigation }: Props) {
   const { colors } = useTheme();
   const { videoUri, durationSecondsLocal, ...subject } = route.params;
   const isFreeRecord = subject.kind === "prompt" && isFreeRecordPrompt(subject.prompt.id);
-  const [wantsCloudReview, setWantsCloudReview] = useState(false);
+  const [wantsCloudReview, setWantsCloudReview] = useState(() => !(subject.kind === "prompt" && subject.feeling) && getCloudReviewDefault());
   // A feeling rep is private by default: nothing leaves the phone unless
   // switched on here.
   const isFeeling = subject.kind === "prompt" && !!subject.feeling;
-  const [wantsNotionSync, setWantsNotionSync] = useState(() => !isFeeling && isFreeRecord);
+  const [wantsNotionSync, setWantsNotionSync] = useState(() => !isFeeling && (getNotionDefault() ?? isFreeRecord));
   const [isSaving, setIsSaving] = useState(false);
   // Set once the take has been saved or deliberately thrown away, so leaving
   // the screen no longer needs a confirmation.
@@ -98,7 +100,14 @@ export function PreviewScreen({ route, navigation }: Props) {
         wantsNotionSync,
       });
       // A lesson / daily-plan rep counts as done once the take is kept.
-      if (subject.kind === "prompt") completePracticeStep(subject.practice, null);
+      if (subject.kind === "prompt") completePracticeStep(subject.practice, null, sessionId);
+      if (subject.kind === "prompt" && subject.skillCheck) {
+        // Kept for the side-by-side at the 30-day retake; no scored result
+        // during onboarding.
+        await setVideoKeepsake(sessionId, true);
+        markResolved(() => navigation.goBack());
+        return;
+      }
       markResolved(() => navigation.replace("Result", { sessionId }));
     } catch (error) {
       logger.error(`[preview] save failed — ${(error as Error).message}`);

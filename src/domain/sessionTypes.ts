@@ -66,6 +66,9 @@ export type RecordingSubject =
       feeling?: { emotion: EmotionId; angle: number };
       // Shown during prep, hidden once recording starts.
       prepNotes?: string[];
+      // The onboarding skill check's talk: kept as a keepsake, and back to
+      // the check after saving instead of a scored result.
+      skillCheck?: boolean;
     }
   // cuesEnabled is what's persisted (marks shown or not); markLevel is the
   // finer choice made on the Study screen.

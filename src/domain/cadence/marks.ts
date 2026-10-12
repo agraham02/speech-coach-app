@@ -260,3 +260,9 @@ export function sliceMarked(marked: MarkedText, from: number, to: number): Marke
   }
   return { text: words.join(" "), marks };
 }
+
+// Speeches carry placeholders like "[Name]". Shown with your name filled in
+// (display only — the text and its word positions never change).
+export function fillPlaceholder(word: string, name: string | undefined): string {
+  return name ? word.replace("[Name]", name) : word;
+}

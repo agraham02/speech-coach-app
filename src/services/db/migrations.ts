@@ -604,6 +604,28 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
     `);
     currentVersion = await commitVersion(db, 20);
   }
+
+  if (currentVersion < 21) {
+    // Onboarding: skill checks (and the 30-day retake) and the monthly
+    // "how do you feel about speaking?" check-in.
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS skill_checks (
+        id TEXT PRIMARY KEY NOT NULL,
+        taken_at TEXT NOT NULL,
+        topic_id TEXT,
+        session_id TEXT,
+        pieces_json TEXT NOT NULL DEFAULT '{}',
+        results_json TEXT,
+        felt INTEGER,
+        retake_of TEXT
+      );
+      CREATE TABLE IF NOT EXISTS confidence_checkins (
+        date TEXT PRIMARY KEY NOT NULL,
+        rating INTEGER NOT NULL
+      );
+    `);
+    currentVersion = await commitVersion(db, 21);
+  }
 }
 
 // Commits each migration's version as soon as that migration finishes.

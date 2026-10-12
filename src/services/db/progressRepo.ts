@@ -4,6 +4,8 @@ import { getDrillCompletionDates } from "./drillsRepo";
 import { generateId } from "../../utils/generateId";
 import { isoDateFromDate, todayISODate } from "../../utils/dateUtils";
 import { buildTopUpPlan } from "../../domain/dailyGoal";
+import { priorityFor } from "../../domain/profile";
+import { getUserProfile } from "../prefs/prefsStore";
 import type { SkillId } from "../../theme/tokens";
 import { DRILL_SKILL, type DrillOutcome, type DrillType } from "../../domain/drills/drillSpecs";
 import {
@@ -49,6 +51,17 @@ async function saveSkill(skill: SkillId, state: SkillState): Promise<void> {
      ON CONFLICT(skill) DO UPDATE SET rating = excluded.rating, attempts = excluded.attempts, last_practiced_at = excluded.last_practiced_at`,
     [skill, state.rating, state.attempts, state.lastPracticedAt],
   );
+}
+
+// Starting ratings from the onboarding skill check. Only for skills with no
+// practice history yet — real attempts always outrank a five-minute sample.
+export async function seedSkillRatings(ratings: Partial<Record<SkillId, number | null>>): Promise<void> {
+  const skills = await getSkillStates();
+  for (const skill of SKILLS) {
+    const rating = ratings[skill];
+    if (rating == null || skills[skill].attempts > 0) continue;
+    await saveSkill(skill, { rating, attempts: 0, lastPracticedAt: skills[skill].lastPracticedAt });
+  }
 }
 
 export async function getDrillLevel(type: DrillType): Promise<number> {
@@ -266,6 +279,7 @@ export async function getTodaysPlan(minutes: PlanMinutes, regenerate = false): P
     >,
     recentFocus: recent.map((r) => (JSON.parse(r.plan_json) as DailyPlan).focusSkill),
     lessons: Object.fromEntries(Object.entries(lessons).map(([id, l]) => [id, { done: l.done, nextReviewAt: l.nextReviewAt }])),
+    priority: priorityFor(getUserProfile(), date),
   });
   await db.runAsync(
     `INSERT OR REPLACE INTO daily_plans (date, plan_json, completed_steps_json, completed_at) VALUES (?, ?, '[]', NULL)`,

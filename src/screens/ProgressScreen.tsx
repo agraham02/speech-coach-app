@@ -13,6 +13,7 @@ import { SkillRings } from "../components/common/SkillRings";
 import { MetricChart } from "../components/common/MetricChart";
 import { StatTile } from "../components/common/StatTile";
 import { ConversationProgress } from "../components/conversation/ConversationProgress";
+import { ProgressProfileCards } from "../components/onboarding/SkillCheckCards";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
 import { getAllDrillLevels, getDailySessionCounts, getPracticeDates, getRecentDrillAttempts, getSkillStates } from "../services/db/progressRepo";
 import { getDailySessionGoal, getReminderSettings } from "../services/prefs/prefsStore";
@@ -109,6 +110,7 @@ export function ProgressScreen() {
     <ScreenContainer style={styles.container} edges={["top", "left", "right"]}>
       <Header title="Progress" large />
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: tabBarInset + 24 }]} showsVerticalScrollIndicator={false}>
+        <ProgressProfileCards />
         {mastery ? (
           <Card style={styles.card}>
             <Txt variant="caption2" tone="muted" uppercase>

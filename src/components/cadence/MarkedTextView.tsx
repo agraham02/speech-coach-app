@@ -1,7 +1,8 @@
 import { Fragment, useMemo } from "react";
 import { View, type TextStyle } from "react-native";
 import { Txt } from "../common/Txt";
-import { filterMarks, marksByWord, phrases, type MarkKind, type MarkLevel, type MarkedText, type WordMarks } from "../../domain/cadence/marks";
+import { getUserProfile } from "../../services/prefs/prefsStore";
+import { fillPlaceholder, filterMarks, marksByWord, phrases, type MarkKind, type MarkLevel, type MarkedText, type WordMarks } from "../../domain/cadence/marks";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 export type MarkedTextSize = "large" | "medium" | "small";
@@ -40,6 +41,7 @@ export function MarkedTextView({ marked, level = "full", hidden, size = "medium"
   const groups = useMemo(() => phrases(visible), [visible]);
   const base = SIZES[size];
   const markColor = colors.skill.cadence.fg;
+  const name = useMemo(() => getUserProfile()?.name?.trim() || undefined, []);
 
   const wordStyle = (w: WordMarks): TextStyle => {
     const style: TextStyle = { ...base, color: colors.textPrimary, fontWeight: "500" };
@@ -66,7 +68,7 @@ export function MarkedTextView({ marked, level = "full", hidden, size = "medium"
 
   const renderWord = (w: WordMarks, i: number, inFlow: boolean, last: boolean) => (
     <Fragment key={i}>
-      <Txt style={wordStyle(w)}>{w.word}</Txt>
+      <Txt style={wordStyle(w)}>{fillPlaceholder(w.word, name)}</Txt>
       {w.inflection ? (
         <Txt style={[styles.arrow, { fontSize: base.fontSize * 0.95, lineHeight: base.lineHeight, color: markColor }]}>
           {w.inflection === "rise" ? "↗" : "↘"}

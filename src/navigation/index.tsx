@@ -20,6 +20,7 @@ import { DebriefScreen } from "../screens/DebriefScreen";
 import { ConversationLogScreen } from "../screens/ConversationLogScreen";
 import { AsrLabScreen } from "../screens/AsrLabScreen";
 import { reconcileOnLaunch } from "../services/pipeline/reconcile";
+import { autoCleanupVideos } from "../services/data/videoKeepsakes";
 import type { PracticeContext } from "../domain/practice";
 import type { ConversationDrillType, DrillType } from "../domain/drills/drillSpecs";
 import { HistoryScreen } from "../screens/HistoryScreen";
@@ -40,6 +41,12 @@ import { SpeechStudyScreen } from "../screens/SpeechStudyScreen";
 import { RehearseScreen } from "../screens/RehearseScreen";
 import { MoveItScreen } from "../screens/MoveItScreen";
 import { FeelingScreen } from "../screens/FeelingScreen";
+import { OnboardingScreen } from "../screens/OnboardingScreen";
+import { SetupCheckScreen } from "../screens/SetupCheckScreen";
+import { SkillCheckScreen } from "../screens/SkillCheckScreen";
+import { StartingPointScreen } from "../screens/StartingPointScreen";
+import { OnboardingGateScreen } from "../screens/OnboardingGateScreen";
+import { isOnboardingComplete } from "../services/prefs/prefsStore";
 import { PromptLibraryScreen } from "../screens/PromptLibraryScreen";
 import { AddPromptScreen } from "../screens/AddPromptScreen";
 import { PlanYourPointScreen } from "../screens/PlanYourPointScreen";
@@ -75,6 +82,13 @@ export type RootStackParamList = {
   Rehearse: { speechId: string; markLevel?: MarkLevel };
   MoveIt: { practice?: PracticeContext } | undefined;
   Feeling: { practice?: PracticeContext } | undefined;
+  OnboardingGate: undefined;
+  // "profile": the questions only, for someone who's used the app before.
+  Onboarding: { mode?: "full" | "profile" } | undefined;
+  SetupCheck: undefined;
+  // defer: put it off until tomorrow. retake: the 30-day check.
+  SkillCheck: { defer?: boolean; retake?: boolean } | undefined;
+  StartingPoint: { checkId: string };
   PromptLibrary: undefined;
   AddPrompt: undefined;
   PlanYourPoint: { prompt: Prompt };
@@ -278,6 +292,7 @@ export function AppNavigator() {
   // abandoned video files (see pipeline/reconcile.ts).
   useEffect(() => {
     reconcileOnLaunch();
+    autoCleanupVideos().catch((err) => logger.error(`[videos] auto-cleanup failed — ${(err as Error).message}`));
   }, []);
 
   useEffect(() => {
@@ -286,8 +301,13 @@ export function AppNavigator() {
 
   return (
     <NavigationContainer ref={navigationRef} theme={navTheme}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={isOnboardingComplete() ? "Tabs" : "OnboardingGate"}>
         <Stack.Screen name="Tabs" component={Tabs} />
+        <Stack.Screen name="OnboardingGate" component={OnboardingGateScreen} />
+        <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ gestureEnabled: false }} />
+        <Stack.Screen name="SetupCheck" component={SetupCheckScreen} options={{ gestureEnabled: false }} />
+        <Stack.Screen name="SkillCheck" component={SkillCheckScreen} />
+        <Stack.Screen name="StartingPoint" component={StartingPointScreen} options={{ gestureEnabled: false }} />
         <Stack.Screen name="Settings" component={SettingsScreen} options={{ presentation: "modal" }} />
         <Stack.Screen name="AsrLab" component={AsrLabScreen} />
         <Stack.Screen name="Practice" component={HomeScreen} />

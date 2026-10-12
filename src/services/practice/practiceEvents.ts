@@ -6,6 +6,8 @@ import { logger } from "../../utils/logger";
 export interface PracticeStepDone {
   context: PracticeContext;
   score: number | null; // 0-1 when the step was scored
+  // Set when the step was a recording that became a session.
+  sessionId?: string;
 }
 
 type Listener = (event: PracticeStepDone) => void;
@@ -21,7 +23,7 @@ export function subscribePracticeSteps(listener: Listener): () => void {
 // Called by a drill / guided / rep screen when its step is finished. Marks
 // the plan step done (persisted, so the plan resumes after a restart) and
 // tells the lesson or daily-session screen underneath.
-export async function completePracticeStep(context: PracticeContext | undefined, score: number | null): Promise<void> {
+export async function completePracticeStep(context: PracticeContext | undefined, score: number | null, sessionId?: string): Promise<void> {
   if (!context) return;
   try {
     if (context.planDate && context.planStepId) {
@@ -33,5 +35,5 @@ export async function completePracticeStep(context: PracticeContext | undefined,
   } catch (error) {
     logger.error(`[practice] couldn't save plan progress — ${(error as Error).message}`);
   }
-  listeners.forEach((l) => l({ context, score }));
+  listeners.forEach((l) => l({ context, score, sessionId }));
 }

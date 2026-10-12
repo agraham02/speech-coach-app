@@ -22,6 +22,8 @@ import { DRILL_TITLES, type DrillOutcome } from "../domain/drills/drillSpecs";
 import { uniqueContentWords, usedWord } from "../domain/dsp/volumePauses";
 import { chainWords, nextSeed } from "../domain/drills/wordChain";
 import { CHAIN_SEEDS } from "../content/drillContent";
+import { defaultsFromProfile } from "../domain/profile";
+import { getUserProfile } from "../services/prefs/prefsStore";
 import { getDrillLevel, recordDrillOutcome } from "../services/db/progressRepo";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { showGlobalToast } from "../components/common/ToastProvider";
@@ -48,6 +50,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
   const startedAtRef = useRef(0);
   const finishingRef = useRef(false);
   const seedRef = useRef(Math.floor(Math.random() * 100_000));
+  const profileDefaults = useMemo(() => defaultsFromProfile(getUserProfile()), []);
   // Word chain: every seed shown so far, and where in the transcript the
   // current one started (the chain on screen restarts with each seed).
   const [seeds, setSeeds] = useState<string[]>([]);
@@ -194,6 +197,9 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         speakingMs,
         volume,
         seedWords: setup.live === "chain" ? seeds : undefined,
+        penalizeResets: !profileDefaults.stutterMode,
+        ignoreSlips: profileDefaults.stutterMode,
+        relaxedAccuracy: profileDefaults.relaxAccuracy,
       });
       const change = await recordDrillOutcome({
         drillType: setup.type,

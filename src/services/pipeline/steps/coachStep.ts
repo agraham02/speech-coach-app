@@ -1,4 +1,6 @@
 import { getSessionById } from "../../db/sessionsRepo";
+import { defaultsFromProfile } from "../../../domain/profile";
+import { getUserProfile } from "../../prefs/prefsStore";
 import { getArtifact, putArtifact } from "../../db/artifactsRepo";
 import { describeSessionSubject } from "../../sessions/sessionSubject";
 import { ruleCoach, type CoachOutput } from "../../../domain/coach/ruleCoach";
@@ -17,6 +19,7 @@ import { measuredVoice, refreshSessionScore } from "../../sessions/sessionScoreS
 export async function coachStep(sessionId: string): Promise<void> {
   const session = await getSessionById(sessionId);
   if (!session) throw new StepError("Session not found.");
+  const stutterMode = defaultsFromProfile(getUserProfile()).stutterMode;
   const [pauses, presence, subject] = await Promise.all([
     getArtifact<PauseAnalysis>(sessionId, "pauses"),
     getArtifact<PresenceMetrics>(sessionId, "presence"),
@@ -29,8 +32,10 @@ export async function coachStep(sessionId: string): Promise<void> {
     transcript: session.transcriptVerbatim,
     durationSeconds: session.durationSeconds,
     wpmAvg,
-    fillerRatePerMinute: session.fillerRatePerMinute,
-    pauses,
+    // Stuttering: repetitions, blocks and interjections are never coached
+    // as fillers or stalls (onboarding question 2.2).
+    fillerRatePerMinute: stutterMode ? null : session.fillerRatePerMinute,
+    pauses: stutterMode && pauses ? { ...pauses, hesitations: 0, midPhrasePauses: 0 } : pauses,
     presence,
     pitchRangeHz,
     promptText: session.sessionType === "free_record" ? null : subject.title,

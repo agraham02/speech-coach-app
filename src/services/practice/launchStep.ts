@@ -9,6 +9,11 @@ import { getRecentlyUsedPromptIds } from "../db/sessionsRepo";
 import { pickRandomPrompt } from "../../domain/pickTodaysPrompt";
 import { isFreeRecordPrompt } from "../../data/topics";
 import type { LineCategory } from "../../content/lines";
+import { CONTEXT_LABELS, CONTEXT_PROMPTS } from "../../data/contextPrompts";
+import { daysUntilEvent, promptContexts } from "../../domain/profile";
+import { makeAdhocPrompt } from "../../domain/sessionTypes";
+import { getUserProfile } from "../prefs/prefsStore";
+import { todayISODate } from "../../utils/dateUtils";
 
 type Nav = NavigationProp<RootStackParamList>;
 
@@ -46,7 +51,20 @@ export async function launchStep(navigation: Nav, step: LessonStep, practice: Pr
       const [prompts, recent] = await Promise.all([getAllPrompts(), getRecentlyUsedPromptIds(20)]);
       const eligible = prompts.filter((p) => !isFreeRecordPrompt(p.id));
       const tiered = eligible.filter((p) => p.difficultyTier === params.tier);
-      const prompt = pickRandomPrompt(tiered.length >= 5 ? tiered : eligible, recent);
+      // Half the reps (all of them close to an event) come from the
+      // situations you said matter to you.
+      const profile = getUserProfile();
+      const today = todayISODate();
+      const contexts = promptContexts(profile, today);
+      const daysToEvent = daysUntilEvent(profile, today);
+      const useContext = contexts.length > 0 && ((daysToEvent != null && daysToEvent <= 14) || Math.random() < 0.5);
+      const prompt = useContext
+        ? (() => {
+            const context = contexts[Math.floor(Math.random() * contexts.length)];
+            const list = CONTEXT_PROMPTS[context];
+            return makeAdhocPrompt(list[Math.floor(Math.random() * list.length)], CONTEXT_LABELS[context]);
+          })()
+        : pickRandomPrompt(tiered.length >= 5 ? tiered : eligible, recent);
       navigation.navigate("Recording", {
         kind: "prompt",
         prompt,

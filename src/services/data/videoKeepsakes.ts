@@ -1,4 +1,6 @@
 import { File } from "expo-file-system";
+import { getLastAutoCleanup, getVideoRetentionDays, setLastAutoCleanup } from "../prefs/prefsStore";
+import { todayISODate } from "../../utils/dateUtils";
 import { Video } from "react-native-compressor";
 import { getDatabase } from "../db/database";
 import { deleteSessionVideo } from "../db/sessionsRepo";
@@ -114,4 +116,15 @@ async function compressInPlace(uri: string): Promise<void> {
 export async function setVideoKeepsake(sessionId: string, keep: boolean): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(`UPDATE sessions SET video_keepsake = ? WHERE id = ?`, [keep ? 1 : 0, sessionId]);
+}
+
+// Runs the cleanup on its own, at most once a day, when you chose how long
+// to keep videos during onboarding (0 = forever, unset = only on request).
+export async function autoCleanupVideos(): Promise<void> {
+  const days = getVideoRetentionDays();
+  const today = todayISODate();
+  if (!days || getLastAutoCleanup() === today) return;
+  setLastAutoCleanup(today);
+  const { deleted } = await deleteOldVideos(days);
+  if (deleted) logger.info(`[videos] auto-cleanup removed ${deleted} video(s) older than ${days} days`);
 }

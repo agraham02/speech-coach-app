@@ -259,14 +259,16 @@ export function outcome(score: number, summary: string, success = score >= SUCCE
   return { score: Math.round(clamp(score, 0, 1) * 100) / 100, success, summary };
 }
 
-export function scoreAccuracy(accuracyPercent: number, wpm?: number, targetWpm?: number): DrillOutcome {
+// `passAt` drops to 0.7 for people whose first language isn't English —
+// live recognition is less sure of their words, which isn't their mistake.
+export function scoreAccuracy(accuracyPercent: number, wpm?: number, targetWpm?: number, passAt = SUCCESS): DrillOutcome {
   const acc = accuracyPercent / 100;
   if (targetWpm && wpm != null) {
     const speedOk = wpm >= targetWpm;
     const score = acc * (speedOk ? 1 : Math.max(0.5, wpm / targetWpm));
-    return outcome(score, `${accuracyPercent}% clear at ${wpm} wpm (target ${targetWpm}+)`, acc >= SUCCESS && speedOk);
+    return outcome(score, `${accuracyPercent}% clear at ${wpm} wpm (target ${targetWpm}+)`, acc >= passAt && speedOk);
   }
-  return outcome(acc, `${accuracyPercent}% clear`);
+  return outcome(acc, `${accuracyPercent}% clear`, acc >= passAt);
 }
 
 export function scorePace(wpm: number, accuracyPercent: number, p: DrillParams): DrillOutcome {

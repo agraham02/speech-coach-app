@@ -24,6 +24,9 @@ export interface PlanInput {
   // Focus skill of previous plans, most recent first.
   recentFocus: SkillId[];
   lessons: Record<string, { done: boolean; nextReviewAt: string | null }>;
+  // Extra focus weight per skill from onboarding (domain/profile.ts): what
+  // gets in your way, fading over a few weeks; an upcoming event's skills.
+  priority?: Partial<Record<SkillId, number>>;
 }
 
 export type PlanStepKind = "warmup" | "line" | "drill" | "guided" | "rep" | "review";
@@ -88,6 +91,7 @@ export function chooseFocusSkill(input: PlanInput): SkillId {
       0.5 * (1 - s.rating / 100) +
       0.3 * (Math.min(daysBetween(s.lastPracticedAt, input.date), 7) / 7) +
       0.2 * (due ? 1 : 0) +
+      (input.priority?.[skill] ?? 0) +
       // tiny deterministic tie-breaker
       (hashString(`${input.date}:${skill}`) % 100) / 10_000;
     if (!best || weight > best.weight) best = { skill, weight };
@@ -187,4 +191,26 @@ export function buildDailyPlan(input: PlanInput): DailyPlan {
   }
 
   return { version: PLAN_VERSION, date: input.date, minutes: input.minutes, focusSkill, lessonId: lesson.id, isReview, steps };
+}
+
+// The next `days` days of plans, simulated — each day's focus counts as
+// practiced, and its lesson as done, for the next. For the "your first week" preview after the
+// skill check; the real plans are still built day by day.
+export function previewPlans(input: PlanInput, days: number): DailyPlan[] {
+  const skills = { ...input.skills };
+  const lessons = { ...input.lessons };
+  const recent = [...input.recentFocus];
+  const out: DailyPlan[] = [];
+  const start = new Date(`${input.date}T12:00:00`);
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const plan = buildDailyPlan({ ...input, date, skills, lessons, recentFocus: [...recent] });
+    out.push(plan);
+    recent.unshift(plan.focusSkill);
+    // Finishing the day's plan finishes its lesson, so the next one comes up.
+    lessons[plan.lessonId] = { done: true, nextReviewAt: null };
+    skills[plan.focusSkill] = { rating: skills[plan.focusSkill].rating + 4, lastPracticedAt: `${date}T12:00:00` };
+  }
+  return out;
 }

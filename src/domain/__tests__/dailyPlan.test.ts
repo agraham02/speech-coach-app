@@ -1,4 +1,4 @@
-import { buildDailyPlan, chooseFocusSkill, type PlanInput } from "../dailyPlan";
+import { buildDailyPlan, chooseFocusSkill, previewPlans, type PlanInput } from "../dailyPlan";
 import { LESSONS, UNITS, getGuided } from "../../content/lessons";
 import { DRILL_SKILL } from "../drills/drillSpecs";
 
@@ -137,5 +137,21 @@ describe("curriculum content", () => {
     const plan = buildDailyPlan(input({ minutes: 8 }));
     const line = plan.steps.find((s) => s.kind === "line")!;
     expect(line.lessonStep).toMatchObject({ kind: "drill", drill: "marked_reading" });
+  });
+});
+
+describe("previewPlans", () => {
+  it("previews a week that rotates through the skills", () => {
+    const week = previewPlans(input({ date: "2026-10-12" }), 7);
+    expect(week).toHaveLength(7);
+    expect(week[6].date).toBe("2026-10-18");
+    expect(new Set(week.map((p) => p.focusSkill)).size).toBeGreaterThanOrEqual(4);
+    // a skill coming back moves on to its next lesson
+    expect(new Set(week.map((p) => p.lessonId)).size).toBe(7);
+  });
+
+  it("leans toward boosted skills early", () => {
+    const week = previewPlans(input({ date: "2026-10-12", priority: { conversation: 0.3 } }), 2);
+    expect(week[0].focusSkill).toBe("conversation");
   });
 });

@@ -9,6 +9,7 @@ import {
 import { DEFAULT_REMINDER_SETTINGS, type ReminderSettings } from "../../domain/reminderSettings";
 import { DEFAULT_CURRICULUM_LEVEL } from "../../domain/curriculum";
 import type { DailyGoal } from "../../domain/dailyGoal";
+import type { UserProfile } from "../../domain/profile";
 
 const storage = createMMKV({ id: "speech-coach-prefs" });
 
@@ -27,6 +28,12 @@ const KEYS = {
   prepSettingsManuallySet: "prepSettingsManuallySet",
   dailySessionGoal: "dailySessionGoal",
   practiceAnchor: "practiceAnchor",
+  userProfile: "userProfile",
+  skillCheckPending: "skillCheckPending",
+  cloudReviewDefault: "cloudReviewDefault",
+  notionDefault: "notionDefault",
+  videoRetentionDays: "videoRetentionDays",
+  lastAutoCleanup: "lastAutoCleanup",
 } as const;
 
 export function getRecordBlindPref(): boolean {
@@ -204,4 +211,71 @@ export function getPracticeAnchor(): string | null {
 export function setPracticeAnchor(anchor: string | null): void {
   if (anchor) storage.set(KEYS.practiceAnchor, anchor);
   else storage.remove(KEYS.practiceAnchor);
+}
+
+// What onboarding learned (domain/profile.ts). Kept here rather than in
+// SQLite because many screens read it synchronously (recording, drills,
+// preview defaults). null until onboarding has started.
+export function getUserProfile(): UserProfile | null {
+  const raw = storage.getString(KEYS.userProfile);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as UserProfile;
+  } catch {
+    return null;
+  }
+}
+
+export function setUserProfile(profile: UserProfile): void {
+  storage.set(KEYS.userProfile, JSON.stringify(profile));
+}
+
+export function isOnboardingComplete(): boolean {
+  return !!getUserProfile()?.onboardingCompletedAt;
+}
+
+// The skill check was put off until "tomorrow, as Day 1".
+export function getSkillCheckPending(): boolean {
+  return storage.getBoolean(KEYS.skillCheckPending) ?? false;
+}
+
+export function setSkillCheckPending(value: boolean): void {
+  storage.set(KEYS.skillCheckPending, value);
+}
+
+// Defaults for the Preview screen's switches (onboarding 3.7). Cloud review
+// is the paid/uploading path, so it's off unless chosen.
+export function getCloudReviewDefault(): boolean {
+  return storage.getBoolean(KEYS.cloudReviewDefault) ?? false;
+}
+
+export function setCloudReviewDefault(value: boolean): void {
+  storage.set(KEYS.cloudReviewDefault, value);
+}
+
+export function getNotionDefault(): boolean | null {
+  return storage.contains(KEYS.notionDefault) ? (storage.getBoolean(KEYS.notionDefault) ?? null) : null;
+}
+
+export function setNotionDefault(value: boolean): void {
+  storage.set(KEYS.notionDefault, value);
+}
+
+// Days to keep full videos before the monthly-keepsake cleanup runs on its
+// own (onboarding 3.8). 0 = keep forever; null = never chosen (cleanup only
+// runs when you ask for it in Settings).
+export function getVideoRetentionDays(): number | null {
+  return storage.contains(KEYS.videoRetentionDays) ? (storage.getNumber(KEYS.videoRetentionDays) ?? null) : null;
+}
+
+export function setVideoRetentionDays(days: number): void {
+  storage.set(KEYS.videoRetentionDays, days);
+}
+
+export function getLastAutoCleanup(): string | null {
+  return storage.getString(KEYS.lastAutoCleanup) ?? null;
+}
+
+export function setLastAutoCleanup(date: string): void {
+  storage.set(KEYS.lastAutoCleanup, date);
 }

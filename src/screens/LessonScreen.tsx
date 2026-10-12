@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
@@ -18,6 +18,8 @@ import { subscribePracticeSteps } from "../services/practice/practiceEvents";
 import { showGlobalToast } from "../components/common/ToastProvider";
 import { SKILL_LABELS } from "../theme/tokens";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
+import { defaultsFromProfile } from "../domain/profile";
+import { getUserProfile } from "../services/prefs/prefsStore";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Lesson">;
 
@@ -46,6 +48,9 @@ export function LessonScreen({ route, navigation }: Props) {
   const lesson = getLesson(route.params.lessonId);
   const styles = useStyles();
   const { colors } = useTheme();
+  // Lots of training already: the explainer starts collapsed (tap to open).
+  const [collapseTeach] = useState(() => defaultsFromProfile(getUserProfile()).collapseTeach);
+  const [showTeach, setShowTeach] = useState<boolean | null>(null);
   const [done, setDone] = useState<Set<number>>(new Set());
   const [state, setState] = useState<LessonState | null>(null);
   const scoresRef = useRef<number[]>([]);
@@ -77,6 +82,7 @@ export function LessonScreen({ route, navigation }: Props) {
 
   if (!lesson) return <ScreenContainer />;
   const skill = colors.skill[lesson.skill];
+  const teachOpen = showTeach ?? !collapseTeach;
 
   return (
     <ScreenContainer style={styles.container}>
@@ -88,11 +94,20 @@ export function LessonScreen({ route, navigation }: Props) {
               Why it matters
             </Txt>
           </View>
-          <Txt variant="callout">{lesson.teach.why}</Txt>
-          <Txt variant="caption2" tone="muted" uppercase>
-            How
-          </Txt>
-          {lesson.teach.how.map((h, i) => (
+          {!teachOpen ? (
+            <Pressable onPress={() => setShowTeach(true)} accessibilityRole="button">
+              <Txt variant="callout" tone="secondary">
+                {lesson.teach.how.join(" · ")} <Txt variant="callout" tone="accent">More</Txt>
+              </Txt>
+            </Pressable>
+          ) : null}
+          {teachOpen ? <Txt variant="callout">{lesson.teach.why}</Txt> : null}
+          {teachOpen ? (
+            <Txt variant="caption2" tone="muted" uppercase>
+              How
+            </Txt>
+          ) : null}
+          {(teachOpen ? lesson.teach.how : []).map((h, i) => (
             <View key={h} style={styles.howRow}>
               <Txt variant="headline" color={skill.fg}>
                 {i + 1}
@@ -102,9 +117,11 @@ export function LessonScreen({ route, navigation }: Props) {
               </Txt>
             </View>
           ))}
-          <Txt variant="caption1" tone="muted">
-            Source: {lesson.teach.source}
-          </Txt>
+          {teachOpen ? (
+            <Txt variant="caption1" tone="muted">
+              Source: {lesson.teach.source}
+            </Txt>
+          ) : null}
         </Card>
 
         {state?.done ? (

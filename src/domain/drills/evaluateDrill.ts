@@ -27,6 +27,10 @@ export interface DrillMeasurements {
   seedWords?: string[];
   // Word chain: off for people who stutter, so blocks never cost points.
   penalizeResets?: boolean;
+  // Stuttering: hesitations and fillers never count as slips (Just a Minute).
+  ignoreSlips?: boolean;
+  // Non-native speakers: word-following drills pass at 70% instead of 80%.
+  relaxedAccuracy?: boolean;
 }
 
 export interface DrillDetails {
@@ -62,7 +66,7 @@ export function evaluateDrill(setup: DrillSetup, m: DrillMeasurements): { outcom
         details.pauses = vol.pauses.length;
         return { outcome: scorePauses(vol.pauses.length, setup.pauseMarks ?? 1), details };
       }
-      return { outcome: scoreAccuracy(score.accuracyPercent), details };
+      return { outcome: scoreAccuracy(score.accuracyPercent, undefined, undefined, m.relaxedAccuracy ? 0.7 : undefined), details };
     }
     case "count": {
       const counted = uniqueContentWords(rawTokens, setup.letter);
@@ -85,7 +89,9 @@ export function evaluateDrill(setup: DrillSetup, m: DrillMeasurements): { outcom
       const span = vol.speechStartMs != null && vol.speechEndMs != null ? vol.speechEndMs - vol.speechStartMs : m.speakingMs;
       const spokeRatio = span / ((setup.seconds ?? 60) * 1000);
       return {
-        outcome: scoreJustAMinute(vol.pauses.length, heard.fillerCount, setup.params.allowedHesitations ?? 1, spokeRatio),
+        outcome: m.ignoreSlips
+          ? scoreJustAMinute(0, 0, 0, spokeRatio)
+          : scoreJustAMinute(vol.pauses.length, heard.fillerCount, setup.params.allowedHesitations ?? 1, spokeRatio),
         details: { hesitations: vol.pauses.length, fillers: heard.fillerCount },
       };
     }

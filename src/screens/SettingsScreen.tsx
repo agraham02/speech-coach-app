@@ -31,7 +31,7 @@ import {
 import { formatReminderHour, REMINDER_HOUR_MAX, REMINDER_HOUR_MIN } from "../domain/reminderSettings";
 import { defaultExtraHours, type DailyGoal } from "../domain/dailyGoal";
 import { ChipGroup } from "../components/common/Chip";
-import { getDailySessionGoal, setDailySessionGoal } from "../services/prefs/prefsStore";
+import { getDailySessionGoal, getVideoRetentionDays, setDailySessionGoal } from "../services/prefs/prefsStore";
 import { cancelDailyReminder, requestNotificationPermission, syncDailyReminder } from "../services/notifications/reminderScheduler";
 import { spacing, typography } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
@@ -208,7 +208,7 @@ export function SettingsScreen({ navigation }: Props) {
           text: "Clear",
           style: "destructive",
           onPress: async () => {
-            const { deleted, kept } = await deleteOldVideos(30);
+            const { deleted, kept } = await deleteOldVideos(getVideoRetentionDays() || 30);
             setVideoBytes(getVideoStorageBytes());
             Alert.alert(
               "Done",
@@ -240,6 +240,15 @@ export function SettingsScreen({ navigation }: Props) {
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       <Text style={styles.groupLabel}>PRACTICE</Text>
+      <Card style={styles.section}>
+        <Pressable onPress={() => navigation.navigate("Onboarding", { mode: "profile" })} style={styles.sectionHeaderRow} accessibilityRole="button">
+          <View style={styles.sectionHeaderText}>
+            <Text style={styles.sectionTitle}>Your profile and goals</Text>
+            <Text style={styles.sectionSubtitle}>What gets in your way, where you want to speak better, how you practice.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+        </Pressable>
+      </Card>
       <Card style={styles.section}>
         <View style={styles.sectionHeaderText}>
           <Text style={styles.sectionTitle}>Daily goal</Text>
