@@ -1,181 +1,230 @@
+import { Fragment } from "react";
+import { Linking, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { Pressable, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { ScreenContainer } from "../components/common/ScreenContainer";
-import { Header } from "../components/common/Header";
+import { Screen } from "../components/common/Screen";
 import { Card } from "../components/common/Card";
-import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
-import { spacing, typography, font } from "../theme/theme";
+import { PressableScale } from "../components/common/PressableScale";
+import { Txt } from "../components/common/Txt";
+import { SOURCE_GROUPS, type Source } from "../content/sources";
+import type { SkillId } from "../theme/tokens";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
-import type { Colors } from "../theme/theme";
 
 interface Framework {
-  accent: string;
-  accentMuted: string;
+  skill?: SkillId;
   title: string;
   description: string;
-  tips: string[];
-  drillLabel: string;
-  drillText: string;
+  points: string[];
+  tryThis: string;
+  // Short credit; the full reference is under Sources below.
+  from: string;
 }
 
-const frameworks = (colors: Colors): Framework[] => [
+const FRAMEWORKS: Framework[] = [
   {
-    accent: colors.violet,
-    accentMuted: colors.violetMuted,
-    title: "Structure — organize on the fly",
-    description:
-      "A shape to fall back on when you're put on the spot, so you're never starting from a blank page.",
-    tips: [
-      "What/Why/How: say what your point is, why it matters, then how it plays out.",
-      "Story arc: beginning, middle, end — a situation, a turn, a resolution.",
-      "PREP: Point → Reason → Example → Point again, to close the loop.",
-      "Rule of Three: pick exactly three supporting points, no more, no fewer.",
+    skill: "impromptu",
+    title: "Organize on the spot",
+    description: "A shape to fall back on when you're put on the spot, so you never start from a blank page.",
+    points: [
+      "What, so what, now what: the point, why it matters, what to do about it.",
+      "PREP: point, reason, example — then the point again to close the loop.",
+      "Point first: lead with the answer, then back it up.",
+      "Rule of three: three supporting points, no more.",
     ],
-    drillLabel: "Try this",
-    drillText: "Pick a random object nearby and give a 60-second what/why/how on it, out loud.",
+    tryThis: "Pick an object near you and give it 60 seconds of what, so what, now what — out loud.",
+    from: "Matt Abrahams, Think Faster, Talk Smarter; Toastmasters",
   },
   {
-    accent: colors.pink,
-    accentMuted: colors.pinkMuted,
-    title: "Storytelling — the Pixar Story Spine",
-    description:
-      "A 7-beat template Pixar and Disney writers train on. Each beat causally follows the last, so the story keeps moving instead of circling one idea.",
-    tips: [
-      "Once upon a time…",
-      "Every day…",
-      "Until one day…",
-      "Because of that…",
-      "Because of that…",
-      "Until finally…",
-      "Ever since then…",
-    ],
-    drillLabel: "Try this",
-    drillText:
-      "Before you record, run your response through the story spine — even just mentally — to make sure it actually goes somewhere instead of restating the same point in different words.",
+    skill: "impromptu",
+    title: "The Story Spine",
+    description: "An improv tool for shaping a story so each beat causes the next — it keeps a story moving instead of circling one idea.",
+    points: ["Once upon a time…", "Every day…", "But one day…", "Because of that… (as many times as you need)", "Until finally…", "Ever since then…"],
+    tryThis: "Before a story, run it through the spine in your head. If a beat doesn't cause the next one, cut it.",
+    from: "Kenn Adams, How to Improvise a Full-Length Play",
   },
   {
-    accent: colors.accent,
-    accentMuted: colors.accentMuted,
-    title: "Delivery — vocal foundations & archetypes",
-    description: "Vinh Giang's five levers for how something is said, plus four communication styles.",
-    tips: [
-      "Rate: vary your pace — slow down for weight, speed up for energy.",
-      "Volume: don't stay flat — get louder or softer on purpose.",
-      "Pitch & melody: let your pitch rise and fall naturally, don't monotone.",
-      "Tonality: match your tone to the emotion of what you're saying.",
-      "Pausing: pause on purpose to let a point land — don't fill silence with \"um.\"",
-      "Archetypes: Motivator (high energy), Educator (clear & measured), Coach (direct & encouraging), Friend (warm & casual) — which fits your topic?",
+    skill: "cadence",
+    title: "Five vocal foundations",
+    description: "How something is said, separate from what is said.",
+    points: [
+      "Rate: slow down for weight, speed up for energy.",
+      "Volume: get louder or softer on purpose — never stay flat.",
+      "Pitch and melody: let the voice rise and fall instead of droning.",
+      "Tonality: match the feeling of the words — your face drives it.",
+      "Pausing: pause to let a point land, instead of filling the gap with 'um'.",
     ],
-    drillLabel: "Try this",
-    drillText: "The \"Exaggerated Vocal Melody\" drill: re-read a past response while deliberately over-emphasizing pitch rises on contrasting words, and smiling visibly on key phrases.",
+    tryThis: "Read one line three times: once fast, once slow, once with a full pause before the key word. Notice which one lands.",
+    from: "Vinh Giang",
   },
   {
-    accent: colors.teal,
-    accentMuted: colors.tealMuted,
-    title: "Content & Evaluation — Toastmasters' 3 pillars",
-    description:
-      "Toastmasters judges a speech on Structure, Content, and Delivery as three separate, equally-weighted pillars — this app grades the same way.",
-    tips: [
-      "Content is graded on its own: does it actually address the prompt with specifics, not generic filler?",
-      "Coherence matters as much as relevance — clear sentences, logical flow, an actual point of view.",
-      "Filler words: 5/min or fewer barely registers, 5-10/min is noticeable, more than 10/min is distracting.",
-      "Watch for restating the same point in different words instead of adding something new.",
+    title: "Three pillars",
+    description: "Structure, content and delivery are judged separately — a well-shaped answer can still say little, and a great point can be delivered badly.",
+    points: [
+      "Content stands on its own: specifics, not general filler.",
+      "Say something new in each sentence instead of restating the last one.",
+      "Fillers: about 5 a minute barely registers; over 10 starts to distract.",
     ],
-    drillLabel: "Try this",
-    drillText: "After a session, read your verbatim transcript back and circle any sentence that just repeats an earlier one in different words.",
+    tryThis: "Read a transcript back and circle any sentence that only repeats an earlier one in new words.",
+    from: "Toastmasters evaluation",
+  },
+  {
+    skill: "conversation",
+    title: "TALK",
+    description: "Four habits of people who are good to talk to.",
+    points: [
+      "Topics: prepare a few, and move between them.",
+      "Asking: ask, then follow up on the answer.",
+      "Levity: react, laugh, play along — you don't need jokes.",
+      "Kindness: make it about them, too.",
+    ],
+    tryThis: "In your next conversation, ask one follow-up question before you share anything of your own.",
+    from: "Alison Wood Brooks, Talk; Huang et al. (2017)",
+  },
+  {
+    skill: "confidence",
+    title: "Name it finer",
+    description: "Putting a feeling into precise words takes some of its edge off, and makes what you say more vivid.",
+    points: ["Start broad (glad, sad, scared, mad), then pick a finer word.", "Say where you felt it and what set it off.", "Keep it short and true."],
+    tryThis: "Describe one moment from today using a feeling word you rarely use.",
+    from: "Willcox's Feeling Wheel; Lieberman et al. (2007)",
+  },
+  {
+    title: "How Tono practices",
+    description: "Why sessions look the way they do.",
+    points: [
+      "Drills adjust so you succeed about 85% of the time — hard enough to learn from, not so hard you stall.",
+      "Short sessions spread through the day stick better than one long one.",
+      "A plan tied to a habit ('After my coffee, I'll practice') makes you far likelier to follow through.",
+    ],
+    tryThis: "Pick the moment in your day that comes before practice, and set your reminder just after it.",
+    from: "Wilson et al. (2019); Cepeda et al. (2006); Gollwitzer (1999)",
   },
 ];
+
+// "*Title.* Rest" → the title in italics.
+function Citation({ text }: { text: string }) {
+  return (
+    <Txt variant="subhead">
+      {text.split("*").map((part, i) => (
+        <Fragment key={i}>{i % 2 === 1 ? <Txt variant="subhead" italic>{part}</Txt> : part}</Fragment>
+      ))}
+    </Txt>
+  );
+}
+
+function SourceRow({ source }: { source: Source }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const body = (
+    <>
+      <View style={styles.flex}>
+        <Citation text={source.citation} />
+        <Txt variant="footnote" tone="secondary">
+          {source.usedFor}
+        </Txt>
+      </View>
+      {source.url ? <Ionicons name="open-outline" size={16} color={colors.textMuted} style={styles.linkIcon} /> : null}
+    </>
+  );
+  if (!source.url) return <View style={styles.sourceRow}>{body}</View>;
+  const url = source.url;
+  return (
+    <PressableScale
+      onPress={() => Linking.openURL(url).catch(() => undefined)}
+      scaleTo={0.99}
+      style={styles.sourceRow}
+      accessibilityRole="link"
+      accessibilityHint="Opens in your browser"
+    >
+      {body}
+    </PressableScale>
+  );
+}
 
 export function TipsScreen() {
   const styles = useStyles();
   const { colors } = useTheme();
-  const tabBarInset = useTabBarBottomInset();
   const navigation = useNavigation();
   return (
-    <ScreenContainer style={styles.container}>
-      <Header title="Frameworks" onBack={() => navigation.goBack()} backIcon="chevron-back"
-      />
-      <Text style={styles.subtitle}>The coaching models behind your scores — and how to practice them.</Text>
+    <Screen title="Frameworks" onBack={() => navigation.goBack()} contentStyle={styles.content}>
+      <Txt variant="callout" tone="secondary">
+        The models behind your lessons and scores, how to practice each, and where they come from.
+      </Txt>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: spacing.lg + tabBarInset }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {frameworks(colors).map((framework) => (
-        <Card key={framework.title} style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: framework.accent }]}>{framework.title}</Text>
-          <Text style={styles.sectionDescription}>{framework.description}</Text>
-          <View style={styles.tipsList}>
-            {framework.tips.map((tip, index) => (
-              <View key={index} style={styles.tipRow}>
-                <View style={[styles.tipDot, { backgroundColor: framework.accent }]} />
-                <Text style={styles.tipText}>{tip}</Text>
-              </View>
+      {FRAMEWORKS.map((f) => {
+        const tint = f.skill ? colors.skill[f.skill] : null;
+        return (
+          <Card key={f.title} style={styles.card}>
+            <View style={styles.titleRow}>
+              {tint ? <View style={[styles.dot, { backgroundColor: tint.fg }]} /> : null}
+              <Txt variant="title3">{f.title}</Txt>
+            </View>
+            <Txt variant="subhead" tone="secondary">
+              {f.description}
+            </Txt>
+            <View style={styles.points}>
+              {f.points.map((point) => (
+                <View key={point} style={styles.point}>
+                  <View style={[styles.bullet, { backgroundColor: tint?.fg ?? colors.textMuted }]} />
+                  <Txt variant="callout" style={styles.flex}>
+                    {point}
+                  </Txt>
+                </View>
+              ))}
+            </View>
+            <View style={[styles.tryBox, { backgroundColor: tint?.bg ?? colors.surfaceRaised }]}>
+              <Txt variant="footnote" weight="600" color={tint?.fg ?? colors.textPrimary}>
+                Try this
+              </Txt>
+              <Txt variant="callout">{f.tryThis}</Txt>
+            </View>
+            <Txt variant="footnote" tone="muted">
+              From {f.from}
+            </Txt>
+          </Card>
+        );
+      })}
+
+      <View style={styles.sourcesHead}>
+        <Txt variant="title2">Sources</Txt>
+        <Txt variant="subhead" tone="secondary">
+          Every lesson names where its idea comes from. Here's the full list — tap one with a link to read it.
+        </Txt>
+      </View>
+      {SOURCE_GROUPS.map((group) => (
+        <View key={group.title} style={styles.group}>
+          <Txt variant="footnote" weight="500" tone="secondary" style={styles.groupTitle}>
+            {group.title}
+          </Txt>
+          <Card style={styles.groupCard}>
+            {group.sources.map((source, i) => (
+              <Fragment key={source.citation}>
+                {i > 0 ? <View style={styles.hairline} /> : null}
+                <SourceRow source={source} />
+              </Fragment>
             ))}
-          </View>
-          <View style={[styles.drillBox, { backgroundColor: framework.accentMuted }]}>
-            <Text style={[styles.drillLabel, { color: framework.accent }]}>{framework.drillLabel}</Text>
-            <Text style={styles.drillText}>{framework.drillText}</Text>
-          </View>
-        </Card>
-      ))}
-
-      <Card style={styles.section}>
-        <Text style={styles.sectionTitle}>Warm-ups & practice drills</Text>
-        <Text style={styles.sectionDescription}>
-          A few minutes of warm-up before recording makes a real difference in how loose and natural you sound.
-        </Text>
-        <View style={styles.tipsList}>
-          <View style={styles.tipRow}>
-            <View style={[styles.tipDot, { backgroundColor: colors.textMuted }]} />
-            <Text style={styles.tipText}>
-              Vocal warm-up: hum for 30 seconds, then a few lip trills, then a tongue twister or two — loosens up
-              your voice before you hit record.
-            </Text>
-          </View>
-          <View style={styles.tipRow}>
-            <View style={[styles.tipDot, { backgroundColor: colors.textMuted }]} />
-            <Text style={styles.tipText}>
-              Eye contact drill: look at the camera lens center, then to one side, then the other, then back to
-              center — pick one focal point and deliver your first sentence straight to it.
-            </Text>
-          </View>
-          <View style={styles.tipRow}>
-            <View style={[styles.tipDot, { backgroundColor: colors.textMuted }]} />
-            <Text style={styles.tipText}>
-              This app's daily random-prompt format is effectively Toastmasters' "Table Topics" exercise —
-              impromptu 1-2 minute responses to an unexpected prompt. Treat every session like a Table Topics turn:
-              don't overthink the opening, just start talking.
-            </Text>
-          </View>
+          </Card>
         </View>
-      </Card>
-      </ScrollView>
-    </ScreenContainer>
+      ))}
+    </Screen>
   );
 }
 
-const useStyles = makeStyles(({ colors }) => ({
-  // See TrendsScreen.tsx for why paddingBottom: 0 — overrides
-  // ScreenContainer's default bottom padding, since the ScrollView's own
-  // scrollContent already reserves end-of-content breathing room and there's
-  // no button below it that needs the extra gap.
-  container: { gap: spacing.md, paddingBottom: 0 },
-  header: { gap: spacing.xs, paddingBottom: spacing.xs },
-  title: { color: colors.textPrimary, fontSize: typography.headline, ...font("700") },
-  subtitle: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18 },
-  scroll: { flex: 1 },
-  scrollContent: { gap: spacing.md, paddingBottom: spacing.lg },
-  section: { gap: spacing.sm },
-  sectionTitle: { color: colors.textPrimary, fontSize: typography.bodyLarge, ...font("700") },
-  sectionDescription: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18 },
-  tipsList: { gap: spacing.sm, marginTop: spacing.xs },
-  tipRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
-  tipDot: { width: 6, height: 6, borderRadius: 3, marginTop: 7 },
-  tipText: { ...font("400"), flex: 1, color: colors.textSecondary, fontSize: typography.body, lineHeight: 20 },
-  drillBox: { borderRadius: 10, padding: spacing.md, gap: spacing.xs, marginTop: spacing.xs },
-  drillLabel: { fontSize: 13, ...font("600") },
-  drillText: { ...font("400"), color: colors.textPrimary, fontSize: typography.body, lineHeight: 20 },
+const useStyles = makeStyles((t) => ({
+  content: { gap: t.space.md },
+  card: { gap: t.space.sm + 2 },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: t.space.sm },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  points: { gap: t.space.sm, marginTop: 2 },
+  point: { flexDirection: "row", alignItems: "flex-start", gap: t.space.sm + 2 },
+  bullet: { width: 5, height: 5, borderRadius: 2.5, marginTop: 9 },
+  flex: { flex: 1, gap: 3 },
+  tryBox: { borderRadius: t.radius.md - 4, padding: t.space.md - 2, gap: 4, marginTop: 2 },
+  sourcesHead: { gap: 4, marginTop: t.space.lg, paddingHorizontal: 4 },
+  group: { gap: t.space.sm },
+  groupTitle: { paddingHorizontal: 4 },
+  groupCard: { paddingVertical: 4 },
+  sourceRow: { flexDirection: "row", alignItems: "flex-start", gap: t.space.md, paddingVertical: t.space.sm + 4 },
+  linkIcon: { marginTop: 3 },
+  hairline: { height: 1, backgroundColor: t.colors.separator },
 }));

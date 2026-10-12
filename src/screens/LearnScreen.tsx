@@ -146,7 +146,7 @@ export function LearnScreen() {
         ) : null}
 
         <ListGroup>
-          <ListRow icon="book-outline" title="Frameworks reference" subtitle="PREP, story spine, the five vocal levers…" chevron onPress={() => navigation.navigate("Frameworks")} />
+          <ListRow icon="book-outline" title="Frameworks and sources" subtitle="The models behind the lessons, and the books and research they come from" chevron onPress={() => navigation.navigate("Frameworks")} />
         </ListGroup>
       </Animated.View>
     </Screen>

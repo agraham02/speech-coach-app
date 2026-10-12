@@ -85,7 +85,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "The ends of words carry a surprising amount of meaning — 'cap' vs 'cab', 'right' vs 'ride'. Dropping final consonants is the most common reason clear speakers still sound unclear.",
       how: ["Land the last sound of every word", "Feel the release on t, d, k, p", "Slow down slightly on the last word of each sentence"],
-      source: "Speech-clarity practice (minimal pairs)",
+      source: "Ladefoged & Johnson, phonetics; minimal pairs",
     },
     steps: [
       { kind: "drill", drill: "minimal_pairs", contentId: "mp_final" },
@@ -101,7 +101,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "S is made with the tongue tip just behind the teeth; SH pulls the tongue back and rounds the lips. Rush them and 'sell' becomes 'shell'. The microphone hears the difference — so does your listener.",
       how: ["S: smile slightly, tongue tip forward", "SH: round the lips, tongue pulled back", "Practice the pair slowly before the twister"],
-      source: "Articulatory phonetics; minimal-pair training",
+      source: "Ladefoged & Johnson, phonetics; minimal-pair training",
     },
     steps: [
       { kind: "drill", drill: "minimal_pairs", contentId: "mp_s_sh" },
@@ -117,7 +117,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "L touches the tongue tip to the ridge behind your teeth; R never touches anything — the tongue pulls back and the lips round a little. Mixing them is common under speed.",
       how: ["L: tongue tip up and touching", "R: tongue back, touching nothing", "Alternate slowly: right–light, rock–lock"],
-      source: "Articulatory phonetics; minimal-pair training",
+      source: "Ladefoged & Johnson, phonetics; minimal-pair training",
     },
     steps: [
       { kind: "drill", drill: "minimal_pairs", contentId: "mp_r_l" },
@@ -133,7 +133,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "TH is the only English sound where the tongue comes forward between the teeth. Skip that and 'three' becomes 'tree' or 'free'.",
       how: ["Let the tongue tip peek between your teeth", "Push air over it — it's a soft hiss", "Then move straight to the next sound"],
-      source: "Articulatory phonetics; minimal-pair training",
+      source: "Ladefoged & Johnson, phonetics; minimal-pair training",
     },
     steps: [
       { kind: "drill", drill: "minimal_pairs", contentId: "mp_th" },
@@ -149,7 +149,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "Clarity that only exists at slow speed won't survive a real conversation. Building speed gradually — while staying accurate — trains the muscles to keep up with your thoughts.",
       how: ["Nail it slowly first", "Speed up one notch at a time", "Back off the moment words start to blur"],
-      source: "Motor-learning principle: accuracy before speed",
+      source: "Schmidt & Lee, motor learning — accuracy before speed",
     },
     steps: [
       { kind: "warmup", warmupId: "wu_articulators" },
@@ -220,7 +220,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "Where your pitch goes at the end of a phrase tells people what you mean. Falling sounds finished and sure; rising asks for a reply or says there's more coming. Rising at the end of statements — upspeak — turns every point into a question.",
       how: ["End statements with a fall ↘", "Let yes/no questions rise ↗ (wh- questions fall)", "In a list, rise on every item but the last"],
-      source: "English intonation basics; Vinh Giang — pitch and melody",
+      source: "Wells, English Intonation; Vinh Giang — pitch and melody",
     },
     steps: [{ kind: "guided", guidedId: "gd_inflection" }, { kind: "drill", drill: "marked_reading", contentId: "cat:questions" }],
   },
@@ -272,7 +272,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "Echoing a speaker's rhythm and melody right after them trains prosody faster than reading alone — it's one of the best-supported fluency techniques.",
       how: ["Listen to the whole line once", "Repeat it immediately, copying the rhythm", "Match the pauses, not just the words"],
-      source: "Shadowing research (prosody and fluency)",
+      source: "Foote & McDonough (2017), shadowing",
     },
     steps: [{ kind: "drill", drill: "shadowing" }, { kind: "drill", drill: "shadowing" }],
   },
@@ -391,7 +391,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "Forcing unrelated words into a story trains your brain to connect ideas on the spot — the core of thinking on your feet. 'Yes, and' instead of 'wait, let me think'.",
       how: ["Start the story immediately", "Introduce each word as soon as it fits", "Give it an ending, even a silly one"],
-      source: "Improv training ('yes, and')",
+      source: "Johnstone, Impro ('yes, and')",
     },
     steps: [{ kind: "drill", drill: "random_word_story" }, { kind: "rep", framework: "StoryArc", focus: "Tell it as a story: setup, turn, ending." }],
   },
@@ -432,7 +432,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "A shaky voice usually comes from shallow breathing. Slow belly breaths calm the body and give your voice a steady supply of air.",
       how: ["Feet planted, shoulders down", "Breathe low into your belly", "Start your first sentence on an out-breath"],
-      source: "Voice training; box breathing",
+      source: "Box breathing; Balban et al. (2023)",
     },
     steps: [{ kind: "warmup", warmupId: "wu_breath" }, { kind: "warmup", warmupId: "wu_resonance" }],
   },
@@ -458,7 +458,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "'I think', 'kind of', 'maybe' and 'just' soften every claim until nothing lands. Say it as a statement — you can add nuance once, on purpose.",
       how: ["Cut 'I think' from the start of sentences", "Replace 'kind of' with the precise word", "End on the claim, not a qualifier"],
-      source: "Persuasion and powerful-speech research",
+      source: "Blankenship & Holtgraves (2005), powerless speech",
     },
     steps: [{ kind: "rep", framework: "PREP", focus: "No hedges: state your view plainly." }],
   },
@@ -748,7 +748,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "People rated funniest in conversations often aren't the ones making jokes — they're the ones laughing and reacting. Showing you heard something is most of what makes talk feel fun.",
       how: ["Let the reaction out: a laugh, a “no way”", "Say what struck you", "Don't hunt for a punchline"],
-      source: "Brooks, TALK (levity); humor research",
+      source: "Brooks, Talk (levity)",
     },
     steps: [{ kind: "drill", drill: "conv_react" }, { kind: "drill", drill: "conv_react" }],
   },
@@ -761,7 +761,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "A callback — bringing back something said earlier — is the easiest kind of wit. It doesn't need a clever line, only attention: you noticed, you remembered, you brought it back.",
       how: ["Notice a vivid detail", "Hold onto it", "Bring it back later in a new context"],
-      source: "Improv and comedy craft",
+      source: "Johnstone, Impro; improv and comedy craft",
     },
     steps: [{ kind: "drill", drill: "callback" }],
   },
@@ -774,7 +774,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "Taking something ordinary and blowing it up a little — “so your cat is planning a heist” — is a gentle, low-risk kind of humor. It shows you're playing along.",
       how: ["Find the odd detail", "Make it a little bigger", "Keep it kind"],
-      source: "Improv ('yes, and'); humor training studies",
+      source: "Johnstone, Impro ('yes, and'); Tagalidou et al. (2018), humor training",
     },
     steps: [{ kind: "guided", guidedId: "gd_exaggerate" }, { kind: "drill", drill: "conv_react" }],
   },
