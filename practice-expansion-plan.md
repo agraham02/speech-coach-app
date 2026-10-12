@@ -23,7 +23,7 @@
 6. "From your own text" with Scan Text, and the on-device model's marks (Apple Intelligence on).
 7. Skill check end to end with real on-device analysis. Do the starting point and first-week preview make sense?
 8. Reminders at 2–3 a day: each slot fires, and is skipped once done.
-9. Feeling of the Week: Notion and deep review stay off by default, and the take never shows up as a keepsake.
+9. Feeling of the Week: deep review stays off by default, and the take never shows up as a keepsake.
 
 This doc covers seven additions:
 
@@ -360,7 +360,7 @@ Putting feelings into words ("affect labeling") reduces their intensity (Lieberm
 - No overall score, no radar chart, no cloud content scoring. **Kept out of** the curriculum composite, skill mastery, and weekly drill averages.
 
 ### Privacy defaults (important)
-- Notion sync **off** and cloud review **off**, forced at the Preview step, with a one-line note if you turn either on. (Today `PreviewScreen` defaults Notion *on* for free record.)
+- Cloud review **off**, forced at the Preview step, with a one-line note if you turn it on. (The Notion journal this also covered was removed from the app on 2026-10-12.)
 - **Never picked as a monthly keepsake video.** Exclude it in `videoKeepsakes.ts`'s `rank`, the same way `script_practice` is ranked down.
 - A new `SessionType` `"feeling"` keeps it filterable in History.
 
@@ -446,7 +446,7 @@ Pref: `dailySessionGoal: 1 | 2 | 3` (default 1).
 | 3.4 | **When will you practice?** Anchor it to something you already do: after my morning coffee · on my commute · lunch break · after work · before bed · custom | Builds an "After I ___, I'll practice" **if-then plan** (implementation intention; Gollwitzer), shown on Today and in the reminder copy ("Coffee's done? 5 minutes."). The anchor sets the suggested reminder time. |
 | 3.5 | Where will you usually practice? (private room · car (parked) · office / shared space · walking outside) | Shared space or walking: no Projection or Move It in top-ups, offer **quiet variants**, default to audio-only. Car: audio-only, no camera framing. Private room: everything. |
 | 3.6 | Reminder time(s) | Pre-filled from 3.4. Notification permission is asked *here*, in context, after the user has picked a time. |
-| 3.7 | How much help from the cloud? Phone only (default) · deep review with Gemini · Notion journal | Sets `wantsCloudReview` and `wantsNotionSync` defaults, with one plain sentence each on what leaves the phone. |
+| 3.7 | How much help from the cloud? Phone only (default) · deep review with Gemini | Sets the `wantsCloudReview` default, with one plain sentence on what leaves the phone. (A Notion journal option was removed with the feature on 2026-10-12.) |
 | 3.8 | How long should videos be kept? (30 days + monthly keepsakes (current default) · 7 days · forever) | Video cleanup cutoff. |
 | 3.9 | What will be different when this works? (free text, optional) | Your "why". Shown back on low-streak days and on the 30-day retake screen. |
 

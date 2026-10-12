@@ -31,10 +31,11 @@ Seen on the emulator (Today, Learn, Progress, Library):
 
 1. **One thing at a time.** Each screen has one primary action, drawn in
    ink. Everything else is quieter.
-2. **Spoken words are set in serif.** Prompts, lines to read, quotes, lesson
-   and screen titles use Instrument Serif. The interface (labels, buttons,
-   data) uses Instrument Sans. The split carries meaning: serif is what you
-   say or what matters, sans is the interface.
+2. **One sans-serif typeface, used with weight.** Everything is Instrument
+   Sans. Titles and big numbers are semibold with tight tracking; spoken
+   words (prompts, lines to read, quotes) are medium; the interface is
+   regular. (The first build set titles and prompts in Instrument Serif; it
+   was dropped on review — the user prefers sans-serif.)
 3. **Color means something.** The UI is monochrome, in warm neutrals with an
    ink accent. Color appears only for:
    - the five skills, where the day's focus skill also tints Today's hero;
@@ -91,9 +92,9 @@ rings, buttons) monochrome in one move, with no per-screen change needed.
 
 ### Type
 
-The fonts are **Instrument Sans** (400, 500, 600 and 700) and **Instrument
-Serif** (regular and italic). Both are OFL and live in `assets/fonts`. They
-are loaded at runtime with `useFonts`.
+The font is **Instrument Sans** (400, 500, 600 and 700), OFL, in
+`assets/fonts`, loaded at runtime with `useFonts`. There is no italic face;
+`Txt italic` synthesizes one.
 
 On Android a custom font plus `fontWeight` produces a faked bold. So every
 weight is its own family (`InstrumentSans-SemiBold`), and the type styles
@@ -102,9 +103,9 @@ right family. Styles use `t.font(weight)` (or `font()` in legacy files).
 
 | Variant | Font | Size/line | Use |
 |---|---|---|---|
-| display | serif | 56/60 | the score, the big numbers |
-| largeTitle | serif | 40/46 | screen titles |
-| title1 | serif | 30/36 | hero titles (today's lesson, a prompt) |
+| display | sans 600, −1.8 tracking | 52/58 | the score, the big numbers |
+| largeTitle | sans 600, −1 tracking | 34/41 | screen titles |
+| title1 | sans 600, −0.6 tracking | 26/32 | hero titles (today's lesson) |
 | title2 | sans 600 | 21/27 | card titles |
 | title3 | sans 600 | 18/24 | section titles, smaller card titles |
 | headline | sans 600 | 16/22 | row titles, emphasis |
@@ -114,7 +115,7 @@ right family. Styles use `t.font(weight)` (or `font()` in legacy files).
 | footnote | sans 400 | 13/18 | meta |
 | caption1 | sans 500 | 12/16 | small labels |
 | caption2 | sans 600 | 11/14 | tiny labels, tags |
-| quote | serif | 24/31 | spoken words: prompts, lines, why-you-started |
+| quote | sans 500, −0.3 tracking | 22/30 | spoken words: prompts, lines, why-you-started |
 
 Numbers in data use tabular figures (`fontVariant: ["tabular-nums"]`).
 
@@ -158,18 +159,18 @@ possible so screens change with little or no edit.
 | `IconButton` (new) | 40px circle with a subtle fill, for back, close, settings and more. |
 | `Card` | Borderless. Optional `onPress` (it scales), `tone="raised"`, `padding`. |
 | `HeroCard` / `Aura` | A soft glow in a meaningful color: two SVG radial gradients that fade in on mount and stay still. Used once per screen at most. |
-| `Header` | IconButton back; serif title (large on roots); sentence-case eyebrow. |
-| `Screen` (new) | The layout primitive: safe area, gutter and optional scroll. A large serif title that hands off to a compact title in the bar as you scroll. A sticky footer for the primary action, with a fade. Staggered enter. Handles the tab bar inset. |
+| `Header` | IconButton back; semibold title (large on roots); sentence-case eyebrow. |
+| `Screen` (new) | The layout primitive: safe area, gutter and optional scroll. A large title that hands off to a compact title in the bar as you scroll. A sticky footer for the primary action, with a fade. Staggered enter. Handles the tab bar inset. |
 | `ScreenContainer` | Kept for camera and custom screens, with the new gutter. |
 | `ListGroup` and `ListRow` | Inset-grouped lists: rows in one surface with hairlines, an icon tile, title and subtitle, and a value or chevron. Pressable rows scale. |
 | `Chip` / `ChipGroup` | Pill; selected is ink. The background animates; selection tick. |
 | `SegmentedControl` | Pill track with a sliding, spring-animated thumb. Haptic. |
 | `ProgressRing` / `SkillRings` | Thinner rings with round caps; fill on mount; labels in tabular sans. |
-| `StatTile` | Becomes `Stat`: a big number (serif or tabular sans) over a muted label, without a tile. |
+| `StatTile` | A big semibold number over a muted label, on a quiet fill. |
 | `Badge` / `Tag` | Sentence-case small pill; skill tags carry a color dot. |
 | `Banner` | Rebuilt as a notice: tinted surface, icon, text. |
 | `SectionHeader` | Sans semibold section title, optional action on the right. |
-| `EmptyState` | Icon in a soft circle, serif title, calm copy. |
+| `EmptyState` | Icon in a soft circle, a title, calm copy. |
 | `Toast` | A floating pill with a float shadow; springs in from the top; tone icon. |
 | `Skeleton` (new) | Shimmering placeholders, replacing spinners in content areas. |
 | Tab bar | Android gets a custom bar: ink icons and labels, an animated pill behind the active tab, and a selection haptic. iOS keeps the native Liquid Glass bar. |
@@ -179,20 +180,20 @@ possible so screens change with little or no edit.
 
 The order is by traffic and first impression.
 
-1. **Today.** A greeting eyebrow over a large serif "Today", then a single
+1. **Today.** A greeting eyebrow over a large "Today", then a single
    meta line: date · streak · goal dots. Below that is the aura hero in the
    focus skill's color, containing:
    - a skill tag and a 5/8/12 segmented control;
-   - the lesson title in serif and a one-line why;
+   - the lesson title and a one-line why;
    - the steps as a vertical timeline (done, current, next);
    - an ink "Start session" button.
 
    Then quieter sections: Feeling of the week, Conversations, Your skills
    (rings, no card), and Practice something else. "Why you started" is set
-   as a serif quote.
+   as a quote.
 2. **Onboarding.** The first impression. Full-screen questions:
    - a thin animated progress bar and the chapter name;
-   - the question in serif;
+   - the question as a title;
    - options as large selectable rows with an animated check;
    - an ink Continue button pinned to the bottom;
    - questions slide in and out horizontally.
@@ -202,21 +203,21 @@ The order is by traffic and first impression.
    selected skill's header has a big ring. Units are sections, and lessons
    are a vertical path: nodes joined by a line; done nodes filled; the next
    one bigger, in ink, with its minutes and a play affordance.
-4. **Lesson and Daily session.** A serif title. Steps as a timeline that
+4. **Lesson and Daily session.** A title. Steps as a timeline that
    checks off with an animated fill. Teach content set as calm, readable
    text, not in cards.
-5. **Progress.** Big serif streak and goal numbers; a calendar heatmap of
+5. **Progress.** Big streak and goal numbers; a calendar heatmap of
    rounded cells shaded by ink intensity; rings; week-over-week with arrows;
    charts restyled to the new tokens.
 6. **Library.** Collections as a horizontal row of soft tiles; a pill search
    field; recordings grouped by month, each row with a small score ring.
-7. **Result.** A serif score in an animated ring, counting up. The
+7. **Result.** A big score in an animated ring, counting up. The
    breakdown bars fill in sequence. The coach card and transcript use the
    new type.
 8. **Recording, Preview and Drill runner.** Glass pills for the timer and
    prompt over the camera, the morphing record button, cleaner live stats.
 9. **Mark It Up, Practice and Settings.** Inset-grouped lists, new shelves,
-   and serif for the lines themselves.
+   and the medium weight for the lines themselves.
 10. **Everything else.** Migrated off legacy `theme.ts` styles and raw
     `<Text>` onto `Txt` and `makeStyles`, so every screen uses the same scale.
 
@@ -243,9 +244,8 @@ Each step is a commit on `feature/design-refresh`.
 - No borders on cards. No card inside a card.
 - No all-caps labels.
 - Only the primary action is ink. At most one per screen.
-- Serif only for titles, prompts, lines and big numbers. Never serif for
-  controls or body text. Marked lines (Mark It Up) stay in sans: stress is
-  shown in bold, which the serif doesn't have.
+- One typeface, Instrument Sans. Titles and numbers semibold; spoken words
+  (prompts, lines) medium. No serif.
 - Custom fonts never get `fontWeight`. Use `Txt weight` or `t.font()`.
 - Camera screens stay dark in both schemes (`darkColors`).
 
@@ -256,7 +256,7 @@ emulator in dark and light mode. tsc is clean and all 451 tests pass.
 
 **Done**
 - **Foundation:** tokens (palettes, type, radius, layout, shadows), motion
-  and haptics, Instrument Sans and Serif loaded at runtime, and the legacy
+  and haptics, Instrument Sans loaded at runtime, and the legacy
   `theme.ts` mapped onto the new values. Sora is removed.
 - **Components:**
   - basics: `Txt`, `PressableScale`, buttons, `IconButton`, `Card`;
@@ -276,8 +276,14 @@ emulator in dark and light mode. tsc is clean and all 451 tests pass.
 - **Swept:** every text style is on Instrument Sans (codemod). All-caps
   labels are now sentence case. Older screens use the shared `Header`.
   Outlined inputs and chips are now filled. Sheets have 28pt corners and
-  serif titles. Switches are green. Spoken words are serif (prompts, drill
-  passages, feeling prompts, line reps).
+  semibold titles. Switches are green. Spoken words are in the medium
+  weight (prompts, drill passages, feeling prompts, line reps).
+
+**After review (2026-10-12)**
+- The serif is gone: one sans-serif typeface (principle 2).
+- The Notion journal is removed from the app.
+- Settings → Start over → Reset app, and a start-fresh-or-keep choice on
+  the first launch over data from an earlier version.
 
 **Left as is** (they use the shared components, so they already follow the
 look, but their layouts weren't reworked):
