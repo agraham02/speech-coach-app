@@ -1,5 +1,5 @@
 import { buildTopUpPlan, defaultExtraHours, goalDays, reminderDates, sessionHours } from "../dailyGoal";
-import { formatReminderHour } from "../reminderSettings";
+import { formatReminderHour, hoursInPeriod, switchPeriod } from "../reminderSettings";
 import type { PlanInput } from "../dailyPlan";
 
 const base: PlanInput = {
@@ -80,5 +80,21 @@ describe("formatReminderHour", () => {
     expect(formatReminderHour(6)).toBe("6 AM");
     expect(formatReminderHour(12)).toBe("12 PM");
     expect(formatReminderHour(22)).toBe("10 PM");
+  });
+});
+
+describe("AM/PM reminder hours", () => {
+  it("offers 6-11 in the morning and noon-10 after", () => {
+    expect(hoursInPeriod("AM")).toEqual([6, 7, 8, 9, 10, 11]);
+    expect(hoursInPeriod("PM")).toEqual([12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]);
+  });
+
+  it("keeps the clock hour when switching, inside the reminder window", () => {
+    expect(switchPeriod(8, "PM")).toBe(20);
+    expect(switchPeriod(20, "AM")).toBe(8);
+    expect(switchPeriod(11, "PM")).toBe(22);
+    expect(switchPeriod(13, "AM")).toBe(6);
+    expect(switchPeriod(12, "AM")).toBe(6);
+    expect(switchPeriod(9, "AM")).toBe(9);
   });
 });

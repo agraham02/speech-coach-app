@@ -1,10 +1,10 @@
-import { useState } from "react";
-import { View } from "react-native";
+import { useRef, useState } from "react";
+import { ScrollView, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeIn, FadeOut, LinearTransition, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import { PressableScale } from "../common/PressableScale";
 import { Txt } from "../common/Txt";
-import { formatReminderHour, REMINDER_HOUR_MAX, REMINDER_HOUR_MIN } from "../../domain/reminderSettings";
+import { clockHour, hoursInPeriod, periodOf, switchPeriod } from "../../domain/reminderSettings";
 import { duration, easeOut } from "../../theme/motion";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
@@ -14,62 +14,64 @@ interface ReminderHoursProps {
   onChange: (index: number, hour: number) => void;
 }
 
-const COLUMNS = 6;
+type Open = { index: number; kind: "hour" | "period" } | null;
 
-// The reminder hours, grouped the way people think about their day.
-const PARTS = [
-  { label: "Morning", from: REMINDER_HOUR_MIN, to: 11 },
-  { label: "Afternoon", from: 12, to: 16 },
-  { label: "Evening", from: 17, to: REMINDER_HOUR_MAX },
-].map((part) => ({ label: part.label, hours: Array.from({ length: part.to - part.from + 1 }, (_, i) => part.from + i) }));
+const ROW_HEIGHT = 44;
+const VISIBLE_ROWS = 5;
 
 const layout = LinearTransition.duration(duration.base).easing(easeOut);
 
-// A row per session showing its hour; tapping one opens an hour grid under
-// it (one open at a time), and picking an hour closes it. Whole hours only —
-// a slider made "5 PM" a fiddly drag, and a minute wheel asks for precision
-// a practice nudge doesn't need.
+// A row per session with two dropdowns — the hour and AM/PM. Each opens a
+// short column under the row (the hour column scrolls), one open at a time;
+// picking closes it. Whole hours only: a practice nudge doesn't need minutes.
 export function ReminderHours({ hours, onChange }: ReminderHoursProps) {
   const styles = useStyles();
-  const [open, setOpen] = useState<number | null>(null);
+  const [open, setOpen] = useState<Open>(null);
+  const toggle = (index: number, kind: "hour" | "period") =>
+    setOpen((o) => (o?.index === index && o.kind === kind ? null : { index, kind }));
 
   return (
     <View>
       {hours.map((hour, index) => {
         const label = hours.length > 1 ? `Session ${index + 1}` : "Time";
+        const period = periodOf(hour);
         const others = hours.filter((_, i) => i !== index);
+        const opened = open?.index === index ? open.kind : null;
         return (
           <Animated.View key={index} layout={layout} style={index > 0 && styles.divided}>
-            <HourRow label={label} hour={hour} open={open === index} onPress={() => setOpen(open === index ? null : index)} />
-            {open === index ? (
-              <Animated.View entering={FadeIn.duration(duration.base)} exiting={FadeOut.duration(duration.fast)} style={styles.grid}>
-                {PARTS.map((part) => (
-                  <View key={part.label} style={styles.part}>
-                    <Txt variant="footnote" tone="secondary">
-                      {part.label}
-                    </Txt>
-                    <View style={styles.chips}>
-                      {part.hours.map((h) => (
-                        <HourChip
-                          key={h}
-                          hour={h}
-                          selected={h === hour}
-                          // Two sessions at the same hour would be one nudge.
-                          taken={others.includes(h)}
-                          onPress={() => {
-                            onChange(index, h);
-                            setOpen(null);
-                          }}
-                        />
-                      ))}
-                      {/* Keep a short row's chips in the same columns. */}
-                      {Array.from({ length: COLUMNS - part.hours.length }, (_, i) => (
-                        <View key={`gap${i}`} style={styles.chipSlot} />
-                      ))}
-                    </View>
-                  </View>
-                ))}
-              </Animated.View>
+            <View style={styles.row}>
+              <Txt variant="body" style={styles.flex}>
+                {label}
+              </Txt>
+              <Dropdown
+                value={String(clockHour(hour))}
+                open={opened === "hour"}
+                onPress={() => toggle(index, "hour")}
+                accessibilityLabel={`${label} hour, ${clockHour(hour)}`}
+              />
+              <Dropdown value={period} open={opened === "period"} onPress={() => toggle(index, "period")} accessibilityLabel={`${label}, ${period}`} />
+            </View>
+            {opened === "hour" ? (
+              <Column
+                options={hoursInPeriod(period).map((h) => ({ key: h, label: String(clockHour(h)), suffix: period, disabled: others.includes(h) }))}
+                selected={hour}
+                scrolls
+                onPick={(h) => {
+                  onChange(index, h);
+                  setOpen(null);
+                }}
+              />
+            ) : null}
+            {opened === "period" ? (
+              <Column
+                options={(["AM", "PM"] as const).map((p, i) => ({ key: i, label: p }))}
+                selected={period === "AM" ? 0 : 1}
+                onPick={(i) => {
+                  const next = switchPeriod(hour, i === 0 ? "AM" : "PM");
+                  if (next !== hour) onChange(index, next);
+                  setOpen(null);
+                }}
+              />
             ) : null}
           </Animated.View>
         );
@@ -78,7 +80,7 @@ export function ReminderHours({ hours, onChange }: ReminderHoursProps) {
   );
 }
 
-function HourRow({ label, hour, open, onPress }: { label: string; hour: number; open: boolean; onPress: () => void }) {
+function Dropdown({ value, open, onPress, accessibilityLabel }: { value: string; open: boolean; onPress: () => void; accessibilityLabel: string }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const chevron = useAnimatedStyle(() => ({
@@ -88,70 +90,101 @@ function HourRow({ label, hour, open, onPress }: { label: string; hour: number; 
     <PressableScale
       onPress={onPress}
       haptic="tick"
-      scaleTo={0.99}
-      style={styles.row}
+      scaleTo={0.95}
+      style={[styles.dropdown, open && styles.dropdownOpen]}
       accessibilityRole="button"
-      accessibilityLabel={`${label} reminder, ${formatReminderHour(hour)}`}
-      accessibilityHint={open ? "Closes the hours" : "Shows the hours to choose from"}
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={{ expanded: open }}
     >
-      <Txt variant="body" style={styles.flex}>
-        {label}
+      <Txt variant="callout" weight="600" tabular color={open ? colors.onAccent : colors.textPrimary}>
+        {value}
       </Txt>
-      <View style={[styles.value, open && styles.valueOpen]}>
-        <Txt variant="callout" weight="600" tabular color={open ? colors.onAccent : colors.textPrimary}>
-          {formatReminderHour(hour)}
-        </Txt>
-        <Animated.View style={chevron}>
-          <Ionicons name="chevron-down" size={14} color={open ? colors.onAccent : colors.textSecondary} />
-        </Animated.View>
-      </View>
+      <Animated.View style={chevron}>
+        <Ionicons name="chevron-down" size={14} color={open ? colors.onAccent : colors.textSecondary} />
+      </Animated.View>
     </PressableScale>
   );
 }
 
-function HourChip({ hour, selected, taken, onPress }: { hour: number; selected: boolean; taken: boolean; onPress: () => void }) {
+interface ColumnOption {
+  key: number;
+  label: string;
+  suffix?: string;
+  // Another session already uses this hour — two at once would be one nudge.
+  disabled?: boolean;
+}
+
+function Column({ options, selected, onPick, scrolls }: { options: ColumnOption[]; selected: number; onPick: (key: number) => void; scrolls?: boolean }) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const display = hour % 12 === 0 ? 12 : hour % 12;
+  const scroll = useRef<ScrollView>(null);
+  const selectedIndex = Math.max(0, options.findIndex((o) => o.key === selected));
+  const rows = options.map((option) => {
+    const on = option.key === selected;
+    return (
+      <PressableScale
+        key={option.key}
+        onPress={() => onPick(option.key)}
+        disabled={option.disabled}
+        haptic="tick"
+        scaleTo={0.98}
+        style={[styles.option, on && styles.optionOn, option.disabled && styles.optionDisabled]}
+        accessibilityRole="button"
+        accessibilityLabel={option.suffix ? `${option.label} ${option.suffix}` : option.label}
+        accessibilityHint={option.disabled ? "Another session already uses this hour" : undefined}
+        accessibilityState={{ selected: on, disabled: option.disabled }}
+      >
+        <Txt variant="callout" weight={on ? "600" : "400"} tabular color={on ? colors.onAccent : colors.textPrimary} style={styles.flex}>
+          {option.label}
+          {option.suffix ? (
+            <Txt variant="callout" color={on ? colors.onAccent : colors.textSecondary}>
+              {` ${option.suffix}`}
+            </Txt>
+          ) : null}
+        </Txt>
+        {on ? <Ionicons name="checkmark" size={18} color={colors.onAccent} /> : null}
+      </PressableScale>
+    );
+  });
+
   return (
-    <PressableScale
-      onPress={onPress}
-      disabled={taken}
-      haptic="tick"
-      scaleTo={0.9}
-      style={[styles.chipSlot, styles.chip, selected && styles.chipOn, taken && styles.chipTaken]}
-      accessibilityRole="button"
-      accessibilityLabel={formatReminderHour(hour)}
-      accessibilityHint={taken ? "Another session already uses this hour" : undefined}
-      accessibilityState={{ selected, disabled: taken }}
-    >
-      <Txt variant="callout" weight={selected ? "600" : "500"} tabular color={selected ? colors.onAccent : taken ? colors.textMuted : colors.textPrimary}>
-        {display}
-      </Txt>
-    </PressableScale>
+    <Animated.View entering={FadeIn.duration(duration.base)} exiting={FadeOut.duration(duration.fast)} style={styles.column}>
+      {scrolls && options.length > VISIBLE_ROWS ? (
+        <ScrollView
+          ref={scroll}
+          style={{ maxHeight: ROW_HEIGHT * VISIBLE_ROWS + 4 }}
+          nestedScrollEnabled
+          showsVerticalScrollIndicator={false}
+          // Open with the current pick in view, a row from the top.
+          onLayout={() => scroll.current?.scrollTo({ y: Math.max(0, (selectedIndex - 1) * ROW_HEIGHT), animated: false })}
+        >
+          {rows}
+        </ScrollView>
+      ) : (
+        rows
+      )}
+    </Animated.View>
   );
 }
 
 const useStyles = makeStyles((t) => ({
   divided: { borderTopWidth: 1, borderTopColor: t.colors.separator },
-  row: { flexDirection: "row", alignItems: "center", gap: t.space.md, minHeight: 52 },
+  row: { flexDirection: "row", alignItems: "center", gap: t.space.sm, minHeight: 56 },
   flex: { flex: 1 },
-  value: {
+  dropdown: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 6,
-    paddingHorizontal: t.space.md,
-    height: 34,
-    borderRadius: 17,
+    minWidth: 68,
+    paddingHorizontal: t.space.md - 4,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: t.colors.surfaceRaised,
   },
-  valueOpen: { backgroundColor: t.colors.accent },
-  grid: { gap: t.space.md, paddingBottom: t.space.md },
-  part: { gap: t.space.xs + 2 },
-  chips: { flexDirection: "row", gap: t.space.sm },
-  chipSlot: { flex: 1, height: 40 },
-  chip: { borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: t.colors.surfaceRaised },
-  chipOn: { backgroundColor: t.colors.accent },
-  chipTaken: { opacity: 0.45 },
+  dropdownOpen: { backgroundColor: t.colors.accent },
+  column: { backgroundColor: t.colors.surfaceRaised, borderRadius: 14, padding: 2, marginBottom: t.space.md },
+  option: { flexDirection: "row", alignItems: "center", height: ROW_HEIGHT, paddingHorizontal: t.space.md, borderRadius: 12 },
+  optionOn: { backgroundColor: t.colors.accent },
+  optionDisabled: { opacity: 0.4 },
 }));
