@@ -62,6 +62,10 @@ export function DailySessionScreen({ navigation }: Props) {
         navigation.navigate("Result", { sessionId: latest.id, practice });
         return;
       }
+      if (step.kind === "line" && step.lessonStep?.kind === "drill") {
+        navigation.navigate("LineRep", { mode: "lineOfDay", lineIds: step.lessonStep.contentId ? [step.lessonStep.contentId] : undefined, practice });
+        return;
+      }
       if (step.lessonStep) await launchStep(navigation, step.lessonStep, practice);
     } finally {
       setLaunching(false);

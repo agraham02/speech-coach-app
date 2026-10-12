@@ -14,7 +14,7 @@ import {
   updateRating,
   type SkillRating,
 } from "../../domain/mastery";
-import { buildDailyPlan, type DailyPlan, type PlanMinutes } from "../../domain/dailyPlan";
+import { buildDailyPlan, PLAN_VERSION, type DailyPlan, type PlanMinutes } from "../../domain/dailyPlan";
 import type { CoachOutput, Verdict } from "../../domain/coach/ruleCoach";
 import { getLesson } from "../../content/lessons";
 import { summarizeAttempt, type AttemptSummary } from "../../domain/conversation/attemptMetrics";
@@ -246,7 +246,8 @@ async function readPlan(date: string): Promise<StoredPlan | null> {
 export async function getTodaysPlan(minutes: PlanMinutes, regenerate = false): Promise<StoredPlan> {
   const date = todayISODate();
   const existing = await readPlan(date);
-  if (existing && !regenerate && existing.plan.minutes === minutes) return existing;
+  const outdated = existing && (existing.plan.version ?? 1) < PLAN_VERSION;
+  if (existing && !regenerate && !outdated && existing.plan.minutes === minutes) return existing;
   if (existing && existing.completedStepIds.length > 0) return existing;
 
   const db = await getDatabase();

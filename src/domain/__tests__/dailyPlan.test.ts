@@ -124,4 +124,18 @@ describe("curriculum content", () => {
       expect(LESSONS.filter((l) => l.skill === skill).length).toBeGreaterThanOrEqual(4);
     }
   });
+
+  it("puts a line of the day in every plan, without growing the 5-minute one", () => {
+    for (const minutes of [5, 8, 12] as const) {
+      for (let day = 1; day <= 10; day++) {
+        const plan = buildDailyPlan(input({ minutes, date: `2026-10-${String(day).padStart(2, "0")}` }));
+        const kinds = plan.steps.map((s) => s.kind);
+        if (minutes === 5) expect(kinds.filter((k) => k === "warmup" || k === "line").length).toBeLessThanOrEqual(1);
+        else expect(kinds).toContain("line");
+      }
+    }
+    const plan = buildDailyPlan(input({ minutes: 8 }));
+    const line = plan.steps.find((s) => s.kind === "line")!;
+    expect(line.lessonStep).toMatchObject({ kind: "drill", drill: "marked_reading" });
+  });
 });

@@ -21,7 +21,7 @@ import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 const SKILL_BLURB: Record<SkillId, string> = {
   articulation: "Crisp consonants, finished words, clarity at speed.",
-  cadence: "Pace, pauses, emphasis and melody.",
+  cadence: "Pause, pace, pitch, rhythm and emphasis.",
   impromptu: "Word retrieval, structure on the fly, the mind-mouth link.",
   confidence: "Nerves, volume, statements, eye contact and expression.",
   conversation: "Knowing what to say, staying present, and getting to the point.",

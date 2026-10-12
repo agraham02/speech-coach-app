@@ -4,9 +4,13 @@ import { DRILL_TITLES } from "./drills/drillSpecs";
 import { FRAMEWORK_LABELS, type FrameworkId } from "./coach/structureHeuristics";
 import { WARM_UPS } from "../content/drillContent";
 import { SKILLS } from "./mastery";
+import { getLines } from "../content/lines";
+import { lineOfTheDay } from "./cadence/lineRep";
 
-// Builds today's 5–12 minute session: warm-up -> focus drill(s) from the
-// next lesson in the focus skill -> one impromptu rep -> quick review.
+// Builds today's 5–12 minute session: warm-up -> line of the day -> focus
+// drill(s) from the next lesson in the focus skill -> one impromptu rep ->
+// quick review. The line of the day (one marked line, read with the marks
+// and without) puts cadence in every plan, whatever the focus skill.
 // Deterministic for a given day and inputs, so reopening the app shows the
 // same plan.
 
@@ -22,7 +26,7 @@ export interface PlanInput {
   lessons: Record<string, { done: boolean; nextReviewAt: string | null }>;
 }
 
-export type PlanStepKind = "warmup" | "drill" | "guided" | "rep" | "review";
+export type PlanStepKind = "warmup" | "line" | "drill" | "guided" | "rep" | "review";
 
 export interface PlanStep {
   id: string;
@@ -33,7 +37,12 @@ export interface PlanStep {
   lessonStep?: LessonStep;
 }
 
+// Bumped when the plan's shape changes, so a stored plan nobody has started
+// yet is rebuilt (v2: line of the day).
+export const PLAN_VERSION = 2;
+
 export interface DailyPlan {
+  version?: number;
   date: string;
   minutes: PlanMinutes;
   focusSkill: SkillId;
@@ -130,9 +139,23 @@ export function buildDailyPlan(input: PlanInput): DailyPlan {
     steps.push({ id: `${steps.length}`, ...d, lessonStep: step });
   };
 
-  // 1. Warm-up (unless the lesson opens with its own).
+  // 1. Warm-up (unless the lesson opens with its own), then the line of the
+  // day. A 5-minute plan swaps the generic warm-up for the line, so it stays
+  // at 5 minutes; if the lesson brings its own warm-up, a 5-minute plan
+  // skips the line.
   const lessonHasWarmup = lesson.steps[0]?.kind === "warmup";
-  if (!lessonHasWarmup) push({ kind: "warmup", warmupId: WARMUP_FOR[focusSkill] });
+  if (!lessonHasWarmup && input.minutes !== 5) push({ kind: "warmup", warmupId: WARMUP_FOR[focusSkill] });
+  if (!lessonHasWarmup || input.minutes !== 5) {
+    const line = lineOfTheDay(getLines(), input.date, hashString);
+    steps.push({
+      id: `${steps.length}`,
+      kind: "line",
+      title: "Line of the day",
+      detail: line.text,
+      minutes: 1,
+      lessonStep: { kind: "drill", drill: "marked_reading", contentId: line.id },
+    });
+  }
 
   // 2. Lesson practice (drills / guided), more of it in longer sessions.
   const practice = lesson.steps.filter((s) => s.kind !== "rep");
@@ -149,7 +172,7 @@ export function buildDailyPlan(input: PlanInput): DailyPlan {
     const lessonDrill = practice.find((s): s is Extract<LessonStep, { kind: "drill" }> => s.kind === "drill" && !used.has(s.drill));
     push(lessonDrill ?? { kind: "drill", drill: CONVERSATION_APPLY.find((d) => !used.has(d)) ?? "conv_reply" });
     // No video rep to review on a conversation day.
-    return { date: input.date, minutes: input.minutes, focusSkill, lessonId: lesson.id, isReview, steps };
+    return { version: PLAN_VERSION, date: input.date, minutes: input.minutes, focusSkill, lessonId: lesson.id, isReview, steps };
   }
   if (lessonRep) {
     push(lessonRep);
@@ -163,5 +186,5 @@ export function buildDailyPlan(input: PlanInput): DailyPlan {
     steps.push({ id: `${steps.length}`, kind: "review", title: "Quick review", detail: "Watch, listen, then both — at 1.5×.", minutes: 1 });
   }
 
-  return { date: input.date, minutes: input.minutes, focusSkill, lessonId: lesson.id, isReview, steps };
+  return { version: PLAN_VERSION, date: input.date, minutes: input.minutes, focusSkill, lessonId: lesson.id, isReview, steps };
 }

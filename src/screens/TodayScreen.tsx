@@ -25,6 +25,7 @@ import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 const STEP_ICONS: Record<PlanStepKind, keyof typeof Ionicons.glyphMap> = {
   warmup: "body-outline",
+  line: "text-outline",
   drill: "pulse-outline",
   guided: "list-outline",
   rep: "videocam-outline",
