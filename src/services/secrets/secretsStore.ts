@@ -7,8 +7,6 @@ import * as SecureStore from "expo-secure-store";
 // to be via app.config.ts's extra block.
 const KEYS = {
   geminiApiKey: "geminiApiKey",
-  notionToken: "notionToken",
-  notionPageId: "notionPageId",
   assemblyAiApiKey: "assemblyAiApiKey",
 } as const;
 
@@ -35,21 +33,6 @@ export function setGeminiApiKey(value: string): Promise<void> {
   return setSecret(KEYS.geminiApiKey, value);
 }
 
-export function getNotionToken(): Promise<string | null> {
-  return getSecret(KEYS.notionToken);
-}
-
-export function setNotionToken(value: string): Promise<void> {
-  return setSecret(KEYS.notionToken, value);
-}
-
-export function getNotionPageId(): Promise<string | null> {
-  return getSecret(KEYS.notionPageId);
-}
-
-export function setNotionPageId(value: string): Promise<void> {
-  return setSecret(KEYS.notionPageId, value);
-}
 
 // Only ever read when the opt-in "Use cloud transcription" toggle is on
 // (see SettingsScreen.tsx / prefsStore.ts's assemblyAiEnabled) — this key
@@ -60,4 +43,13 @@ export function getAssemblyAiApiKey(): Promise<string | null> {
 
 export function setAssemblyAiApiKey(value: string): Promise<void> {
   return setSecret(KEYS.assemblyAiApiKey, value);
+}
+
+// Secrets for features that no longer exist (the Notion journal, removed
+// 2026-10-12). Deleting a missing item is a no-op, so this runs on every
+// launch.
+const REMOVED_SECRETS = ["notionToken", "notionPageId"];
+
+export async function deleteRemovedSecrets(): Promise<void> {
+  await Promise.all(REMOVED_SECRETS.map((key) => SecureStore.deleteItemAsync(key)));
 }

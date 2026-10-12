@@ -96,7 +96,7 @@ export function FeelingScreen({ route, navigation }: Props) {
         <View style={styles.note}>
           <Ionicons name="lock-closed-outline" size={18} color={colors.textSecondary} />
           <Txt variant="footnote" tone="secondary" style={styles.flex}>
-            Stays on this phone: no cloud review, no Notion, and never kept as a progress video unless you choose to.
+            Stays on this phone: no cloud review, and never kept as a progress video unless you choose to.
           </Txt>
         </View>
 

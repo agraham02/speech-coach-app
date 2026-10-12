@@ -26,12 +26,8 @@ import {
 import {
   getAssemblyAiApiKey,
   getGeminiApiKey,
-  getNotionPageId,
-  getNotionToken,
   setAssemblyAiApiKey,
   setGeminiApiKey,
-  setNotionPageId,
-  setNotionToken,
 } from "../services/secrets/secretsStore";
 import { formatReminderHour, REMINDER_HOUR_MAX, REMINDER_HOUR_MIN } from "../domain/reminderSettings";
 import { defaultExtraHours, type DailyGoal } from "../domain/dailyGoal";
@@ -51,7 +47,7 @@ interface SecretFieldProps {
 }
 
 // A labeled, maskable text field for one API secret — used for all three
-// (Gemini key, Notion token, Notion page ID) below rather than a bare
+// (Gemini and AssemblyAI keys) below rather than a bare
 // Switch/Slider, since these are pasted-in credentials, not toggled prefs.
 function SecretField({ label, caption, value, onChangeText, onBlur }: SecretFieldProps) {
   const styles = useStyles();
@@ -104,20 +100,14 @@ export function SettingsScreen({ navigation }: Props) {
   const [goal, setGoalState] = useState<DailyGoal>(getDailySessionGoal());
   const [planYourPointEnabled, setPlanYourPointEnabledState] = useState(getPlanYourPointEnabled());
   const [geminiKey, setGeminiKeyField] = useState("");
-  const [notionToken, setNotionTokenField] = useState("");
-  const [notionPageId, setNotionPageIdField] = useState("");
   const [assemblyAiEnabled, setAssemblyAiEnabledState] = useState(getAssemblyAiEnabled());
   const [assemblyAiKey, setAssemblyAiKeyField] = useState("");
 
   useEffect(() => {
-    Promise.all([getGeminiApiKey(), getNotionToken(), getNotionPageId(), getAssemblyAiApiKey()]).then(
-      ([gemini, token, pageId, assemblyAi]) => {
-        setGeminiKeyField(gemini ?? "");
-        setNotionTokenField(token ?? "");
-        setNotionPageIdField(pageId ?? "");
-        setAssemblyAiKeyField(assemblyAi ?? "");
-      },
-    );
+    Promise.all([getGeminiApiKey(), getAssemblyAiApiKey()]).then(([gemini, assemblyAi]) => {
+      setGeminiKeyField(gemini ?? "");
+      setAssemblyAiKeyField(assemblyAi ?? "");
+    });
   }, []);
 
   function handleAssemblyAiToggle(enabled: boolean) {
@@ -348,7 +338,7 @@ export function SettingsScreen({ navigation }: Props) {
         {SHOW_DEV_TOOLS ? <ListRow title="ASR Lab" subtitle="Compare transcription engines" chevron onPress={() => navigation.navigate("AsrLab")} /> : null}
       </ListGroup>
       <Txt variant="footnote" tone="secondary" style={styles.note}>
-        All of this runs on your phone. Nothing leaves it unless you ask for a deep review or Notion sync.
+        All of this runs on your phone. Nothing leaves it unless you ask for a deep review.
       </Txt>
 
       <Txt variant="footnote" weight="500" tone="secondary" style={styles.groupTitle}>
@@ -385,29 +375,6 @@ export function SettingsScreen({ navigation }: Props) {
           value={geminiKey}
           onChangeText={setGeminiKeyField}
           onBlur={() => setGeminiApiKey(geminiKey)}
-        />
-      </Card>
-
-      <Card style={styles.section}>
-        <View style={styles.sectionText}>
-          <Txt variant="headline">Notion journal</Txt>
-          <Txt variant="footnote" tone="secondary">
-            Synced transcripts are appended to a page you choose.
-          </Txt>
-        </View>
-        <SecretField
-          label="Notion token"
-          caption="A Notion integration token — share your journal page with the integration in Notion, or sync will 404."
-          value={notionToken}
-          onChangeText={setNotionTokenField}
-          onBlur={() => setNotionToken(notionToken)}
-        />
-        <SecretField
-          label="Notion page ID"
-          caption="Your journal page's ID — where synced transcripts are appended."
-          value={notionPageId}
-          onChangeText={setNotionPageIdField}
-          onBlur={() => setNotionPageId(notionPageId)}
         />
       </Card>
 

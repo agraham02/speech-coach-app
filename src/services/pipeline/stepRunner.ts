@@ -2,8 +2,6 @@ import { deriveSessionStatus, STEP_LABELS, type SessionStep } from "../../domain
 import { getSessionSteps, setStepStatus } from "../db/stepsRepo";
 import { updateSessionDerivedStatus } from "../db/sessionsRepo";
 import { describeGeminiError } from "../gemini/describeError";
-import { describeNotionError } from "../notion/describeError";
-import { NotionApiError } from "../notion/notionClient";
 import { notifySessionComplete } from "../notifications/sessionCompleteNotifier";
 import { emitStepEvent } from "./processingEvents";
 import { runExclusive } from "./jobQueue";
@@ -14,7 +12,6 @@ export class StepError extends Error {}
 
 function describeStepError(error: unknown): string {
   if (error instanceof StepError) return error.message;
-  if (error instanceof NotionApiError) return describeNotionError(error);
   return describeGeminiError(error);
 }
 

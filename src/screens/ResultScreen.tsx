@@ -493,7 +493,6 @@ const useStyles = makeStyles(({ colors }) => ({
   tileLabel: { ...font("400"), color: colors.textMuted, fontSize: typography.caption - 1 },
   scroll: { flex: 1 },
   scrollContent: { gap: spacing.md, paddingBottom: spacing.lg },
-  notionCard: { gap: spacing.sm },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
   rowText: { flex: 1, gap: spacing.xs },
   rowTitle: { color: colors.textPrimary, fontSize: typography.body, ...font("600") },

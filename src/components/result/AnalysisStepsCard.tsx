@@ -5,11 +5,10 @@ import { STEP_LABELS, type SessionStep, type StepState } from "../../domain/sess
 import { radii, spacing, typography, font } from "../../theme/theme";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
-const VISIBLE_STEPS: SessionStep[] = ["transcribe", "audio_metrics", "presence", "coach", "cloud_review", "notion"];
+const VISIBLE_STEPS: SessionStep[] = ["transcribe", "audio_metrics", "presence", "coach", "cloud_review"];
 
 const OPTIONAL_DESCRIPTIONS: Partial<Record<SessionStep, string>> = {
   cloud_review: "Gemini scores structure, delivery and presence. Uploads the video.",
-  notion: "Add the clean transcript to today's journal page.",
 };
 
 interface Props {
@@ -49,8 +48,8 @@ function StepRow({ state, onRun, disabledReason }: { state: StepState; onRun: ()
 
   switch (status) {
     case "done":
-      detail = step === "notion" ? "Sent to your journal" : "Done";
-      action = step === "cloud_review" ? "Run again" : step === "notion" ? null : "Re-run";
+      detail = "Done";
+      action = step === "cloud_review" ? "Run again" : "Re-run";
       icon = "checkmark-circle";
       tint = colors.success;
       break;
@@ -75,7 +74,7 @@ function StepRow({ state, onRun, disabledReason }: { state: StepState; onRun: ()
       break;
     default:
       detail = OPTIONAL_DESCRIPTIONS[step] ?? "Not run";
-      action = step === "cloud_review" ? "Get" : step === "notion" ? "Send" : "Run";
+      action = step === "cloud_review" ? "Get" : "Run";
       icon = "add-circle-outline";
       tint = colors.textMuted;
   }

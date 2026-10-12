@@ -3,9 +3,10 @@ import { TOPICS } from "../../data/topics";
 import { DIFFICULTY_OVERRIDES, defaultDifficultyTier } from "../../domain/promptDifficulty";
 import { inferLegacySteps, type LegacySessionSignals } from "../../domain/sessionSteps";
 import type { SessionStatus } from "../../domain/sessionTypes";
+import { logger } from "../../utils/logger";
 
 // Bump this and add a new numbered migration when the schema changes.
-export const LATEST_DB_VERSION = 16;
+export const LATEST_DB_VERSION = 22;
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(
@@ -395,13 +396,11 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
         status: string;
         transcript_clean: string | null;
         dsp_status: string | null;
-        notion_synced_at: string | null;
         wants_grading: number;
-        wants_notion_sync: number;
         has_scores: number;
       }>(`
-        SELECT s.id, s.video_path, s.status, s.transcript_clean, s.dsp_status, s.notion_synced_at,
-               s.wants_grading, s.wants_notion_sync,
+        SELECT s.id, s.video_path, s.status, s.transcript_clean, s.dsp_status,
+               s.wants_grading,
                CASE WHEN sc.session_id IS NULL THEN 0 ELSE 1 END AS has_scores
         FROM sessions s LEFT JOIN scores sc ON sc.session_id = s.id
       `);
@@ -418,9 +417,7 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
           hasTranscript: !!row.transcript_clean,
           dspStatus: row.dsp_status,
           hasScores: row.has_scores === 1,
-          notionSyncedAt: row.notion_synced_at,
           wantsGrading: row.wants_grading === 1,
-          wantsNotionSync: row.wants_notion_sync === 1,
         };
         for (const step of inferLegacySteps(signals)) {
           await db.runAsync(
@@ -626,6 +623,17 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
     `);
     currentVersion = await commitVersion(db, 21);
   }
+
+  if (currentVersion < 22) {
+    // The Notion journal is gone: drop its step rows and columns. A column
+    // that can't be dropped is harmless (inserts no longer name it), so a
+    // failure there is logged, never fatal.
+    await db.execAsync(`DELETE FROM session_steps WHERE step = 'notion';`);
+    for (const column of ["notion_synced_at", "wants_notion_sync", "notion_block_id"]) {
+      await dropColumnIfPresent(db, "sessions", column);
+    }
+    currentVersion = await commitVersion(db, 22);
+  }
 }
 
 // Commits each migration's version as soon as that migration finishes.
@@ -635,6 +643,16 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
 async function commitVersion(db: SQLiteDatabase, version: number): Promise<number> {
   await db.execAsync(`PRAGMA user_version = ${version}`);
   return version;
+}
+
+async function dropColumnIfPresent(db: SQLiteDatabase, table: string, column: string): Promise<void> {
+  const columns = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`);
+  if (!columns.some((c) => c.name === column)) return;
+  try {
+    await db.execAsync(`ALTER TABLE ${table} DROP COLUMN ${column};`);
+  } catch (error) {
+    logger.warn(`[db] couldn't drop ${table}.${column} — ${(error as Error).message}`);
+  }
 }
 
 async function addColumnIfMissing(db: SQLiteDatabase, table: string, column: string, type: string): Promise<void> {

@@ -5,7 +5,7 @@ import type { PlanText } from "../../domain/planYourPoint";
 import { ADHOC_PROMPT_PREFIX, type Prompt, type RecordingSubject, type Session } from "../../domain/sessionTypes";
 
 // Rebuilds everything about what a saved session was "about" from its DB
-// row, in one place. History, Result, Notion, Retake/"Practice again" and
+// row, in one place. History, Result, Retake/"Practice again" and
 // the deep review all used to rebuild this separately — and inconsistently
 // (History dropped the PREP plan; scripts showed as "Unknown prompt").
 

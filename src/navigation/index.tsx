@@ -46,7 +46,8 @@ import { SetupCheckScreen } from "../screens/SetupCheckScreen";
 import { SkillCheckScreen } from "../screens/SkillCheckScreen";
 import { StartingPointScreen } from "../screens/StartingPointScreen";
 import { OnboardingGateScreen } from "../screens/OnboardingGateScreen";
-import { isOnboardingComplete } from "../services/prefs/prefsStore";
+import { isOnboardingComplete, removeObsoletePrefs } from "../services/prefs/prefsStore";
+import { deleteRemovedSecrets } from "../services/secrets/secretsStore";
 import { PromptLibraryScreen } from "../screens/PromptLibraryScreen";
 import { AddPromptScreen } from "../screens/AddPromptScreen";
 import { PlanYourPointScreen } from "../screens/PlanYourPointScreen";
@@ -291,6 +292,8 @@ export function AppNavigator() {
   // Resume analysis the app was killed in the middle of, and clean up
   // abandoned video files (see pipeline/reconcile.ts).
   useEffect(() => {
+    removeObsoletePrefs();
+    deleteRemovedSecrets().catch(() => undefined);
     reconcileOnLaunch();
     autoCleanupVideos().catch((err) => logger.error(`[videos] auto-cleanup failed — ${(err as Error).message}`));
   }, []);

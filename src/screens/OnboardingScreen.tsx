@@ -43,7 +43,6 @@ import {
   getUserProfile,
   setCloudReviewDefault,
   setDailySessionGoal,
-  setNotionDefault,
   setPlanMinutes,
   setPracticeAnchor,
   setRecordBlindPref,
@@ -79,7 +78,7 @@ export function OnboardingScreen({ route, navigation }: Props) {
   const [remind, setRemind] = useState(reminder.enabled);
   const [hour, setHour] = useState(reminder.hour);
   const [extraHours, setExtraHours] = useState<number[]>(reminder.extraHours ?? []);
-  const [cloud, setCloud] = useState({ review: false, notion: false });
+  const [cloudReview, setCloudReview] = useState(false);
   const [retention, setRetention] = useState<string | null>(null);
   const [eventKind, setEventKind] = useState(profile.event?.kind ?? null);
   const [eventWhen, setEventWhen] = useState<number | null>(null);
@@ -164,8 +163,7 @@ export function OnboardingScreen({ route, navigation }: Props) {
         setReminderSettings({ ...getReminderSettings(), practiceDays: days.length === 7 ? [] : days });
         return;
       case "cloud":
-        setCloudReviewDefault(cloud.review);
-        setNotionDefault(cloud.notion);
+        setCloudReviewDefault(cloudReview);
         return;
       case "retention": {
         const option = RETENTION_OPTIONS.find((r) => r.key === retention);
@@ -406,10 +404,9 @@ export function OnboardingScreen({ route, navigation }: Props) {
                   label: "Deep review with Gemini",
                   detail: "Uploads the video to Google's Gemini for a detailed review of content and delivery. Needs your own key in Settings.",
                 },
-                { key: "notion", label: "Notion journal", detail: "Adds the clean transcript to your Notion journal. Sends the text to Notion." },
               ]}
-              value={[cloud.review ? "review" : null, cloud.notion ? "notion" : null].filter((k): k is "review" | "notion" => !!k)}
-              onChange={(k) => setCloud((c) => ({ ...c, [k]: !c[k] }))}
+              value={cloudReview ? ["review"] : []}
+              onChange={() => setCloudReview((on) => !on)}
             />
           </View>
         );

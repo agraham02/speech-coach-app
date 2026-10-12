@@ -10,7 +10,6 @@ import { refreshSessionStatus, runStep } from "./stepRunner";
 import { transcribeStep } from "./steps/transcribeStep";
 import { audioMetricsStep } from "./steps/audioMetricsStep";
 import { cloudReviewStep } from "./steps/cloudReviewStep";
-import { notionStep } from "./steps/notionStep";
 import { presenceStep } from "./steps/presenceStep";
 import { coachStep } from "./steps/coachStep";
 import { putArtifact } from "../db/artifactsRepo";
@@ -40,13 +39,11 @@ const STEP_RUNNERS: Record<SessionStep, ((sessionId: string) => Promise<void>) |
   presence: presenceStep,
   coach: coachStep,
   cloud_review: cloudReviewStep,
-  notion: notionStep,
 };
 
-// Order matters: voice analysis uses the transcript; Notion needs a
-// transcript, which a deep review can supply when on-device transcription
-// failed.
-const STEP_ORDER: SessionStep[] = ["transcribe", "audio_metrics", "presence", "coach", "cloud_review", "notion"];
+// Order matters: voice analysis and coaching use the transcript, which a
+// deep review can supply when on-device transcription failed.
+const STEP_ORDER: SessionStep[] = ["transcribe", "audio_metrics", "presence", "coach", "cloud_review"];
 
 function subjectToSessionType(subject: RecordingSubject): SessionType {
   if (subject.kind === "script") return "script_practice";
@@ -74,7 +71,6 @@ export interface NewTake {
   previewUri: string;
   durationSecondsLocal: number;
   wantsCloudReview: boolean;
-  wantsNotionSync: boolean;
 }
 
 // Saves a kept take: renames the file to <sessionId>.mp4, inserts the row,
@@ -96,9 +92,7 @@ export async function createSessionFromTake(take: NewTake): Promise<string> {
     transcriptVerbatim: null,
     transcriptClean: null,
     status: "processing",
-    notionSyncedAt: null,
     wantsGrading: take.wantsCloudReview,
-    wantsNotionSync: take.wantsNotionSync,
     sessionType: subjectToSessionType(subject),
     scriptId: subject.kind === "script" ? subject.script.id : null,
     cuesEnabled: subject.kind === "script" ? subject.cuesEnabled : null,
@@ -127,7 +121,6 @@ export async function createSessionFromTake(take: NewTake): Promise<string> {
     lastError: null,
     updatedAt: null,
     subjectExtras: subject.kind === "prompt" ? promptExtras(subject) : null,
-    notionBlockId: null,
   });
 
   const timeline = takePresenceTimeline(take.previewUri);
@@ -139,10 +132,9 @@ export async function createSessionFromTake(take: NewTake): Promise<string> {
     presence: timeline && timeline.length >= 3 ? "pending" : "skipped",
     coach: "pending",
     cloud_review: take.wantsCloudReview ? "pending" : "skipped",
-    notion: take.wantsNotionSync ? "pending" : "skipped",
   };
   await seedSessionSteps(sessionId, initial);
-  logger.info(`[pipeline] ${sessionId}: saved (${subjectToSessionType(subject)}, deep review=${take.wantsCloudReview}, notion=${take.wantsNotionSync})`);
+  logger.info(`[pipeline] ${sessionId}: saved (${subjectToSessionType(subject)}, deep review=${take.wantsCloudReview})`);
 
   runPendingSteps(sessionId).catch((error) =>
     logger.error(`[pipeline] ${sessionId}: run failed — ${(error as Error).message}`),
@@ -178,10 +170,9 @@ export function runPendingSteps(sessionId: string): Promise<void> {
 }
 
 // Queues one step (again) and runs it — used for "Retry", "Re-run voice
-// analysis", "Get deep review" and "Sync to Notion" from the Result screen.
+// analysis" and "Get deep review" from the Result screen.
 export async function requestStep(sessionId: string, step: SessionStep): Promise<void> {
   if (step === "cloud_review") await updateSessionWants(sessionId, { grading: true });
-  if (step === "notion") await updateSessionWants(sessionId, { notion: true });
   await setStepStatus(sessionId, step, "pending");
   emitStepEvent({ sessionId, step, status: "pending" });
   // Downstream steps follow whatever they depend on: voice analysis uses

@@ -122,9 +122,7 @@ export interface Session {
   transcriptVerbatim: string | null;
   transcriptClean: string | null;
   status: SessionStatus;
-  notionSyncedAt: string | null;
   wantsGrading: boolean;
-  wantsNotionSync: boolean;
   // Defaults to 'spontaneous' for every pre-existing row (see migration v7).
   // scriptId/cuesEnabled are only ever non-null when sessionType is
   // 'script_practice'.
@@ -185,7 +183,6 @@ export interface Session {
   lastError: string | null;
   updatedAt: string | null;
   subjectExtras: SessionSubjectExtras | null;
-  notionBlockId: string | null;
   // Migration v17. Optional because they're only ever written by their own
   // steps, never on insert. videoKeepsake: kept (compressed) when old videos
   // are cleared — see domain/videoKeepsakes.ts. sessionScore: the combined

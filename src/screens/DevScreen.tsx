@@ -66,7 +66,7 @@ export function DevScreen() {
           <Ionicons name="terminal-outline" size={40} color={colors.textMuted} />
           <Text style={styles.emptyText}>
             Nothing logged yet. Record a session — every step of saving, uploading to Gemini, transcribing, and
-            syncing to Notion gets logged here as it happens.
+            running a deep review gets logged here as it happens.
           </Text>
         </View>
       ) : (

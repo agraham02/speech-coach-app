@@ -31,7 +31,6 @@ const KEYS = {
   userProfile: "userProfile",
   skillCheckPending: "skillCheckPending",
   cloudReviewDefault: "cloudReviewDefault",
-  notionDefault: "notionDefault",
   videoRetentionDays: "videoRetentionDays",
   lastAutoCleanup: "lastAutoCleanup",
 } as const;
@@ -253,13 +252,6 @@ export function setCloudReviewDefault(value: boolean): void {
   storage.set(KEYS.cloudReviewDefault, value);
 }
 
-export function getNotionDefault(): boolean | null {
-  return storage.contains(KEYS.notionDefault) ? (storage.getBoolean(KEYS.notionDefault) ?? null) : null;
-}
-
-export function setNotionDefault(value: boolean): void {
-  storage.set(KEYS.notionDefault, value);
-}
 
 // Days to keep full videos before the monthly-keepsake cleanup runs on its
 // own (onboarding 3.8). 0 = keep forever; null = never chosen (cleanup only
@@ -278,4 +270,12 @@ export function getLastAutoCleanup(): string | null {
 
 export function setLastAutoCleanup(date: string): void {
   storage.set(KEYS.lastAutoCleanup, date);
+}
+
+// Prefs for features that no longer exist (the Notion journal's default,
+// removed 2026-10-12).
+const REMOVED_KEYS = ["notionDefault"];
+
+export function removeObsoletePrefs(): void {
+  for (const key of REMOVED_KEYS) storage.remove(key);
 }

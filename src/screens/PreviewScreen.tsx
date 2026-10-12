@@ -13,25 +13,23 @@ import { createSessionFromTake } from "../services/pipeline/sessionPipeline";
 import { setVideoKeepsake } from "../services/data/videoKeepsakes";
 import { logger } from "../utils/logger";
 import { completePracticeStep } from "../services/practice/practiceEvents";
-import { getCloudReviewDefault, getNotionDefault } from "../services/prefs/prefsStore";
+import { getCloudReviewDefault } from "../services/prefs/prefsStore";
 import { spacing, typography, font, fontDisplay } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Preview">;
 
 // Use the take, retake it, or throw it away. Nothing is final here: on-device
-// analysis always runs, and a deep review or Notion sync can be added from
-// the session at any time later.
+// analysis always runs, and a deep review can be added from the session at
+// any time later.
 export function PreviewScreen({ route, navigation }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
   const { videoUri, durationSecondsLocal, ...subject } = route.params;
-  const isFreeRecord = subject.kind === "prompt" && isFreeRecordPrompt(subject.prompt.id);
-  const [wantsCloudReview, setWantsCloudReview] = useState(() => !(subject.kind === "prompt" && subject.feeling) && getCloudReviewDefault());
   // A feeling rep is private by default: nothing leaves the phone unless
   // switched on here.
   const isFeeling = subject.kind === "prompt" && !!subject.feeling;
-  const [wantsNotionSync, setWantsNotionSync] = useState(() => !isFeeling && (getNotionDefault() ?? isFreeRecord));
+  const [wantsCloudReview, setWantsCloudReview] = useState(() => !isFeeling && getCloudReviewDefault());
   const [isSaving, setIsSaving] = useState(false);
   // Set once the take has been saved or deliberately thrown away, so leaving
   // the screen no longer needs a confirmation.
@@ -97,7 +95,6 @@ export function PreviewScreen({ route, navigation }: Props) {
         previewUri: videoUri,
         durationSecondsLocal,
         wantsCloudReview,
-        wantsNotionSync,
       });
       // A lesson / daily-plan rep counts as done once the take is kept.
       if (subject.kind === "prompt") completePracticeStep(subject.practice, null, sessionId);
@@ -142,22 +139,10 @@ export function PreviewScreen({ route, navigation }: Props) {
               thumbColor="#FFFFFF"
             />
           </View>
-          <View style={styles.row}>
-            <View style={styles.rowText}>
-              <Text style={styles.rowTitle}>Sync to Notion</Text>
-              <Text style={styles.rowSubtitle}>Append the clean transcript to today's journal entry.</Text>
-            </View>
-            <Switch
-              value={wantsNotionSync}
-              onValueChange={setWantsNotionSync}
-              trackColor={{ true: colors.success, false: colors.switchTrackOff }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
           <Text style={styles.hint}>
             {isFeeling
-              ? "This is a private feeling rep — both stay off unless you turn them on. You can still add them later."
-              : "You can add either of these later from the session."}
+              ? "This is a private feeling rep — the deep review stays off unless you turn it on. You can still add it later."
+              : "You can add a deep review later from the session."}
           </Text>
         </Card>
       </ScrollView>

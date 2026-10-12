@@ -159,7 +159,7 @@ export function HistoryScreen() {
   }, [sessions, searchQuery, statusFilter, categoryFilter, durationFilter, promptsById]);
 
   // Every session opens on Result — progress, retries and every later
-  // action (deep review, Notion, practice again) live there.
+  // action (deep review, practice again) live there.
   function openSession(session: Session) {
     navigation.navigate("Result", { sessionId: session.id });
   }

@@ -28,9 +28,7 @@ export interface SessionRow {
   transcript_verbatim: string | null;
   transcript_clean: string | null;
   status: string;
-  notion_synced_at: string | null;
   wants_grading: number;
-  wants_notion_sync: number;
   filler_word_count: number | null;
   filler_rate_per_minute: number | null;
   video_deleted_at: string | null;
@@ -60,7 +58,6 @@ export interface SessionRow {
   last_error: string | null;
   updated_at: string | null;
   subject_json: string | null;
-  notion_block_id: string | null;
   video_keepsake?: number | null;
   session_score?: number | null;
 }
@@ -90,9 +87,7 @@ export function rowToSession(row: SessionRow): Session {
     transcriptVerbatim: row.transcript_verbatim,
     transcriptClean: row.transcript_clean,
     status: row.status as SessionStatus,
-    notionSyncedAt: row.notion_synced_at,
     wantsGrading: row.wants_grading === 1,
-    wantsNotionSync: row.wants_notion_sync === 1,
     fillerWordCount: row.filler_word_count,
     fillerRatePerMinute: row.filler_rate_per_minute,
     videoDeletedAt: row.video_deleted_at,
@@ -122,7 +117,6 @@ export function rowToSession(row: SessionRow): Session {
     lastError: row.last_error ?? null,
     updatedAt: row.updated_at ?? null,
     subjectExtras: parseNullableJson<SessionSubjectExtras>(row.subject_json ?? null, "subject_json"),
-    notionBlockId: row.notion_block_id ?? null,
     videoKeepsake: row.video_keepsake === 1,
     sessionScore: row.session_score ?? null,
   };
