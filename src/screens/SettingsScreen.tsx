@@ -33,7 +33,7 @@ import { defaultExtraHours, type DailyGoal } from "../domain/dailyGoal";
 import { ChipGroup } from "../components/common/Chip";
 import { getDailySessionGoal, getVideoRetentionDays, setDailySessionGoal } from "../services/prefs/prefsStore";
 import { cancelDailyReminder, requestNotificationPermission, syncDailyReminder } from "../services/notifications/reminderScheduler";
-import { spacing, typography } from "../theme/theme";
+import { spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import { SHOW_DEV_TOOLS } from "../config/devTools";
 
@@ -239,7 +239,7 @@ export function SettingsScreen({ navigation }: Props) {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-      <Text style={styles.groupLabel}>PRACTICE</Text>
+      <Text style={styles.groupLabel}>Practice</Text>
       <Card style={styles.section}>
         <Pressable onPress={() => navigation.navigate("Onboarding", { mode: "profile" })} style={styles.sectionHeaderRow} accessibilityRole="button">
           <View style={styles.sectionHeaderText}>
@@ -414,7 +414,7 @@ export function SettingsScreen({ navigation }: Props) {
         />
       </Card>
 
-      <Text style={styles.groupLabel}>NOTION JOURNAL</Text>
+      <Text style={styles.groupLabel}>Notion journal</Text>
       <Card style={styles.section}>
         <SecretField
           label="Notion token"
@@ -432,7 +432,7 @@ export function SettingsScreen({ navigation }: Props) {
         />
       </Card>
 
-      <Text style={styles.groupLabel}>DATA</Text>
+      <Text style={styles.groupLabel}>Data</Text>
       <Card style={styles.section}>
         <Text style={styles.sectionTitle}>Your data stays on this phone</Text>
         <Text style={styles.sectionSubtitle}>Videos use {formatBytes(videoBytes)}.</Text>
@@ -461,28 +461,28 @@ function StatusLine({ label, value, ok }: { label: string; value: string; ok?: b
 }
 
 const useStyles = makeStyles(({ colors }) => ({
-  groupLabel: { color: colors.textMuted, fontSize: 11, fontWeight: "700", letterSpacing: 0.8, marginTop: spacing.sm },
+  groupLabel: { color: colors.textMuted, fontSize: 13, ...font("600"), marginTop: spacing.sm },
   linkCard: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   statusLine: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  statusLabel: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "600", flex: 1 },
-  statusValue: { color: colors.textSecondary, fontSize: typography.caption },
+  statusLabel: { color: colors.textPrimary, fontSize: typography.body, ...font("600"), flex: 1 },
+  statusValue: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption },
   container: { gap: spacing.lg },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   headerSpacer: { width: 26 },
-  title: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
+  title: { color: colors.textPrimary, fontSize: typography.title, ...font("700") },
   scroll: { flex: 1 },
   scrollContent: { gap: spacing.lg, paddingBottom: spacing.lg },
   section: { gap: spacing.md },
   sectionHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
   sectionHeaderText: { flex: 1, gap: spacing.xs },
-  sectionTitle: { color: colors.textPrimary, fontSize: typography.bodyLarge, fontWeight: "700" },
-  sectionSubtitle: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18 },
+  sectionTitle: { color: colors.textPrimary, fontSize: typography.bodyLarge, ...font("700") },
+  sectionSubtitle: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18 },
   switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  switchLabel: { color: colors.textSecondary, fontSize: typography.body },
-  linkText: { color: colors.accent, fontSize: typography.caption, fontWeight: "600" },
+  switchLabel: { ...font("400"), color: colors.textSecondary, fontSize: typography.body },
+  linkText: { color: colors.accent, fontSize: typography.caption, ...font("600") },
   dayRow: { flexDirection: "row", justifyContent: "space-between" },
   dayChip: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceRaised },
-  dayText: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "700" },
+  dayText: { color: colors.textSecondary, fontSize: typography.caption, ...font("700") },
   secretField: { gap: spacing.xs },
   secretInputRow: {
     flexDirection: "row",
@@ -495,5 +495,5 @@ const useStyles = makeStyles(({ colors }) => ({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
-  secretInput: { flex: 1, color: colors.textPrimary, fontSize: typography.body, padding: 0 },
+  secretInput: { ...font("400"), flex: 1, color: colors.textPrimary, fontSize: typography.body, padding: 0 },
 }));

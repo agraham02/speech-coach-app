@@ -4,13 +4,14 @@ import { Txt } from "../common/Txt";
 import { getUserProfile } from "../../services/prefs/prefsStore";
 import { fillPlaceholder, filterMarks, marksByWord, phrases, type MarkKind, type MarkLevel, type MarkedText, type WordMarks } from "../../domain/cadence/marks";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
+import { font } from "../../theme/tokens";
 
 export type MarkedTextSize = "large" | "medium" | "small";
 
 const SIZES: Record<MarkedTextSize, { fontSize: number; lineHeight: number }> = {
-  large: { fontSize: 28, lineHeight: 40 },
-  medium: { fontSize: 21, lineHeight: 31 },
-  small: { fontSize: 16, lineHeight: 23 },
+  large: { ...font("400"), fontSize: 28, lineHeight: 40 },
+  medium: { ...font("400"), fontSize: 21, lineHeight: 31 },
+  small: { ...font("400"), fontSize: 16, lineHeight: 23 },
 };
 
 interface Props {
@@ -44,10 +45,10 @@ export function MarkedTextView({ marked, level = "full", hidden, size = "medium"
   const name = useMemo(() => getUserProfile()?.name?.trim() || undefined, []);
 
   const wordStyle = (w: WordMarks): TextStyle => {
-    const style: TextStyle = { ...base, color: colors.textPrimary, fontWeight: "500" };
+    const style: TextStyle = { ...base, color: colors.textPrimary, ...font("500") };
     if (w.spans.includes("louder")) {
       style.fontSize = Math.round(base.fontSize * 1.18);
-      style.fontWeight = "700";
+      Object.assign(style, font("700"));
     }
     if (w.spans.includes("softer")) {
       style.fontSize = Math.round(base.fontSize * 0.86);
@@ -59,7 +60,7 @@ export function MarkedTextView({ marked, level = "full", hidden, size = "medium"
       style.fontStyle = "italic";
     }
     if (w.emphasis) {
-      style.fontWeight = "800";
+      Object.assign(style, font("800"));
       style.textDecorationLine = "underline";
       style.color = colors.textPrimary;
     }
@@ -117,7 +118,7 @@ const useStyles = makeStyles((t) => ({
   lines: { gap: 2 },
   phrase: {},
   longGap: { marginBottom: t.space.md },
-  arrow: { fontWeight: "700" },
-  gap: { fontWeight: "300" },
+  arrow: { ...font("700") },
+  gap: { ...font("300") },
   note: { fontStyle: "italic", marginBottom: 2 },
 }));

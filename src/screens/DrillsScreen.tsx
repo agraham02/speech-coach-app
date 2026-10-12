@@ -14,7 +14,7 @@ import { getDrillCompletionDates } from "../services/db/drillsRepo";
 import { getEffectiveCurriculumLevel } from "../services/db/curriculumRepo";
 import { levelToDifficultyTier } from "../domain/curriculum";
 import type { DifficultyTier } from "../domain/sessionTypes";
-import { spacing, typography } from "../theme/theme";
+import { spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import type { Colors } from "../theme/theme";
 import { getReminderSettings } from "../services/prefs/prefsStore";
@@ -115,15 +115,15 @@ export function DrillsScreen({ navigation }: Props) {
 const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  title: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
+  title: { color: colors.textPrimary, fontSize: typography.title, ...font("700") },
   streakCard: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   streakTextGroup: { flex: 1, gap: 2 },
-  streakNumber: { color: colors.textPrimary, fontSize: typography.bodyLarge, fontWeight: "700" },
-  streakSubtext: { color: colors.textMuted, fontSize: typography.caption },
-  recommendedHint: { color: colors.accent, fontSize: typography.caption - 1, fontWeight: "600" },
+  streakNumber: { color: colors.textPrimary, fontSize: typography.bodyLarge, ...font("700") },
+  streakSubtext: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
+  recommendedHint: { color: colors.accent, fontSize: typography.caption - 1, ...font("600") },
   list: { gap: spacing.sm, paddingBottom: spacing.lg },
   twisterCard: { gap: spacing.xs },
   twisterCardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  repeatHint: { color: colors.textMuted, fontSize: typography.caption, fontWeight: "600" },
-  twisterText: { color: colors.textPrimary, fontSize: typography.bodyLarge, fontWeight: "600", lineHeight: 22 },
+  repeatHint: { color: colors.textMuted, fontSize: typography.caption, ...font("600") },
+  twisterText: { color: colors.textPrimary, fontSize: typography.bodyLarge, ...font("600"), lineHeight: 22 },
 }));

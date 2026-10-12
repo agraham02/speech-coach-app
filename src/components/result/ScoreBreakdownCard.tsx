@@ -2,7 +2,7 @@ import { Text, View } from "react-native";
 import { Card } from "../common/Card";
 import { colorForScore } from "./scoreColor";
 import type { SessionScoreBreakdown } from "../../domain/sessionScore";
-import { radii, spacing, typography } from "../../theme/theme";
+import { radii, spacing, typography, font } from "../../theme/theme";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 // How the session score was put together: each category's score, what the
@@ -14,7 +14,7 @@ export function ScoreBreakdownCard({ breakdown }: { breakdown: SessionScoreBreak
 
   return (
     <Card style={styles.card}>
-      <Text style={styles.label}>HOW THIS SCORE IS BUILT</Text>
+      <Text style={styles.label}>How this score is built</Text>
       {breakdown.components.map((c) => (
         <View key={c.key} style={styles.row}>
           <View style={styles.rowTop}>
@@ -44,13 +44,13 @@ export function ScoreBreakdownCard({ breakdown }: { breakdown: SessionScoreBreak
 
 const useStyles = makeStyles(({ colors }) => ({
   card: { gap: spacing.sm },
-  label: { color: colors.textMuted, fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 1 },
+  label: { color: colors.textMuted, fontSize: 13, ...font("600") },
   row: { gap: 4 },
   rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
-  name: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "600" },
-  value: { fontSize: typography.body, fontWeight: "800" },
+  name: { color: colors.textPrimary, fontSize: typography.body, ...font("600") },
+  value: { fontSize: typography.body, ...font("800") },
   track: { height: 6, borderRadius: radii.pill, backgroundColor: colors.surfaceRaised, overflow: "hidden" },
   fill: { height: 6, borderRadius: radii.pill },
-  meta: { color: colors.textMuted, fontSize: typography.caption },
-  footnote: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },
+  meta: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
+  footnote: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },
 }));

@@ -14,7 +14,7 @@ import { setVideoKeepsake } from "../services/data/videoKeepsakes";
 import { logger } from "../utils/logger";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { getCloudReviewDefault, getNotionDefault } from "../services/prefs/prefsStore";
-import { spacing, typography } from "../theme/theme";
+import { spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Preview">;
@@ -177,16 +177,16 @@ export function PreviewScreen({ route, navigation }: Props) {
 
 const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
-  title: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
+  title: { color: colors.textPrimary, fontSize: typography.title, ...font("700") },
   scroll: { flex: 1 },
   scrollContent: { gap: spacing.md, paddingBottom: spacing.lg },
   section: { gap: spacing.md },
-  note: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18 },
-  hint: { color: colors.textMuted, fontSize: typography.caption },
+  note: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18 },
+  hint: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
   rowText: { flex: 1, gap: spacing.xs },
-  rowTitle: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "600" },
-  rowSubtitle: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },
+  rowTitle: { color: colors.textPrimary, fontSize: typography.body, ...font("600") },
+  rowSubtitle: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },
   actions: { gap: spacing.sm },
   secondaryRow: { flexDirection: "row", gap: spacing.md },
   actionSlot: { flex: 1 },

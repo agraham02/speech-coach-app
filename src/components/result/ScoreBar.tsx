@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Text, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import { radii, spacing, typography } from "../../theme/theme";
+import { radii, spacing, typography, font } from "../../theme/theme";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 import { colorForScore } from "./scoreColor";
 
@@ -46,9 +46,9 @@ export function ScoreBar({ label, score, notes, suffix }: ScoreBarProps) {
 const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.xs },
   labelRow: { flexDirection: "row", justifyContent: "space-between" },
-  label: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "600" },
-  scoreText: { fontSize: typography.caption, fontWeight: "700" },
+  label: { color: colors.textPrimary, fontSize: typography.body, ...font("600") },
+  scoreText: { fontSize: typography.caption, ...font("700") },
   track: { height: 6, borderRadius: radii.pill, backgroundColor: colors.surfaceRaised, overflow: "hidden" },
   fill: { height: "100%", borderRadius: radii.pill },
-  notes: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },
+  notes: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },
 }));

@@ -16,6 +16,7 @@ import {
   type SpanMarkKind,
 } from "../../domain/cadence/marks";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
+import { font } from "../../theme/tokens";
 
 export type EditorTool = "emphasis" | "rise" | "fall" | "pause" | SpanMarkKind | "note" | "eraser";
 
@@ -121,13 +122,13 @@ export function MarkEditor({ text, marks, onChange, tools = ALL_TOOLS, locked = 
 
   const wordStyle = (i: number): TextStyle => {
     const w = words[i];
-    const style: TextStyle = { fontSize: 22, lineHeight: 30, color: colors.textPrimary, fontWeight: "500" };
-    if (w.spans.includes("louder")) style.fontWeight = "700";
+    const style: TextStyle = { fontSize: 22, lineHeight: 30, color: colors.textPrimary, ...font("500") };
+    if (w.spans.includes("louder")) Object.assign(style, font("700"));
     if (w.spans.includes("softer")) style.color = colors.textSecondary;
     if (w.spans.includes("slow")) style.letterSpacing = 2.5;
     if (w.spans.includes("fast")) style.fontStyle = "italic";
     if (w.emphasis) {
-      style.fontWeight = "800";
+      Object.assign(style, font("800"));
       style.textDecorationLine = "underline";
     }
     return style;
@@ -234,11 +235,12 @@ const useStyles = makeStyles((t) => ({
   words: { flexDirection: "row", flexWrap: "wrap", rowGap: t.space.sm, columnGap: 2 },
   wordWrap: { alignItems: "flex-start" },
   word: { flexDirection: "row", alignItems: "baseline", paddingHorizontal: 5, paddingVertical: 4, borderRadius: t.radius.sm, backgroundColor: t.colors.surfaceRaised },
-  glyph: { fontSize: 20, lineHeight: 30, fontWeight: "700", marginLeft: 2 },
+  glyph: { fontSize: 20, lineHeight: 30, ...font("700"), marginLeft: 2 },
   gap: { marginLeft: 6 },
   noteTag: { fontStyle: "italic", maxWidth: 160, marginLeft: 4 },
   noteBox: { gap: t.space.xs },
   noteInput: {
+    ...font("400"),
     borderRadius: t.radius.md,
     backgroundColor: t.colors.surfaceRaised,
     color: t.colors.textPrimary,

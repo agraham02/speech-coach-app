@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { darkColors as colors, radii, spacing, typography } from "../../theme/theme";
+import { darkColors as colors, radii, spacing, typography, font } from "../../theme/theme";
 
 interface PrepOverlayProps {
   promptText: string;
@@ -84,10 +84,10 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     backgroundColor: "rgba(0,0,0,0.6)",
   },
-  label: { color: colors.accent, fontSize: typography.caption, fontWeight: "700", letterSpacing: 1 },
-  promptText: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "600", textAlign: "center" },
+  label: { color: colors.accent, fontSize: 13, ...font("600") },
+  promptText: { color: colors.textPrimary, fontSize: typography.title, ...font("600"), textAlign: "center" },
   notes: { marginTop: spacing.xs, gap: 4, alignSelf: "stretch" },
-  noteText: { color: colors.textPrimary, fontSize: typography.body, lineHeight: 21 },
+  noteText: { ...font("400"), color: colors.textPrimary, fontSize: typography.body, lineHeight: 21 },
   countdownWrap: {
     width: 140,
     height: 140,
@@ -98,12 +98,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "rgba(0,0,0,0.4)",
   },
-  countdown: { color: colors.textPrimary, fontSize: 56, fontWeight: "300", fontVariant: ["tabular-nums"] },
+  countdown: { color: colors.textPrimary, fontSize: 56, ...font("300"), fontVariant: ["tabular-nums"] },
   skipButton: {
     backgroundColor: "rgba(0,0,0,0.55)",
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm + 2,
     borderRadius: radii.pill,
   },
-  skipText: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "600" },
+  skipText: { color: colors.textPrimary, fontSize: typography.body, ...font("600") },
 });

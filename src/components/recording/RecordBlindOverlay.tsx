@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { RecordingTimer } from "./RecordingTimer";
-import { darkColors as colors, spacing, typography } from "../../theme/theme";
+import { darkColors as colors, spacing, typography, font } from "../../theme/theme";
 
 interface RecordBlindOverlayProps {
   promptText: string;
@@ -60,5 +60,5 @@ const styles = StyleSheet.create({
   },
   recDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.danger, opacity: 0.35 },
   peek: { alignItems: "center", gap: spacing.lg },
-  prompt: { color: colors.textSecondary, fontSize: typography.title, textAlign: "center", lineHeight: 30 },
+  prompt: { ...font("400"), color: colors.textSecondary, fontSize: typography.title, textAlign: "center", lineHeight: 30 },
 });

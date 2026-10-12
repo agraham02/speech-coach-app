@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
-import { darkColors as colors, radii, spacing, typography } from "../../theme/theme";
+import { darkColors as colors, radii, spacing, typography, font } from "../../theme/theme";
 
 export function PromptBanner({ text }: { text: string }) {
   return (
@@ -17,5 +17,5 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.md,
   },
-  text: { color: colors.textPrimary, fontSize: typography.body, lineHeight: 20, textAlign: "center" },
+  text: { ...font("400"), color: colors.textPrimary, fontSize: typography.body, lineHeight: 20, textAlign: "center" },
 });

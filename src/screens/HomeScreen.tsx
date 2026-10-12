@@ -49,7 +49,7 @@ import {
 } from "../services/prefs/prefsStore";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
 import type { Prompt } from "../domain/sessionTypes";
-import { fontDisplay, radii, spacing, typography } from "../theme/theme";
+import { fontDisplay, radii, spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 const EMPTY_STREAK: StreakResult = { currentStreak: 0, longestStreak: 0 };
@@ -440,17 +440,17 @@ const useStyles = makeStyles(({ colors }) => ({
     borderColor: colors.border,
     backgroundColor: colors.subtleFill,
   },
-  levelChipText: { color: colors.textSecondary, fontSize: typography.caption - 1, fontWeight: "700" },
-  eyebrow: { color: colors.textSecondary, fontSize: typography.body },
-  appName: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
+  levelChipText: { color: colors.textSecondary, fontSize: typography.caption - 1, ...font("700") },
+  eyebrow: { ...font("400"), color: colors.textSecondary, fontSize: typography.body },
+  appName: { color: colors.textPrimary, fontSize: typography.title, ...font("700") },
   back: { marginLeft: -6, marginBottom: spacing.xs },
   streakRow: { flexDirection: "row", alignItems: "baseline", gap: spacing.xs, marginTop: spacing.xs },
   streakNumber: { color: colors.warning, fontSize: typography.body, fontFamily: fontDisplay.bold },
-  streakText: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "600" },
+  streakText: { color: colors.textSecondary, fontSize: typography.caption, ...font("600") },
   middle: { flex: 1, justifyContent: "center", gap: spacing.lg },
   promptCard: { gap: spacing.md },
-  promptText: { color: colors.textPrimary, fontSize: typography.headline, fontWeight: "600", lineHeight: 36 },
-  hint: { color: colors.textMuted, fontSize: typography.body, textAlign: "center" },
+  promptText: { color: colors.textPrimary, fontSize: typography.headline, ...font("600"), lineHeight: 36 },
+  hint: { ...font("400"), color: colors.textMuted, fontSize: typography.body, textAlign: "center" },
 
   conciseChip: {
     alignSelf: "flex-start",
@@ -465,7 +465,7 @@ const useStyles = makeStyles(({ colors }) => ({
     backgroundColor: colors.subtleFill,
   },
   conciseChipOn: { backgroundColor: colors.accent, borderColor: colors.accent },
-  conciseChipText: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "700" },
+  conciseChipText: { color: colors.textSecondary, fontSize: typography.caption, ...font("700") },
   conciseChipTextOn: { color: colors.onAccent },
 
   primaryRow: { flexDirection: "row", gap: spacing.sm, alignItems: "stretch" },
@@ -481,7 +481,7 @@ const useStyles = makeStyles(({ colors }) => ({
   },
 
   freeLinkWrap: { alignSelf: "center", paddingVertical: spacing.xs },
-  freeLinkText: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "600", textDecorationLine: "underline" },
+  freeLinkText: { color: colors.textSecondary, fontSize: typography.caption, ...font("600"), textDecorationLine: "underline" },
 
   shelf: { flexDirection: "row", gap: spacing.sm },
   shelfCard: {
@@ -496,5 +496,5 @@ const useStyles = makeStyles(({ colors }) => ({
     borderColor: colors.border,
   },
   shelfCardPressed: { opacity: 0.7 },
-  shelfCardLabel: { color: colors.textPrimary, fontSize: typography.caption - 1, fontWeight: "700", textAlign: "center", lineHeight: 15 },
+  shelfCardLabel: { color: colors.textPrimary, fontSize: typography.caption - 1, ...font("700"), textAlign: "center", lineHeight: 15 },
 }));

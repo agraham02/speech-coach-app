@@ -7,7 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { ScreenContainer } from "../components/common/ScreenContainer";
 import { clearLogs, formatLogsForSharing, getLogs, subscribeLogs, type LogEntry } from "../services/logs/logStore";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
-import { spacing, typography } from "../theme/theme";
+import { spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import type { Colors } from "../theme/theme";
 
@@ -95,12 +95,12 @@ const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md, paddingBottom: 0 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   headerActions: { flexDirection: "row", gap: spacing.lg },
-  title: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
+  title: { color: colors.textPrimary, fontSize: typography.title, ...font("700") },
   list: { flex: 1 },
   listContent: { gap: spacing.sm, paddingBottom: spacing.lg },
   row: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start" },
-  time: { color: colors.textMuted, fontSize: typography.caption - 1, fontVariant: ["tabular-nums"], width: 76 },
+  time: { ...font("400"), color: colors.textMuted, fontSize: typography.caption - 1, fontVariant: ["tabular-nums"], width: 76 },
   message: { flex: 1, fontSize: typography.caption, fontFamily: "monospace", lineHeight: 17 },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
-  emptyText: { color: colors.textMuted, fontSize: typography.body, textAlign: "center", paddingHorizontal: spacing.xl },
+  emptyText: { ...font("400"), color: colors.textMuted, fontSize: typography.body, textAlign: "center", paddingHorizontal: spacing.xl },
 }));

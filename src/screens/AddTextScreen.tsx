@@ -13,6 +13,7 @@ import { autoMarkText } from "../services/onDeviceLlm/autoMarkText";
 import { saveMarkedText } from "../services/db/markedTextsRepo";
 import { showGlobalToast } from "../components/common/ToastProvider";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
+import { font } from "../theme/tokens";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AddText">;
 
@@ -116,6 +117,7 @@ const useStyles = makeStyles((t) => ({
   container: { gap: t.space.md },
   flex: { flex: 1, gap: t.space.md },
   input: {
+    ...font("400"),
     flex: 1,
     minHeight: 180,
     borderRadius: t.radius.lg,

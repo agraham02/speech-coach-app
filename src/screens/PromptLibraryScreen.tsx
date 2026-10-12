@@ -11,7 +11,7 @@ import { SegmentedControl } from "../components/common/SegmentedControl";
 import { getAllPrompts } from "../services/db/promptsRepo";
 import { colorForCategory } from "../domain/categoryColor";
 import type { DifficultyTier, Prompt } from "../domain/sessionTypes";
-import { radii, spacing, typography } from "../theme/theme";
+import { radii, spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import type { Colors } from "../theme/theme";
 
@@ -163,7 +163,7 @@ export function PromptLibraryScreen({ navigation }: Props) {
 const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  title: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
+  title: { color: colors.textPrimary, fontSize: typography.title, ...font("700") },
   addButton: { padding: spacing.xs },
   searchBox: {
     flexDirection: "row",
@@ -176,7 +176,7 @@ const useStyles = makeStyles(({ colors }) => ({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
-  searchInput: { flex: 1, color: colors.textPrimary, fontSize: typography.body, padding: 0 },
+  searchInput: { ...font("400"), flex: 1, color: colors.textPrimary, fontSize: typography.body, padding: 0 },
   chipScroll: { flexGrow: 0 },
   chipRow: { flexDirection: "row", gap: spacing.xs },
   chip: {
@@ -188,12 +188,12 @@ const useStyles = makeStyles(({ colors }) => ({
     borderColor: colors.border,
   },
   chipSelected: { backgroundColor: colors.accentMuted, borderColor: colors.accent },
-  chipText: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "600" },
+  chipText: { color: colors.textSecondary, fontSize: typography.caption, ...font("600") },
   chipTextSelected: { color: colors.accent },
   list: { gap: spacing.sm, paddingBottom: spacing.lg },
   promptCard: { gap: spacing.xs },
   promptCardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  promptText: { color: colors.textPrimary, fontSize: typography.bodyLarge, fontWeight: "600", lineHeight: 22 },
+  promptText: { color: colors.textPrimary, fontSize: typography.bodyLarge, ...font("600"), lineHeight: 22 },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
-  emptyText: { color: colors.textMuted, fontSize: typography.body, textAlign: "center", paddingHorizontal: spacing.xl },
+  emptyText: { ...font("400"), color: colors.textMuted, fontSize: typography.body, textAlign: "center", paddingHorizontal: spacing.xl },
 }));

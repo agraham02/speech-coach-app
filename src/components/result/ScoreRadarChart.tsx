@@ -1,7 +1,7 @@
 import { View, StyleSheet } from "react-native";
 import { RadarChart } from "react-native-gifted-charts";
 import type { SessionScores } from "../../domain/sessionTypes";
-import { spacing } from "../../theme/theme";
+import { spacing, font } from "../../theme/theme";
 import { useTheme } from "../../theme/ThemeProvider";
 
 function average(values: number[]): number {
@@ -44,8 +44,8 @@ export function ScoreRadarChart({ scores }: { scores: SessionScores }) {
           showDataValuesAsLabels: true,
         }}
         gridConfig={{ stroke: colors.border, strokeWidth: 1, fill: "transparent", showGradient: false, opacity: 1 }}
-        labelConfig={{ stroke: colors.textSecondary, fontSize: 11 }}
-        dataLabelsConfig={{ stroke: colors.textPrimary, fontSize: 11, fontWeight: "700" }}
+        labelConfig={{ ...font("400"), stroke: colors.textSecondary, fontSize: 11 }}
+        dataLabelsConfig={{ stroke: colors.textPrimary, fontSize: 11, ...font("700") }}
       />
     </View>
   );

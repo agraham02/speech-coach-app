@@ -47,7 +47,7 @@ import { completePracticeStep } from "../services/practice/practiceEvents";
 import { colorForCategory } from "../domain/categoryColor";
 import { makeAdhocPrompt, type Prompt, type Session, type SessionScores } from "../domain/sessionTypes";
 import { formatDuration } from "../utils/dateUtils";
-import { fontDisplay, spacing, typography } from "../theme/theme";
+import { fontDisplay, spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Result">;
@@ -292,7 +292,7 @@ export function ResultScreen({ route, navigation }: Props) {
             >
               <ProgressRing size={132} strokeWidth={10} progress={overall / 10} color={colorForScore(overall, colors)}>
                 <Text style={[styles.scoreHeroNumber, { color: colorForScore(overall, colors) }]}>{overall}</Text>
-                <Text style={styles.scoreHeroOutOf}>OUT OF 10</Text>
+                <Text style={styles.scoreHeroOutOf}>out of 10</Text>
               </ProgressRing>
               {scores ? (
                 <Text style={[styles.scoreHeroArchetype, { color: colorForScore(overall, colors) }]}>
@@ -304,7 +304,7 @@ export function ResultScreen({ route, navigation }: Props) {
             </HeroCard>
           ) : coach ? null : (
             <Card style={styles.numbersCard}>
-              <Text style={styles.numbersLabel}>YOUR NUMBERS</Text>
+              <Text style={styles.numbersLabel}>Your numbers</Text>
               <View style={styles.numbersRow}>
                 <NumberTile value={avgWpm != null ? `${avgWpm}` : "—"} label="words / min" />
                 <NumberTile
@@ -360,7 +360,7 @@ export function ResultScreen({ route, navigation }: Props) {
 
           {scores ? (
             <Card style={styles.coachingCard}>
-              <Text style={styles.sectionLabel}>COACHING</Text>
+              <Text style={styles.sectionLabel}>Coaching</Text>
               <Text style={styles.coachingSummary}>{scores.coachingSummary}</Text>
               <View style={styles.coachingRow}>
                 <Ionicons name="thumbs-up-outline" size={16} color={colors.success} />
@@ -377,7 +377,7 @@ export function ResultScreen({ route, navigation }: Props) {
                 </Text>
               </View>
               <View style={styles.drillBox}>
-                <Text style={styles.drillLabel}>NEXT DRILL</Text>
+                <Text style={styles.drillLabel}>Next drill</Text>
                 <Text style={styles.drillText}>{scores.recommendedDrill}</Text>
               </View>
             </Card>
@@ -452,7 +452,7 @@ export function ResultScreen({ route, navigation }: Props) {
       {tab === "transcript" ? (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionLabel}>YOUR RESPONSE</Text>
+            <Text style={styles.sectionLabel}>Your response</Text>
             <Text style={styles.duration}>{formatDuration(session.durationSeconds)}</Text>
           </View>
           <Card>
@@ -490,56 +490,55 @@ const useStyles = makeStyles(({ colors }) => ({
   header: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: spacing.md },
   headerText: { flex: 1, gap: 2 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: spacing.lg },
-  headerType: { color: colors.textMuted, fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 1 },
-  headerTitle: { color: colors.textPrimary, fontSize: typography.bodyLarge, fontWeight: "700", lineHeight: 22 },
+  headerType: { color: colors.textMuted, fontSize: 13, ...font("600") },
+  headerTitle: { color: colors.textPrimary, fontSize: typography.bodyLarge, ...font("700"), lineHeight: 22 },
   numbersCard: { gap: spacing.md },
-  numbersLabel: { color: colors.textMuted, fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 1 },
+  numbersLabel: { color: colors.textMuted, fontSize: 13, ...font("600") },
   numbersRow: { flexDirection: "row", gap: spacing.sm },
   tile: { flex: 1, alignItems: "center", gap: 2, paddingVertical: spacing.sm, borderRadius: 12, backgroundColor: colors.surfaceRaised },
   tileValue: { color: colors.textPrimary, fontFamily: fontDisplay.bold, fontSize: 22 },
-  tileLabel: { color: colors.textMuted, fontSize: typography.caption - 1 },
+  tileLabel: { ...font("400"), color: colors.textMuted, fontSize: typography.caption - 1 },
   scroll: { flex: 1 },
   scrollContent: { gap: spacing.md, paddingBottom: spacing.lg },
   notionCard: { gap: spacing.sm },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
   rowText: { flex: 1, gap: spacing.xs },
-  rowTitle: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "600" },
-  rowSubtitle: { color: colors.textSecondary, fontSize: typography.caption },
+  rowTitle: { color: colors.textPrimary, fontSize: typography.body, ...font("600") },
+  rowSubtitle: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption },
   gradeCard: { gap: spacing.md },
   scoreHeroContent: { alignItems: "center", gap: spacing.xs },
   scoreHeroNumber: { fontFamily: fontDisplay.bold, fontSize: 40, lineHeight: 44 },
-  scoreHeroOutOf: { color: colors.textMuted, fontSize: typography.caption - 2, letterSpacing: 0.5, marginTop: 2 },
+  scoreHeroOutOf: { ...font("400"), color: colors.textMuted, fontSize: 13, marginTop: 2 },
   scoreHeroArchetype: {
     fontSize: typography.caption,
-    fontWeight: "800",
+    ...font("800"),
     letterSpacing: 1,
-    textTransform: "uppercase",
     marginTop: spacing.xs,
   },
-  scoreHeroFit: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17, textAlign: "center", marginTop: spacing.xs },
+  scoreHeroFit: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17, textAlign: "center", marginTop: spacing.xs },
   deltaRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  deltaText: { fontSize: typography.caption, fontWeight: "600" },
-  deltaNeutral: { color: colors.textMuted, fontSize: typography.caption },
+  deltaText: { fontSize: typography.caption, ...font("600") },
+  deltaNeutral: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
   promptCard: { gap: spacing.sm },
-  promptText: { color: colors.textSecondary, fontSize: typography.body, lineHeight: 21, fontStyle: "italic" },
+  promptText: { ...font("400"), color: colors.textSecondary, fontSize: typography.body, lineHeight: 21, fontStyle: "italic" },
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  sectionLabel: { color: colors.accent, fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 1 },
+  sectionLabel: { color: colors.accent, fontSize: 13, ...font("600") },
   sectionSpacer: { marginTop: spacing.sm },
-  duration: { color: colors.textMuted, fontSize: typography.caption },
-  transcript: { color: colors.textPrimary, fontSize: typography.bodyLarge, lineHeight: 25 },
+  duration: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
+  transcript: { ...font("400"), color: colors.textPrimary, fontSize: typography.bodyLarge, lineHeight: 25 },
   verbatimToggle: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, paddingVertical: spacing.sm },
-  verbatimToggleText: { color: colors.accent, fontSize: typography.body, fontWeight: "600" },
+  verbatimToggleText: { color: colors.accent, fontSize: typography.body, ...font("600") },
   videoRemovedRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, paddingVertical: spacing.sm },
-  videoRemovedText: { color: colors.textMuted, fontSize: typography.body },
+  videoRemovedText: { ...font("400"), color: colors.textMuted, fontSize: typography.body },
   verbatimCard: { backgroundColor: colors.surfaceRaised },
   coachingCard: { gap: spacing.sm },
-  coachingSummary: { color: colors.textPrimary, fontSize: typography.body, lineHeight: 21 },
+  coachingSummary: { ...font("400"), color: colors.textPrimary, fontSize: typography.body, lineHeight: 21 },
   coachingRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
-  coachingRowText: { flex: 1, color: colors.textSecondary, fontSize: typography.body, lineHeight: 20 },
-  coachingRowLabel: { color: colors.textPrimary, fontWeight: "700" },
+  coachingRowText: { ...font("400"), flex: 1, color: colors.textSecondary, fontSize: typography.body, lineHeight: 20 },
+  coachingRowLabel: { color: colors.textPrimary, ...font("700") },
   drillBox: { backgroundColor: colors.accentMuted, borderRadius: 10, padding: spacing.md, gap: spacing.xs, marginTop: spacing.xs },
-  drillLabel: { color: colors.accent, fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 1 },
-  drillText: { color: colors.textPrimary, fontSize: typography.body, lineHeight: 20 },
+  drillLabel: { color: colors.accent, fontSize: 13, ...font("600") },
+  drillText: { ...font("400"), color: colors.textPrimary, fontSize: typography.body, lineHeight: 20 },
   radarCard: { alignItems: "center" },
-  bodyLanguageNotes: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },
+  bodyLanguageNotes: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },
 }));

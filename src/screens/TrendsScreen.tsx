@@ -23,7 +23,7 @@ import { getCurriculumHistory, recomputeCurriculumLevel } from "../services/db/c
 import { getCurriculumOverride, getReminderSettings } from "../services/prefs/prefsStore";
 import { subscribeToAllSessions } from "../services/pipeline/processingEvents";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
-import { fontDisplay, spacing, typography } from "../theme/theme";
+import { fontDisplay, spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 const RECENT_COUNT = 10;
@@ -177,7 +177,7 @@ export function TrendsScreen() {
         <Card style={styles.curriculumCard}>
           <View style={styles.curriculumHeaderRow}>
             <View>
-              <Text style={styles.sectionLabel}>YOUR LEVEL</Text>
+              <Text style={styles.sectionLabel}>Your level</Text>
               <Text style={styles.curriculumLevelText}>
                 Level {curriculumLevel} · {difficultyTierLabel(levelToDifficultyTier(curriculumLevel))}
               </Text>
@@ -206,7 +206,7 @@ export function TrendsScreen() {
         ) : (
           <>
             <Card style={styles.weekCard}>
-              <Text style={styles.sectionLabel}>THIS WEEK</Text>
+              <Text style={styles.sectionLabel}>This week</Text>
               <View style={styles.weekHeaderRow}>
                 <Text style={styles.weekSessionCount}>
                   {weekly?.thisWeek.sessionCount ?? 0} session{weekly?.thisWeek.sessionCount === 1 ? "" : "s"}
@@ -266,31 +266,31 @@ const useStyles = makeStyles(({ colors }) => ({
   // scrollContent's paddingBottom, and the tab bar sits directly below with
   // no further gap needed, unlike stack-pushed screens with a fixed button.
   container: { gap: spacing.md, paddingBottom: 0 },
-  title: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
+  title: { color: colors.textPrimary, fontSize: typography.title, ...font("700") },
   scroll: { flex: 1 },
   scrollContent: { gap: spacing.md, paddingBottom: spacing.lg },
   streakCard: { gap: spacing.xs },
   streakRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   streakNumber: { color: colors.textPrimary, fontSize: typography.headline, fontFamily: fontDisplay.bold },
-  streakLabel: { color: colors.textSecondary, fontSize: typography.body },
-  streakMeta: { color: colors.textMuted, fontSize: typography.caption },
-  sectionLabel: { color: colors.accent, fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 1 },
+  streakLabel: { ...font("400"), color: colors.textSecondary, fontSize: typography.body },
+  streakMeta: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
+  sectionLabel: { color: colors.accent, fontSize: 13, ...font("600") },
   curriculumCard: { gap: spacing.xs },
   curriculumHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  curriculumLevelText: { color: colors.textPrimary, fontSize: typography.bodyLarge, fontWeight: "700", marginTop: 2 },
+  curriculumLevelText: { color: colors.textPrimary, fontSize: typography.bodyLarge, ...font("700"), marginTop: 2 },
   curriculumLink: { flexDirection: "row", alignItems: "center", gap: 2 },
-  curriculumLinkText: { color: colors.accent, fontSize: typography.caption, fontWeight: "600" },
-  curriculumExplanation: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18 },
+  curriculumLinkText: { color: colors.accent, fontSize: typography.caption, ...font("600") },
+  curriculumExplanation: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18 },
   weekCard: { gap: spacing.sm },
   weekHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  weekSessionCount: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "600" },
+  weekSessionCount: { color: colors.textPrimary, fontSize: typography.body, ...font("600") },
   weekStatRow: { flexDirection: "row", justifyContent: "space-between", marginTop: spacing.xs },
-  weekStatLabel: { color: colors.textSecondary, fontSize: typography.body },
-  weekStatValue: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "700" },
+  weekStatLabel: { ...font("400"), color: colors.textSecondary, fontSize: typography.body },
+  weekStatValue: { color: colors.textPrimary, fontSize: typography.body, ...font("700") },
   deltaRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: -spacing.xs },
-  deltaText: { fontSize: typography.caption, fontWeight: "600" },
-  deltaNeutral: { color: colors.textMuted, fontSize: typography.caption, marginTop: -spacing.xs },
+  deltaText: { fontSize: typography.caption, ...font("600") },
+  deltaNeutral: { ...font("400"), color: colors.textMuted, fontSize: typography.caption, marginTop: -spacing.xs },
   recentCard: { gap: spacing.md },
   empty: { alignItems: "center", justifyContent: "center", gap: spacing.md, paddingVertical: spacing.xxl },
-  emptyText: { color: colors.textMuted, fontSize: typography.body, textAlign: "center", paddingHorizontal: spacing.xl },
+  emptyText: { ...font("400"), color: colors.textMuted, fontSize: typography.body, textAlign: "center", paddingHorizontal: spacing.xl },
 }));

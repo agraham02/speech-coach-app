@@ -43,7 +43,7 @@ import { logger } from "../utils/logger";
 import { StatusBar } from "expo-status-bar";
 import { stashPresenceTimeline } from "../services/pipeline/presenceTimelineStore";
 import { formatDuration } from "../utils/dateUtils";
-import { darkColors as colors, spacing, typography } from "../theme/theme";
+import { darkColors as colors, spacing, typography, font } from "../theme/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Recording">;
 
@@ -413,8 +413,8 @@ const styles = StyleSheet.create({
   },
   closeButton: { alignSelf: "flex-start" },
   permissionBody: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, paddingHorizontal: spacing.lg },
-  permissionTitle: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700", textAlign: "center" },
-  permissionText: { color: colors.textSecondary, fontSize: typography.body, textAlign: "center", lineHeight: 21 },
+  permissionTitle: { color: colors.textPrimary, fontSize: typography.title, ...font("700"), textAlign: "center" },
+  permissionText: { ...font("400"), color: colors.textSecondary, fontSize: typography.body, textAlign: "center", lineHeight: 21 },
   topBar: {
     position: "absolute",
     left: spacing.lg,
@@ -455,7 +455,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.45)",
     zIndex: 2,
   },
-  restartText: { color: colors.textPrimary, fontSize: typography.caption - 1, fontWeight: "600" },
-  recordHint: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "600" },
-  recordHintUrgent: { color: colors.danger, fontWeight: "700" },
+  restartText: { color: colors.textPrimary, fontSize: typography.caption - 1, ...font("600") },
+  recordHint: { color: colors.textSecondary, fontSize: typography.caption, ...font("600") },
+  recordHintUrgent: { color: colors.danger, ...font("700") },
 });

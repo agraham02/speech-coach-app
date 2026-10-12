@@ -10,7 +10,7 @@ import { SegmentedControl } from "../components/common/SegmentedControl";
 import { useToast } from "../components/common/ToastProvider";
 import { getAllPrompts, insertUserPrompt } from "../services/db/promptsRepo";
 import type { DifficultyTier } from "../domain/sessionTypes";
-import { radii, spacing, typography } from "../theme/theme";
+import { radii, spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AddPrompt">;
@@ -133,10 +133,11 @@ const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.lg },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   headerSpacer: { width: 24 },
-  title: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
+  title: { color: colors.textPrimary, fontSize: typography.title, ...font("700") },
   field: { gap: spacing.sm },
-  label: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "700", letterSpacing: 0.4 },
+  label: { color: colors.textSecondary, fontSize: 13, ...font("600") },
   input: {
+    ...font("400"),
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
@@ -147,6 +148,7 @@ const useStyles = makeStyles(({ colors }) => ({
     fontSize: typography.body,
   },
   textArea: {
+    ...font("400"),
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
@@ -157,7 +159,7 @@ const useStyles = makeStyles(({ colors }) => ({
     fontSize: typography.body,
     minHeight: 110,
   },
-  charCount: { color: colors.textMuted, fontSize: typography.caption, textAlign: "right" },
+  charCount: { ...font("400"), color: colors.textMuted, fontSize: typography.caption, textAlign: "right" },
   chipRow: { flexDirection: "row", gap: spacing.xs, marginTop: spacing.xs },
   chip: {
     paddingHorizontal: spacing.md,
@@ -167,6 +169,6 @@ const useStyles = makeStyles(({ colors }) => ({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  chipText: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "600" },
+  chipText: { color: colors.textSecondary, fontSize: typography.caption, ...font("600") },
   spacer: { flex: 1 },
 }));

@@ -16,7 +16,7 @@ import {
 import { getCurriculumHistory, recomputeCurriculumLevel, resetCurriculumProgress } from "../services/db/curriculumRepo";
 import { getCurriculumOverride, setCurriculumOverride } from "../services/prefs/prefsStore";
 import type { CurriculumStateEntry } from "../domain/sessionTypes";
-import { radii, spacing, typography } from "../theme/theme";
+import { radii, spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import type { Colors } from "../theme/theme";
 
@@ -202,15 +202,15 @@ const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   headerSpacer: { width: 26 },
-  title: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
+  title: { color: colors.textPrimary, fontSize: typography.title, ...font("700") },
   scrollContent: { gap: spacing.md, paddingBottom: spacing.lg },
   levelCard: { alignItems: "center", gap: spacing.xs },
-  levelNumber: { color: colors.textPrimary, fontSize: typography.headline, fontWeight: "800" },
-  levelTier: { color: colors.accent, fontSize: typography.body, fontWeight: "700" },
-  explanation: { color: colors.textSecondary, fontSize: typography.body, textAlign: "center", marginTop: spacing.xs, lineHeight: 21 },
+  levelNumber: { color: colors.textPrimary, fontSize: typography.headline, ...font("800") },
+  levelTier: { color: colors.accent, fontSize: typography.body, ...font("700") },
+  explanation: { ...font("400"), color: colors.textSecondary, fontSize: typography.body, textAlign: "center", marginTop: spacing.xs, lineHeight: 21 },
   section: { gap: spacing.sm },
-  sectionTitle: { color: colors.textPrimary, fontSize: typography.bodyLarge, fontWeight: "700" },
-  sectionSubtitle: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18 },
+  sectionTitle: { color: colors.textPrimary, fontSize: typography.bodyLarge, ...font("700") },
+  sectionSubtitle: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18 },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.xs },
   chip: {
     paddingHorizontal: spacing.md,
@@ -221,13 +221,13 @@ const useStyles = makeStyles(({ colors }) => ({
     backgroundColor: colors.surfaceRaised,
   },
   chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  chipText: { color: colors.textSecondary, fontSize: typography.body, fontWeight: "700" },
+  chipText: { color: colors.textSecondary, fontSize: typography.body, ...font("700") },
   chipTextActive: { color: colors.onAccent },
   historyRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.xs },
   historyText: { flex: 1, gap: 2 },
-  historyLevel: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "700" },
-  historyReason: { color: colors.textSecondary, fontSize: typography.caption },
-  historyDate: { color: colors.textMuted, fontSize: typography.caption },
+  historyLevel: { color: colors.textPrimary, fontSize: typography.body, ...font("700") },
+  historyReason: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption },
+  historyDate: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
   resetButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -239,5 +239,5 @@ const useStyles = makeStyles(({ colors }) => ({
     borderWidth: 1,
     borderColor: colors.danger,
   },
-  resetButtonText: { color: colors.danger, fontSize: typography.body, fontWeight: "700" },
+  resetButtonText: { color: colors.danger, fontSize: typography.body, ...font("700") },
 }));

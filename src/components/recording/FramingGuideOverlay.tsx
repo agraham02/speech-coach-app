@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 import type { FramingStatus } from "../../hooks/useFaceDetection";
-import { darkColors as colors, radii, spacing, typography } from "../../theme/theme";
+import { darkColors as colors, radii, spacing, typography, font } from "../../theme/theme";
 
 const STATUS_COPY: Record<FramingStatus, string> = {
   none: "Move into frame",
@@ -49,5 +49,5 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
   },
   dot: { width: 8, height: 8, borderRadius: 4 },
-  label: { color: colors.textPrimary, fontSize: typography.caption, fontWeight: "600" },
+  label: { color: colors.textPrimary, fontSize: typography.caption, ...font("600") },
 });

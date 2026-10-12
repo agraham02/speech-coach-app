@@ -15,7 +15,7 @@ import {
   type LocatedAnnotation,
 } from "../../domain/transcriptAnnotations";
 import type { TranscriptWord } from "../../domain/sessionTypes";
-import { getAnnotationColors, radii, spacing, typography } from "../../theme/theme";
+import { getAnnotationColors, radii, spacing, typography, font } from "../../theme/theme";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 interface AnnotatedTranscriptProps {
@@ -207,13 +207,13 @@ export function AnnotatedTranscript({
 
 const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.sm },
-  statLine: { color: colors.warning, fontSize: typography.caption, fontWeight: "700" },
-  statLineSecondary: { color: colors.indigo, fontSize: typography.caption, fontWeight: "700" },
+  statLine: { color: colors.warning, fontSize: typography.caption, ...font("700") },
+  statLineSecondary: { color: colors.indigo, fontSize: typography.caption, ...font("700") },
   legend: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
   legendItem: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   legendDot: { width: 9, height: 9, borderRadius: radii.pill },
-  legendText: { color: colors.textSecondary, fontSize: typography.caption - 1 },
-  transcript: { color: colors.textPrimary, fontSize: typography.bodyLarge, lineHeight: 26 },
+  legendText: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption - 1 },
+  transcript: { ...font("400"), color: colors.textPrimary, fontSize: typography.bodyLarge, lineHeight: 26 },
   notePanel: {
     backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
@@ -222,6 +222,6 @@ const useStyles = makeStyles(({ colors }) => ({
     gap: spacing.xs,
   },
   notePanelHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  notePanelLabel: { fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 0.6, textTransform: "uppercase" },
-  notePanelText: { color: colors.textSecondary, fontSize: typography.body, lineHeight: 20 },
+  notePanelLabel: { fontSize: 13, ...font("600") },
+  notePanelText: { ...font("400"), color: colors.textSecondary, fontSize: typography.body, lineHeight: 20 },
 }));

@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { ScreenContainer } from "../components/common/ScreenContainer";
 import { Card } from "../components/common/Card";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
-import { spacing, typography } from "../theme/theme";
+import { spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import type { Colors } from "../theme/theme";
 
@@ -31,7 +31,7 @@ const frameworks = (colors: Colors): Framework[] => [
       "PREP: Point → Reason → Example → Point again, to close the loop.",
       "Rule of Three: pick exactly three supporting points, no more, no fewer.",
     ],
-    drillLabel: "TRY THIS",
+    drillLabel: "Try this",
     drillText: "Pick a random object nearby and give a 60-second what/why/how on it, out loud.",
   },
   {
@@ -49,7 +49,7 @@ const frameworks = (colors: Colors): Framework[] => [
       "Until finally…",
       "Ever since then…",
     ],
-    drillLabel: "TRY THIS",
+    drillLabel: "Try this",
     drillText:
       "Before you record, run your response through the story spine — even just mentally — to make sure it actually goes somewhere instead of restating the same point in different words.",
   },
@@ -66,7 +66,7 @@ const frameworks = (colors: Colors): Framework[] => [
       "Pausing: pause on purpose to let a point land — don't fill silence with \"um.\"",
       "Archetypes: Motivator (high energy), Educator (clear & measured), Coach (direct & encouraging), Friend (warm & casual) — which fits your topic?",
     ],
-    drillLabel: "TRY THIS",
+    drillLabel: "Try this",
     drillText: "The \"Exaggerated Vocal Melody\" drill: re-read a past response while deliberately over-emphasizing pitch rises on contrasting words, and smiling visibly on key phrases.",
   },
   {
@@ -81,7 +81,7 @@ const frameworks = (colors: Colors): Framework[] => [
       "Filler words: 5/min or fewer barely registers, 5-10/min is noticeable, more than 10/min is distracting.",
       "Watch for restating the same point in different words instead of adding something new.",
     ],
-    drillLabel: "TRY THIS",
+    drillLabel: "Try this",
     drillText: "After a session, read your verbatim transcript back and circle any sentence that just repeats an earlier one in different words.",
   },
 ];
@@ -167,18 +167,18 @@ const useStyles = makeStyles(({ colors }) => ({
   // no button below it that needs the extra gap.
   container: { gap: spacing.md, paddingBottom: 0 },
   header: { gap: spacing.xs, paddingBottom: spacing.xs },
-  title: { color: colors.textPrimary, fontSize: typography.headline, fontWeight: "700" },
-  subtitle: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18 },
+  title: { color: colors.textPrimary, fontSize: typography.headline, ...font("700") },
+  subtitle: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18 },
   scroll: { flex: 1 },
   scrollContent: { gap: spacing.md, paddingBottom: spacing.lg },
   section: { gap: spacing.sm },
-  sectionTitle: { color: colors.textPrimary, fontSize: typography.bodyLarge, fontWeight: "700" },
-  sectionDescription: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18 },
+  sectionTitle: { color: colors.textPrimary, fontSize: typography.bodyLarge, ...font("700") },
+  sectionDescription: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18 },
   tipsList: { gap: spacing.sm, marginTop: spacing.xs },
   tipRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
   tipDot: { width: 6, height: 6, borderRadius: 3, marginTop: 7 },
-  tipText: { flex: 1, color: colors.textSecondary, fontSize: typography.body, lineHeight: 20 },
+  tipText: { ...font("400"), flex: 1, color: colors.textSecondary, fontSize: typography.body, lineHeight: 20 },
   drillBox: { borderRadius: 10, padding: spacing.md, gap: spacing.xs, marginTop: spacing.xs },
-  drillLabel: { fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 1 },
-  drillText: { color: colors.textPrimary, fontSize: typography.body, lineHeight: 20 },
+  drillLabel: { fontSize: 13, ...font("600") },
+  drillText: { ...font("400"), color: colors.textPrimary, fontSize: typography.body, lineHeight: 20 },
 }));

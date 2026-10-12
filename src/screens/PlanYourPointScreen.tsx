@@ -5,7 +5,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
 import { PrimaryButton } from "../components/common/PrimaryButton";
-import { radii, spacing, typography } from "../theme/theme";
+import { radii, spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "PlanYourPoint">;
@@ -110,8 +110,8 @@ const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   headerSpacer: { width: 24 },
-  title: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
-  subtitle: { color: colors.textSecondary, fontSize: typography.body, lineHeight: 20 },
+  title: { color: colors.textPrimary, fontSize: typography.title, ...font("700") },
+  subtitle: { ...font("400"), color: colors.textSecondary, fontSize: typography.body, lineHeight: 20 },
   promptPreview: {
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -119,11 +119,12 @@ const useStyles = makeStyles(({ colors }) => ({
     borderRadius: radii.md,
     padding: spacing.md,
   },
-  promptPreviewText: { color: colors.textSecondary, fontSize: typography.body, fontStyle: "italic" },
+  promptPreviewText: { ...font("400"), color: colors.textSecondary, fontSize: typography.body, fontStyle: "italic" },
   field: { gap: spacing.xs },
-  label: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "700", letterSpacing: 0.4 },
-  hint: { color: colors.textMuted, fontSize: typography.caption },
+  label: { color: colors.textSecondary, fontSize: 13, ...font("600") },
+  hint: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
   textArea: {
+    ...font("400"),
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,

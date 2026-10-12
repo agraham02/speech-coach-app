@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { radii, spacing, typography } from "../../theme/theme";
+import { radii, spacing, typography, font } from "../../theme/theme";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 interface AccordionSectionProps {
@@ -62,7 +62,7 @@ const useStyles = makeStyles(({ colors }) => ({
     paddingVertical: spacing.sm + 2,
   },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  title: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "700" },
-  score: { color: colors.accent, fontSize: typography.caption, fontWeight: "800" },
+  title: { color: colors.textPrimary, fontSize: typography.body, ...font("700") },
+  score: { color: colors.accent, fontSize: typography.caption, ...font("800") },
   body: { paddingHorizontal: spacing.md, paddingBottom: spacing.md, gap: spacing.sm },
 }));

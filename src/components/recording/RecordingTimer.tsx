@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
-import { darkColors as colors, radii, spacing } from "../../theme/theme";
+import { darkColors as colors, radii, spacing, font } from "../../theme/theme";
 import { formatDuration } from "../../utils/dateUtils";
 
 interface RecordingTimerProps {
@@ -21,7 +21,7 @@ export function RecordingTimer({ elapsedSeconds, size = "large" }: RecordingTime
 }
 
 const styles = StyleSheet.create({
-  largeText: { color: colors.textPrimary, fontSize: 44, fontVariant: ["tabular-nums"], fontWeight: "300" },
+  largeText: { color: colors.textPrimary, fontSize: 44, fontVariant: ["tabular-nums"], ...font("300") },
   badge: {
     flexDirection: "row",
     alignItems: "center",
@@ -36,6 +36,6 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 17,
     fontVariant: ["tabular-nums"],
-    fontWeight: "600",
+    ...font("600"),
   },
 });

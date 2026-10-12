@@ -1,5 +1,5 @@
 import { StyleSheet, Switch, Text, View } from "react-native";
-import { darkColors as colors, radii, spacing, typography } from "../../theme/theme";
+import { darkColors as colors, radii, spacing, typography, font } from "../../theme/theme";
 
 interface RecordBlindToggleProps {
   value: boolean;
@@ -35,6 +35,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   textGroup: { gap: 2 },
-  label: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "600" },
-  sublabel: { color: colors.textSecondary, fontSize: typography.caption },
+  label: { color: colors.textPrimary, fontSize: typography.body, ...font("600") },
+  sublabel: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption },
 });

@@ -7,7 +7,7 @@ import MaskedView from "@react-native-masked-view/masked-view";
 import { tokenizeScript, type Script } from "../../domain/scriptTypes";
 import { fillPlaceholder, filterMarks, marksByWord, type MarkLevel, type WordMarks } from "../../domain/cadence/marks";
 import { getUserProfile } from "../../services/prefs/prefsStore";
-import { darkColors as colors, radii, spacing, typography } from "../../theme/theme";
+import { darkColors as colors, radii, spacing, typography, font } from "../../theme/theme";
 import { logger } from "../../utils/logger";
 
 // expo-blur and @react-native-masked-view/masked-view are NATIVE modules —
@@ -246,24 +246,24 @@ const styles = StyleSheet.create({
   baseTint: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.78)" },
   textContent: { paddingHorizontal: spacing.xl },
   paragraph: { textAlign: "center" },
-  word: { color: "white", fontSize: FONT_SIZE, lineHeight: LINE_HEIGHT, fontWeight: "500" },
-  stress: { fontWeight: "800", textDecorationLine: "underline" },
-  louder: { fontSize: FONT_SIZE * 1.15, fontWeight: "700" },
-  softer: { fontSize: FONT_SIZE * 0.88, color: "rgba(255,255,255,0.72)" },
+  word: { color: "white", fontSize: FONT_SIZE, lineHeight: LINE_HEIGHT, ...font("500") },
+  stress: { ...font("800"), textDecorationLine: "underline" },
+  louder: { fontSize: FONT_SIZE * 1.15, ...font("700") },
+  softer: { ...font("400"), fontSize: FONT_SIZE * 0.88, color: "rgba(255,255,255,0.72)" },
   slow: { letterSpacing: 2.5 },
   fast: { fontStyle: "italic", letterSpacing: -0.3 },
   currentWord: { backgroundColor: colors.accent, color: "white" },
-  arrow: { color: colors.skill.cadence.fg, fontSize: FONT_SIZE * 0.8, lineHeight: LINE_HEIGHT, fontWeight: "700" },
-  gap: { color: colors.skill.cadence.fg, fontSize: FONT_SIZE, lineHeight: LINE_HEIGHT, fontWeight: "300" },
-  note: { color: colors.textMuted, fontSize: typography.caption, lineHeight: 22, fontStyle: "italic" },
+  arrow: { color: colors.skill.cadence.fg, fontSize: FONT_SIZE * 0.8, lineHeight: LINE_HEIGHT, ...font("700") },
+  gap: { color: colors.skill.cadence.fg, fontSize: FONT_SIZE, lineHeight: LINE_HEIGHT, ...font("300") },
+  note: { ...font("400"), color: colors.textMuted, fontSize: typography.caption, lineHeight: 22, fontStyle: "italic" },
   panelWrap: { position: "absolute", left: 0, right: 0, overflow: "hidden" },
   panelTop: { top: 0 },
   panelBottom: { bottom: 0 },
   controls: { position: "absolute", left: 0, right: 0, bottom: spacing.sm, alignItems: "center", gap: spacing.xs },
-  heldText: { color: colors.textPrimary, fontSize: typography.caption, fontWeight: "600" },
+  heldText: { color: colors.textPrimary, fontSize: typography.caption, ...font("600") },
   speedRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   speedButton: { paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radii.pill ?? 999, backgroundColor: "rgba(255,255,255,0.12)" },
   speedDisabled: { opacity: 0.35 },
-  speedText: { color: colors.textPrimary, fontSize: typography.caption, fontWeight: "600" },
-  speedValue: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "700", minWidth: 40, textAlign: "center" },
+  speedText: { color: colors.textPrimary, fontSize: typography.caption, ...font("600") },
+  speedValue: { color: colors.textSecondary, fontSize: typography.caption, ...font("700"), minWidth: 40, textAlign: "center" },
 });

@@ -48,6 +48,7 @@ import {
 import { requestNotificationPermission, syncDailyReminder } from "../services/notifications/reminderScheduler";
 import { isoDateFromDate, todayISODate } from "../utils/dateUtils";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
+import { font } from "../theme/tokens";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Onboarding">;
 
@@ -490,6 +491,7 @@ const useStyles = makeStyles((t) => ({
   dayRow: { flexDirection: "row", justifyContent: "space-between" },
   day: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: t.colors.surface, borderWidth: 1, borderColor: t.colors.border },
   input: {
+    ...font("400"),
     borderRadius: t.radius.md,
     backgroundColor: t.colors.surface,
     borderWidth: 1,

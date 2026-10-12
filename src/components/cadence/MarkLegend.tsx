@@ -2,6 +2,7 @@ import { Pressable, ScrollView } from "react-native";
 import { Txt } from "../common/Txt";
 import { countByKind, type Mark, type MarkKind } from "../../domain/cadence/marks";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
+import { font } from "../../theme/tokens";
 
 const ENTRIES: { kinds: MarkKind[]; sample: string; label: string }[] = [
   { kinds: ["emphasis"], sample: "word", label: "Stress" },
@@ -43,7 +44,7 @@ export function MarkLegend({ marks, hidden, onToggle }: Props) {
                 ? styles.softer
                 : e.kinds[0] === "fast"
                   ? styles.fast
-                  : { color: colors.skill.cadence.fg, fontWeight: "700" as const };
+                  : { color: colors.skill.cadence.fg, ...font("700") };
         return (
           <Pressable
             key={e.kinds.join()}
@@ -86,8 +87,8 @@ const useStyles = makeStyles((t) => ({
     backgroundColor: t.colors.surfaceRaised,
   },
   chipOff: { opacity: 0.4 },
-  stress: { fontWeight: "800", textDecorationLine: "underline", color: t.colors.textPrimary },
-  louder: { fontWeight: "800", fontSize: 12, color: t.colors.textPrimary },
-  softer: { fontSize: 12, color: t.colors.textSecondary },
+  stress: { ...font("800"), textDecorationLine: "underline", color: t.colors.textPrimary },
+  louder: { ...font("800"), fontSize: 12, color: t.colors.textPrimary },
+  softer: { ...font("400"), fontSize: 12, color: t.colors.textSecondary },
   fast: { fontStyle: "italic", color: t.colors.textPrimary },
 }));

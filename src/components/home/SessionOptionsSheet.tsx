@@ -15,7 +15,7 @@ import {
   RECORDING_DURATION_MIN_SECONDS,
   RECORDING_DURATION_STEP_SECONDS,
 } from "../../domain/recordingSettings";
-import { radii, spacing, typography } from "../../theme/theme";
+import { radii, spacing, typography, font } from "../../theme/theme";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 interface SessionOptionsSheetProps {
@@ -256,22 +256,22 @@ const useStyles = makeStyles(({ colors }) => ({
     justifyContent: "space-between",
     marginBottom: spacing.md,
   },
-  panelTitle: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
-  doneText: { color: colors.accent, fontSize: typography.body, fontWeight: "600" },
+  panelTitle: { color: colors.textPrimary, fontSize: typography.title, ...font("700") },
+  doneText: { color: colors.accent, fontSize: typography.body, ...font("600") },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
   rowText: { flex: 1, gap: spacing.xs },
-  rowTitle: { color: colors.textPrimary, fontSize: typography.bodyLarge, fontWeight: "700" },
-  rowSubtitle: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18 },
+  rowTitle: { color: colors.textPrimary, fontSize: typography.bodyLarge, ...font("700") },
+  rowSubtitle: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18 },
   subSection: { gap: spacing.sm },
   divider: { paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
   switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  switchLabel: { color: colors.textSecondary, fontSize: typography.body },
+  switchLabel: { ...font("400"), color: colors.textSecondary, fontSize: typography.body },
   autoBadge: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     borderRadius: radii.pill,
     backgroundColor: colors.accentMuted,
   },
-  autoBadgeText: { color: colors.accent, fontSize: typography.caption - 1, fontWeight: "700" },
-  linkText: { color: colors.accent, fontSize: typography.caption, fontWeight: "600" },
+  autoBadgeText: { color: colors.accent, fontSize: typography.caption - 1, ...font("700") },
+  linkText: { color: colors.accent, fontSize: typography.caption, ...font("600") },
 }));
