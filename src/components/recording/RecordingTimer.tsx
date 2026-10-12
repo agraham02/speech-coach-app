@@ -21,17 +21,17 @@ export function RecordingTimer({ elapsedSeconds, size = "large" }: RecordingTime
 }
 
 const styles = StyleSheet.create({
-  largeText: { color: colors.textPrimary, fontSize: 44, fontVariant: ["tabular-nums"], ...font("300") },
+  largeText: { color: colors.textPrimary, fontSize: 48, fontVariant: ["tabular-nums"], ...font("500") },
   badge: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    backgroundColor: "rgba(0,0,0,0.55)",
+    backgroundColor: "rgba(10,10,8,0.6)",
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: radii.pill,
   },
-  recDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.danger },
+  recDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.record },
   smallText: {
     color: colors.textPrimary,
     fontSize: 17,
