@@ -39,6 +39,7 @@ import { MarkEditScreen } from "../screens/MarkEditScreen";
 import { SpeechStudyScreen } from "../screens/SpeechStudyScreen";
 import { RehearseScreen } from "../screens/RehearseScreen";
 import { MoveItScreen } from "../screens/MoveItScreen";
+import { FeelingScreen } from "../screens/FeelingScreen";
 import { PromptLibraryScreen } from "../screens/PromptLibraryScreen";
 import { AddPromptScreen } from "../screens/AddPromptScreen";
 import { PlanYourPointScreen } from "../screens/PlanYourPointScreen";
@@ -73,6 +74,7 @@ export type RootStackParamList = {
   SpeechStudy: { speechId: string };
   Rehearse: { speechId: string; markLevel?: MarkLevel };
   MoveIt: { practice?: PracticeContext } | undefined;
+  Feeling: { practice?: PracticeContext } | undefined;
   PromptLibrary: undefined;
   AddPrompt: undefined;
   PlanYourPoint: { prompt: Prompt };
@@ -305,6 +307,7 @@ export function AppNavigator() {
         <Stack.Screen name="SpeechStudy" component={SpeechStudyScreen} />
         <Stack.Screen name="Rehearse" component={RehearseScreen} />
         <Stack.Screen name="MoveIt" component={MoveItScreen} />
+        <Stack.Screen name="Feeling" component={FeelingScreen} />
         <Stack.Screen name="PromptLibrary" component={PromptLibraryScreen} />
         <Stack.Screen name="AddPrompt" component={AddPromptScreen} options={{ presentation: "modal" }} />
         <Stack.Screen name="PlanYourPoint" component={PlanYourPointScreen} />

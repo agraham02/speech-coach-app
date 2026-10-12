@@ -49,6 +49,7 @@ const STEP_ORDER: SessionStep[] = ["transcribe", "audio_metrics", "presence", "c
 
 function subjectToSessionType(subject: RecordingSubject): SessionType {
   if (subject.kind === "script") return "script_practice";
+  if (subject.feeling) return "feeling";
   if (subject.conciseSeconds) return "concise";
   return isFreeRecordPrompt(subject.prompt.id) ? "free_record" : "spontaneous";
 }
@@ -61,6 +62,8 @@ function promptExtras(subject: Extract<RecordingSubject, { kind: "prompt" }>): S
     targetFramework: subject.targetFramework,
     promptText: adhoc ? subject.prompt.text : undefined,
     promptCategory: adhoc ? subject.prompt.category : undefined,
+    feelingEmotion: subject.feeling?.emotion,
+    feelingAngle: subject.feeling?.angle,
   };
   return Object.values(extras).some((v) => v !== undefined) ? extras : null;
 }

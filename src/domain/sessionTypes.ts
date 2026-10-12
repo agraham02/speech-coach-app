@@ -2,6 +2,7 @@ import type { GeminiQuoteAnnotation } from "./transcriptAnnotations";
 import type { MarkLevel, Script } from "./scriptTypes";
 import type { PlanText } from "./planYourPoint";
 import type { PracticeContext } from "./practice";
+import type { EmotionId } from "./feelings";
 
 export type DifficultyTier = "easy" | "medium" | "hard";
 
@@ -61,6 +62,10 @@ export type RecordingSubject =
       prepSeconds?: number;
       // Plan/lesson step this rep completes (not persisted with the session).
       practice?: PracticeContext;
+      // A Feeling of the Week rep (and which angle of it).
+      feeling?: { emotion: EmotionId; angle: number };
+      // Shown during prep, hidden once recording starts.
+      prepNotes?: string[];
     }
   // cuesEnabled is what's persisted (marks shown or not); markLevel is the
   // finer choice made on the Study screen.
@@ -95,7 +100,14 @@ export type SessionStatus =
 
 // "concise" mirrors "free_record" — a distinct opt-in short-recording drill,
 // not a duration variant of "spontaneous".
-export type SessionType = "spontaneous" | "free_record" | "concise" | "script_practice";
+// "feeling" is a Feeling of the Week rep: process only — never scored,
+// never in the curriculum or stats, never a keepsake (see domain/feelings.ts).
+export type SessionType = "spontaneous" | "free_record" | "concise" | "script_practice" | "feeling";
+
+// Sessions whose scores feed the curriculum and the stats.
+export function isScoredPractice(type: SessionType): boolean {
+  return type !== "script_practice" && type !== "feeling";
+}
 
 export interface Session {
   id: string;
@@ -190,6 +202,9 @@ export interface SessionSubjectExtras {
   // the prompt library — follow-up questions, generated drill prompts.
   promptText?: string;
   promptCategory?: string;
+  // Feeling of the Week.
+  feelingEmotion?: EmotionId;
+  feelingAngle?: number;
 }
 
 export const ADHOC_PROMPT_PREFIX = "adhoc_";

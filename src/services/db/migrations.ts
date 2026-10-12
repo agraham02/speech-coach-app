@@ -577,6 +577,18 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
     `);
     currentVersion = await commitVersion(db, 18);
   }
+
+  if (currentVersion < 19) {
+    // Feeling of the Week: the week's emotion (from the rotation, or swapped).
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS feeling_weeks (
+        week_start TEXT PRIMARY KEY NOT NULL,
+        emotion TEXT NOT NULL,
+        swapped INTEGER NOT NULL DEFAULT 0
+      );
+    `);
+    currentVersion = await commitVersion(db, 19);
+  }
 }
 
 // Commits each migration's version as soon as that migration finishes.

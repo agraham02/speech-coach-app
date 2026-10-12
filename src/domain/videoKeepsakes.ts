@@ -53,8 +53,10 @@ export function planVideoCleanup(videos: VideoCandidate[], cutoffIso: string): C
     const expiring = monthVideos.filter((v) => v.recordedAt < cutoffIso && !v.keepsake);
     if (!expiring.length) continue;
     const kept = new Set(monthVideos.filter((v) => v.keepsake).map((v) => v.id));
-    if (!kept.size) {
-      const best = [...monthVideos].sort(rank)[0];
+    // Feeling of the Week takes are private: never picked automatically.
+    const eligible = monthVideos.filter((v) => v.sessionType !== "feeling");
+    if (!kept.size && eligible.length) {
+      const best = [...eligible].sort(rank)[0];
       keep.push(best.id);
       kept.add(best.id);
     }

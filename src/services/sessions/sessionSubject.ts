@@ -35,6 +35,7 @@ export async function subjectFromSession(session: Session): Promise<RecordingSub
     conciseSeconds: session.sessionType === "concise" ? extras?.conciseSeconds : undefined,
     lessonId: extras?.lessonId,
     targetFramework: extras?.targetFramework,
+    feeling: extras?.feelingEmotion ? { emotion: extras.feelingEmotion, angle: extras.feelingAngle ?? 0 } : undefined,
   };
 }
 
@@ -66,6 +67,7 @@ const TYPE_LABELS: Record<Session["sessionType"], string> = {
   concise: "Concise",
   free_record: "Free record",
   script_practice: "Speech",
+  feeling: "Feeling",
 };
 
 // What to show for a session in lists and the journal.

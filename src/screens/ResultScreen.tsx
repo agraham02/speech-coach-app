@@ -39,6 +39,7 @@ import { setVideoKeepsake } from "../services/data/videoKeepsakes";
 import { getArtifact } from "../services/db/artifactsRepo";
 import { describeSessionSubject, subjectFromSession, type SessionSubjectSummary } from "../services/sessions/sessionSubject";
 import { useSessionSteps } from "../hooks/useSessionSteps";
+import { FeelingResultView } from "../components/feelings/FeelingResultView";
 import type { CloudTranscriptArtifact } from "../services/pipeline/steps/cloudReviewStep";
 import type { SessionStep } from "../domain/sessionSteps";
 import { logger } from "../utils/logger";
@@ -223,6 +224,11 @@ export function ResultScreen({ route, navigation }: Props) {
 
   const videoUri = resolveVideoUri(session);
   const hasVideo = !session.videoDeletedAt && videoExists(videoUri);
+
+  // A Feeling of the Week rep is process only — no score, chart or coaching.
+  if (session.sessionType === "feeling") {
+    return <FeelingResultView session={session} steps={steps} hasVideo={hasVideo} videoUri={videoUri} onDone={handleDone} onDelete={handleDelete} />;
+  }
   const deepReviewBlocked = !hasVideo ? "Needs the video, which has been deleted." : undefined;
   const avgWpm =
     session.transcriptWords && session.transcriptWords.length > 0 && session.durationSeconds > 0

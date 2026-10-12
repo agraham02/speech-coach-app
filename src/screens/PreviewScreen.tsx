@@ -26,7 +26,10 @@ export function PreviewScreen({ route, navigation }: Props) {
   const { videoUri, durationSecondsLocal, ...subject } = route.params;
   const isFreeRecord = subject.kind === "prompt" && isFreeRecordPrompt(subject.prompt.id);
   const [wantsCloudReview, setWantsCloudReview] = useState(false);
-  const [wantsNotionSync, setWantsNotionSync] = useState(isFreeRecord);
+  // A feeling rep is private by default: nothing leaves the phone unless
+  // switched on here.
+  const isFeeling = subject.kind === "prompt" && !!subject.feeling;
+  const [wantsNotionSync, setWantsNotionSync] = useState(() => !isFeeling && isFreeRecord);
   const [isSaving, setIsSaving] = useState(false);
   // Set once the take has been saved or deliberately thrown away, so leaving
   // the screen no longer needs a confirmation.
@@ -140,7 +143,11 @@ export function PreviewScreen({ route, navigation }: Props) {
               trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
             />
           </View>
-          <Text style={styles.hint}>You can add either of these later from the session.</Text>
+          <Text style={styles.hint}>
+            {isFeeling
+              ? "This is a private feeling rep — both stay off unless you turn them on. You can still add them later."
+              : "You can add either of these later from the session."}
+          </Text>
         </Card>
       </ScrollView>
 

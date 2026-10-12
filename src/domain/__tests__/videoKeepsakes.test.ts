@@ -52,3 +52,17 @@ describe("planVideoCleanup", () => {
     expect(planVideoCleanup([video("recent", "2026-10-01T15:00:00.000Z")], CUTOFF)).toEqual({ keep: [], delete: [] });
   });
 });
+
+describe("feeling takes", () => {
+  it("are never picked as a month's keepsake", () => {
+    const plan = planVideoCleanup(
+      [
+        { id: "f", recordedAt: "2026-08-03T10:00:00Z", sessionType: "feeling", durationSeconds: 120, score: null, keepsake: false },
+        { id: "s", recordedAt: "2026-08-04T10:00:00Z", sessionType: "spontaneous", durationSeconds: 60, score: 4, keepsake: false },
+      ],
+      "2026-10-01T00:00:00Z",
+    );
+    expect(plan.keep).toEqual(["s"]);
+    expect(plan.delete).toContain("f");
+  });
+});

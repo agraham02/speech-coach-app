@@ -4,6 +4,8 @@ import { darkColors as colors, radii, spacing, typography } from "../../theme/th
 
 interface PrepOverlayProps {
   promptText: string;
+  // Questions to think through during prep (hidden once recording starts).
+  notes?: string[];
   remainingSeconds: number;
   onSkip: () => void;
   onClose: () => void;
@@ -12,7 +14,7 @@ interface PrepOverlayProps {
 
 // Shown while brainstorming, before recording auto-starts. Sits above the
 // live camera preview + framing guide, which keep running underneath.
-export function PrepOverlay({ promptText, remainingSeconds, onSkip, onClose, topInset }: PrepOverlayProps) {
+export function PrepOverlay({ promptText, notes, remainingSeconds, onSkip, onClose, topInset }: PrepOverlayProps) {
   return (
     <View style={styles.container} pointerEvents="box-none">
       <Pressable
@@ -28,6 +30,15 @@ export function PrepOverlay({ promptText, remainingSeconds, onSkip, onClose, top
       <View style={styles.top}>
         <Text style={styles.label}>Get ready</Text>
         <Text style={styles.promptText}>{promptText}</Text>
+        {notes?.length ? (
+          <View style={styles.notes}>
+            {notes.map((n) => (
+              <Text key={n} style={styles.noteText}>
+                · {n}
+              </Text>
+            ))}
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.countdownWrap} pointerEvents="none">
@@ -62,9 +73,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  top: { gap: spacing.sm, paddingHorizontal: spacing.xl, alignItems: "center", marginTop: spacing.xl },
+  // A dark backdrop keeps the prompt readable over a bright room.
+  top: {
+    gap: spacing.sm,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    alignItems: "center",
+    borderRadius: radii.lg,
+    backgroundColor: "rgba(0,0,0,0.6)",
+  },
   label: { color: colors.accent, fontSize: typography.caption, fontWeight: "700", letterSpacing: 1 },
   promptText: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "600", textAlign: "center" },
+  notes: { marginTop: spacing.xs, gap: 4, alignSelf: "stretch" },
+  noteText: { color: colors.textPrimary, fontSize: typography.body, lineHeight: 21 },
   countdownWrap: {
     width: 140,
     height: 140,

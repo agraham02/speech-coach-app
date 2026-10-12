@@ -13,6 +13,7 @@ import { PrimaryButton } from "../components/common/PrimaryButton";
 import { SkillRings } from "../components/common/SkillRings";
 import { ListRow } from "../components/common/ListRow";
 import { ConversationTodayCard } from "../components/conversation/ConversationTodayCard";
+import { FeelingWeekCard } from "../components/feelings/FeelingWeekCard";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
 import { getSkillStates, getTodaysPlan, getPracticeDates, type StoredPlan } from "../services/db/progressRepo";
 import { getPlanMinutes, setPlanMinutes } from "../services/prefs/prefsStore";
@@ -155,6 +156,8 @@ export function TodayScreen() {
             ) : null}
           </Card>
         ) : null}
+
+        <FeelingWeekCard />
 
         <ConversationTodayCard />
 

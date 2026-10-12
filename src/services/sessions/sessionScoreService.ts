@@ -29,7 +29,8 @@ export function measuredVoice(session: Session): { wpmAvg: number | null; pitchR
 export async function refreshSessionScore(sessionId: string): Promise<SessionScoreBreakdown | null> {
   try {
     const session = await getSessionById(sessionId);
-    if (!session) return null;
+    // Feeling reps are process only — no score, ever.
+    if (!session || session.sessionType === "feeling") return null;
     const [pauses, presence, coach, cloud] = await Promise.all([
       getArtifact<PauseAnalysis>(sessionId, "pauses"),
       getArtifact<PresenceMetrics>(sessionId, "presence"),

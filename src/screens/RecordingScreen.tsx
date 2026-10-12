@@ -88,7 +88,8 @@ export function RecordingScreen({ route, navigation }: Props) {
     if (lessonPrep != null) return lessonPrep > 0;
     return getPrepSettingsManuallySet() ? getPrepPhaseSettings().enabled : true;
   });
-  const [warmUpEnabled] = useState(() => !fromPractice && !isScript && getWarmUpEnabled());
+  const isFeeling = subject.kind === "prompt" && !!subject.feeling;
+  const [warmUpEnabled] = useState(() => !fromPractice && !isScript && !isFeeling && getWarmUpEnabled());
   // Warm-up length scales with curriculum level — harder levels get a
   // longer, more thorough warm-up (see curriculum.ts's LEVEL_WARM_UP_INTENSITY
   // table and its judgment-call note).
@@ -272,6 +273,7 @@ export function RecordingScreen({ route, navigation }: Props) {
       {stage === "prep" && (
         <PrepOverlay
           promptText={prepText}
+          notes={subject.kind === "prompt" ? subject.prepNotes : undefined}
           remainingSeconds={prepRemaining}
           onSkip={skipPrep}
           onClose={() => navigation.goBack()}
