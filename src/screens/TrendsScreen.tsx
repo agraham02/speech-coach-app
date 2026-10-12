@@ -268,7 +268,7 @@ const useStyles = makeStyles(({ colors }) => ({
   scrollContent: { gap: spacing.md, paddingBottom: spacing.lg },
   streakCard: { gap: spacing.xs },
   streakRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  streakNumber: { color: colors.textPrimary, fontSize: typography.headline, fontFamily: fontDisplay.bold },
+  streakNumber: { color: colors.textPrimary, fontSize: typography.headline, fontFamily: fontDisplay.title },
   streakLabel: { ...font("400"), color: colors.textSecondary, fontSize: typography.body },
   streakMeta: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
   sectionLabel: { color: colors.accent, fontSize: 13, ...font("600") },

@@ -422,12 +422,12 @@ const useStyles = makeStyles(({ colors }) => ({
   },
   levelChipText: { color: colors.textSecondary, fontSize: 12, ...font("600") },
   eyebrow: { ...font("500"), color: colors.textSecondary, fontSize: 13 },
-  appName: { color: colors.textPrimary, fontFamily: fontDisplay.regular, fontSize: 40, lineHeight: 46 },
+  appName: { color: colors.textPrimary, fontFamily: fontDisplay.title, fontSize: 34, lineHeight: 41, letterSpacing: -1 },
   streakRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: spacing.xs },
   streakText: { color: colors.textSecondary, fontSize: typography.caption, ...font("600") },
   middle: { flex: 1, justifyContent: "center", gap: spacing.lg },
   promptCard: { gap: spacing.md },
-  promptText: { color: colors.textPrimary, fontFamily: fontDisplay.regular, fontSize: 32, lineHeight: 38 },
+  promptText: { color: colors.textPrimary, fontFamily: fontDisplay.spoken, fontSize: 26, lineHeight: 34, letterSpacing: -0.5 },
   hint: { ...font("400"), color: colors.textMuted, fontSize: typography.body, textAlign: "center" },
 
   conciseChip: {

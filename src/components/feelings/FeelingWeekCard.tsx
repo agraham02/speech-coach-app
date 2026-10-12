@@ -63,5 +63,5 @@ const useStyles = makeStyles((t) => ({
   row: { flexDirection: "row", alignItems: "center", gap: t.space.md },
   icon: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
   flex: { flex: 1, gap: 1 },
-  emotion: { fontSize: 26, lineHeight: 30 },
+  emotion: { fontSize: 22, lineHeight: 28, letterSpacing: -0.5 },
 }));

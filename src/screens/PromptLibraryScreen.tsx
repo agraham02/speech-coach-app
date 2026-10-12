@@ -174,7 +174,7 @@ const useStyles = makeStyles(({ colors }) => ({
   list: { gap: spacing.sm, paddingBottom: spacing.lg },
   promptCard: { gap: spacing.xs },
   promptCardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  promptText: { color: colors.textPrimary, fontFamily: fontDisplay.regular, fontSize: 21, lineHeight: 26 },
+  promptText: { color: colors.textPrimary, fontFamily: fontDisplay.spoken, fontSize: 17, lineHeight: 23, letterSpacing: -0.2 },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
   emptyText: { ...font("400"), color: colors.textMuted, fontSize: typography.body, textAlign: "center", paddingHorizontal: spacing.xl },
 }));

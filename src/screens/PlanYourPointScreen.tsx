@@ -108,7 +108,7 @@ const useStyles = makeStyles(({ colors }) => ({
     borderRadius: radii.md,
     padding: spacing.md,
   },
-  promptPreviewText: { fontFamily: fontDisplay.regular, color: colors.textPrimary, fontSize: 22, lineHeight: 27 },
+  promptPreviewText: { fontFamily: fontDisplay.spoken, color: colors.textPrimary, fontSize: 19, lineHeight: 26, letterSpacing: -0.2 },
   field: { gap: spacing.xs },
   label: { color: colors.textSecondary, fontSize: 13, ...font("600") },
   hint: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },

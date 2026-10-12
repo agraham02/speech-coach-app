@@ -258,7 +258,7 @@ const useStyles = makeStyles(({ colors }) => ({
     justifyContent: "space-between",
     marginBottom: spacing.md,
   },
-  panelTitle: { color: colors.textPrimary, fontFamily: fontDisplay.regular, fontSize: 28, lineHeight: 34 },
+  panelTitle: { color: colors.textPrimary, fontFamily: fontDisplay.title, fontSize: 24, lineHeight: 30, letterSpacing: -0.5 },
   doneText: { color: colors.accent, fontSize: typography.body, ...font("600") },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
   rowText: { flex: 1, gap: spacing.xs },

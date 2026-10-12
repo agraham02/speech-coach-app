@@ -534,7 +534,7 @@ const useStyles = makeStyles((t) => ({
   welcomeRoot: { flex: 1, backgroundColor: t.colors.background },
   welcome: { flex: 1, justifyContent: "space-between", paddingHorizontal: t.layout.gutter, paddingBottom: t.space.md },
   welcomeBody: { flex: 1, justifyContent: "center", gap: t.space.lg },
-  welcomeTitle: { fontSize: 50, lineHeight: 54 },
+  welcomeTitle: { fontSize: 44, lineHeight: 50, letterSpacing: -1.6 },
   wave: { flexDirection: "row", alignItems: "center", gap: 5, height: 56 },
   bar: { width: 5, borderRadius: 3, backgroundColor: t.colors.textPrimary },
   top: { flexDirection: "row", alignItems: "center", gap: t.space.md },

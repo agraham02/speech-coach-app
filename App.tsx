@@ -20,16 +20,13 @@ import { ThemeProvider, useTheme } from "./src/theme/ThemeProvider";
 initExecutorch({ resourceFetcher: ExpoResourceFetcher });
 
 export default function App() {
-  // Instrument Sans (interface) and Instrument Serif (titles, prompts, big
-  // numbers) — see design-refresh-plan.md. One family per weight; keys match
-  // the fonts' PostScript names.
+  // Instrument Sans — the app's one typeface (see design-refresh-plan.md).
+  // One family per weight; keys match the fonts' PostScript names.
   const [fontsLoaded, fontError] = useFonts({
     "InstrumentSans-Regular": require("./assets/fonts/InstrumentSans-Regular.ttf"),
     "InstrumentSans-Medium": require("./assets/fonts/InstrumentSans-Medium.ttf"),
     "InstrumentSans-SemiBold": require("./assets/fonts/InstrumentSans-SemiBold.ttf"),
     "InstrumentSans-Bold": require("./assets/fonts/InstrumentSans-Bold.ttf"),
-    "InstrumentSerif-Regular": require("./assets/fonts/InstrumentSerif-Regular.ttf"),
-    "InstrumentSerif-Italic": require("./assets/fonts/InstrumentSerif-Italic.ttf"),
   });
 
   return (

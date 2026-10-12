@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(10,10,8,0.62)",
   },
   label: { color: colors.textSecondary, fontSize: 13, ...font("600") },
-  promptText: { color: colors.textPrimary, fontFamily: fontDisplay.regular, fontSize: 28, lineHeight: 33, textAlign: "center" },
+  promptText: { color: colors.textPrimary, fontFamily: fontDisplay.spoken, fontSize: 24, lineHeight: 31, letterSpacing: -0.3, textAlign: "center" },
   notes: { marginTop: spacing.xs, gap: 4, alignSelf: "stretch" },
   noteText: { ...font("400"), color: colors.textPrimary, fontSize: typography.body, lineHeight: 21 },
   countdownWrap: {
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "rgba(10,10,8,0.45)",
   },
-  countdown: { color: colors.textPrimary, fontFamily: fontDisplay.regular, fontSize: 68, lineHeight: 74 },
+  countdown: { color: colors.textPrimary, fontFamily: fontDisplay.title, fontSize: 60, lineHeight: 68, letterSpacing: -2, fontVariant: ["tabular-nums"] },
   skipButton: {
     backgroundColor: colors.accent,
     paddingHorizontal: spacing.xl,

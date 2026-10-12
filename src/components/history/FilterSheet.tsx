@@ -154,7 +154,7 @@ const useStyles = makeStyles(({ colors }) => ({
   },
   handle: { alignSelf: "center", width: 40, height: 5, borderRadius: 3, backgroundColor: colors.switchTrackOff, marginBottom: spacing.sm },
   panelHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  panelTitle: { color: colors.textPrimary, fontFamily: fontDisplay.regular, fontSize: 28, lineHeight: 34 },
+  panelTitle: { color: colors.textPrimary, fontFamily: fontDisplay.title, fontSize: 24, lineHeight: 30, letterSpacing: -0.5 },
   resetText: { color: colors.accent, fontSize: typography.body, ...font("600") },
   sectionLabel: { color: colors.textMuted, fontSize: 13, ...font("600") },
   sectionSpacer: { marginTop: spacing.sm },

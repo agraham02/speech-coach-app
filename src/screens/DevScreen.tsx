@@ -95,7 +95,7 @@ const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md, paddingBottom: 0 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   headerActions: { flexDirection: "row", gap: spacing.lg },
-  title: { color: colors.textPrimary, fontFamily: fontDisplay.regular, fontSize: 34, lineHeight: 40 },
+  title: { color: colors.textPrimary, fontFamily: fontDisplay.title, fontSize: 30, lineHeight: 36, letterSpacing: -0.8 },
   list: { flex: 1 },
   listContent: { gap: spacing.sm, paddingBottom: spacing.lg },
   row: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start" },

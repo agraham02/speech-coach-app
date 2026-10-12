@@ -171,7 +171,7 @@ const useStyles = makeStyles((t) => ({
   body: { gap: t.space.lg },
   skillCard: { flexDirection: "row", gap: t.space.md, alignItems: "center" },
   flex: { flex: 1, gap: t.space.xs },
-  ringNumber: { fontSize: 28, lineHeight: 32 },
+  ringNumber: { fontSize: 24, lineHeight: 30, letterSpacing: -0.8 },
   progressRow: { flexDirection: "row", alignItems: "center", gap: t.space.sm, marginTop: t.space.sm },
   progressTrack: { flex: 1, height: 4, borderRadius: 2, backgroundColor: t.colors.surfaceRaised, overflow: "hidden" },
   progressFill: { height: 4, borderRadius: 2 },

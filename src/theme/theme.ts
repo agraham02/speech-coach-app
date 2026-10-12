@@ -89,8 +89,9 @@ export const typography = {
   headline: 28,
 } as const;
 
-// The display face for hero numbers (score, streak) and titles.
+// Families for older screens' display styles: titles and numbers (title),
+// spoken words — prompts and lines (spoken).
 export const fontDisplay = {
-  regular: fontFamilies.serif,
-  bold: fontFamilies.serif,
+  title: fontFamilies.semibold,
+  spoken: fontFamilies.medium,
 } as const;

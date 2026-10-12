@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 import { darkColors as colors, fontDisplay, radii, spacing } from "../../theme/theme";
 
-// The prompt over the camera — spoken words, so in serif.
+// The prompt over the camera — spoken words, so in the medium weight.
 export function PromptBanner({ text }: { text: string }) {
   return (
     <View style={styles.container}>
@@ -19,5 +19,5 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
   },
-  text: { fontFamily: fontDisplay.regular, color: colors.textPrimary, fontSize: 22, lineHeight: 27, textAlign: "center" },
+  text: { fontFamily: fontDisplay.spoken, color: colors.textPrimary, fontSize: 19, lineHeight: 26, letterSpacing: -0.2, textAlign: "center" },
 });

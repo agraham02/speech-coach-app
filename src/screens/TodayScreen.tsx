@@ -226,7 +226,7 @@ export function TodayScreen() {
           <Txt variant="footnote" weight="500" tone="secondary">
             Why you started
           </Txt>
-          <Txt variant="quote" italic>
+          <Txt variant="quote">
             “{profile.why}”
           </Txt>
         </View>

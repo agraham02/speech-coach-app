@@ -172,7 +172,7 @@ const NODE = 28;
 const useStyles = makeStyles((t) => ({
   teach: { gap: t.space.md - 4 },
   howRow: { flexDirection: "row", gap: t.space.md - 2, alignItems: "flex-start" },
-  howNumber: { fontSize: 26, lineHeight: 26, width: 18 },
+  howNumber: { fontSize: 20, lineHeight: 24, width: 18 },
   flex: { flex: 1 },
   completed: { flexDirection: "row", alignItems: "center", gap: t.space.xs + 2, paddingHorizontal: 4 },
   step: { gap: t.space.md },

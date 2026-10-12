@@ -14,7 +14,7 @@ interface HeaderProps {
 }
 
 // One consistent screen header: optional back/close button, a quiet eyebrow,
-// the title in serif (large for tab roots), and optional right-side actions.
+// the title (large for tab roots), and optional right-side actions.
 export function Header({ title, eyebrow, onBack, backIcon = "chevron-back", right, large }: HeaderProps) {
   const styles = useStyles();
   if (large) {

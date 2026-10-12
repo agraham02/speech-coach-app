@@ -29,5 +29,5 @@ const useStyles = makeStyles((t) => ({
     backgroundColor: t.colors.surfaceRaised,
   },
   plain: { backgroundColor: "transparent", paddingVertical: t.space.xs },
-  value: { fontSize: 32, lineHeight: 36 },
+  value: { fontSize: 28, lineHeight: 34, letterSpacing: -0.8 },
 }));

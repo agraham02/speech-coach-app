@@ -87,5 +87,5 @@ const useStyles = makeStyles((t) => ({
   head: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", gap: t.space.md },
   title: { flex: 1, paddingBottom: 4 },
   latest: { flexDirection: "row", alignItems: "baseline", gap: 4 },
-  value: { fontSize: 28, lineHeight: 32 },
+  value: { fontSize: 24, lineHeight: 30, letterSpacing: -0.8 },
 }));

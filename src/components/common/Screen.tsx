@@ -13,7 +13,7 @@ import { Txt } from "./Txt";
 interface ScreenProps {
   title?: string;
   eyebrow?: string;
-  // Tab roots: the 40pt serif title. Pushed screens get a 30pt one.
+  // Tab roots: the 34pt title. Pushed screens get a 26pt one.
   large?: boolean;
   onBack?: () => void;
   backIcon?: "chevron-back" | "close";
@@ -41,7 +41,7 @@ interface ScreenProps {
 const BAR_HEIGHT = 44;
 
 // The layout every scrolling screen shares: a top bar (back, actions), a
-// serif title that hands off to a small one in the bar as you scroll, the
+// big title that hands off to a small one in the bar as you scroll, the
 // content in a column with the screen gutter, and an optional pinned footer.
 export function Screen({
   title,

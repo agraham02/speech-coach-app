@@ -164,7 +164,7 @@ export function PreviewScreen({ route, navigation }: Props) {
 
 const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
-  title: { color: colors.textPrimary, fontFamily: fontDisplay.regular, fontSize: 34, lineHeight: 40 },
+  title: { color: colors.textPrimary, fontFamily: fontDisplay.title, fontSize: 30, lineHeight: 36, letterSpacing: -0.8 },
   scroll: { flex: 1 },
   scrollContent: { gap: spacing.md, paddingBottom: spacing.lg },
   section: { gap: spacing.md },

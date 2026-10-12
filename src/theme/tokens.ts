@@ -101,17 +101,16 @@ export const lightPalette: Palette = {
   },
 };
 
-// Instrument Sans for the interface, Instrument Serif for what's spoken or
-// what matters most (titles, prompts, lines, the big numbers). Each weight is
-// its own family: on Android a custom font plus `fontWeight` renders a faked
-// bold, so type styles carry `fontFamily` and never `fontWeight`.
+// One family, Instrument Sans: titles and big numbers in semibold with tight
+// tracking, spoken words (prompts, lines) in medium, the interface in
+// regular. Each weight is its own family: on Android a custom font plus
+// `fontWeight` renders a faked bold, so type styles carry `fontFamily` and
+// never `fontWeight`.
 export const fontFamilies = {
   regular: "InstrumentSans-Regular",
   medium: "InstrumentSans-Medium",
   semibold: "InstrumentSans-SemiBold",
   bold: "InstrumentSans-Bold",
-  serif: "InstrumentSerif-Regular",
-  serifItalic: "InstrumentSerif-Italic",
 } as const;
 
 export type FontWeight = "400" | "500" | "600" | "700" | "800" | "900";
@@ -134,12 +133,10 @@ export function font(weight: FontWeight | TextStyle["fontWeight"] = "400"): { fo
   }
 }
 
-const serif = { fontFamily: fontFamilies.serif };
-
 export const typeScale = {
-  display: { ...serif, fontSize: 56, lineHeight: 60, letterSpacing: -0.5 },
-  largeTitle: { ...serif, fontSize: 40, lineHeight: 46, letterSpacing: -0.3 },
-  title1: { ...serif, fontSize: 30, lineHeight: 36, letterSpacing: -0.2 },
+  display: { ...font("600"), fontSize: 52, lineHeight: 58, letterSpacing: -1.8 },
+  largeTitle: { ...font("600"), fontSize: 34, lineHeight: 41, letterSpacing: -1 },
+  title1: { ...font("600"), fontSize: 26, lineHeight: 32, letterSpacing: -0.6 },
   title2: { ...font("600"), fontSize: 21, lineHeight: 27, letterSpacing: -0.2 },
   title3: { ...font("600"), fontSize: 18, lineHeight: 24, letterSpacing: -0.1 },
   headline: { ...font("600"), fontSize: 16, lineHeight: 22 },
@@ -150,12 +147,10 @@ export const typeScale = {
   caption1: { ...font("500"), fontSize: 12, lineHeight: 16 },
   caption2: { ...font("600"), fontSize: 11, lineHeight: 14, letterSpacing: 0.1 },
   // Spoken words: prompts, lines to read, quotes.
-  quote: { ...serif, fontSize: 24, lineHeight: 31 },
+  quote: { ...font("500"), fontSize: 22, lineHeight: 30, letterSpacing: -0.3 },
 } satisfies Record<string, TextStyle>;
 
 export type TypeStyle = keyof typeof typeScale;
-
-export const SERIF_VARIANTS: ReadonlySet<TypeStyle> = new Set(["display", "largeTitle", "title1", "quote"]);
 
 export const space = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 } as const;
 // Screen side padding, and the gap between a screen's sections.
