@@ -170,7 +170,7 @@ export function ResultScreen({ route, navigation }: Props) {
       ];
 
   async function handleRunStep(step: SessionStep) {
-    if (step === "cloud_review" && !(await readyForDeepReview(() => navigation.navigate("Settings")))) return;
+    if (step === "cloud_review" && !(await readyForDeepReview(() => navigation.navigate("Settings", { section: "deepReviews" })))) return;
     requestStep(sessionId, step).catch((error) => {
       logger.error(`[result] ${step} failed to start — ${(error as Error).message}`);
       showToast("Couldn't start that — try again", "error");

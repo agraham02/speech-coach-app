@@ -19,6 +19,11 @@ export const GUIDE_TIPS = {
     body: "Every lesson, grouped by skill. Each one explains a move, then has you practice it. Next up marks where you are, but every lesson is open.",
     placement: "bottom",
   },
+  you: {
+    title: "You",
+    body: "Your streak and progress, your settings, and everything that's just for you. Streak freezes cover a missed day, so one slip doesn't end it.",
+    placement: "bottom",
+  },
   progress: {
     title: "Progress",
     body: "Your five skills, your streak, and the numbers behind them — pace, fillers, eye contact and drill levels. Drills get harder as you pass them.",
@@ -62,11 +67,6 @@ export const GUIDE_TIPS = {
   conversation: {
     title: "Conversation drills",
     body: "Someone says a line; reply when it's your turn. What counts is replying and keeping it going — not finding the perfect answer.",
-    placement: "top",
-  },
-  settings: {
-    title: "Settings",
-    body: "Reminders, practice days, and optional AI deep reviews with your own key. Everything else works without one.",
     placement: "top",
   },
 } satisfies Record<string, GuideTipContent>;

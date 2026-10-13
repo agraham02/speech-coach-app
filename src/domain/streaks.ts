@@ -116,3 +116,12 @@ export function computeStreaks(dates: string[], today: Date = new Date(), practi
   const { currentStreak, longestStreak } = computeStreakState(dates, today, practiceDays);
   return { currentStreak, longestStreak };
 }
+
+// How many different days you practiced since Monday (this week, local time).
+// Takes the same date strings as computeStreakState.
+export function practiceDaysThisWeek(dates: string[], today: Date = new Date()): number {
+  const sinceMonday = (today.getDay() + 6) % 7;
+  const monday = isoDateFromDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - sinceMonday));
+  const days = new Set(dates.map((d) => (d.length > 10 ? isoDateFromDate(new Date(d)) : d.slice(0, 10))));
+  return Array.from(days).filter((d) => d >= monday).length;
+}

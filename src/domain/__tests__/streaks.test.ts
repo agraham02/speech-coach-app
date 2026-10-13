@@ -1,4 +1,4 @@
-import { computeStreakState, computeStreaks } from "../streaks";
+import { computeStreakState, computeStreaks, practiceDaysThisWeek } from "../streaks";
 
 const today = new Date(2026, 9, 14, 18, 0); // Wednesday
 
@@ -125,5 +125,21 @@ describe("streak freezes", () => {
     const dates = [...run(7), "2026-09-09"];
     const { currentStreak, longestStreak } = computeStreakState(dates, day(2026, 9, 9));
     expect(computeStreaks(dates, day(2026, 9, 9))).toEqual({ currentStreak, longestStreak });
+  });
+});
+
+describe("practiceDaysThisWeek", () => {
+  it("counts different days since Monday", () => {
+    // Wednesday Oct 14: Mon 12 and Tue 13 and today, plus an older Sunday.
+    expect(practiceDaysThisWeek(["2026-10-11", "2026-10-12", "2026-10-13", "2026-10-13T09:00:00", "2026-10-14"], today)).toBe(3);
+  });
+
+  it("is zero before the first practice of the week", () => {
+    expect(practiceDaysThisWeek(["2026-10-10"], today)).toBe(0);
+    expect(practiceDaysThisWeek([], today)).toBe(0);
+  });
+
+  it("starts the week on Monday, also on a Sunday", () => {
+    expect(practiceDaysThisWeek(["2026-10-12", "2026-10-18"], new Date(2026, 9, 18, 20, 0))).toBe(2);
   });
 });

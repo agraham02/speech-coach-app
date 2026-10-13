@@ -32,6 +32,8 @@ import { PreviewScreen } from "../screens/PreviewScreen";
 import { ProcessingScreen } from "../screens/ProcessingScreen";
 import { ResultScreen } from "../screens/ResultScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
+import { YouScreen } from "../screens/YouScreen";
+import type { SettingsSection } from "../components/settings/sections";
 import { TipsScreen } from "../screens/TipsScreen";
 import { SourcesScreen } from "../screens/SourcesScreen";
 import { MarkItUpScreen } from "../screens/MarkItUpScreen";
@@ -69,14 +71,16 @@ export { navigationRef };
 export type TabParamList = {
   Today: undefined;
   Learn: undefined;
-  Progress: undefined;
   Library: undefined;
+  You: undefined;
   Dev: undefined;
 };
 
 export type RootStackParamList = {
   Tabs: NavigatorScreenParams<TabParamList> | undefined;
-  Settings: undefined;
+  // One section of Settings, or the list of them with no section.
+  Settings: { section?: SettingsSection } | undefined;
+  Progress: undefined;
   MarkItUp: { shelf?: "lines" | "mine" | "speeches" } | undefined;
   LineRep: { lineIds?: string[]; mineIds?: string[]; category?: LineCategory; mode?: "rep" | "lineOfDay"; practice?: PracticeContext } | undefined;
   AddText: undefined;
@@ -157,17 +161,17 @@ function JSTabs() {
         }}
       />
       <JSTab.Screen
-        name="Progress"
-        component={ProgressScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => <Ionicons name="stats-chart-outline" size={size} color={color} />,
-        }}
-      />
-      <JSTab.Screen
         name="Library"
         component={HistoryScreen}
         options={{
           tabBarIcon: ({ color, size }) => <Ionicons name="albums-outline" size={size} color={color} />,
+        }}
+      />
+      <JSTab.Screen
+        name="You"
+        component={YouScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <Ionicons name="person-circle-outline" size={size} color={color} />,
         }}
       />
       {SHOW_DEV_TOOLS ? (
@@ -228,17 +232,17 @@ function NativeTabs() {
         }}
       />
       <NativeTab.Screen
-        name="Progress"
-        component={ProgressScreen}
-        options={{
-          tabBarIcon: ({ focused }) => ({ sfSymbol: focused ? "chart.bar.fill" : "chart.bar" }),
-        }}
-      />
-      <NativeTab.Screen
         name="Library"
         component={HistoryScreen}
         options={{
           tabBarIcon: ({ focused }) => ({ sfSymbol: focused ? "square.stack.fill" : "square.stack" }),
+        }}
+      />
+      <NativeTab.Screen
+        name="You"
+        component={YouScreen}
+        options={{
+          tabBarIcon: ({ focused }) => ({ sfSymbol: focused ? "person.crop.circle.fill" : "person.crop.circle" }),
         }}
       />
       {SHOW_DEV_TOOLS ? (
@@ -315,7 +319,8 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
         <Stack.Screen name="SetupCheck" component={SetupCheckScreen} options={{ gestureEnabled: false }} />
         <Stack.Screen name="SkillCheck" component={SkillCheckScreen} />
         <Stack.Screen name="StartingPoint" component={StartingPointScreen} options={{ gestureEnabled: false }} />
-        <Stack.Screen name="Settings" component={SettingsScreen} options={{ presentation: "modal" }} />
+        <Stack.Screen name="Settings" component={SettingsScreen} />
+        <Stack.Screen name="Progress" component={ProgressScreen} />
         <Stack.Screen name="AsrLab" component={AsrLabScreen} />
         <Stack.Screen name="Practice" component={HomeScreen} />
         <Stack.Screen name="Frameworks" component={TipsScreen} />

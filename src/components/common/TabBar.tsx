@@ -13,8 +13,8 @@ type IconPair = [keyof typeof Ionicons.glyphMap, keyof typeof Ionicons.glyphMap]
 const ICONS: Record<string, IconPair> = {
   Today: ["sunny", "sunny-outline"],
   Learn: ["school", "school-outline"],
-  Progress: ["stats-chart", "stats-chart-outline"],
   Library: ["albums", "albums-outline"],
+  You: ["person-circle", "person-circle-outline"],
   Dev: ["bug", "bug-outline"],
 };
 

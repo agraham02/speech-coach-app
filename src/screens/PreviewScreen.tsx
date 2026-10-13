@@ -40,7 +40,7 @@ export function PreviewScreen({ route, navigation }: Props) {
       setWantsCloudReview(false);
       return;
     }
-    if (await readyForDeepReview(() => navigation.navigate("Settings"))) setWantsCloudReview(true);
+    if (await readyForDeepReview(() => navigation.navigate("Settings", { section: "deepReviews" }))) setWantsCloudReview(true);
   }
   const [isSaving, setIsSaving] = useState(false);
   // Set once the take has been saved or deliberately thrown away, so leaving

@@ -114,7 +114,7 @@ export function ProgressScreen() {
   const skillLevels = levels.filter((l) => DRILL_SKILL[l.type] === skill && l.type !== "guided" && l.type !== "warmup");
 
   return (
-    <Screen tabRoot large title="Progress">
+    <Screen large title="Progress" onBack={() => navigation.goBack()}>
       <ProgressProfileCards />
 
       <HeroCard accent={colors.warning} contentStyle={styles.streakCard}>

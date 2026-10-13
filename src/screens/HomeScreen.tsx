@@ -287,7 +287,6 @@ export function HomeScreen() {
       <View style={styles.header}>
         <View style={styles.headerBar}>
           <IconButton icon="chevron-back" onPress={() => navigation.goBack()} accessibilityLabel="Back" size={38} />
-          <IconButton icon="settings-outline" onPress={() => navigation.navigate("Settings")} accessibilityLabel="Settings" size={38} />
         </View>
         <Text style={styles.eyebrow}>Practice anything</Text>
         <Text style={styles.appName}>Free practice</Text>

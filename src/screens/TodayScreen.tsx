@@ -11,7 +11,6 @@ import { Card } from "../components/common/Card";
 import { HeroCard } from "../components/common/HeroCard";
 import { Txt } from "../components/common/Txt";
 import { Badge } from "../components/common/Badge";
-import { IconButton } from "../components/common/IconButton";
 import { SegmentedControl } from "../components/common/SegmentedControl";
 import { PrimaryButton } from "../components/common/PrimaryButton";
 import { SectionHeader } from "../components/common/SectionHeader";
@@ -124,7 +123,6 @@ export function TodayScreen() {
       large
       eyebrow={profile?.name ? `${greeting()}, ${profile.name}` : greeting()}
       title="Today"
-      right={<IconButton icon="settings-outline" onPress={() => navigation.navigate("Settings")} accessibilityLabel="Settings" />}
     >
       <View style={styles.meta}>
         <Txt variant="subhead" tone="secondary">
@@ -266,7 +264,7 @@ export function TodayScreen() {
 
       {mastery ? (
         <View style={styles.section}>
-          <SectionHeader title="Your skills" action="Progress" onAction={() => navigation.navigate("Tabs", { screen: "Progress" })} />
+          <SectionHeader title="Your skills" action="Progress" onAction={() => navigation.navigate("Progress")} />
           <Card>
             <SkillRings mastery={mastery} focus={plan?.focusSkill} />
           </Card>

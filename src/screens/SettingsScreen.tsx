@@ -1,349 +1,54 @@
-import { useState } from "react";
-import { formatLogsForSharing } from "../services/logs/logStore";
-import { GuideTip } from "../components/common/GuideTip";
-import { ActivityIndicator, Alert, Linking, Modal, View, Share } from "react-native";
-import { CommonActions } from "@react-navigation/native";
-import { resetApp } from "../services/data/resetApp";
-import { DeepReviewSettings } from "../components/settings/DeepReviewSettings";
-import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { Screen } from "../components/common/Screen";
-import { Txt } from "../components/common/Txt";
-import { ListGroup, ListRow, SwitchRow } from "../components/common/ListRow";
-import { SegmentedControl } from "../components/common/SegmentedControl";
-import { PressableScale } from "../components/common/PressableScale";
-import { PrimaryButton } from "../components/common/PrimaryButton";
-import { exportPracticeData, formatBytes, getVideoStorageBytes } from "../services/data/dataExport";
-import { deleteOldVideos } from "../services/data/videoKeepsakes";
-import { isAppleModelAvailable } from "../services/onDeviceLlm/onDeviceCoach";
-import { Card } from "../components/common/Card";
-import { useToast } from "../components/common/ToastProvider";
-import {
-  getPlanYourPointEnabled,
-  getReminderSettings,
-  setPlanYourPointEnabled,
-  setReminderSettings,
-} from "../services/prefs/prefsStore";
-import { formatReminderHour, setSessionHour } from "../domain/reminderSettings";
-import { ReminderHours } from "../components/settings/ReminderHours";
-import { sessionHours, type DailyGoal } from "../domain/dailyGoal";
-import { getDailySessionGoal, getVideoRetentionDays, resetGuide, setDailySessionGoal } from "../services/prefs/prefsStore";
-import { cancelDailyReminder, requestNotificationPermission, syncDailyReminder } from "../services/notifications/reminderScheduler";
-import { makeStyles, useTheme } from "../theme/ThemeProvider";
-import { SHOW_DEV_TOOLS } from "../config/devTools";
+import { ListGroup, ListRow } from "../components/common/ListRow";
+import { DeepReviewSettings } from "../components/settings/DeepReviewSettings";
+import { GoalReminderSettings } from "../components/settings/GoalReminderSettings";
+import { HelpDataSettings } from "../components/settings/HelpDataSettings";
+import { OnDeviceAiSettings } from "../components/settings/OnDeviceAiSettings";
+import { PracticeSettings } from "../components/settings/PracticeSettings";
+import { SETTINGS_SECTIONS, type SettingsSection } from "../components/settings/sections";
+import { makeStyles } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
 
-export function SettingsScreen({ navigation }: Props) {
+const SECTION_BODY: Record<SettingsSection, () => React.JSX.Element> = {
+  practice: PracticeSettings,
+  goal: GoalReminderSettings,
+  ai: OnDeviceAiSettings,
+  deepReviews: DeepReviewSettings,
+  help: HelpDataSettings,
+};
+
+// One section of Settings, opened from the You tab — or, with no section,
+// the list of them all.
+export function SettingsScreen({ route }: Props) {
   const styles = useStyles();
-  const { colors } = useTheme();
-  const showToast = useToast();
-  const [reminderSettings, setReminderSettingsState] = useState(getReminderSettings());
-  const [goal, setGoalState] = useState<DailyGoal>(getDailySessionGoal());
-  const [planYourPointEnabled, setPlanYourPointEnabledState] = useState(getPlanYourPointEnabled());
+  const navigation = useNavigation<Props["navigation"]>();
+  const section = route.params?.section;
 
-  function handlePlanYourPointToggle(enabled: boolean) {
-    setPlanYourPointEnabledState(enabled);
-    setPlanYourPointEnabled(enabled);
-  }
-
-  async function handleReminderToggle(enabled: boolean) {
-    if (!enabled) {
-      const next = { ...reminderSettings, enabled: false };
-      setReminderSettingsState(next);
-      setReminderSettings(next);
-      await cancelDailyReminder();
-      return;
-    }
-
-    const granted = await requestNotificationPermission();
-    if (!granted) {
-      showToast("Notifications are disabled — enable them in iOS Settings first", "error");
-      return;
-    }
-
-    const next = { ...reminderSettings, enabled: true };
-    setReminderSettingsState(next);
-    setReminderSettings(next);
-    await syncDailyReminder();
-    showToast(`Daily reminder set for ${formatReminderHour(next.hour)}`, "success");
-  }
-
-
-  async function handleGoalChange(key: string) {
-    const next = Number(key) as DailyGoal;
-    setGoalState(next);
-    setDailySessionGoal(next);
-    // Spread the top-up reminders through the day, each after the one before.
-    const planned = sessionHours(reminderSettings.hour, reminderSettings.extraHours, next);
-    const kept = (reminderSettings.extraHours ?? []).slice(planned.length - 1);
-    const settings = { ...reminderSettings, hour: planned[0], extraHours: [...planned.slice(1), ...kept] };
-    setReminderSettingsState(settings);
-    setReminderSettings(settings);
-    await syncDailyReminder();
-  }
-
-  async function handleHourChange(index: number, hour: number) {
-    const hours = setSessionHour(sessionHours(reminderSettings.hour, reminderSettings.extraHours, goal), index, hour);
-    const next = { ...reminderSettings, hour: hours[0], extraHours: hours.slice(1) };
-    setReminderSettingsState(next);
-    setReminderSettings(next);
-    if (next.enabled) await syncDailyReminder();
-  }
-
-  async function handleToggleDay(day: number) {
-    const current = reminderSettings.practiceDays?.length ? reminderSettings.practiceDays : [0, 1, 2, 3, 4, 5, 6];
-    const days = current.includes(day) ? current.filter((d) => d !== day) : [...current, day].sort();
-    if (!days.length) return;
-    const next = { ...reminderSettings, practiceDays: days.length === 7 ? [] : days };
-    setReminderSettingsState(next);
-    setReminderSettings(next);
-    if (next.enabled) await syncDailyReminder();
-  }
-
-  const [appleCoach] = useState(() => isAppleModelAvailable());
-  const [videoBytes, setVideoBytes] = useState(() => getVideoStorageBytes());
-
-  async function handleExport() {
-    try {
-      await exportPracticeData();
-    } catch (error) {
-      Alert.alert("Export failed", (error as Error).message);
-    }
-  }
-
-  function handleDeleteOldVideos() {
-    Alert.alert(
-      "Clear videos older than 30 days?",
-      "The best take from each month is kept (compressed) so you can see your progress — find them under Library → Progress. Transcripts, analysis and scores are always kept. This can't be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Clear",
-          style: "destructive",
-          onPress: async () => {
-            const { deleted, kept } = await deleteOldVideos(getVideoRetentionDays() || 30);
-            setVideoBytes(getVideoStorageBytes());
-            Alert.alert(
-              "Done",
-              `Removed ${deleted} video${deleted === 1 ? "" : "s"}. ${kept} progress video${kept === 1 ? "" : "s"} kept.`,
-            );
-          },
-        },
-      ],
-    );
-  }
-  const [resetting, setResetting] = useState(false);
-
-  // Starts over completely — for old data from an earlier version, or a
-  // clean slate. Everything but the API keys goes (see resetApp.ts).
-  function confirmReset() {
-    Alert.alert(
-      "Reset the app?",
-      "This deletes every recording and video, your scores, lessons, levels and streak, and your profile and settings — then starts onboarding again. Your API keys are kept. This can't be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Export first", onPress: handleExport },
-        { text: "Reset", style: "destructive", onPress: runReset },
-      ],
+  if (!section) {
+    return (
+      <Screen title="Settings" onBack={() => navigation.goBack()} contentStyle={styles.content}>
+        <ListGroup>
+          {SETTINGS_SECTIONS.map((s) => (
+            <ListRow key={s.key} icon={s.icon} title={s.title} subtitle={s.subtitle} chevron onPress={() => navigation.navigate("Settings", { section: s.key })} />
+          ))}
+        </ListGroup>
+      </Screen>
     );
   }
 
-  async function runReset() {
-    setResetting(true);
-    try {
-      await resetApp();
-      navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: "OnboardingGate" }] }));
-    } catch (error) {
-      setResetting(false);
-      Alert.alert("Couldn't reset", (error as Error).message);
-    }
-  }
-
-  const [onDeviceRecognition] = useState(() => {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      return require("expo-speech-recognition").ExpoSpeechRecognitionModule.supportsOnDeviceRecognition() as boolean;
-    } catch {
-      return false;
-    }
-  });
-
+  const Body = SECTION_BODY[section];
+  const title = SETTINGS_SECTIONS.find((s) => s.key === section)?.title ?? "Settings";
   return (
-    <Screen title="Settings" onBack={() => navigation.goBack()} contentStyle={styles.content}>
-      <GuideTip id="settings" inline />
-      <ListGroup title="Practice">
-        <ListRow
-          icon="person-circle-outline"
-          title="Your profile and goals"
-          subtitle="What gets in your way, where you want to speak better, how you practice"
-          chevron
-          onPress={() => navigation.navigate("Onboarding", { mode: "profile" })}
-        />
-        <ListRow icon="speedometer-outline" title="Level & difficulty" subtitle="See your impromptu level, or pin it manually" chevron onPress={() => navigation.navigate("Curriculum")} />
-        <SwitchRow
-          icon="git-branch-outline"
-          title="Plan your point"
-          subtitle="A quick PREP sketch before a recording starts"
-          value={planYourPointEnabled}
-          onValueChange={handlePlanYourPointToggle}
-        />
-      </ListGroup>
-
-      <Card style={styles.section}>
-        <View style={styles.sectionText}>
-          <Txt variant="headline">Daily goal</Txt>
-          <Txt variant="footnote" tone="secondary">
-            The first session is your daily plan; the rest are 4-minute top-ups. Your streak only ever needs one.
-          </Txt>
-        </View>
-        <SegmentedControl
-          options={[
-            { key: "1", label: "1 a day" },
-            { key: "2", label: "2 a day" },
-            { key: "3", label: "3 a day" },
-          ]}
-          value={String(goal)}
-          onChange={handleGoalChange}
-        />
-        <View style={styles.sectionText}>
-          <Txt variant="subhead" weight="600">
-            Practice days
-          </Txt>
-          <Txt variant="footnote" tone="secondary">
-            A day you leave off never breaks your streak.
-          </Txt>
-        </View>
-        <View style={styles.dayRow}>
-          {["S", "M", "T", "W", "T", "F", "S"].map((label, day) => {
-            const on = !reminderSettings.practiceDays?.length || reminderSettings.practiceDays.includes(day);
-            return (
-              <PressableScale
-                key={day}
-                onPress={() => handleToggleDay(day)}
-                haptic="tick"
-                scaleTo={0.9}
-                style={[styles.dayChip, on && styles.dayChipOn]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: on }}
-                accessibilityLabel={["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][day]}
-              >
-                <Txt variant="subhead" weight="600" color={on ? colors.onAccent : colors.textSecondary}>
-                  {label}
-                </Txt>
-              </PressableScale>
-            );
-          })}
-        </View>
-      </Card>
-
-      <Card style={styles.section}>
-        <SwitchRow
-          title="Reminders"
-          subtitle={goal > 1 ? "A nudge for each session — skipped once it's done." : "A nudge to practice, once a day."}
-          value={reminderSettings.enabled}
-          onValueChange={handleReminderToggle}
-        />
-        {reminderSettings.enabled ? (
-          <>
-            <ReminderHours
-              hours={sessionHours(reminderSettings.hour, reminderSettings.extraHours, goal)}
-              onChange={handleHourChange}
-            />
-            <PrimaryButton label="Notification settings" variant="secondary" size="sm" icon="open-outline" onPress={() => Linking.openSettings()} style={styles.inlineButton} />
-          </>
-        ) : null}
-      </Card>
-
-      {/* Recording length, Concise mode length, Warm-up, and Prep phase live
-          in the Session options sheet on Practice — they only matter right
-          before a recording, not as standing app configuration. */}
-
-      <ListGroup title="On-device AI">
-        <StatusLine label="Coaching" value={appleCoach ? "Apple Intelligence" : "Built-in rules"} ok />
-        <StatusLine label="Live recognition" value={onDeviceRecognition ? "On-device" : "System recognizer"} ok={onDeviceRecognition} />
-        <StatusLine label="Transcription" value="Whisper base.en" ok />
-        {SHOW_DEV_TOOLS ? <ListRow title="ASR Lab" subtitle="Compare transcription engines" chevron onPress={() => navigation.navigate("AsrLab")} /> : null}
-      </ListGroup>
-      <Txt variant="footnote" tone="secondary" style={styles.note}>
-        All of this runs on your phone. Nothing leaves it unless you ask for a deep review.
-      </Txt>
-
-      <DeepReviewSettings />
-
-      <ListGroup title="Help">
-        <ListRow
-          icon="sparkles-outline"
-          title="Show tips again"
-          subtitle="A short tip the first time you reach each part of the app"
-          onPress={() => {
-            resetGuide();
-            showToast("Tips will show again as you go.", "success");
-          }}
-        />
-        <ListRow
-          icon="bug-outline"
-          title="Share diagnostics"
-          subtitle="The app's recent log, for reporting a problem. No recordings or keys."
-          onPress={() => Share.share({ message: formatLogsForSharing() }).catch(() => undefined)}
-        />
-      </ListGroup>
-
-      <ListGroup title="Your data">
-        <ListRow icon="film-outline" title="Videos" value={formatBytes(videoBytes)} />
-        <ListRow icon="share-outline" title="Export practice data" chevron onPress={handleExport} />
-        <ListRow icon="trash-outline" title="Clear old videos" subtitle="Keeps the best take from each month" destructive onPress={handleDeleteOldVideos} />
-      </ListGroup>
-      <Txt variant="footnote" tone="secondary" style={styles.note}>
-        Your recordings and practice history stay on this phone.
-      </Txt>
-
-      <ListGroup title="Start over">
-        <ListRow
-          icon="refresh-outline"
-          title="Reset app"
-          subtitle="Deletes every recording, video and bit of progress, then starts onboarding again"
-          destructive
-          onPress={confirmReset}
-        />
-      </ListGroup>
-      <Txt variant="footnote" tone="secondary" style={styles.note}>
-        Your API keys are kept.
-      </Txt>
-
-      {resetting ? (
-        <Modal transparent animationType="fade" visible>
-          <View style={styles.resetOverlay}>
-            <ActivityIndicator color={colors.textPrimary} />
-            <Txt variant="headline">Resetting…</Txt>
-          </View>
-        </Modal>
-      ) : null}
+    <Screen title={title} onBack={() => navigation.goBack()} contentStyle={styles.content}>
+      <Body />
     </Screen>
-  );
-}
-
-function StatusLine({ label, value, ok }: { label: string; value: string; ok?: boolean }) {
-  const { colors } = useTheme();
-  return (
-    <ListRow
-      title={label}
-      value={value}
-      right={<Ionicons name={ok ? "checkmark-circle" : "ellipse-outline"} size={18} color={ok ? colors.success : colors.textMuted} />}
-    />
   );
 }
 
 const useStyles = makeStyles((t) => ({
   content: { gap: t.space.lg },
-  resetOverlay: { flex: 1, alignItems: "center", justifyContent: "center", gap: t.space.md, backgroundColor: t.colors.overlayScrim },
-  section: { gap: t.space.md },
-  sectionText: { gap: 2 },
-  groupTitle: { paddingHorizontal: 4, marginBottom: -t.space.md },
-  note: { paddingHorizontal: 4, marginTop: -t.space.sm },
-  inlineButton: { alignSelf: "flex-start" },
-  dayRow: { flexDirection: "row", justifyContent: "space-between" },
-  dayChip: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: t.colors.surfaceRaised },
-  dayChipOn: { backgroundColor: t.colors.accent },
 }));
