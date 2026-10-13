@@ -148,6 +148,14 @@ export const SOURCE_GROUPS: SourceGroup[] = [
     title: "Research — conversation and nerves",
     sources: [
       {
+        citation: "Beck, A. T., Rush, A. J., Shaw, B. F., & Emery, G. (1979). *Cognitive Therapy of Depression.* Guilford Press.",
+        usedFor: "Talk back: weighing a thought against the evidence for and against it.",
+      },
+      {
+        citation: "Greenberger, D., & Padesky, C. A. (1995). *Mind Over Mood: Change How You Feel by Changing the Way You Think.* Guilford Press.",
+        usedFor: "Talk back: the thought record, adapted — what makes a thought feel true, what doesn't fit, and a more balanced version.",
+      },
+      {
         citation: "Kross, E., Bruehlman-Senecal, E., Park, J., et al. (2014). Self-talk as a regulatory mechanism: How you do it matters. *Journal of Personality and Social Psychology, 106*(2), 304–324.",
         usedFor: "Three things: saying things to yourself as \"you\" or by name, which lowered anxiety before a speech.",
         url: doi("10.1037/a0035173"),

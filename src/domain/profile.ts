@@ -33,6 +33,9 @@ export interface UserProfile {
   englishFirst?: "yes" | "no" | "unsaid";
   speechDifference?: "none" | "stutter" | "other" | "unsaid";
   voiceNote?: string;
+  // What the inner critic says (Talk back): the preset worries picked, and
+  // ones written in. Kept in step with the Talk back list.
+  innerCritic?: { presets: string[]; custom: string[] };
   practicePlace?: PracticePlace;
   why?: string;
   // When onboarding started (YYYY-MM-DD) — the goal boosts fade from here.

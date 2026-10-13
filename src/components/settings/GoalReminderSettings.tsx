@@ -85,9 +85,9 @@ export function GoalReminderSettings() {
         </View>
         <SegmentedControl
           options={[
-            { key: "1", label: "1 / day" },
-            { key: "2", label: "2 / day" },
-            { key: "3", label: "3 / day" },
+            { key: "1", label: "1x / day" },
+            { key: "2", label: "2x / day" },
+            { key: "3", label: "3x / day" },
           ]}
           value={String(goal)}
           onChange={handleGoalChange}

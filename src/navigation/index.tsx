@@ -35,6 +35,8 @@ import { SettingsScreen } from "../screens/SettingsScreen";
 import { YouScreen } from "../screens/YouScreen";
 import { PhrasebookScreen } from "../screens/PhrasebookScreen";
 import { ThreeThingsScreen } from "../screens/ThreeThingsScreen";
+import { TalkBackScreen } from "../screens/TalkBackScreen";
+import { ThoughtChallengeScreen } from "../screens/ThoughtChallengeScreen";
 import { ThreeThingsListScreen } from "../screens/ThreeThingsListScreen";
 import type { SettingsSection } from "../components/settings/sections";
 import { TipsScreen } from "../screens/TipsScreen";
@@ -86,6 +88,8 @@ export type RootStackParamList = {
   Progress: undefined;
   Phrasebook: undefined;
   ThreeThings: undefined;
+  TalkBack: undefined;
+  ThoughtChallenge: { thoughtId: string };
   // capstone: the wrap-up after thirty days.
   ThreeThingsList: { capstone?: boolean } | undefined;
   MarkItUp: { shelf?: "lines" | "mine" | "speeches" } | undefined;
@@ -330,6 +334,8 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
         <Stack.Screen name="Progress" component={ProgressScreen} />
         <Stack.Screen name="Phrasebook" component={PhrasebookScreen} />
         <Stack.Screen name="ThreeThings" component={ThreeThingsScreen} />
+        <Stack.Screen name="TalkBack" component={TalkBackScreen} />
+        <Stack.Screen name="ThoughtChallenge" component={ThoughtChallengeScreen} />
         <Stack.Screen name="ThreeThingsList" component={ThreeThingsListScreen} />
         <Stack.Screen name="AsrLab" component={AsrLabScreen} />
         <Stack.Screen name="Practice" component={HomeScreen} />

@@ -15,6 +15,7 @@ export type QuestionId =
   | "english"
   | "speech"
   | "voiceNote"
+  | "innerCritic"
   | "goal"
   | "minutes"
   | "days"
@@ -100,6 +101,14 @@ export const QUESTIONS: Question[] = [
     changes: "With stuttering, repetitions, blocks and pauses never count as fillers or slips anywhere in the app.",
   },
   { id: "voiceNote", chapter: 1, title: "Anything about your voice we should know?", optional: true, changes: "Kept on your profile so it's there when you need it." },
+  {
+    id: "innerCritic",
+    chapter: 1,
+    title: "What does your inner critic say when you speak?",
+    subtitle: "Pick any that sound familiar, or add your own. Nobody else sees these.",
+    optional: true,
+    changes: "They go in Talk back, where you can look at each one fairly — what's true, what isn't, and a fairer way to say it.",
+  },
   {
     id: "goal",
     chapter: 2,

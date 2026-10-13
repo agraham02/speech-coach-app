@@ -34,6 +34,8 @@ import {
   type Option,
 } from "../content/onboarding";
 import { defaultsFromProfile, EMPTY_PROFILE, type UserProfile } from "../domain/profile";
+import { MAX_CUSTOM_THOUGHTS, PRESET_THOUGHTS } from "../domain/innerVoice/thoughts";
+import { syncOnboardingThoughts } from "../services/db/selfTalkRepo";
 import { defaultExtraHours, sessionHours, type DailyGoal } from "../domain/dailyGoal";
 import { setSessionHour } from "../domain/reminderSettings";
 import {
@@ -83,6 +85,7 @@ export function OnboardingScreen({ route, navigation }: Props) {
   const [eventKind, setEventKind] = useState(profile.event?.kind ?? null);
   const [eventWhen, setEventWhen] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  const [customThought, setCustomThought] = useState("");
 
   // 1 = forward, -1 = back: which way the next question slides in.
   const [direction, setDirection] = useState(1);
@@ -126,6 +129,15 @@ export function OnboardingScreen({ route, navigation }: Props) {
   // Applies one answer to the app, right away.
   async function apply(id: string) {
     switch (id) {
+      case "innerCritic": {
+        const critic = profile.innerCritic ?? { presets: [], custom: [] };
+        const draft = customThought.trim();
+        const custom = draft && critic.custom.length < MAX_CUSTOM_THOUGHTS && !critic.custom.includes(draft) ? [...critic.custom, draft] : critic.custom;
+        update({ innerCritic: { presets: critic.presets, custom } });
+        setCustomThought("");
+        await syncOnboardingThoughts(critic.presets, custom);
+        return;
+      }
       case "event":
         if (eventKind && eventWhen) {
           const date = new Date();
@@ -287,6 +299,44 @@ export function OnboardingScreen({ route, navigation }: Props) {
             ) : null}
           </View>
         );
+      case "innerCritic": {
+        const critic = profile.innerCritic ?? { presets: [], custom: [] };
+        return (
+          <View style={styles.block}>
+            <Multi
+              options={PRESET_THOUGHTS.map((p) => ({ key: p.id, label: p.text }))}
+              value={critic.presets}
+              onChange={(presets) => update({ innerCritic: { ...critic, presets } })}
+            />
+            {critic.custom.length > 0 ? (
+              <View style={styles.chips}>
+                {critic.custom.map((c) => (
+                  <Chip key={c} label={`${c}  ×`} selected onPress={() => update({ innerCritic: { ...critic, custom: critic.custom.filter((x) => x !== c) } })} />
+                ))}
+              </View>
+            ) : null}
+            {critic.custom.length < MAX_CUSTOM_THOUGHTS ? (
+              <TextInput
+                maxLength={120}
+                value={customThought}
+                onChangeText={setCustomThought}
+                onSubmitEditing={() => {
+                  const draft = customThought.trim();
+                  if (draft && !critic.custom.includes(draft)) update({ innerCritic: { ...critic, custom: [...critic.custom, draft] } });
+                  setCustomThought("");
+                }}
+                returnKeyType="done"
+                placeholder="Something else it says"
+                placeholderTextColor={colors.textMuted}
+                style={styles.input}
+              />
+            ) : null}
+            <Txt variant="footnote" tone="secondary">
+              This is practice, not therapy. If these thoughts feel heavy or constant, a therapist can help.
+            </Txt>
+          </View>
+        );
+      }
       case "voiceNote":
         return <TextInput maxLength={300} value={profile.voiceNote ?? ""} onChangeText={(voiceNote) => update({ voiceNote })} placeholder="e.g. my voice gets tired quickly" placeholderTextColor={colors.textMuted} style={[styles.input, styles.multiline]} multiline />;
       case "goal":

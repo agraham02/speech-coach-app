@@ -6,7 +6,7 @@ import type { SessionStatus } from "../../domain/sessionTypes";
 import { logger } from "../../utils/logger";
 
 // Bump this and add a new numbered migration when the schema changes.
-export const LATEST_DB_VERSION = 25;
+export const LATEST_DB_VERSION = 26;
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(
@@ -676,6 +676,37 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
       CREATE INDEX IF NOT EXISTS idx_self_likes_date ON self_likes(date);
     `);
     currentVersion = await commitVersion(db, 25);
+  }
+
+  if (currentVersion < 26) {
+    // Talk back: the worries your inner critic raises about speaking, and each
+    // time you looked at one fairly (a thought record). Local only. A preset
+    // worry can only be active once, so going back and forth in onboarding
+    // never makes duplicates.
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS self_talk_thoughts (
+        id TEXT PRIMARY KEY NOT NULL,
+        text TEXT NOT NULL,
+        preset_id TEXT,
+        source TEXT NOT NULL DEFAULT 'added',
+        created_at TEXT NOT NULL,
+        archived_at TEXT
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_self_talk_thoughts_preset
+        ON self_talk_thoughts(preset_id) WHERE preset_id IS NOT NULL AND archived_at IS NULL;
+      CREATE TABLE IF NOT EXISTS self_talk_challenges (
+        id TEXT PRIMARY KEY NOT NULL,
+        thought_id TEXT NOT NULL,
+        belief_before INTEGER NOT NULL,
+        evidence_for TEXT,
+        evidence_against TEXT,
+        balanced TEXT,
+        belief_after INTEGER,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_self_talk_challenges_thought ON self_talk_challenges(thought_id, created_at);
+    `);
+    currentVersion = await commitVersion(db, 26);
   }
 }
 
