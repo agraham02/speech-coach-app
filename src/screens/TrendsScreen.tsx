@@ -10,7 +10,8 @@ import { Card } from "../components/common/Card";
 import { Badge } from "../components/common/Badge";
 import { HeroCard } from "../components/common/HeroCard";
 import { ScoreTrendChart, type TrendPoint } from "../components/trends/ScoreTrendChart";
-import { computeStreaks, highestStreakMilestone } from "../domain/streaks";
+import { highestStreakMilestone } from "../domain/streaks";
+import { getStreakState } from "../services/db/progressRepo";
 import { computeThisWeekVsLastWeek, type ScoredSessionSummary, type WeekStats } from "../domain/trends";
 import {
   DEFAULT_CURRICULUM_LEVEL,
@@ -21,7 +22,7 @@ import {
 } from "../domain/curriculum";
 import { getCompletedSessionDates, getScoredSessionSummaries } from "../services/db/statsRepo";
 import { getCurriculumHistory, recomputeCurriculumLevel } from "../services/db/curriculumRepo";
-import { getCurriculumOverride, getReminderSettings } from "../services/prefs/prefsStore";
+import { getCurriculumOverride } from "../services/prefs/prefsStore";
 import { subscribeToAllSessions } from "../services/pipeline/processingEvents";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
 import { fontDisplay, spacing, typography, font } from "../theme/theme";
@@ -102,7 +103,7 @@ export function TrendsScreen() {
   const refresh = useCallback(async () => {
     const dates = await getCompletedSessionDates();
     setTotalSessions(dates.length);
-    setStreaks(computeStreaks(dates, new Date(), getReminderSettings().practiceDays));
+    setStreaks(await getStreakState());
 
     const summaries = await getScoredSessionSummaries();
     setWeekly(computeThisWeekVsLastWeek(summaries));

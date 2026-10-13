@@ -1,9 +1,7 @@
 import * as Haptics from "expo-haptics";
-import { getReminderSettings } from "../prefs/prefsStore";
 import { insertSession, getSessionById, updateSessionWants } from "../db/sessionsRepo";
 import { getSessionSteps, seedSessionSteps, setStepStatus } from "../db/stepsRepo";
 import { getScoresBySessionId } from "../db/scoresRepo";
-import { getCompletedSessionDates } from "../db/statsRepo";
 import { claimRecordingForSession } from "../storage/videoStorage";
 import { emitStepEvent } from "./processingEvents";
 import { refreshSessionStatus, runStep } from "./stepRunner";
@@ -20,7 +18,9 @@ import { showGlobalToast } from "../../components/common/ToastProvider";
 import { notifySessionComplete } from "../notifications/sessionCompleteNotifier";
 import { syncDailyReminder } from "../notifications/reminderScheduler";
 import { navigationRef } from "../../navigation/navigationRef";
-import { computeStreaks, streakMilestoneReached } from "../../domain/streaks";
+import { streakMilestoneReached } from "../../domain/streaks";
+import { getStreakState } from "../db/progressRepo";
+import { takeFreezeNotice } from "../streaks/freezeNotice";
 import { planTextToNullableFields } from "../../domain/planYourPoint";
 import { isFreeRecordPrompt } from "../../data/topics";
 import type { SessionStep, StepStatus } from "../../domain/sessionSteps";
@@ -210,9 +210,13 @@ async function announceCompletion(sessionId: string, ranCloudReview: boolean): P
   }
   if (scores) await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
 
-  const { currentStreak, longestStreak } = computeStreaks(await getCompletedSessionDates(), new Date(), getReminderSettings().practiceDays);
+  const state = await getStreakState();
+  const { currentStreak, longestStreak } = state;
   const milestone = streakMilestoneReached(currentStreak);
-  if (milestone) {
+  const freezeNotice = takeFreezeNotice(state);
+  if (freezeNotice) {
+    showGlobalToast(freezeNotice, "success");
+  } else if (milestone) {
     showGlobalToast(`🏆 ${milestone}-day streak milestone!`, "success");
   } else if (currentStreak >= 2 && currentStreak === longestStreak && !ranCloudReview) {
     showGlobalToast(`🔥 ${currentStreak} day streak!`, "success");

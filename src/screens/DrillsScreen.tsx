@@ -10,15 +10,14 @@ import { Card } from "../components/common/Card";
 import { Badge } from "../components/common/Badge";
 import { SegmentedControl } from "../components/common/SegmentedControl";
 import { TONGUE_TWISTERS } from "../data/tongueTwisters";
-import { computeStreaks, type StreakResult } from "../domain/streaks";
-import { getDrillCompletionDates } from "../services/db/drillsRepo";
+import type { StreakResult } from "../domain/streaks";
+import { getStreakState } from "../services/db/progressRepo";
 import { getEffectiveCurriculumLevel } from "../services/db/curriculumRepo";
 import { levelToDifficultyTier } from "../domain/curriculum";
 import type { DifficultyTier } from "../domain/sessionTypes";
 import { spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import type { Colors } from "../theme/theme";
-import { getReminderSettings } from "../services/prefs/prefsStore";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Drills">;
 
@@ -51,8 +50,8 @@ export function DrillsScreen({ navigation }: Props) {
 
   useFocusEffect(
     useCallback(() => {
-      getDrillCompletionDates()
-        .then((dates) => setStreak(computeStreaks(dates, new Date(), getReminderSettings().practiceDays)))
+      getStreakState()
+        .then(setStreak)
         .catch(() => setStreak(EMPTY_STREAK));
     }, []),
   );

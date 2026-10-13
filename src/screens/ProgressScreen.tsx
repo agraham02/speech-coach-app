@@ -18,11 +18,12 @@ import { SkillRings } from "../components/common/SkillRings";
 import { MetricChart } from "../components/common/MetricChart";
 import { ConversationProgress } from "../components/conversation/ConversationProgress";
 import { ProgressProfileCards } from "../components/onboarding/SkillCheckCards";
-import { getAllDrillLevels, getDailySessionCounts, getPracticeDates, getRecentDrillAttempts, getSkillStates } from "../services/db/progressRepo";
+import { getAllDrillLevels, getDailySessionCounts, getRecentDrillAttempts, getSkillStates, getStreakDates, getStreakState } from "../services/db/progressRepo";
 import { getDailySessionGoal, getReminderSettings } from "../services/prefs/prefsStore";
 import { goalDays } from "../domain/dailyGoal";
 import { getSessionMetricSeries, getWeeklySummaries, type SessionMetricPoint, type WeekSummary } from "../services/db/statsRepo";
-import { computeStreaks } from "../domain/streaks";
+import { FREEZE_EVERY, FREEZE_MAX } from "../domain/streaks";
+import { withAlpha } from "../utils/color";
 import { DRILL_SKILL, DRILL_TITLES, type DrillType } from "../domain/drills/drillSpecs";
 import { SKILL_LABELS, type SkillId } from "../theme/tokens";
 import { SKILLS } from "../domain/mastery";
@@ -52,7 +53,8 @@ export function ProgressScreen() {
   const [levels, setLevels] = useState<{ type: DrillType; level: number }[]>([]);
   const [series, setSeries] = useState<SessionMetricPoint[]>([]);
   const [practiceDays, setPracticeDays] = useState<Set<string>>(new Set());
-  const [streak, setStreak] = useState({ current: 0, longest: 0 });
+  const [streak, setStreak] = useState({ current: 0, longest: 0, freezes: 0, toward: 0 });
+  const [frozenDays, setFrozenDays] = useState<Set<string>>(new Set());
   const [weeks2, setWeeks2] = useState<{ thisWeek: WeekSummary; lastWeek: WeekSummary } | null>(null);
   // Daily goal above 1: days in the last week the goal was met.
   const [goalWeek, setGoalWeek] = useState<{ goal: number; met: number; of: number } | null>(null);
@@ -84,9 +86,9 @@ export function ProgressScreen() {
       } else {
         setGoalWeek(null);
       }
-      getPracticeDates().then((dates) => {
-        const s = computeStreaks(dates, new Date(), getReminderSettings().practiceDays);
-        setStreak({ current: s.currentStreak, longest: s.longestStreak });
+      Promise.all([getStreakDates(), getStreakState()]).then(([dates, s]) => {
+        setStreak({ current: s.currentStreak, longest: s.longestStreak, freezes: s.freezesHeld, toward: s.practicedTowardNext });
+        setFrozenDays(new Set(s.frozenDates));
         setPracticeDays(new Set(dates.map(localDay)));
       });
     }, []),
@@ -135,6 +137,15 @@ export function ProgressScreen() {
             <Txt variant="title2" align="right" tabular>
               {streak.longest}
             </Txt>
+            <Txt variant="footnote" tone="secondary" align="right" style={styles.sideGap}>
+              Freezes
+            </Txt>
+            <View style={styles.freezeValue}>
+              <Ionicons name="snow-outline" size={16} color={colors.blue} />
+              <Txt variant="title2" align="right" tabular color={streak.freezes ? colors.blue : colors.textMuted}>
+                {streak.freezes}
+              </Txt>
+            </View>
             {goalWeek ? (
               <>
                 <Txt variant="footnote" tone="secondary" align="right" style={styles.sideGap}>
@@ -147,6 +158,11 @@ export function ProgressScreen() {
             ) : null}
           </View>
         </View>
+        <Txt variant="footnote" tone="secondary">
+          {streak.freezes >= FREEZE_MAX
+            ? "Freezes full — they cover a missed day for you."
+            : `Next freeze in ${FREEZE_EVERY - streak.toward} practice day${FREEZE_EVERY - streak.toward === 1 ? "" : "s"}`}
+        </Txt>
         <View style={styles.calendar}>
           <View style={styles.calendarRow}>
             {WEEKDAYS.map((d, i) => (
@@ -159,17 +175,21 @@ export function ProgressScreen() {
             <View key={i} style={styles.calendarRow}>
               {row.map((cell) => {
                 const practiced = practiceDays.has(cell.day);
+                const frozen = !practiced && frozenDays.has(cell.day);
                 return (
                   <View
                     key={cell.day}
                     style={[
                       styles.dayCell,
                       practiced && styles.dayPracticed,
+                      frozen && styles.dayFrozen,
                       cell.day === todayKey && styles.dayToday,
                       cell.future && styles.dayFuture,
                     ]}
-                    accessibilityLabel={`${cell.day}${practiced ? ", practiced" : ""}`}
-                  />
+                    accessibilityLabel={`${cell.day}${practiced ? ", practiced" : frozen ? ", covered by a freeze" : ""}`}
+                  >
+                    {frozen ? <Ionicons name="snow-outline" size={15} color={colors.blue} /> : null}
+                  </View>
                 );
               })}
             </View>
@@ -329,6 +349,8 @@ const useStyles = makeStyles((t) => ({
   weekday: { width: 34 },
   dayCell: { width: 34, height: 34, borderRadius: 10, backgroundColor: t.scheme === "dark" ? "rgba(255,250,235,0.06)" : "rgba(28,25,15,0.06)" },
   dayPracticed: { backgroundColor: t.colors.accent },
+  dayFrozen: { backgroundColor: withAlpha(t.colors.blue, 0.2), alignItems: "center", justifyContent: "center" },
+  freezeValue: { flexDirection: "row", alignItems: "center", gap: 4 },
   dayToday: { borderWidth: 1.5, borderColor: t.colors.accent },
   dayFuture: { opacity: 0.35 },
   weekRow: { flexDirection: "row", alignItems: "stretch", paddingVertical: t.space.md },

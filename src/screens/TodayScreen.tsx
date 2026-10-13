@@ -26,7 +26,7 @@ import {
   getSkillStates,
   getTodaysPlan,
   getTopUpPlan,
-  getPracticeDates,
+  getStreakState,
   getSessionsDoneToday,
   type StoredPlan,
 } from "../services/db/progressRepo";
@@ -34,7 +34,8 @@ import { getDailySessionGoal, getPlanMinutes, getPracticeAnchor, getReminderSett
 import { formatReminderHour, reminderHours } from "../domain/reminderSettings";
 import { daysUntilEvent, defaultsFromProfile, type EventKind } from "../domain/profile";
 import { todayISODate } from "../utils/dateUtils";
-import { computeStreaks } from "../domain/streaks";
+import { takeFreezeNotice } from "../services/streaks/freezeNotice";
+import { showGlobalToast } from "../components/common/ToastProvider";
 import { SKILLS } from "../domain/mastery";
 import { getLesson } from "../content/lessons";
 import { SKILL_LABELS, type SkillId } from "../theme/tokens";
@@ -69,6 +70,7 @@ export function TodayScreen() {
   const [stored, setStored] = useState<StoredPlan | null>(null);
   const [mastery, setMastery] = useState<Record<SkillId, number> | null>(null);
   const [streak, setStreak] = useState(0);
+  const [freezes, setFreezes] = useState(0);
   const [goal, setGoal] = useState(getDailySessionGoal());
   const [doneToday, setDoneToday] = useState(0);
   const [topUp, setTopUp] = useState<{ slot: 1 | 2; stored: StoredPlan } | null>(null);
@@ -81,7 +83,12 @@ export function TodayScreen() {
     (m = minutes) => {
       getTodaysPlan(m).then(setStored);
       getSkillStates().then((s) => setMastery(Object.fromEntries(SKILLS.map((k) => [k, s[k].rating])) as Record<SkillId, number>));
-      getPracticeDates().then((dates) => setStreak(computeStreaks(dates, new Date(), getReminderSettings().practiceDays).currentStreak));
+      getStreakState().then((state) => {
+        setStreak(state.currentStreak);
+        setFreezes(state.freezesHeld);
+        const notice = takeFreezeNotice(state);
+        if (notice) showGlobalToast(notice, "success");
+      });
       const g = getDailySessionGoal();
       setGoal(g);
       getSessionsDoneToday().then(setDoneToday);
@@ -125,11 +132,19 @@ export function TodayScreen() {
         </Txt>
         <View style={styles.pills}>
           {streak > 0 ? (
-            <View style={styles.pill}>
+            <View style={styles.pill} accessibilityLabel={`${streak}-day streak${freezes ? `, ${freezes} streak freeze${freezes === 1 ? "" : "s"}` : ""}`}>
               <Ionicons name="flame" size={14} color={colors.warning} />
               <Txt variant="footnote" weight="600" tabular>
                 {streak}-day streak
               </Txt>
+              {freezes > 0 ? (
+                <>
+                  <Ionicons name="snow-outline" size={14} color={colors.blue} />
+                  <Txt variant="footnote" weight="600" tabular color={colors.blue}>
+                    {freezes}
+                  </Txt>
+                </>
+              ) : null}
             </View>
           ) : null}
           {goal > 1 ? (

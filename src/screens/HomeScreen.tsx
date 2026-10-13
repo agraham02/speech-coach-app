@@ -16,7 +16,8 @@ import { Banner } from "../components/common/Banner";
 import { SessionOptionsSheet } from "../components/home/SessionOptionsSheet";
 import { AVOID_REPEAT_LAST_N, pickRandomPrompt, pickTodaysPrompt } from "../domain/pickTodaysPrompt";
 import { FREE_RECORD_PROMPT } from "../data/topics";
-import { computeStreaks, type StreakResult } from "../domain/streaks";
+import type { StreakResult } from "../domain/streaks";
+import { getStreakState } from "../services/db/progressRepo";
 import { colorForCategory } from "../domain/categoryColor";
 import type { PrepPhaseSettings, RecordingDurationSettings } from "../domain/recordingSettings";
 import { DEFAULT_PREP_PHASE_SETTINGS, DEFAULT_RECORDING_DURATION_SETTINGS } from "../domain/recordingSettings";
@@ -32,7 +33,6 @@ import {
 } from "../domain/curriculum";
 import { getAllPrompts } from "../services/db/promptsRepo";
 import { getRecentlyUsedPromptIds, getTodaysSession } from "../services/db/sessionsRepo";
-import { getCompletedSessionDates } from "../services/db/statsRepo";
 import { getEffectiveCurriculumLevel, recomputeCurriculumLevel } from "../services/db/curriculumRepo";
 import {
   getConciseModeSeconds,
@@ -41,7 +41,6 @@ import {
   getPrepSettingsManuallySet,
   getRecordingDurationManuallySet,
   getRecordingDurationSettings,
-  getReminderSettings,
   getWarmUpEnabled,
   setConciseModeSeconds,
   setPrepPhaseSettings,
@@ -166,8 +165,8 @@ export function HomeScreen() {
         .then((session) => setAlreadyPracticedToday(session?.status === "done"))
         .catch(() => setAlreadyPracticedToday(false));
 
-      getCompletedSessionDates()
-        .then((dates) => setStreak(computeStreaks(dates, new Date(), getReminderSettings().practiceDays)))
+      getStreakState()
+        .then(setStreak)
         .catch(() => setStreak(EMPTY_STREAK));
 
       const manuallySet = getRecordingDurationManuallySet();

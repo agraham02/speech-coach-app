@@ -39,6 +39,7 @@ const KEYS = {
   guideSeen: "guideSeen",
   guideOff: "guideOff",
   cloudCalls: "cloudCalls",
+  freezeAnnouncedThrough: "freezeAnnouncedThrough",
 } as const;
 
 export function getRecordBlindPref(): boolean {
@@ -356,6 +357,16 @@ export function setGuideOff(off: boolean): void {
 export function resetGuide(): void {
   storage.remove(KEYS.guideSeen);
   storage.set(KEYS.guideOff, false);
+}
+
+// The latest covered day (YYYY-MM-DD) a streak freeze was announced for, so
+// each freeze is mentioned once.
+export function getFreezeAnnouncedThrough(): string {
+  return storage.getString(KEYS.freezeAnnouncedThrough) ?? "";
+}
+
+export function setFreezeAnnouncedThrough(date: string): void {
+  storage.set(KEYS.freezeAnnouncedThrough, date);
 }
 
 export function clearAllPrefs(): void {

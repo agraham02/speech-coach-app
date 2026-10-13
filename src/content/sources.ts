@@ -232,6 +232,10 @@ export const SOURCE_GROUPS: SourceGroup[] = [
     title: "Research — learning and habits",
     sources: [
       {
+        citation: "Silverman, J., & Barasch, A. (2023). On or off track: How (broken) streaks affect consumer decisions. *Journal of Consumer Research*.",
+        usedFor: "Why a missed day can derail a habit, and why streak freezes cover a miss for you.",
+      },
+      {
         citation: "Wilson, R. C., Shenhav, A., Straccia, M., & Cohen, J. D. (2019). The eighty five percent rule for optimal learning. *Nature Communications, 10*, 4646.",
         usedFor: "Drills adjust so you succeed about 85% of the time.",
         url: doi("10.1038/s41467-019-12552-4"),

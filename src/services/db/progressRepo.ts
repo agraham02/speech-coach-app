@@ -5,7 +5,8 @@ import { generateId } from "../../utils/generateId";
 import { isoDateFromDate, todayISODate } from "../../utils/dateUtils";
 import { buildTopUpPlan } from "../../domain/dailyGoal";
 import { priorityFor } from "../../domain/profile";
-import { getUserProfile } from "../prefs/prefsStore";
+import { getReminderSettings, getUserProfile } from "../prefs/prefsStore";
+import { computeStreakState, type StreakState } from "../../domain/streaks";
 import type { SkillId } from "../../theme/tokens";
 import { DRILL_SKILL, type DrillOutcome, type DrillType } from "../../domain/drills/drillSpecs";
 import {
@@ -457,4 +458,16 @@ export async function getConversationAttemptSummaries(limit = 60): Promise<(Atte
 export async function getPracticeDates(): Promise<string[]> {
   const [sessions, drills, plans] = await Promise.all([getCompletedSessionDates(), getDrillCompletionDates(), getPlanCompletionDates()]);
   return [...sessions, ...drills, ...plans.map((d) => `${d}T12:00:00`)];
+}
+
+// Every day that counts toward the streak. Kept apart from getPracticeDates,
+// which also decides whether today's session is done.
+export async function getStreakDates(): Promise<string[]> {
+  return getPracticeDates();
+}
+
+// The one streak every screen shows — practice of any kind, rest days left
+// out, and freezes covering a missed day (see domain/streaks.ts).
+export async function getStreakState(): Promise<StreakState> {
+  return computeStreakState(await getStreakDates(), new Date(), getReminderSettings().practiceDays);
 }
