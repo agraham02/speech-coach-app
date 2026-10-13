@@ -42,6 +42,9 @@ const KEYS = {
   cloudCalls: "cloudCalls",
   freezeAnnouncedThrough: "freezeAnnouncedThrough",
   selfLikesRun: "selfLikesRun",
+  rewindReminder: "rewindReminder",
+  rewindCloudConsent: "rewindCloudConsent",
+  rewindNotificationsAsked: "rewindNotificationsAsked",
 } as const;
 
 export function getRecordBlindPref(): boolean {
@@ -387,6 +390,49 @@ export function getSelfLikesRun(): RunState {
 
 export function setSelfLikesRun(state: RunState): void {
   storage.set(KEYS.selfLikesRun, JSON.stringify(state));
+}
+
+// The evening nudge to tell your day (Rewind). On by default at 9 PM; it only
+// fires if notifications are allowed.
+export interface RewindReminder {
+  enabled: boolean;
+  hour: number; // 0-23, local, on the hour
+}
+
+export const DEFAULT_REWIND_REMINDER: RewindReminder = { enabled: true, hour: 21 };
+
+export function getRewindReminder(): RewindReminder {
+  const stored = readJson<Partial<RewindReminder>>(KEYS.rewindReminder, {});
+  return {
+    enabled: typeof stored.enabled === "boolean" ? stored.enabled : DEFAULT_REWIND_REMINDER.enabled,
+    hour: typeof stored.hour === "number" && stored.hour >= 0 && stored.hour <= 23 ? Math.floor(stored.hour) : DEFAULT_REWIND_REMINDER.hour,
+  };
+}
+
+export function setRewindReminder(value: RewindReminder): void {
+  storage.set(KEYS.rewindReminder, JSON.stringify(value));
+}
+
+// Providers you've said may read a Rewind transcript. Separate from the
+// deep-review consent, which for Gemini also covers uploading video — a
+// transcript-only OK must not stretch to that.
+export function getRewindCloudConsent(): string[] {
+  return readJson<string[]>(KEYS.rewindCloudConsent, []);
+}
+
+export function setRewindCloudConsent(provider: string): void {
+  const current = getRewindCloudConsent();
+  if (!current.includes(provider)) storage.set(KEYS.rewindCloudConsent, JSON.stringify([...current, provider]));
+}
+
+// The first finished Rewind asks about notifications once, so the evening
+// nudge can work; never again if the answer was no.
+export function wasRewindNotificationAsked(): boolean {
+  return storage.getBoolean(KEYS.rewindNotificationsAsked) ?? false;
+}
+
+export function markRewindNotificationAsked(): void {
+  storage.set(KEYS.rewindNotificationsAsked, true);
 }
 
 export function clearAllPrefs(): void {

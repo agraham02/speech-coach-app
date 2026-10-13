@@ -36,6 +36,10 @@ import { YouScreen } from "../screens/YouScreen";
 import { PhrasebookScreen } from "../screens/PhrasebookScreen";
 import { ThreeThingsScreen } from "../screens/ThreeThingsScreen";
 import { TalkBackScreen } from "../screens/TalkBackScreen";
+import { RewindScreen } from "../screens/RewindScreen";
+import { RewindRecordScreen } from "../screens/RewindRecordScreen";
+import { RewindResultScreen } from "../screens/RewindResultScreen";
+import { syncRewindReminder } from "../services/rewind/rewindReminder";
 import { ThoughtChallengeScreen } from "../screens/ThoughtChallengeScreen";
 import { ThreeThingsListScreen } from "../screens/ThreeThingsListScreen";
 import type { SettingsSection } from "../components/settings/sections";
@@ -89,6 +93,9 @@ export type RootStackParamList = {
   Phrasebook: undefined;
   ThreeThings: undefined;
   TalkBack: undefined;
+  Rewind: undefined;
+  RewindRecord: undefined;
+  RewindResult: { id: string };
   ThoughtChallenge: { thoughtId: string };
   // capstone: the wrap-up after thirty days.
   ThreeThingsList: { capstone?: boolean } | undefined;
@@ -297,9 +304,11 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
   // as the in-app toast (see sessionProcessor.ts's goToResult).
   useEffect(() => {
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      const sessionId = response.notification.request.content.data?.sessionId;
-      if (typeof sessionId === "string" && navigationRef.isReady()) {
-        navigationRef.navigate("Result", { sessionId });
+      const data = response.notification.request.content.data;
+      if (typeof data?.sessionId === "string" && navigationRef.isReady()) {
+        navigationRef.navigate("Result", { sessionId: data.sessionId });
+      } else if (data?.route === "Rewind" && navigationRef.isReady()) {
+        navigationRef.navigate("Rewind");
       }
     });
     return () => subscription.remove();
@@ -319,10 +328,22 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
 
   useEffect(() => {
     syncDailyReminder().catch((err) => logger.error(`[reminders] launch resync failed — ${(err as Error).message}`));
+    syncRewindReminder().catch((err) => logger.error(`[rewind] launch resync failed — ${(err as Error).message}`));
   }, []);
 
+  // If tapping the evening nudge is what launched the app, the listener above
+  // wasn't there yet: open Rewind once the navigator is ready.
+  function openFromLaunchNotification() {
+    onReady?.();
+    const last = Notifications.getLastNotificationResponse();
+    if (last?.notification.request.content.data?.route === "Rewind") {
+      Notifications.clearLastNotificationResponse();
+      navigationRef.navigate("Rewind");
+    }
+  }
+
   return (
-    <NavigationContainer ref={navigationRef} theme={navTheme} onReady={onReady}>
+    <NavigationContainer ref={navigationRef} theme={navTheme} onReady={openFromLaunchNotification}>
       <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={isOnboardingComplete() ? "Tabs" : "OnboardingGate"}>
         <Stack.Screen name="Tabs" component={Tabs} />
         <Stack.Screen name="OnboardingGate" component={OnboardingGateScreen} />
@@ -335,6 +356,9 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
         <Stack.Screen name="Phrasebook" component={PhrasebookScreen} />
         <Stack.Screen name="ThreeThings" component={ThreeThingsScreen} />
         <Stack.Screen name="TalkBack" component={TalkBackScreen} />
+        <Stack.Screen name="Rewind" component={RewindScreen} />
+        <Stack.Screen name="RewindRecord" component={RewindRecordScreen} options={{ gestureEnabled: false }} />
+        <Stack.Screen name="RewindResult" component={RewindResultScreen} />
         <Stack.Screen name="ThoughtChallenge" component={ThoughtChallengeScreen} />
         <Stack.Screen name="ThreeThingsList" component={ThreeThingsListScreen} />
         <Stack.Screen name="AsrLab" component={AsrLabScreen} />

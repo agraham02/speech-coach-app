@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Pressable, type GestureResponderEvent, type PressableProps, type StyleProp, type ViewStyle } from "react-native";
+import { Pressable, StyleSheet, type GestureResponderEvent, type PressableProps, type StyleProp, type ViewStyle } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
 import { duration, PRESS_SCALE, spring } from "../../theme/motion";
 import { tap, tick } from "../../utils/haptics";
@@ -19,9 +19,13 @@ interface PressableScaleProps extends Omit<PressableProps, "style" | "children">
 // cards, rows and chips are built on it.
 export function PressableScale({ style, children, scaleTo = PRESS_SCALE, haptic, onPressIn, onPressOut, onPress, disabled, ...props }: PressableScaleProps) {
   const pressed = useSharedValue(0);
+  // The press dim multiplies whatever opacity the style asks for (a disabled
+  // button's 0.35), rather than replacing it.
+  const rested = StyleSheet.flatten(style)?.opacity;
+  const baseOpacity = typeof rested === "number" ? rested : 1;
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: 1 - (1 - scaleTo) * pressed.value }],
-    opacity: 1 - 0.12 * pressed.value,
+    opacity: baseOpacity * (1 - 0.12 * pressed.value),
   }));
 
   return (

@@ -6,7 +6,7 @@ import type { SessionStatus } from "../../domain/sessionTypes";
 import { logger } from "../../utils/logger";
 
 // Bump this and add a new numbered migration when the schema changes.
-export const LATEST_DB_VERSION = 26;
+export const LATEST_DB_VERSION = 27;
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(
@@ -707,6 +707,31 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
       CREATE INDEX IF NOT EXISTS idx_self_talk_challenges_thought ON self_talk_challenges(thought_id, created_at);
     `);
     currentVersion = await commitVersion(db, 26);
+  }
+
+  if (currentVersion < 27) {
+    // Rewind: the end-of-day spoken recall. Kept apart from `sessions`, so a
+    // recall never reaches History, scores, stats or video keepsakes. The
+    // audio is one WAV in the app's documents folder; the transcript, the
+    // counted details and the coach's notes live here. Local only.
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS day_recalls (
+        id TEXT PRIMARY KEY NOT NULL,
+        date TEXT NOT NULL,
+        recorded_at TEXT NOT NULL,
+        audio_file TEXT,
+        duration_seconds INTEGER NOT NULL DEFAULT 0,
+        transcript TEXT,
+        transcript_source TEXT,
+        stats_json TEXT,
+        review_json TEXT,
+        review_source TEXT,
+        status TEXT NOT NULL DEFAULT 'processing',
+        deleted_at TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_day_recalls_date ON day_recalls(date);
+    `);
+    currentVersion = await commitVersion(db, 27);
   }
 }
 

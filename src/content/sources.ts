@@ -148,6 +148,10 @@ export const SOURCE_GROUPS: SourceGroup[] = [
     title: "Research — conversation and nerves",
     sources: [
       {
+        citation: "Fisher, R. P., & Geiselman, R. E. (1992). *Memory-Enhancing Techniques for Investigative Interviewing: The Cognitive Interview.* Charles C Thomas.",
+        usedFor: "Rewind: say everything however small, picture where you were, and go through it in order or backwards to remember more.",
+      },
+      {
         citation: "Beck, A. T., Rush, A. J., Shaw, B. F., & Emery, G. (1979). *Cognitive Therapy of Depression.* Guilford Press.",
         usedFor: "Talk back: weighing a thought against the evidence for and against it.",
       },

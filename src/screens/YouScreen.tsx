@@ -14,6 +14,8 @@ import { SETTINGS_SECTIONS } from "../components/settings/sections";
 import { practiceDaysThisWeek } from "../domain/streaks";
 import { countPhrases } from "../services/db/phrasebookRepo";
 import { countThoughts } from "../services/db/selfTalkRepo";
+import { listRewinds } from "../services/db/rewindRepo";
+import { dayLabel } from "../domain/rewind/labels";
 import { getStreakDates, getStreakState } from "../services/db/progressRepo";
 import { getSelfLikesRun, getUserProfile } from "../services/prefs/prefsStore";
 import { listSelfLikes } from "../services/db/selfLikesRepo";
@@ -30,6 +32,7 @@ export function YouScreen() {
   const [streak, setStreak] = useState({ current: 0, freezes: 0, daysThisWeek: 0 });
   const [phraseCount, setPhraseCount] = useState(0);
   const [thoughtCount, setThoughtCount] = useState(0);
+  const [rewindLine, setRewindLine] = useState("Tell your day, two minutes");
   const [threeThings, setThreeThings] = useState("Something you like about yourself, each day");
   const name = getUserProfile()?.name?.trim();
 
@@ -40,6 +43,9 @@ export function YouScreen() {
         .catch(() => undefined);
       countPhrases().then(setPhraseCount).catch(() => undefined);
       countThoughts().then(setThoughtCount).catch(() => undefined);
+      listRewinds()
+        .then((all) => setRewindLine(all.length ? `Last: ${dayLabel(all[0].date)}` : "Tell your day, two minutes"))
+        .catch(() => undefined);
       listSelfLikes()
         .then((all) => {
           const run = getSelfLikesRun();
@@ -95,6 +101,7 @@ export function YouScreen() {
       </HeroCard>
 
       <ListGroup title="Inner voice">
+        <ListRow icon="play-back-outline" title="Rewind" subtitle={rewindLine} chevron onPress={() => navigation.navigate("Rewind")} />
         <ListRow icon="heart-outline" title="Three things" subtitle={threeThings} chevron onPress={() => navigation.navigate("ThreeThings")} />
         <ListRow
           icon="chatbubbles-outline"

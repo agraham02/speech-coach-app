@@ -10,7 +10,8 @@ import { useToast } from "../common/ToastProvider";
 import { ReminderHours } from "./ReminderHours";
 import { sessionHours, type DailyGoal } from "../../domain/dailyGoal";
 import { formatReminderHour, setSessionHour } from "../../domain/reminderSettings";
-import { getDailySessionGoal, getReminderSettings, setDailySessionGoal, setReminderSettings } from "../../services/prefs/prefsStore";
+import { getDailySessionGoal, getReminderSettings, getRewindReminder, setDailySessionGoal, setReminderSettings, setRewindReminder } from "../../services/prefs/prefsStore";
+import { syncRewindReminder } from "../../services/rewind/rewindReminder";
 import { cancelDailyReminder, requestNotificationPermission, syncDailyReminder } from "../../services/notifications/reminderScheduler";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
@@ -22,6 +23,7 @@ export function GoalReminderSettings() {
   const showToast = useToast();
   const [reminderSettings, setReminderSettingsState] = useState(getReminderSettings());
   const [goal, setGoalState] = useState<DailyGoal>(getDailySessionGoal());
+  const [rewind, setRewindState] = useState(getRewindReminder());
 
   function save(next: typeof reminderSettings) {
     setReminderSettingsState(next);
@@ -45,6 +47,24 @@ export function GoalReminderSettings() {
     save(next);
     await syncDailyReminder();
     showToast(`Daily reminder set for ${formatReminderHour(next.hour)}`, "success");
+  }
+
+  async function handleRewindToggle(enabled: boolean) {
+    if (enabled && !(await requestNotificationPermission())) {
+      showToast("Notifications are disabled — enable them in your phone's settings first", "error");
+      return;
+    }
+    const next = { ...rewind, enabled };
+    setRewindState(next);
+    setRewindReminder(next);
+    await syncRewindReminder();
+  }
+
+  async function handleRewindHour(hour: number) {
+    const next = { ...rewind, hour };
+    setRewindState(next);
+    setRewindReminder(next);
+    if (next.enabled) await syncRewindReminder();
   }
 
   async function handleGoalChange(key: string) {
@@ -136,6 +156,16 @@ export function GoalReminderSettings() {
             <PrimaryButton label="Notification settings" variant="secondary" size="sm" icon="open-outline" onPress={() => Linking.openSettings()} style={styles.inlineButton} />
           </>
         ) : null}
+      </Card>
+
+      <Card style={styles.section}>
+        <SwitchRow
+          title="Rewind reminder"
+          subtitle="An evening nudge to tell your day, out loud."
+          value={rewind.enabled}
+          onValueChange={handleRewindToggle}
+        />
+        {rewind.enabled ? <ReminderHours hours={[rewind.hour]} onChange={(_, hour) => handleRewindHour(hour)} /> : null}
       </Card>
 
       {/* Recording length, Concise mode length, Warm-up, and Prep phase live

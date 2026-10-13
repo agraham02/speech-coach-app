@@ -20,6 +20,7 @@ import { ListGroup, ListRow } from "../components/common/ListRow";
 import { ConversationTodayCard } from "../components/conversation/ConversationTodayCard";
 import { FeelingWeekCard } from "../components/feelings/FeelingWeekCard";
 import { PastEntryCard } from "../components/innerVoice/PastEntryCard";
+import { RewindTodayCard } from "../components/rewind/RewindTodayCard";
 import { TodaySkillCheckCard } from "../components/onboarding/SkillCheckCards";
 import {
   getCompletedTopUpSlots,
@@ -259,6 +260,7 @@ export function TodayScreen() {
         </View>
       ) : null}
 
+      <RewindTodayCard />
       <PastEntryCard />
       <FeelingWeekCard featured={defaults.featureFeelings} />
 

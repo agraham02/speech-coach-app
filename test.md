@@ -151,6 +151,26 @@ Open Learn → Articulation → a lesson with a twister, or Practice something e
 - [ ] Dev → **ASR Lab**: run it on a clip containing a few "um"s. Write down the result per engine (time, words, fillers kept)
   Notes:
 
+## 11b. You tab: Rewind, Three things, Talk back, Phrasebook, streak freezes (iPhone)
+- [ ] **Rewind**: tell a real day for 1-2 minutes. The waveform follows your voice smoothly and is big and centered; End unlocks at 1:00; it stops itself at 2:00
+  Notes:
+- [ ] Rewind result: parts of the day, details counted, transcript and **Listen back** match what you said (check a take where the recognizer restarted: no gap in the transcript or the audio)
+  Notes:
+- [ ] Rewind notes: on an iPhone with Apple Intelligence, notes appear (specificity, storytelling, flow, coverage, a quoted detail, one thing to try) and there is no score anywhere
+  Notes:
+- [ ] The 9 PM Rewind reminder arrives, and tapping it opens Rewind, also when the app was closed. After telling your day it doesn't fire again that night
+  Notes:
+- [ ] **Three things**: add one; a close repeat shows the warning; "Say it to yourself" ticks off by itself when you read the sentence aloud
+  Notes:
+- [ ] **Talk back**: pick a worry from onboarding (You, Settings, Practice, profile), then run the 6 steps; the "doesn't fit" step shows your own practice
+  Notes:
+- [ ] **Phrasebook**: add, remove with undo, and "Say N aloud" reads the phrase in Line Rep
+  Notes:
+- [ ] **Streak freeze**: skip a day after 7 practice days; the streak survives and a message says a freeze was used
+  Notes:
+- [ ] iOS native tab bar shows Today, Learn, Library, You, Dev, with the right icons
+  Notes:
+
 ## 12. General feel
 - [ ] Anything that felt slow, confusing, ugly, or too wordy?
   Notes:

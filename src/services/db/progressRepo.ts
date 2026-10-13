@@ -1,6 +1,7 @@
 import { getDatabase } from "./database";
 import { getCompletedSessionDates } from "./statsRepo";
 import { getDrillCompletionDates } from "./drillsRepo";
+import { getRewindDates } from "./rewindRepo";
 import { generateId } from "../../utils/generateId";
 import { isoDateFromDate, todayISODate } from "../../utils/dateUtils";
 import { buildTopUpPlan } from "../../domain/dailyGoal";
@@ -463,7 +464,8 @@ export async function getPracticeDates(): Promise<string[]> {
 // Every day that counts toward the streak. Kept apart from getPracticeDates,
 // which also decides whether today's session is done.
 export async function getStreakDates(): Promise<string[]> {
-  return getPracticeDates();
+  const [practice, rewinds] = await Promise.all([getPracticeDates(), getRewindDates()]);
+  return [...practice, ...rewinds];
 }
 
 // The one streak every screen shows — practice of any kind, rest days left

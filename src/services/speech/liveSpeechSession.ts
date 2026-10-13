@@ -103,6 +103,10 @@ const FAST_FAIL_MS = 1500;
 export class LiveSpeechSession {
   private snapshot: LiveSpeechSnapshot;
   private listeners = new Set<() => void>();
+  // Volume readings, for a live waveform: delivered straight to the caller,
+  // never through the snapshot, so ten or twenty a second don't re-render a
+  // screen.
+  private volumeListeners = new Set<(value: number) => void>();
   private subscriptions: Subscription[] = [];
   private options: Required<LiveSpeechStartOptions> | null = null;
   private active = false;
@@ -143,6 +147,13 @@ export class LiveSpeechSession {
   };
 
   getSnapshot = (): LiveSpeechSnapshot => this.snapshot;
+
+  // Calls `fn` with each volume reading (-2..10) while listening. Returns the
+  // way to stop.
+  onVolume(fn: (value: number) => void): () => void {
+    this.volumeListeners.add(fn);
+    return () => this.volumeListeners.delete(fn);
+  }
 
   private update(patch: Partial<LiveSpeechSnapshot>) {
     const next = { ...this.snapshot, ...patch };
@@ -336,6 +347,7 @@ export class LiveSpeechSession {
     });
     on("volumechange", (event: { value: number }) => {
       if (this.active) this.volumeSamples.push({ tMs: this.clock.now() - this.attemptStartedAt, value: event.value });
+      this.volumeListeners.forEach((fn) => fn(event.value));
       this.update({ volume: event.value });
     });
     on("error", (event: { error: string; message?: string }) => this.handleError(event.error, event.message));

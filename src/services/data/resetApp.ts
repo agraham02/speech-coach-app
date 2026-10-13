@@ -1,6 +1,7 @@
 import * as Notifications from "expo-notifications";
 import { wipeDatabase } from "../db/database";
 import { deleteAllRecordings, deleteTempMedia } from "../storage/videoStorage";
+import { deleteAllRewindAudio } from "../rewind/rewindStorage";
 import { clearAllPrefs } from "../prefs/prefsStore";
 import { clearLogs } from "../logs/logStore";
 import { clearDecodedAudio } from "../pipeline/steps/decodedAudioCache";
@@ -19,6 +20,7 @@ export async function resetApp(): Promise<void> {
   clearDecodedAudio();
   await wipeDatabase();
   deleteAllRecordings();
+  deleteAllRewindAudio();
   const temp = deleteTempMedia();
   clearAllPrefs();
   clearLogs();
