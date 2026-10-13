@@ -337,7 +337,7 @@ export function HistoryScreen() {
               title={statusFilter === "keepsake" ? "No progress videos yet" : "Nothing matches"}
               body={
                 statusFilter === "keepsake"
-                  ? "Pin a take from its results, or clear old videos in Settings — the best take from each month is kept."
+                  ? "Pin a take from its results, or clear old videos in Settings — the best and the toughest take from each month are kept."
                   : "Try a different search or filter."
               }
             />

@@ -32,7 +32,7 @@ export function HelpDataSettings() {
   function handleDeleteOldVideos() {
     Alert.alert(
       "Clear videos older than 30 days?",
-      "The best take from each month is kept (compressed) so you can see your progress — find them under Library → Progress. Transcripts, analysis and scores are always kept. This can't be undone.",
+      "The best and the toughest take from each month are kept (compressed), so you can see how far you've come — find them under Library → Progress videos. Transcripts, analysis and scores are always kept. This can't be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -96,7 +96,7 @@ export function HelpDataSettings() {
       <ListGroup title="Your data">
         <ListRow icon="film-outline" title="Videos" value={formatBytes(videoBytes)} />
         <ListRow icon="share-outline" title="Export practice data" chevron onPress={handleExport} />
-        <ListRow icon="trash-outline" title="Clear old videos" subtitle="Keeps the best take from each month" destructive onPress={handleDeleteOldVideos} />
+        <ListRow icon="trash-outline" title="Clear old videos" subtitle="Keeps the best and the toughest take from each month" destructive onPress={handleDeleteOldVideos} />
       </ListGroup>
       <Txt variant="footnote" tone="secondary" style={styles.note}>
         Your recordings and practice history stay on this phone.

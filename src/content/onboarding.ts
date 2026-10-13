@@ -227,7 +227,7 @@ export const ANCHOR_OPTIONS: { key: string; label: string; anchor: string; hour:
 ];
 
 export const RETENTION_OPTIONS: { key: string; label: string; days: number }[] = [
-  { key: "30", label: "30 days, plus a keepsake each month", days: 30 },
-  { key: "7", label: "7 days, plus a keepsake each month", days: 7 },
+  { key: "30", label: "30 days, plus two keepsakes each month", days: 30 },
+  { key: "7", label: "7 days, plus two keepsakes each month", days: 7 },
   { key: "0", label: "Keep everything", days: 0 },
 ];
