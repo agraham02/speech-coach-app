@@ -6,7 +6,7 @@ import type { SessionStatus } from "../../domain/sessionTypes";
 import { logger } from "../../utils/logger";
 
 // Bump this and add a new numbered migration when the schema changes.
-export const LATEST_DB_VERSION = 23;
+export const LATEST_DB_VERSION = 24;
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(
@@ -639,6 +639,24 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
     // AssemblyAI cloud transcription is gone too.
     await dropColumnIfPresent(db, "sessions", "assemblyai_transcript_id");
     currentVersion = await commitVersion(db, 23);
+  }
+
+  if (currentVersion < 24) {
+    // Phrasebook: phrases and lines you want to remember, to hear again and
+    // say aloud. Plain text, never sent anywhere.
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS saved_phrases (
+        id TEXT PRIMARY KEY NOT NULL,
+        text TEXT NOT NULL,
+        note TEXT,
+        created_at TEXT NOT NULL,
+        practiced_count INTEGER NOT NULL DEFAULT 0,
+        last_practiced_at TEXT,
+        deleted_at TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_saved_phrases_created ON saved_phrases(created_at);
+    `);
+    currentVersion = await commitVersion(db, 24);
   }
 }
 

@@ -33,6 +33,7 @@ import { ProcessingScreen } from "../screens/ProcessingScreen";
 import { ResultScreen } from "../screens/ResultScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
 import { YouScreen } from "../screens/YouScreen";
+import { PhrasebookScreen } from "../screens/PhrasebookScreen";
 import type { SettingsSection } from "../components/settings/sections";
 import { TipsScreen } from "../screens/TipsScreen";
 import { SourcesScreen } from "../screens/SourcesScreen";
@@ -81,8 +82,9 @@ export type RootStackParamList = {
   // One section of Settings, or the list of them with no section.
   Settings: { section?: SettingsSection } | undefined;
   Progress: undefined;
+  Phrasebook: undefined;
   MarkItUp: { shelf?: "lines" | "mine" | "speeches" } | undefined;
-  LineRep: { lineIds?: string[]; mineIds?: string[]; category?: LineCategory; mode?: "rep" | "lineOfDay"; practice?: PracticeContext } | undefined;
+  LineRep: { lineIds?: string[]; mineIds?: string[]; phraseIds?: string[]; category?: LineCategory; mode?: "rep" | "lineOfDay"; practice?: PracticeContext } | undefined;
   AddText: undefined;
   MarkEdit: { id: string };
   SpeechStudy: { speechId: string };
@@ -321,6 +323,7 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
         <Stack.Screen name="StartingPoint" component={StartingPointScreen} options={{ gestureEnabled: false }} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen name="Progress" component={ProgressScreen} />
+        <Stack.Screen name="Phrasebook" component={PhrasebookScreen} />
         <Stack.Screen name="AsrLab" component={AsrLabScreen} />
         <Stack.Screen name="Practice" component={HomeScreen} />
         <Stack.Screen name="Frameworks" component={TipsScreen} />

@@ -12,6 +12,7 @@ import { PrimaryButton } from "../components/common/PrimaryButton";
 import { Txt } from "../components/common/Txt";
 import { SETTINGS_SECTIONS } from "../components/settings/sections";
 import { practiceDaysThisWeek } from "../domain/streaks";
+import { countPhrases } from "../services/db/phrasebookRepo";
 import { getStreakDates, getStreakState } from "../services/db/progressRepo";
 import { getUserProfile } from "../services/prefs/prefsStore";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
@@ -23,6 +24,7 @@ export function YouScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [streak, setStreak] = useState({ current: 0, freezes: 0, daysThisWeek: 0 });
+  const [phraseCount, setPhraseCount] = useState(0);
   const name = getUserProfile()?.name?.trim();
 
   useFocusEffect(
@@ -30,6 +32,7 @@ export function YouScreen() {
       Promise.all([getStreakState(), getStreakDates()])
         .then(([state, dates]) => setStreak({ current: state.currentStreak, freezes: state.freezesHeld, daysThisWeek: practiceDaysThisWeek(dates) }))
         .catch(() => undefined);
+      countPhrases().then(setPhraseCount).catch(() => undefined);
     }, []),
   );
 
@@ -65,6 +68,17 @@ export function YouScreen() {
         </View>
         <PrimaryButton label="See all progress" variant="secondary" size="md" iconRight="chevron-forward" onPress={() => navigation.navigate("Progress")} />
       </HeroCard>
+
+      <ListGroup>
+        <ListRow
+          icon="bookmarks-outline"
+          title="Phrasebook"
+          subtitle="Lines and phrases you want to be able to say"
+          value={phraseCount ? String(phraseCount) : undefined}
+          chevron
+          onPress={() => navigation.navigate("Phrasebook")}
+        />
+      </ListGroup>
 
       <ListGroup title="Settings">
         {SETTINGS_SECTIONS.map((s) => (

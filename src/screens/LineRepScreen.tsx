@@ -17,10 +17,11 @@ import { useTakeRecorder } from "../hooks/useTakeRecorder";
 import { getLines, LINE_CATEGORIES, type LineCategory } from "../content/lines";
 import { lineRepConfig, pickLines, kindsYouMark, type LineRepConfig } from "../domain/cadence/lineRep";
 import { compareMarks, keepKinds, type Mark, type MarkKind, type MarkedText } from "../domain/cadence/marks";
-import { remixEmphasis } from "../domain/cadence/autoMark";
+import { autoMark, remixEmphasis } from "../domain/cadence/autoMark";
 import { scoreSelfRating } from "../domain/drills/drillSpecs";
 import { getDrillLevel, recordDrillOutcome } from "../services/db/progressRepo";
 import { getMarkedText, getRecentLineIds, markTextsPracticed } from "../services/db/markedTextsRepo";
+import { getPhrasesByIds, markPhrasesPracticed } from "../services/db/phrasebookRepo";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
@@ -30,6 +31,9 @@ interface RepLine extends MarkedText {
   id: string;
   credit?: string;
   mine: boolean;
+  // Your own saved phrases are read like your own marked texts, but keep
+  // their own practice count.
+  phrase?: boolean;
 }
 
 type Stage = "mark" | "compare" | "read" | "remix" | "rate";
@@ -44,7 +48,7 @@ const READS = [
 // one or two sentences, each marked (or checked), read twice with the marks
 // and once without. Line of the day is a one-line version with no rating.
 export function LineRepScreen({ route, navigation }: Props) {
-  const { lineIds, mineIds, category, mode = "rep", practice } = route.params ?? {};
+  const { lineIds, mineIds, phraseIds, category, mode = "rep", practice } = route.params ?? {};
   const styles = useStyles();
   const { colors } = useTheme();
   const recorder = useTakeRecorder();
@@ -71,6 +75,12 @@ export function LineRepScreen({ route, navigation }: Props) {
       const lvl = await getDrillLevel("marked_reading");
       setLevel(lvl);
       const cfg = lineRepConfig(lvl);
+      if (phraseIds?.length) {
+        // A saved phrase has no marks of its own: it gets the coach's.
+        const saved = await getPhrasesByIds(phraseIds);
+        setLines(saved.map((p) => ({ id: p.id, text: p.text, marks: autoMark(p.text).marks, mine: true, phrase: true })));
+        return;
+      }
       if (mineIds?.length) {
         const saved = (await Promise.all(mineIds.map(getMarkedText))).filter((t): t is NonNullable<typeof t> => !!t);
         setLines(saved.map((t) => ({ id: t.id, text: t.text, marks: t.marks, mine: true })));
@@ -199,7 +209,8 @@ export function LineRepScreen({ route, navigation }: Props) {
       lessonId: practice?.lessonId,
       metrics: { mode: config.mode, lines: lines!.map((l) => l.id), agreement },
     });
-    await markTextsPracticed(lines!.filter((l) => l.mine).map((l) => l.id));
+    await markTextsPracticed(lines!.filter((l) => l.mine && !l.phrase).map((l) => l.id));
+    await markPhrasesPracticed(lines!.filter((l) => l.phrase).map((l) => l.id));
     await completePracticeStep(practice, outcome.score);
     navigation.goBack();
   }
