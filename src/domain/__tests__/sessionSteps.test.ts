@@ -18,9 +18,7 @@ describe("inferLegacySteps", () => {
     hasTranscript: true,
     dspStatus: "complete",
     hasScores: false,
-    notionSyncedAt: null,
     wantsGrading: false,
-    wantsNotionSync: false,
   };
   const byStep = (rows: ReturnType<typeof inferLegacySteps>) => Object.fromEntries(rows.map((r) => [r.step, r.status]));
 
@@ -31,7 +29,6 @@ describe("inferLegacySteps", () => {
       presence: "skipped",
       coach: "skipped",
       cloud_review: "skipped",
-      notion: "skipped",
     });
   });
 
@@ -43,10 +40,9 @@ describe("inferLegacySteps", () => {
     expect(rows.cloud_review).toBe("interrupted");
   });
 
-  it("marks graded and synced sessions done", () => {
-    const rows = byStep(inferLegacySteps({ ...base, status: "done", hasScores: true, notionSyncedAt: "2026-01-01" }));
+  it("marks graded sessions done", () => {
+    const rows = byStep(inferLegacySteps({ ...base, status: "done", hasScores: true }));
     expect(rows.cloud_review).toBe("done");
-    expect(rows.notion).toBe("done");
   });
 
   it("marks a failed grading attempt as failed", () => {

@@ -5,12 +5,13 @@ import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
+import { Header } from "../components/common/Header";
 import { PrimaryButton } from "../components/common/PrimaryButton";
 import { SegmentedControl } from "../components/common/SegmentedControl";
 import { useToast } from "../components/common/ToastProvider";
 import { getAllPrompts, insertUserPrompt } from "../services/db/promptsRepo";
 import type { DifficultyTier } from "../domain/sessionTypes";
-import { radii, spacing, typography } from "../theme/theme";
+import { radii, spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AddPrompt">;
@@ -61,22 +62,12 @@ export function AddPromptScreen({ navigation }: Props) {
 
   return (
     <ScreenContainer style={styles.container}>
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Close"
-        >
-          <Ionicons name="close" size={24} color={colors.textPrimary} />
-        </Pressable>
-        <Text style={styles.title}>Add a Prompt</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <Header title="Add a prompt" onBack={() => navigation.goBack()} backIcon="close"
+      />
 
       <View style={styles.field}>
         <Text style={styles.label}>Prompt</Text>
-        <TextInput
+        <TextInput maxLength={300}
           style={styles.textArea}
           value={text}
           onChangeText={(value) => setText(value.slice(0, TEXT_MAX_LENGTH))}
@@ -93,7 +84,7 @@ export function AddPromptScreen({ navigation }: Props) {
 
       <View style={styles.field}>
         <Text style={styles.label}>Category</Text>
-        <TextInput
+        <TextInput maxLength={40}
           style={styles.input}
           value={category}
           onChangeText={setCategory}
@@ -133,13 +124,12 @@ const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.lg },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   headerSpacer: { width: 24 },
-  title: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
+  title: { color: colors.textPrimary, fontSize: typography.title, ...font("700") },
   field: { gap: spacing.sm },
-  label: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "700", letterSpacing: 0.4 },
+  label: { color: colors.textSecondary, fontSize: 13, ...font("600") },
   input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    ...font("400"),
+    backgroundColor: colors.surfaceRaised,
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
@@ -147,9 +137,8 @@ const useStyles = makeStyles(({ colors }) => ({
     fontSize: typography.body,
   },
   textArea: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    ...font("400"),
+    backgroundColor: colors.surfaceRaised,
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
@@ -157,16 +146,14 @@ const useStyles = makeStyles(({ colors }) => ({
     fontSize: typography.body,
     minHeight: 110,
   },
-  charCount: { color: colors.textMuted, fontSize: typography.caption, textAlign: "right" },
+  charCount: { ...font("400"), color: colors.textMuted, fontSize: typography.caption, textAlign: "right" },
   chipRow: { flexDirection: "row", gap: spacing.xs, marginTop: spacing.xs },
   chip: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: radii.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.surfaceRaised,
   },
-  chipText: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "600" },
+  chipText: { color: colors.textSecondary, fontSize: typography.caption, ...font("600") },
   spacer: { flex: 1 },
 }));

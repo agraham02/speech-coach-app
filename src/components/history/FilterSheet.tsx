@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { radii, spacing, typography } from "../../theme/theme";
+import { radii, spacing, typography, font, fontDisplay } from "../../theme/theme";
 import { makeStyles } from "../../theme/ThemeProvider";
 
 interface FilterOption {
@@ -73,7 +73,7 @@ export function FilterSheet({
           </Pressable>
         </View>
 
-        <Text style={styles.sectionLabel}>SHOW</Text>
+        <Text style={styles.sectionLabel}>Show</Text>
         <View style={styles.chipRowWrap}>
           {statusOptions.map((option) => {
             const selected = statusValue === option.key;
@@ -92,7 +92,7 @@ export function FilterSheet({
           })}
         </View>
 
-        <Text style={[styles.sectionLabel, styles.sectionSpacer]}>TOPIC</Text>
+        <Text style={[styles.sectionLabel, styles.sectionSpacer]}>Topic</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRowScroll}>
           {categoryOptions.map((category) => {
             const selected = categoryValue === category;
@@ -112,7 +112,7 @@ export function FilterSheet({
           })}
         </ScrollView>
 
-        <Text style={[styles.sectionLabel, styles.sectionSpacer]}>LENGTH</Text>
+        <Text style={[styles.sectionLabel, styles.sectionSpacer]}>Length</Text>
         <View style={styles.chipRowWrap}>
           {durationOptions.map((option) => {
             const selected = durationValue === option.key;
@@ -147,18 +147,16 @@ const useStyles = makeStyles(({ colors }) => ({
     right: 0,
     bottom: 0,
     backgroundColor: colors.surface,
-    borderTopLeftRadius: radii.lg,
-    borderTopRightRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     padding: spacing.lg,
     gap: spacing.sm,
   },
-  handle: { alignSelf: "center", width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: spacing.xs },
+  handle: { alignSelf: "center", width: 40, height: 5, borderRadius: 3, backgroundColor: colors.switchTrackOff, marginBottom: spacing.sm },
   panelHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  panelTitle: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
-  resetText: { color: colors.accent, fontSize: typography.body, fontWeight: "600" },
-  sectionLabel: { color: colors.textMuted, fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 1 },
+  panelTitle: { color: colors.textPrimary, fontFamily: fontDisplay.title, fontSize: 24, lineHeight: 30, letterSpacing: -0.5 },
+  resetText: { color: colors.accent, fontSize: typography.body, ...font("600") },
+  sectionLabel: { color: colors.textMuted, fontSize: 13, ...font("600") },
   sectionSpacer: { marginTop: spacing.sm },
   chipRowScroll: { flexDirection: "row", gap: spacing.xs, paddingVertical: spacing.xs },
   chipRowWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, paddingVertical: spacing.xs },
@@ -167,11 +165,9 @@ const useStyles = makeStyles(({ colors }) => ({
     paddingVertical: spacing.xs,
     borderRadius: 999,
     backgroundColor: colors.surfaceRaised,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   chipSelected: { backgroundColor: colors.accentMuted, borderColor: colors.accent },
-  chipText: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "600" },
+  chipText: { color: colors.textSecondary, fontSize: typography.caption, ...font("600") },
   chipTextSelected: { color: colors.accent },
   doneButton: {
     marginTop: spacing.md,
@@ -180,5 +176,5 @@ const useStyles = makeStyles(({ colors }) => ({
     paddingVertical: spacing.md,
     alignItems: "center",
   },
-  doneButtonText: { color: colors.onAccent, fontSize: typography.bodyLarge, fontWeight: "600" },
+  doneButtonText: { color: colors.onAccent, fontSize: typography.bodyLarge, ...font("600") },
 }));

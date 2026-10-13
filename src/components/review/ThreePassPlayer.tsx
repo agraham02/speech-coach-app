@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useEvent } from "expo";
 import { useVideoPlayer, VideoView } from "expo-video";
 import type { TranscriptWord } from "../../domain/sessionTypes";
-import { radii, spacing, typography } from "../../theme/theme";
+import { radii, spacing, typography, font } from "../../theme/theme";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 import { getReviewPasses, markReviewPass } from "../../services/db/progressRepo";
 import { formatDuration } from "../../utils/dateUtils";
@@ -201,7 +201,7 @@ const useStyles = makeStyles(({ colors }) => ({
     backgroundColor: colors.surfaceRaised,
   },
   passChipSelected: { backgroundColor: colors.accent },
-  passChipText: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "600" },
+  passChipText: { color: colors.textSecondary, fontSize: typography.caption, ...font("600") },
   passChipTextSelected: { color: colors.onAccent },
   videoWrap: { borderRadius: radii.lg, overflow: "hidden", backgroundColor: "black" },
   video: { width: "100%", height: 360 },
@@ -232,14 +232,14 @@ const useStyles = makeStyles(({ colors }) => ({
     justifyContent: "center",
     backgroundColor: colors.accent,
   },
-  listenTime: { color: colors.textSecondary, fontSize: typography.caption, fontVariant: ["tabular-nums"] },
-  listenText: { color: colors.textSecondary, fontSize: typography.bodyLarge, lineHeight: 26 },
-  listenWordActive: { color: colors.textPrimary, fontWeight: "700", backgroundColor: colors.accentMuted },
+  listenTime: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, fontVariant: ["tabular-nums"] },
+  listenText: { ...font("400"), color: colors.textSecondary, fontSize: typography.bodyLarge, lineHeight: 26 },
+  listenWordActive: { color: colors.textPrimary, ...font("700"), backgroundColor: colors.accentMuted },
   footer: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  focus: { flex: 1, color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },
+  focus: { ...font("400"), flex: 1, color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },
   rateRow: { flexDirection: "row", gap: 4 },
   rateChip: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radii.pill, backgroundColor: colors.surfaceRaised },
   rateChipSelected: { backgroundColor: colors.accentMuted },
-  rateText: { color: colors.textMuted, fontSize: typography.caption, fontWeight: "600" },
+  rateText: { color: colors.textMuted, fontSize: typography.caption, ...font("600") },
   rateTextSelected: { color: colors.accent },
 }));

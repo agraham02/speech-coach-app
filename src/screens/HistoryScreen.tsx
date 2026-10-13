@@ -1,10 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, RefreshControl, ScrollView, SectionList, Text, TextInput, View } from "react-native";
+import { logger } from "../utils/logger";
+import { Skeleton, SkeletonCard, SkeletonLines, SkeletonRows } from "../components/common/Skeleton";
+import { GuideTip } from "../components/common/GuideTip";
+import { Alert, Pressable, RefreshControl, ScrollView, SectionList, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
+import { Txt } from "../components/common/Txt";
+import { EmptyState } from "../components/common/EmptyState";
+import { IconButton } from "../components/common/IconButton";
+import { PressableScale } from "../components/common/PressableScale";
+import { ProgressRing } from "../components/common/ProgressRing";
 import { useToast } from "../components/common/ToastProvider";
 import { FilterSheet } from "../components/history/FilterSheet";
 import { ProgressVideoStrip } from "../components/history/ProgressVideoStrip";
@@ -24,7 +32,6 @@ import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
 import { colorForScore } from "../components/result/scoreColor";
 import type { Prompt, Session } from "../domain/sessionTypes";
 import { formatDuration } from "../utils/dateUtils";
-import { spacing, typography } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import type { Colors } from "../theme/theme";
 
@@ -70,10 +77,10 @@ function formatSessionDate(isoDatetime: string): string {
     date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
-const COLLECTIONS: { route: "Practice" | "PromptLibrary" | "ScriptLibrary" | "Drills" | "Frameworks"; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+const COLLECTIONS: { route: "Practice" | "PromptLibrary" | "MarkItUp" | "Drills" | "Frameworks"; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { route: "Practice", label: "Free practice", icon: "mic-outline" },
   { route: "PromptLibrary", label: "Prompts", icon: "library-outline" },
-  { route: "ScriptLibrary", label: "Scripts", icon: "document-text-outline" },
+  { route: "MarkItUp", label: "Mark it up", icon: "document-text-outline" },
   { route: "Drills", label: "Twisters", icon: "flash-outline" },
   { route: "Frameworks", label: "Frameworks", icon: "book-outline" },
 ];
@@ -85,6 +92,7 @@ export function HistoryScreen() {
   const showToast = useToast();
   const tabBarInset = useTabBarBottomInset();
   const [sessions, setSessions] = useState<SessionWithScore[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -103,7 +111,9 @@ export function HistoryScreen() {
   const hasSecondaryFilters = categoryFilter !== "all" || durationFilter !== "all";
 
   const refresh = useCallback(() => {
-    getAllSessionsWithScores().then(setSessions);
+    getAllSessionsWithScores()
+      .then(setSessions)
+      .finally(() => setLoaded(true));
   }, []);
 
   const refreshPrompts = useCallback(() => {
@@ -155,25 +165,39 @@ export function HistoryScreen() {
   }, [sessions, searchQuery, statusFilter, categoryFilter, durationFilter, promptsById]);
 
   // Every session opens on Result — progress, retries and every later
-  // action (deep review, Notion, practice again) live there.
+  // action (deep review, practice again) live there.
   function openSession(session: Session) {
     navigation.navigate("Result", { sessionId: session.id });
   }
 
+  // Both deletes are optimistic: the row changes first, and comes back if
+  // the database refuses.
   async function handleDeleteVideo(session: Session) {
-    await deleteSessionVideo(session.id);
-    deleteRecording(resolveVideoUri(session));
-    setSessions((prev) =>
-      prev.map((s) => (s.id === session.id ? { ...s, videoDeletedAt: new Date().toISOString() } : s)),
-    );
-    showToast("Video deleted — transcript and scores kept", "success");
+    const before = sessions;
+    setSessions((prev) => prev.map((s) => (s.id === session.id ? { ...s, videoDeletedAt: new Date().toISOString() } : s)));
+    try {
+      await deleteSessionVideo(session.id);
+      deleteRecording(resolveVideoUri(session));
+      showToast("Video deleted — transcript and scores kept", "success");
+    } catch (error) {
+      logger.error(`[library] delete video failed — ${(error as Error).message}`);
+      setSessions(before);
+      showToast("Couldn't delete the video — try again", "error");
+    }
   }
 
   async function handleDeleteSession(session: Session) {
-    await deleteSession(session.id);
-    deleteRecording(resolveVideoUri(session));
+    const before = sessions;
     setSessions((prev) => prev.filter((s) => s.id !== session.id));
-    showToast("Session deleted", "success");
+    try {
+      await deleteSession(session.id);
+      deleteRecording(resolveVideoUri(session));
+      showToast("Session deleted", "success");
+    } catch (error) {
+      logger.error(`[library] delete failed — ${(error as Error).message}`);
+      setSessions(before);
+      showToast("Couldn't delete that — try again", "error");
+    }
   }
 
   function confirmDelete(session: SessionWithScore) {
@@ -212,32 +236,45 @@ export function HistoryScreen() {
     setToggledMonths((prev) => ({ ...prev, [key]: !isOpen(key, index) }));
   }
 
-  return (
-    <ScreenContainer style={styles.container} edges={["top", "left", "right"]}>
-      <Text style={styles.title}>Library</Text>
+  const header = (
+    <View style={styles.headerBlock}>
+      <Txt variant="largeTitle">Library</Txt>
 
       {/* Everything you can practice outside the daily plan. */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.collections} style={styles.collectionsScroll}>
         {COLLECTIONS.map((c) => (
-          <Pressable
+          <PressableScale
             key={c.route}
             onPress={() => navigation.navigate(c.route)}
             style={styles.collection}
+            scaleTo={0.95}
             accessibilityRole="button"
             accessibilityLabel={c.label}
           >
-            <Ionicons name={c.icon} size={22} color={colors.accent} />
-            <Text style={styles.collectionText}>{c.label}</Text>
-          </Pressable>
+            <View style={styles.collectionIcon}>
+              <Ionicons name={c.icon} size={20} color={colors.textPrimary} />
+            </View>
+            <Txt variant="footnote" weight="600">
+              {c.label}
+            </Txt>
+          </PressableScale>
         ))}
       </ScrollView>
-      <Text style={styles.sectionLabel}>YOUR RECORDINGS</Text>
+
+      <View style={styles.recordingsHead}>
+        <Txt variant="title3">Your recordings</Txt>
+        {hasAnySessions ? (
+          <Txt variant="footnote" tone="muted" tabular>
+            {sessions.length} take{sessions.length === 1 ? "" : "s"}
+          </Txt>
+        ) : null}
+      </View>
 
       {hasAnySessions ? (
         <View style={styles.searchRow}>
           <View style={styles.searchBox}>
-            <Ionicons name="search-outline" size={16} color={colors.textMuted} />
-            <TextInput
+            <Ionicons name="search" size={16} color={colors.textMuted} />
+            <TextInput maxLength={80}
               style={styles.searchInput}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -247,19 +284,19 @@ export function HistoryScreen() {
               accessibilityLabel="Search sessions"
             />
           </View>
-          <Pressable
-            onPress={() => setFilterSheetVisible(true)}
-            style={styles.filterButton}
-            accessibilityRole="button"
-            accessibilityLabel="Filters"
-            accessibilityState={{ selected: anyFilter }}
-          >
-            <Ionicons name="funnel-outline" size={18} color={anyFilter ? colors.accent : colors.textSecondary} />
+          <View>
+            <IconButton icon="options-outline" onPress={() => setFilterSheetVisible(true)} accessibilityLabel="Filters" size={44} />
             {anyFilter ? <View style={styles.filterDot} /> : null}
-          </Pressable>
+          </View>
         </View>
       ) : null}
 
+      {hasAnySessions && !filtersActive ? <ProgressVideoStrip sessions={keepsakes} onOpen={openSession} /> : null}
+    </View>
+  );
+
+  return (
+    <ScreenContainer style={styles.container} edges={["top", "left", "right"]}>
       <FilterSheet
         visible={filterSheetVisible}
         onClose={() => setFilterSheetVisible(false)}
@@ -279,68 +316,69 @@ export function HistoryScreen() {
         }}
       />
 
-      {!hasAnySessions ? (
-        <View style={styles.empty}>
-          <Ionicons name="time-outline" size={40} color={colors.textMuted} />
-          <Text style={styles.emptyText}>No sessions yet — your recordings will show up here.</Text>
-        </View>
-      ) : !groups.length ? (
-        <View style={styles.empty}>
-          <Ionicons name={statusFilter === "keepsake" ? "bookmark-outline" : "search-outline"} size={40} color={colors.textMuted} />
-          <Text style={styles.emptyText}>
-            {statusFilter === "keepsake"
-              ? "No progress videos yet. Pin a take from its results, or clear old videos in Settings — the best take from each month is kept."
-              : "Nothing matches your search or filter."}
-          </Text>
-        </View>
-      ) : (
-        <SectionList
-          style={styles.list}
-          sections={sections}
-          keyExtractor={(item) => item.id}
-          stickySectionHeadersEnabled
-          contentContainerStyle={{ paddingBottom: spacing.lg + tabBarInset }}
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.accent} />}
-          ListHeaderComponent={filtersActive ? null : <ProgressVideoStrip sessions={keepsakes} onOpen={openSession} />}
-          renderSectionHeader={({ section }) => (
-            <MonthHeader group={section} open={section.open} onToggle={() => toggleMonth(section.key, section.index)} />
-          )}
-          renderItem={({ item }) => {
-            const prompt = resolvePrompt(item.promptId, item);
-            const status = statusMeta(colors)[item.status];
-            const score = item.overallScore;
-            return (
-              <Pressable
-                onPress={() => openSession(item)}
-                onLongPress={() => confirmDelete(item)}
-                style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-                accessibilityLabel={`${prompt?.text ?? "Session"}, ${score != null ? `score ${score}, ` : ""}${status.label}, recorded ${formatSessionDate(item.recordedAt)}`}
-                accessibilityHint="Double tap to open. Long press to delete."
-              >
-                <View style={[styles.scoreBadge, score != null && { borderColor: colorForScore(score, colors) }]}>
-                  <Text style={[styles.scoreBadgeText, score != null && { color: colorForScore(score, colors) }]}>
-                    {score != null ? score : "—"}
-                  </Text>
-                </View>
-                <View style={styles.rowText}>
-                  <Text style={styles.promptText} numberOfLines={1}>
-                    {prompt?.text ?? "Unknown prompt"}
-                  </Text>
-                  <Text style={styles.metaText} numberOfLines={1}>
-                    {formatSessionDate(item.recordedAt)} · {formatDuration(item.durationSeconds)}
-                    {prompt?.category ? ` · ${prompt.category}` : ""}
-                  </Text>
-                </View>
-                {item.status !== "done" ? <Ionicons name={status.icon} size={16} color={status.color} accessibilityLabel={status.label} /> : null}
-                {item.videoKeepsake && !item.videoDeletedAt ? (
-                  <Ionicons name="bookmark" size={14} color={colors.accent} accessibilityLabel="Progress video" />
-                ) : null}
-              </Pressable>
-            );
-          }}
-        />
-      )}
+      <SectionList
+        style={styles.list}
+        sections={sections}
+        keyExtractor={(item) => item.id}
+        stickySectionHeadersEnabled
+        contentContainerStyle={[styles.listContent, { paddingBottom: 32 + tabBarInset }]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.textSecondary} />}
+        ListHeaderComponent={header}
+        ListEmptyComponent={
+          !loaded ? (
+            <SkeletonRows count={5} />
+          ) : !hasAnySessions ? (
+            <EmptyState icon="videocam-outline" title="No recordings yet" body="Your takes will show up here, grouped by month, with their scores." />
+          ) : (
+            <EmptyState
+              icon={statusFilter === "keepsake" ? "bookmark-outline" : "search-outline"}
+              title={statusFilter === "keepsake" ? "No progress videos yet" : "Nothing matches"}
+              body={
+                statusFilter === "keepsake"
+                  ? "Pin a take from its results, or clear old videos in Settings — the best and the toughest take from each month are kept."
+                  : "Try a different search or filter."
+              }
+            />
+          )
+        }
+        renderSectionHeader={({ section }) => <MonthHeader group={section} open={section.open} onToggle={() => toggleMonth(section.key, section.index)} />}
+        renderItem={({ item }) => {
+          const prompt = resolvePrompt(item.promptId, item);
+          const status = statusMeta(colors)[item.status];
+          const score = item.overallScore;
+          const scoreColor = score != null ? colorForScore(score, colors) : colors.textMuted;
+          return (
+            <PressableScale
+              onPress={() => openSession(item)}
+              onLongPress={() => confirmDelete(item)}
+              scaleTo={0.98}
+              style={styles.row}
+              accessibilityLabel={`${prompt?.text ?? "Session"}, ${score != null ? `score ${score}, ` : ""}${status.label}, recorded ${formatSessionDate(item.recordedAt)}`}
+              accessibilityHint="Double tap to open. Long press to delete."
+            >
+              <ProgressRing size={42} strokeWidth={3} progress={score != null ? score / 10 : 0} color={scoreColor}>
+                <Txt variant="subhead" weight="600" color={score != null ? colors.textPrimary : colors.textMuted} tabular>
+                  {score != null ? score : "–"}
+                </Txt>
+              </ProgressRing>
+              <View style={styles.rowText}>
+                <Txt variant="headline" numberOfLines={1}>
+                  {prompt?.text ?? "Unknown prompt"}
+                </Txt>
+                <Txt variant="footnote" tone="muted" numberOfLines={1}>
+                  {formatSessionDate(item.recordedAt)} · {formatDuration(item.durationSeconds)}
+                  {prompt?.category ? ` · ${prompt.category}` : ""}
+                </Txt>
+              </View>
+              {item.status !== "done" ? <Ionicons name={status.icon} size={16} color={status.color} accessibilityLabel={status.label} /> : null}
+              {item.videoKeepsake && !item.videoDeletedAt ? <Ionicons name="bookmark" size={14} color={colors.warning} accessibilityLabel="Progress video" /> : null}
+            </PressableScale>
+          );
+        }}
+      />
+      <GuideTip id="library" />
     </ScreenContainer>
   );
 }
@@ -359,115 +397,93 @@ function MonthHeader({ group, open, onToggle }: { group: MonthGroup<SessionWithS
       accessibilityState={{ expanded: open }}
       accessibilityLabel={`${group.title}, ${takes}${group.avgScore != null ? `, average score ${group.avgScore}` : ""}`}
     >
-      <Ionicons name={open ? "chevron-down" : "chevron-forward"} size={16} color={colors.textSecondary} />
-      <Text style={styles.monthTitle}>{group.title}</Text>
-      <Text style={styles.monthMeta}>{takes}</Text>
+      <Txt variant="title3">{group.title}</Txt>
+      <Txt variant="footnote" tone="muted">
+        {takes}
+      </Txt>
       <View style={styles.flex} />
       {group.avgScore != null ? (
-        <Text style={[styles.monthAvg, { color: colorForScore(group.avgScore, colors) }]}>avg {group.avgScore}</Text>
+        <Txt variant="footnote" weight="600" color={colorForScore(group.avgScore, colors)} tabular>
+          avg {group.avgScore}
+        </Txt>
       ) : null}
       {delta != null && delta !== 0 ? (
         <View style={styles.monthDelta}>
           <Ionicons name={delta > 0 ? "arrow-up" : "arrow-down"} size={12} color={delta > 0 ? colors.success : colors.warning} />
-          <Text style={[styles.monthDeltaText, { color: delta > 0 ? colors.success : colors.warning }]}>{Math.abs(delta)}</Text>
+          <Txt variant="footnote" weight="600" color={delta > 0 ? colors.success : colors.warning} tabular>
+            {Math.abs(delta)}
+          </Txt>
         </View>
       ) : null}
+      <Ionicons name={open ? "chevron-up" : "chevron-down"} size={16} color={colors.textMuted} />
     </Pressable>
   );
 }
 
-const useStyles = makeStyles(({ colors }) => ({
-  collectionsScroll: { flexGrow: 0 },
-  collections: { gap: spacing.sm, paddingRight: spacing.md },
+const useStyles = makeStyles((t) => ({
+  // The list runs edge to edge so the sticky month headers span the screen.
+  container: { paddingHorizontal: 0, paddingBottom: 0, paddingTop: 0 },
+  list: { flex: 1 },
+  listContent: { paddingHorizontal: t.layout.gutter },
+  headerBlock: { gap: t.space.md + 4, paddingTop: t.space.xl + 4, paddingBottom: t.space.sm },
+  collectionsScroll: { flexGrow: 0, marginHorizontal: -t.layout.gutter },
+  collections: { gap: t.space.sm + 2, paddingHorizontal: t.layout.gutter },
   collection: {
-    width: 92,
-    paddingVertical: spacing.md,
-    alignItems: "center",
-    gap: spacing.xs,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    width: 108,
+    paddingVertical: t.space.md,
+    paddingHorizontal: t.space.sm + 4,
+    alignItems: "flex-start",
+    gap: t.space.md,
+    borderRadius: t.radius.lg - 4,
+    backgroundColor: t.colors.surface,
+    ...t.shadow.card,
   },
-  collectionText: { color: colors.textPrimary, fontSize: typography.caption, fontWeight: "600" },
-  sectionLabel: { color: colors.textMuted, fontSize: 11, fontWeight: "700", letterSpacing: 0.8 },
-  // See TrendsScreen.tsx for why paddingBottom: 0 — overrides
-  // ScreenContainer's default bottom padding, since the list's own
-  // listContent already reserves end-of-content breathing room.
-  container: { gap: spacing.md, paddingBottom: 0 },
-  title: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
-  searchRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  collectionIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: t.colors.accentMuted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  recordingsHead: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", marginTop: t.space.sm },
+  searchRow: { flexDirection: "row", alignItems: "center", gap: t.space.sm },
   searchBox: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.xs,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    gap: t.space.sm,
+    backgroundColor: t.colors.surfaceRaised,
+    borderRadius: t.radius.pill,
+    paddingHorizontal: t.space.md,
+    height: 44,
   },
-  searchInput: { flex: 1, color: colors.textPrimary, fontSize: typography.body, padding: 0 },
-  filterButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  searchInput: { flex: 1, color: t.colors.textPrimary, ...t.type.callout, padding: 0 },
   filterDot: {
     position: "absolute",
-    top: 6,
-    right: 6,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.accent,
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: t.colors.warning,
   },
-  list: { flex: 1 },
   // Opaque so a sticky header covers the rows scrolling under it.
   monthHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.xs,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.separator,
+    gap: t.space.sm,
+    paddingTop: t.space.md,
+    paddingBottom: t.space.sm,
+    backgroundColor: t.colors.background,
   },
-  monthTitle: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "700" },
-  monthMeta: { color: colors.textMuted, fontSize: typography.caption },
-  monthAvg: { fontSize: typography.caption, fontWeight: "800" },
   monthDelta: { flexDirection: "row", alignItems: "center", gap: 1 },
-  monthDeltaText: { fontSize: typography.caption, fontWeight: "700" },
   flex: { flex: 1 },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
-    paddingVertical: spacing.sm + 2,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.separator,
+    gap: t.space.md - 2,
+    paddingVertical: t.space.sm + 2,
   },
-  rowPressed: { opacity: 0.6 },
-  scoreBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  scoreBadgeText: { color: colors.textMuted, fontSize: typography.caption, fontWeight: "800" },
   rowText: { flex: 1, gap: 2 },
-  promptText: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "600" },
-  metaText: { color: colors.textMuted, fontSize: typography.caption },
-  empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
-  emptyText: { color: colors.textMuted, fontSize: typography.body, textAlign: "center", paddingHorizontal: spacing.xl },
 }));

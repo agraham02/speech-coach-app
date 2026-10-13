@@ -50,12 +50,14 @@ export function ConversationLogScreen({ navigation }: Props) {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
+            const before = events;
+            setEvents((prev) => prev?.filter((e) => e.id !== event.id) ?? prev);
             try {
               await deleteEvent(event.id);
-              setEvents((prev) => prev?.filter((e) => e.id !== event.id) ?? prev);
               showGlobalToast("Deleted", "success");
             } catch (error) {
               logger.error(`[conversation-log] delete failed — ${(error as Error).message}`);
+              setEvents(before);
               showGlobalToast("Couldn't delete that — try again", "error");
             }
           },

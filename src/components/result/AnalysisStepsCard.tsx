@@ -2,15 +2,19 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Card } from "../common/Card";
 import { STEP_LABELS, type SessionStep, type StepState } from "../../domain/sessionSteps";
-import { radii, spacing, typography } from "../../theme/theme";
+import { currentProvider } from "../../services/cloud/providers";
+import { radii, spacing, typography, font } from "../../theme/theme";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
-const VISIBLE_STEPS: SessionStep[] = ["transcribe", "audio_metrics", "presence", "coach", "cloud_review", "notion"];
+const VISIBLE_STEPS: SessionStep[] = ["transcribe", "audio_metrics", "presence", "coach", "cloud_review"];
 
-const OPTIONAL_DESCRIPTIONS: Partial<Record<SessionStep, string>> = {
-  cloud_review: "Gemini scores structure, delivery and presence. Uploads the video.",
-  notion: "Add the clean transcript to today's journal page.",
-};
+// What "Get" would do, for the provider chosen in Settings.
+function cloudReviewDescription(): string {
+  const provider = currentProvider();
+  return provider.input === "video"
+    ? `${provider.name} scores structure, delivery and presence from the video. Your own key.`
+    : `${provider.name} scores your transcript and the phone's measurements. Your own key.`;
+}
 
 interface Props {
   steps: StepState[];
@@ -24,7 +28,7 @@ export function AnalysisStepsCard({ steps, onRun, disabledReason = {} }: Props) 
   const byStep = new Map(steps.map((s) => [s.step, s]));
   return (
     <Card style={styles.card}>
-      <Text style={styles.label}>ANALYSIS</Text>
+      <Text style={styles.label}>Analysis</Text>
       {VISIBLE_STEPS.map((step) => {
         const state = byStep.get(step);
         if (!state) return null;
@@ -49,8 +53,8 @@ function StepRow({ state, onRun, disabledReason }: { state: StepState; onRun: ()
 
   switch (status) {
     case "done":
-      detail = step === "notion" ? "Sent to your journal" : "Done";
-      action = step === "cloud_review" ? "Run again" : step === "notion" ? null : "Re-run";
+      detail = "Done";
+      action = step === "cloud_review" ? "Run again" : "Re-run";
       icon = "checkmark-circle";
       tint = colors.success;
       break;
@@ -74,8 +78,8 @@ function StepRow({ state, onRun, disabledReason }: { state: StepState; onRun: ()
       tint = colors.danger;
       break;
     default:
-      detail = OPTIONAL_DESCRIPTIONS[step] ?? "Not run";
-      action = step === "cloud_review" ? "Get" : step === "notion" ? "Send" : "Run";
+      detail = step === "cloud_review" ? cloudReviewDescription() : "Not run";
+      action = step === "cloud_review" ? "Get" : "Run";
       icon = "add-circle-outline";
       tint = colors.textMuted;
   }
@@ -106,13 +110,13 @@ function StepRow({ state, onRun, disabledReason }: { state: StepState; onRun: ()
 
 const useStyles = makeStyles(({ colors }) => ({
   card: { gap: spacing.md },
-  label: { color: colors.textMuted, fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 1 },
+  label: { color: colors.textMuted, fontSize: 13, ...font("600") },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   text: { flex: 1, gap: 2 },
-  title: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "600" },
-  detail: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },
+  title: { color: colors.textPrimary, fontSize: typography.body, ...font("600") },
+  detail: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },
   detailError: { color: colors.danger },
   action: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2, borderRadius: radii.pill, backgroundColor: colors.accentMuted },
   actionDisabled: { opacity: 0.4 },
-  actionText: { color: colors.accent, fontSize: typography.caption, fontWeight: "700" },
+  actionText: { color: colors.accent, fontSize: typography.caption, ...font("700") },
 }));

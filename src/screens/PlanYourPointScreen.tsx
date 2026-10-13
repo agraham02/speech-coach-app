@@ -4,8 +4,9 @@ import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
+import { Header } from "../components/common/Header";
 import { PrimaryButton } from "../components/common/PrimaryButton";
-import { radii, spacing, typography } from "../theme/theme";
+import { radii, spacing, typography, font, fontDisplay } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "PlanYourPoint">;
@@ -31,18 +32,8 @@ export function PlanYourPointScreen({ route, navigation }: Props) {
 
   return (
     <ScreenContainer style={styles.container}>
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Close"
-        >
-          <Ionicons name="close" size={24} color={colors.textPrimary} />
-        </Pressable>
-        <Text style={styles.title}>Plan Your Point</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <Header title="Plan your point" onBack={() => navigation.goBack()} backIcon="close"
+      />
 
       <Text style={styles.subtitle}>
         Quickly sketch your PREP before you record — Point, Reason, Example, Point again. Skip any of it and start
@@ -58,7 +49,7 @@ export function PlanYourPointScreen({ route, navigation }: Props) {
       <View style={styles.field}>
         <Text style={styles.label}>Point</Text>
         <Text style={styles.hint}>The one thing you want them to remember.</Text>
-        <TextInput
+        <TextInput maxLength={280}
           style={styles.textArea}
           value={point}
           onChangeText={setPoint}
@@ -73,7 +64,7 @@ export function PlanYourPointScreen({ route, navigation }: Props) {
       <View style={styles.field}>
         <Text style={styles.label}>Reason</Text>
         <Text style={styles.hint}>Why does that point matter?</Text>
-        <TextInput
+        <TextInput maxLength={280}
           style={styles.textArea}
           value={reason}
           onChangeText={setReason}
@@ -88,7 +79,7 @@ export function PlanYourPointScreen({ route, navigation }: Props) {
       <View style={styles.field}>
         <Text style={styles.label}>Example</Text>
         <Text style={styles.hint}>A concrete example or story that backs it up.</Text>
-        <TextInput
+        <TextInput maxLength={280}
           style={styles.textArea}
           value={example}
           onChangeText={setExample}
@@ -110,23 +101,20 @@ const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   headerSpacer: { width: 24 },
-  title: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
-  subtitle: { color: colors.textSecondary, fontSize: typography.body, lineHeight: 20 },
+  title: { color: colors.textPrimary, fontSize: typography.title, ...font("700") },
+  subtitle: { ...font("400"), color: colors.textSecondary, fontSize: typography.body, lineHeight: 20 },
   promptPreview: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: radii.md,
     padding: spacing.md,
   },
-  promptPreviewText: { color: colors.textSecondary, fontSize: typography.body, fontStyle: "italic" },
+  promptPreviewText: { fontFamily: fontDisplay.spoken, color: colors.textPrimary, fontSize: 19, lineHeight: 26, letterSpacing: -0.2 },
   field: { gap: spacing.xs },
-  label: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "700", letterSpacing: 0.4 },
-  hint: { color: colors.textMuted, fontSize: typography.caption },
+  label: { color: colors.textSecondary, fontSize: 13, ...font("600") },
+  hint: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
   textArea: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    ...font("400"),
+    backgroundColor: colors.surfaceRaised,
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,

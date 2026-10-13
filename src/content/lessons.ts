@@ -42,10 +42,14 @@ export const UNITS: Unit[] = [
   { id: "art_speed", skill: "articulation", title: "Speed with clarity", summary: "Stay crisp as the pace goes up." },
   { id: "cad_pace", skill: "cadence", title: "Find your pace", summary: "A speed people can follow — and the control to change it." },
   { id: "cad_pause", skill: "cadence", title: "The power of the pause", summary: "Silence as a tool, not a gap to fill." },
-  { id: "cad_melody", skill: "cadence", title: "Melody and emphasis", summary: "Pitch and stress that carry meaning." },
+  { id: "cad_pitch", skill: "cadence", title: "Pitch", summary: "Where your voice goes at the end of a phrase — and using all of it." },
+  { id: "cad_rhythm", skill: "cadence", title: "Rhythm", summary: "Short and long, fast and slow — the beat that keeps people listening." },
+  { id: "cad_melody", skill: "cadence", title: "Emphasis", summary: "Stress the word that carries the meaning." },
+  { id: "cad_score", skill: "cadence", title: "Put it together", summary: "Mark a line yourself — pause, pace, pitch, rhythm, stress — then say it." },
   { id: "imp_start", skill: "impromptu", title: "Just start talking", summary: "Faster word retrieval and fewer stalls — the mind-mouth link." },
   { id: "imp_structure", skill: "impromptu", title: "Structure on the fly", summary: "Frameworks that organize an answer as you give it." },
   { id: "imp_feet", skill: "impromptu", title: "Think on your feet", summary: "Stories, surprises and follow-up questions." },
+  { id: "con_breath", skill: "confidence", title: "Breath support", summary: "Breath that steadies your pace, carries your volume and calms your voice." },
   { id: "con_nerves", skill: "confidence", title: "Reframe the nerves", summary: "Turn adrenaline into energy instead of fighting it." },
   { id: "con_authority", skill: "confidence", title: "Voice of authority", summary: "Volume, statements, and endings that land." },
   { id: "con_presence", skill: "confidence", title: "Eye contact and face", summary: "Talk to a person, not a phone." },
@@ -82,7 +86,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "The ends of words carry a surprising amount of meaning — 'cap' vs 'cab', 'right' vs 'ride'. Dropping final consonants is the most common reason clear speakers still sound unclear.",
       how: ["Land the last sound of every word", "Feel the release on t, d, k, p", "Slow down slightly on the last word of each sentence"],
-      source: "Speech-clarity practice (minimal pairs)",
+      source: "Ladefoged & Johnson, phonetics; minimal pairs",
     },
     steps: [
       { kind: "drill", drill: "minimal_pairs", contentId: "mp_final" },
@@ -98,7 +102,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "S is made with the tongue tip just behind the teeth; SH pulls the tongue back and rounds the lips. Rush them and 'sell' becomes 'shell'. The microphone hears the difference — so does your listener.",
       how: ["S: smile slightly, tongue tip forward", "SH: round the lips, tongue pulled back", "Practice the pair slowly before the twister"],
-      source: "Articulatory phonetics; minimal-pair training",
+      source: "Ladefoged & Johnson, phonetics; minimal-pair training",
     },
     steps: [
       { kind: "drill", drill: "minimal_pairs", contentId: "mp_s_sh" },
@@ -114,7 +118,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "L touches the tongue tip to the ridge behind your teeth; R never touches anything — the tongue pulls back and the lips round a little. Mixing them is common under speed.",
       how: ["L: tongue tip up and touching", "R: tongue back, touching nothing", "Alternate slowly: right–light, rock–lock"],
-      source: "Articulatory phonetics; minimal-pair training",
+      source: "Ladefoged & Johnson, phonetics; minimal-pair training",
     },
     steps: [
       { kind: "drill", drill: "minimal_pairs", contentId: "mp_r_l" },
@@ -130,7 +134,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "TH is the only English sound where the tongue comes forward between the teeth. Skip that and 'three' becomes 'tree' or 'free'.",
       how: ["Let the tongue tip peek between your teeth", "Push air over it — it's a soft hiss", "Then move straight to the next sound"],
-      source: "Articulatory phonetics; minimal-pair training",
+      source: "Ladefoged & Johnson, phonetics; minimal-pair training",
     },
     steps: [
       { kind: "drill", drill: "minimal_pairs", contentId: "mp_th" },
@@ -146,7 +150,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "Clarity that only exists at slow speed won't survive a real conversation. Building speed gradually — while staying accurate — trains the muscles to keep up with your thoughts.",
       how: ["Nail it slowly first", "Speed up one notch at a time", "Back off the moment words start to blur"],
-      source: "Motor-learning principle: accuracy before speed",
+      source: "Schmidt & Lee, motor learning — accuracy before speed",
     },
     steps: [
       { kind: "warmup", warmupId: "wu_articulators" },
@@ -209,6 +213,45 @@ export const LESSONS: Lesson[] = [
     steps: [{ kind: "drill", drill: "pause_reading" }, { kind: "guided", guidedId: "gd_power_pause" }],
   },
   {
+    id: "cad_7_inflection",
+    skill: "cadence",
+    unitId: "cad_pitch",
+    title: "Up or down?",
+    minutes: 4,
+    teach: {
+      why: "Where your pitch goes at the end of a phrase tells people what you mean. Falling sounds finished and sure; rising asks for a reply or says there's more coming. Rising at the end of statements — upspeak — turns every point into a question.",
+      how: ["End statements with a fall ↘", "Let yes/no questions rise ↗ (wh- questions fall)", "In a list, rise on every item but the last"],
+      source: "Wells, English Intonation; Vinh Giang — pitch and melody",
+    },
+    steps: [{ kind: "guided", guidedId: "gd_inflection" }, { kind: "drill", drill: "marked_reading", contentId: "cat:questions" }],
+  },
+  {
+    id: "cad_8_range",
+    skill: "cadence",
+    unitId: "cad_pitch",
+    title: "Use your whole range",
+    minutes: 4,
+    teach: {
+      why: "Most 'monotone' voices aren't monotone — they're under-used. Big physical movement pushes your pitch and loudness around without you thinking about it, and some of that energy stays when you stop moving.",
+      how: ["Exaggerate more than feels natural", "Let the movement land on the key word", "Then say it standing still — and keep the energy"],
+      source: "Laban effort actions (actor voice training); Pouw et al. (2020), gesture–speech physics",
+    },
+    steps: [{ kind: "drill", drill: "move_it" }, { kind: "rep", focus: "Let your pitch move — more than feels natural.", seconds: 60 }],
+  },
+  {
+    id: "cad_9_rhythm",
+    skill: "cadence",
+    unitId: "cad_rhythm",
+    title: "Vary the beat",
+    minutes: 4,
+    teach: {
+      why: "Rhythm is the pattern of short and long. All long sentences drone; all short ones sound like a list being read out. Mixing them — a short line right after a long one — is what makes people keep listening.",
+      how: ["Follow a long sentence with a short one", "Group ideas in threes: rise, rise, fall", "Move quickly through the setup, slow down for the point"],
+      source: "Classical rhetoric (tricolon); Vinh Giang — rate of speech",
+    },
+    steps: [{ kind: "guided", guidedId: "gd_rhythm" }, { kind: "drill", drill: "marked_reading", contentId: "cat:lists" }],
+  },
+  {
     id: "cad_5_emphasis",
     skill: "cadence",
     unitId: "cad_melody",
@@ -230,9 +273,35 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "Echoing a speaker's rhythm and melody right after them trains prosody faster than reading alone — it's one of the best-supported fluency techniques.",
       how: ["Listen to the whole line once", "Repeat it immediately, copying the rhythm", "Match the pauses, not just the words"],
-      source: "Shadowing research (prosody and fluency)",
+      source: "Foote & McDonough (2017), shadowing",
     },
     steps: [{ kind: "drill", drill: "shadowing" }, { kind: "drill", drill: "shadowing" }],
+  },
+  {
+    id: "cad_10_move",
+    skill: "cadence",
+    unitId: "cad_melody",
+    title: "Move it to mean it",
+    minutes: 4,
+    teach: {
+      why: "Gesture and stress are wired together: when your hand lands on a word, your voice lands on it too. Practice with the movement, then keep the stress without it.",
+      how: ["Punch or point on the word that matters", "Keep the rest of the line relaxed", "Then read it still — the stress should stay"],
+      source: "Krahmer & Swerts (2007), visual beats and prosodic prominence",
+    },
+    steps: [{ kind: "drill", drill: "move_it" }, { kind: "drill", drill: "marked_reading", contentId: "cat:contrast" }],
+  },
+  {
+    id: "cad_11_markup",
+    skill: "cadence",
+    unitId: "cad_score",
+    title: "Score your own lines",
+    minutes: 5,
+    teach: {
+      why: "Actors and newsreaders mark their scripts before they read them: where to pause, what to stress, where the pitch goes. Marking a line yourself makes you decide what it means — and then saying it well is easy. Bring your own from Library → Mark it up → Mine.",
+      how: ["A pause at every comma and full stop", "One stressed word per phrase — the news", "Read it marked, then without the marks"],
+      source: "Script marking in broadcast and stage training",
+    },
+    steps: [{ kind: "drill", drill: "marked_reading" }, { kind: "drill", drill: "marked_reading", contentId: "cat:quotes" }],
   },
 
   // ---------------- Impromptu ----------------
@@ -247,7 +316,20 @@ export const LESSONS: Lesson[] = [
       how: ["Say the first word that comes — no editing", "Jump to a sub-group when you stall (pets → farm animals)", "Keep your mouth moving"],
       source: "Verbal-fluency training (category naming)",
     },
-    steps: [{ kind: "drill", drill: "category_fluency" }, { kind: "drill", drill: "letter_fluency" }],
+    steps: [{ kind: "drill", drill: "category_fluency" }, { kind: "drill", drill: "letter_fluency" }, { kind: "drill", drill: "word_chain" }],
+  },
+  {
+    id: "imp_chain",
+    skill: "impromptu",
+    unitId: "imp_start",
+    title: "Keep the thread",
+    minutes: 4,
+    teach: {
+      why: "In conversation every reply has to connect to what was just said — that's where blanks happen. A word chain trains exactly that jump: from this word to the next related one, fast, without editing.",
+      how: ["Say the first link that comes — weird ones count", "If you blank, take the fresh word and keep going", "Then say why each link connects"],
+      source: "Verbal-fluency and free-association training",
+    },
+    steps: [{ kind: "drill", drill: "word_chain" }, { kind: "drill", drill: "chain_bridge" }, { kind: "rep", focus: "Make every sentence connect to the one before it." }],
   },
   {
     id: "imp_2_minute",
@@ -258,7 +340,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "Fluency is a habit of continuing. Speaking for a set time without stalling trains you to keep a sentence going while your brain finds the next idea.",
       how: ["Start before you feel ready", "Use short sentences — they're easier to finish", "Pause between thoughts, never inside one"],
-      source: "BBC 'Just a Minute' format; fluency practice",
+      source: "Inspired by BBC Radio 4's 'Just a Minute'; fluency practice",
     },
     steps: [{ kind: "drill", drill: "just_a_minute" }, { kind: "drill", drill: "category_fluency" }],
   },
@@ -310,7 +392,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "Forcing unrelated words into a story trains your brain to connect ideas on the spot — the core of thinking on your feet. 'Yes, and' instead of 'wait, let me think'.",
       how: ["Start the story immediately", "Introduce each word as soon as it fits", "Give it an ending, even a silly one"],
-      source: "Improv training ('yes, and')",
+      source: "Johnstone, Impro ('yes, and')",
     },
     steps: [{ kind: "drill", drill: "random_word_story" }, { kind: "rep", framework: "StoryArc", focus: "Tell it as a story: setup, turn, ending." }],
   },
@@ -330,6 +412,75 @@ export const LESSONS: Lesson[] = [
 
   // ---------------- Confidence ----------------
   {
+    id: "con_2_breath",
+    skill: "confidence",
+    unitId: "con_breath",
+    title: "Breathe low",
+    minutes: 4,
+    teach: {
+      why: "A thin or shaky voice usually starts with shallow breaths high in the chest. Breathing low — belly and lower ribs moving, shoulders still — gives your voice a steady supply of air, and the belly muscles that power speech something to work with.",
+      how: ["Feet planted, shoulders down and loose", "Breathe in through your nose — belly out, chest still", "Start speaking on the out-breath, not after holding it"],
+      source: "Hoit et al. (1988), the belly muscles in speech; Linklater, Freeing the Natural Voice",
+    },
+    steps: [{ kind: "warmup", warmupId: "wu_low_breath" }, { kind: "drill", drill: "breath_count" }],
+  },
+  {
+    id: "con_b2_phrase",
+    skill: "confidence",
+    unitId: "con_breath",
+    title: "One breath, one phrase",
+    minutes: 4,
+    teach: {
+      why: "Natural speakers breathe at the ends of phrases and sentences, not in the middle of them. Run out of air mid-thought and you rush the end; top up at every pause and your pace evens out, and every sentence gets a full finish.",
+      how: ["Breathe at full stops and commas — that's where pauses go anyway", "Take a quick, quiet sip through your nose", "Top up early instead of pushing to the last drop"],
+      source: "Winkworth et al. (1995), breathing in spontaneous speech; Vinh Giang — the power of the pause",
+    },
+    steps: [{ kind: "guided", guidedId: "gd_phrase_breath" }, { kind: "drill", drill: "pause_reading" }],
+  },
+  {
+    id: "con_b3_steady",
+    skill: "confidence",
+    unitId: "con_breath",
+    title: "Steady air",
+    minutes: 4,
+    teach: {
+      why: "Breath control is about letting air out slowly and evenly, not about how much you can take in. A steady out-breath keeps your voice even to the end of a long sentence — and stops you speeding up as you run low.",
+      how: ["Breathe low, then let it out on a soft, even “sss”", "Keep the hiss the same strength from start to finish", "Count at an easy pace — rushing is cheating"],
+      source: "Linklater, Freeing the Natural Voice; voice warm-up practice",
+    },
+    steps: [{ kind: "warmup", warmupId: "wu_hiss" }, { kind: "drill", drill: "breath_count" }],
+  },
+  {
+    id: "con_b4_volume",
+    skill: "confidence",
+    unitId: "con_breath",
+    title: "Breath behind the volume",
+    minutes: 4,
+    teach: {
+      why: "Louder speech is powered by breath, not by squeezing your throat. When people speak up, they take bigger breaths and use more of them. Support the volume from below and your voice carries without sounding strained.",
+      how: ["Take a fuller, low breath before a loud sentence", "Feel your belly firm up as you speak, like a gentle cough", "Keep your throat and jaw loose — let the air do the work"],
+      source: "Winkworth & Davis (1997), speech breathing and loudness; Vinh Giang — volume",
+    },
+    steps: [{ kind: "guided", guidedId: "gd_breath_volume" }, { kind: "drill", drill: "projection" }],
+  },
+  {
+    id: "con_b5_calm",
+    skill: "confidence",
+    unitId: "con_breath",
+    title: "Calm in a minute",
+    minutes: 4,
+    teach: {
+      why: "Slow breaths with long out-breaths settle a racing heart before you speak. In a month-long study, five minutes a day of “cyclic sighing” — two breaths in, one long breath out — improved mood more than mindfulness meditation did.",
+      how: ["Breathe in through your nose, then sip in a little more", "Let it all out slowly — longer than the breath in", "After a few rounds, start your first sentence on an out-breath"],
+      source: "Balban et al. (2023), cyclic sighing",
+    },
+    steps: [
+      { kind: "warmup", warmupId: "wu_sigh" },
+      { kind: "guided", guidedId: "gd_breath_reset" },
+      { kind: "rep", focus: "Start on an out-breath — calm and unhurried.", seconds: 60 },
+    ],
+  },
+  {
     id: "con_1_excited",
     skill: "confidence",
     unitId: "con_nerves",
@@ -341,19 +492,6 @@ export const LESSONS: Lesson[] = [
       source: "Brooks (2014), anxiety reappraisal",
     },
     steps: [{ kind: "guided", guidedId: "gd_reappraisal" }, { kind: "rep", focus: "Start with energy. Use the adrenaline.", seconds: 60 }],
-  },
-  {
-    id: "con_2_breath",
-    skill: "confidence",
-    unitId: "con_nerves",
-    title: "Breath and posture",
-    minutes: 3,
-    teach: {
-      why: "A shaky voice usually comes from shallow breathing. Slow belly breaths calm the body and give your voice a steady supply of air.",
-      how: ["Feet planted, shoulders down", "Breathe low into your belly", "Start your first sentence on an out-breath"],
-      source: "Voice training; box breathing",
-    },
-    steps: [{ kind: "warmup", warmupId: "wu_breath" }, { kind: "warmup", warmupId: "wu_resonance" }],
   },
   {
     id: "con_3_project",
@@ -377,7 +515,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "'I think', 'kind of', 'maybe' and 'just' soften every claim until nothing lands. Say it as a statement — you can add nuance once, on purpose.",
       how: ["Cut 'I think' from the start of sentences", "Replace 'kind of' with the precise word", "End on the claim, not a qualifier"],
-      source: "Persuasion and powerful-speech research",
+      source: "Blankenship & Holtgraves (2005), powerless speech",
     },
     steps: [{ kind: "rep", framework: "PREP", focus: "No hedges: state your view plainly." }],
   },
@@ -667,7 +805,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "People rated funniest in conversations often aren't the ones making jokes — they're the ones laughing and reacting. Showing you heard something is most of what makes talk feel fun.",
       how: ["Let the reaction out: a laugh, a “no way”", "Say what struck you", "Don't hunt for a punchline"],
-      source: "Brooks, TALK (levity); humor research",
+      source: "Brooks, Talk (levity)",
     },
     steps: [{ kind: "drill", drill: "conv_react" }, { kind: "drill", drill: "conv_react" }],
   },
@@ -680,7 +818,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "A callback — bringing back something said earlier — is the easiest kind of wit. It doesn't need a clever line, only attention: you noticed, you remembered, you brought it back.",
       how: ["Notice a vivid detail", "Hold onto it", "Bring it back later in a new context"],
-      source: "Improv and comedy craft",
+      source: "Johnstone, Impro; improv and comedy craft",
     },
     steps: [{ kind: "drill", drill: "callback" }],
   },
@@ -693,7 +831,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "Taking something ordinary and blowing it up a little — “so your cat is planning a heist” — is a gentle, low-risk kind of humor. It shows you're playing along.",
       how: ["Find the odd detail", "Make it a little bigger", "Keep it kind"],
-      source: "Improv ('yes, and'); humor training studies",
+      source: "Johnstone, Impro ('yes, and'); Tagalidou et al. (2018), humor training",
     },
     steps: [{ kind: "guided", guidedId: "gd_exaggerate" }, { kind: "drill", drill: "conv_react" }],
   },
@@ -736,6 +874,36 @@ export const GUIDED: GuidedExercise[] = [
     ratingQuestion: "How energized (vs anxious) do you feel now?",
   },
   {
+    id: "gd_phrase_breath",
+    title: "One breath, one phrase",
+    steps: [
+      "Read this out loud: “When you speak, | breathe at the pauses, | not in the middle of a thought. || Each phrase gets its own breath, | and each sentence gets a full finish.”",
+      "At every bar, take a quick, quiet sip of air through your nose.",
+      "Read it again a little slower, making sure no phrase runs out of air before its last word.",
+    ],
+    ratingQuestion: "How easily did each phrase finish on its own breath?",
+  },
+  {
+    id: "gd_breath_volume",
+    title: "Breath behind the volume",
+    steps: [
+      "Put a hand on your belly. Say “Hey!” as if calling someone across a room — feel your belly firm up under your hand.",
+      "Now say a whole sentence at that volume: “I'd like to start with the most important part.” Keep the push going to the last word.",
+      "Once more, louder, with a bigger breath first — throat loose, no straining.",
+    ],
+    ratingQuestion: "How well did your volume hold up to the end of the sentence?",
+  },
+  {
+    id: "gd_breath_reset",
+    title: "Reset before you speak",
+    steps: [
+      "Two calming sighs: breathe in, sip in a little more, then one long breath out.",
+      "Feel your feet on the floor and let your shoulders drop.",
+      "On your next out-breath, say an opening line out loud: “Thanks for having me — let me start with a quick story.”",
+    ],
+    ratingQuestion: "How steady did your voice feel on that first line?",
+  },
+  {
     id: "gd_power_pause",
     title: "The power pause",
     steps: [
@@ -765,6 +933,28 @@ export const GUIDED: GuidedExercise[] = [
       "Then try: \"We need to finish this today.\" — stress 'need', then 'this', then 'today'.",
     ],
     ratingQuestion: "How distinct did each version sound?",
+  },
+  {
+    id: "gd_inflection",
+    title: "Statement or question?",
+    skill: "cadence",
+    steps: [
+      "Say “You finished it.” with your pitch falling at the end — a statement. Then again rising — now it's a question.",
+      "Say “We're meeting at six.” both ways. Notice how the rising one sounds unsure.",
+      "Now a list: “Bread, milk, and eggs.” Rise on bread, rise on milk, fall on eggs.",
+    ],
+    ratingQuestion: "How clearly could you hear the difference between up and down?",
+  },
+  {
+    id: "gd_rhythm",
+    title: "Choppy, flowing, mixed",
+    skill: "cadence",
+    steps: [
+      "Say this in short, choppy bursts: “I woke up. It was raining. I missed the bus. I walked.”",
+      "Now as one long flowing sentence: “I woke up to rain, missed the bus, and ended up walking the whole way in.”",
+      "Now mix them: “I woke up to rain, missed the bus, and walked the whole way in. Soaked. Completely soaked.”",
+    ],
+    ratingQuestion: "How much did the mixed version beat the other two?",
   },
   {
     id: "gd_emotion_read",

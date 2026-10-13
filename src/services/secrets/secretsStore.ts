@@ -1,4 +1,5 @@
 import * as SecureStore from "expo-secure-store";
+import type { ProviderId } from "../cloud/providers";
 
 // Keychain (iOS) / Keystore (Android) backed storage for the API secrets
 // this app needs — deliberately separate from services/prefs/prefsStore.ts
@@ -7,10 +8,24 @@ import * as SecureStore from "expo-secure-store";
 // to be via app.config.ts's extra block.
 const KEYS = {
   geminiApiKey: "geminiApiKey",
-  notionToken: "notionToken",
-  notionPageId: "notionPageId",
-  assemblyAiApiKey: "assemblyAiApiKey",
 } as const;
+
+// One key per deep-review provider (services/cloud/providers.ts). Gemini
+// keeps its original item name so existing keys carry over.
+const PROVIDER_KEYS: Record<ProviderId, string> = {
+  gemini: KEYS.geminiApiKey,
+  openai: "openaiApiKey",
+  anthropic: "anthropicApiKey",
+  openrouter: "openrouterApiKey",
+};
+
+export function getProviderKey(id: ProviderId): Promise<string | null> {
+  return getSecret(PROVIDER_KEYS[id]);
+}
+
+export function setProviderKey(id: ProviderId, value: string): Promise<void> {
+  return setSecret(PROVIDER_KEYS[id], value);
+}
 
 async function getSecret(key: string): Promise<string | null> {
   return SecureStore.getItemAsync(key);
@@ -35,29 +50,12 @@ export function setGeminiApiKey(value: string): Promise<void> {
   return setSecret(KEYS.geminiApiKey, value);
 }
 
-export function getNotionToken(): Promise<string | null> {
-  return getSecret(KEYS.notionToken);
-}
 
-export function setNotionToken(value: string): Promise<void> {
-  return setSecret(KEYS.notionToken, value);
-}
+// Secrets for features that no longer exist (the Notion journal and
+// AssemblyAI transcription, both removed 2026-10-12). Deleting a missing
+// item is a no-op, so this runs on every launch.
+const REMOVED_SECRETS = ["notionToken", "notionPageId", "assemblyAiApiKey"];
 
-export function getNotionPageId(): Promise<string | null> {
-  return getSecret(KEYS.notionPageId);
-}
-
-export function setNotionPageId(value: string): Promise<void> {
-  return setSecret(KEYS.notionPageId, value);
-}
-
-// Only ever read when the opt-in "Use cloud transcription" toggle is on
-// (see SettingsScreen.tsx / prefsStore.ts's assemblyAiEnabled) — this key
-// existing does not by itself turn on the paid path.
-export function getAssemblyAiApiKey(): Promise<string | null> {
-  return getSecret(KEYS.assemblyAiApiKey);
-}
-
-export function setAssemblyAiApiKey(value: string): Promise<void> {
-  return setSecret(KEYS.assemblyAiApiKey, value);
+export async function deleteRemovedSecrets(): Promise<void> {
+  await Promise.all(REMOVED_SECRETS.map((key) => SecureStore.deleteItemAsync(key)));
 }

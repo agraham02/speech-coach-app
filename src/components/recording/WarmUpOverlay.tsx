@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useCountdownTimer } from "../../hooks/useCountdownTimer";
 import type { WarmUpStep } from "../../domain/warmUpRoutine";
-import { darkColors as colors, radii, spacing, typography } from "../../theme/theme";
+import { darkColors as colors, radii, spacing, typography, font } from "../../theme/theme";
 
 interface WarmUpOverlayProps {
   steps: WarmUpStep[];
@@ -137,13 +137,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm + 2,
     borderRadius: radii.pill,
   },
-  skipAllText: { color: colors.textPrimary, fontSize: typography.caption, fontWeight: "600" },
+  skipAllText: { color: colors.textPrimary, fontSize: typography.caption, ...font("600") },
   top: { gap: spacing.sm, paddingHorizontal: spacing.xl, alignItems: "center", marginTop: spacing.xl },
-  label: { color: colors.accent, fontSize: typography.caption, fontWeight: "700", letterSpacing: 1 },
-  instruction: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "600", textAlign: "center" },
+  label: { color: colors.accent, fontSize: 13, ...font("600") },
+  instruction: { color: colors.textPrimary, fontSize: typography.title, ...font("600"), textAlign: "center" },
   // Deliberately smaller/softer than `instruction` — the "why" belongs to
   // this line now, not nested as jargon inside the instruction itself.
-  explain: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18, textAlign: "center" },
+  explain: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18, textAlign: "center" },
   countdownWrap: {
     width: 140,
     height: 140,
@@ -154,12 +154,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "rgba(0,0,0,0.4)",
   },
-  countdown: { color: colors.textPrimary, fontSize: 56, fontWeight: "300", fontVariant: ["tabular-nums"] },
+  countdown: { color: colors.textPrimary, fontSize: 56, ...font("300"), fontVariant: ["tabular-nums"] },
   skipButton: {
     backgroundColor: "rgba(0,0,0,0.55)",
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm + 2,
     borderRadius: radii.pill,
   },
-  skipText: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "600" },
+  skipText: { color: colors.textPrimary, fontSize: typography.body, ...font("600") },
 });

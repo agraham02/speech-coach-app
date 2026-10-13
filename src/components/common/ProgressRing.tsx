@@ -4,6 +4,7 @@ import { StyleSheet, View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 import Animated, { useAnimatedProps, useSharedValue, withTiming } from "react-native-reanimated";
 import { useTheme } from "../../theme/ThemeProvider";
+import { easeOut } from "../../theme/motion";
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -16,28 +17,20 @@ interface ProgressRingProps {
   children?: ReactNode;
 }
 
-// A circular SVG progress indicator — used for both the Result screen's
-// overall-score reveal and the recording countdown ring, so "how full is the
-// ring" always means the same thing (a fraction of some total) across the
-// app instead of two different bespoke visualizations.
-export function ProgressRing({
-  size,
-  strokeWidth = 8,
-  progress,
-  color,
-  trackColor,
-  children,
-}: ProgressRingProps) {
+// A circular progress indicator — the Result screen's score, the skill
+// rings, the recording countdown. It fills from empty on mount and eases to
+// each new value, so "how full is the ring" always reads as progress.
+export function ProgressRing({ size, strokeWidth = 6, progress, color, trackColor, children }: ProgressRingProps) {
   const { colors } = useTheme();
   const stroke = color ?? colors.accent;
   const track = trackColor ?? colors.surfaceRaised;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const clamped = Math.max(0, Math.min(1, progress));
-  const animatedProgress = useSharedValue(clamped);
+  const animatedProgress = useSharedValue(0);
 
   useEffect(() => {
-    animatedProgress.value = withTiming(clamped, { duration: 700 });
+    animatedProgress.value = withTiming(clamped, { duration: 900, easing: easeOut });
   }, [clamped, animatedProgress]);
 
   const animatedProps = useAnimatedProps(() => ({

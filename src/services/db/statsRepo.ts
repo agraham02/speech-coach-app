@@ -53,7 +53,7 @@ export async function getScoredSessionSummaries(): Promise<ScoredSessionSummary[
             sc.archetype_detected, sc.annotations_json
      FROM sessions s
      JOIN scores sc ON sc.session_id = s.id
-     WHERE s.status = 'done' AND s.deleted_at IS NULL AND s.session_type != 'script_practice'
+     WHERE s.status = 'done' AND s.deleted_at IS NULL AND s.session_type NOT IN ('script_practice', 'feeling')
      ORDER BY s.recorded_at ASC`,
   );
   return rows.map(toSummary);

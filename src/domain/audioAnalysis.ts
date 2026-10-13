@@ -24,7 +24,7 @@ const DECODE_TIMEOUT_MS = 30_000;
 
 // Single shared decode step for a recorded session's video file. Never
 // throws — callers get `null` on failure (or timeout) and degrade
-// accordingly (ASR falls back to Gemini/AssemblyAI transcription, DSP marks
+// accordingly (ASR falls back to the deep review's transcription, DSP marks
 // dsp_status='failed').
 export async function decodeVideoAudio(videoUri: string): Promise<DecodedAudio | null> {
   try {

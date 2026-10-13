@@ -7,7 +7,7 @@ This build has a **Dev** tab (bug icon). If anything fails or looks odd: Dev →
 ---
 
 ## 0. First launch
-- [ ] App opens to **Today** with 4 tabs + Dev (Today, Learn, Progress, Library, Dev)
+- [ ] App opens to **Today** with 4 tabs + Dev (Today, Learn, Library, You, Dev)
   Notes:
 - [ ] Mic, speech recognition and camera permission prompts appear when first needed and the app works after you tap Allow (no "denied" state right after granting)
   Notes:
@@ -117,14 +117,16 @@ Open Learn → Articulation → a lesson with a twister, or Practice something e
 - [ ] Without a key, nothing tries to call Gemini and the take still completes
   Notes:
 
-## 9. Library, Progress, Settings
+## 9. Library, You (Progress and Settings)
 - [ ] **Library**: recordings open to Result, script titles show (not "Unknown prompt"), video thumbnails/playback work
   Notes:
-- [ ] **Progress**: skill mastery, streak calendar, charts, and "This week vs last week" render sensibly
+- [ ] **You → See all progress**: skill mastery, streak calendar (frozen days marked), charts, and "This week vs last week" render sensibly; the back button returns to You
   Notes:
-- [ ] **Settings → Data**: Export opens the iOS share sheet with a `.db` file you can save to Files
+- [ ] **You → Settings**: each row (Practice, Goal & reminders, Coaching & AI, Deep reviews, Help & data) opens its section; the hour dropdowns float without moving rows and keep session 2 after session 1
   Notes:
-- [ ] Settings → Data: video storage size shown; "Delete videos older than 30 days" asks to confirm
+- [ ] **Settings → Help & data**: Export opens the iOS share sheet with a `.db` file you can save to Files
+  Notes:
+- [ ] Settings → Help & data: video storage size shown; "Delete videos older than 30 days" asks to confirm
   Notes:
 - [ ] Old videos from earlier builds still play (only if you had sessions before)
   Notes:
@@ -136,7 +138,7 @@ Open Learn → Articulation → a lesson with a twister, or Practice something e
   Notes:
 - [ ] Camera/recording screens stay dark in both modes
   Notes:
-- [ ] Switch system light/dark from Control Center **while the app is open**: every screen should change colour immediately, in place (no reload, you stay on the same screen). Check Today, Learn, Progress, Library, a Result, Settings, a running drill, and the tab bar
+- [ ] Switch system light/dark from Control Center **while the app is open**: every screen should change colour immediately, in place (no reload, you stay on the same screen). Check Today, Learn, Library, You, Progress, a Result, Settings, a running drill, and the tab bar
   Notes:
 - [ ] Switch it while a **modal** (Settings) or an **alert** is open, and again while a drill is listening: nothing should crash or lose state
   Notes:
@@ -147,6 +149,26 @@ Open Learn → Articulation → a lesson with a twister, or Practice something e
 - [ ] Dev tab opens; **Share logs** produces a text file
   Notes:
 - [ ] Dev → **ASR Lab**: run it on a clip containing a few "um"s. Write down the result per engine (time, words, fillers kept)
+  Notes:
+
+## 11b. You tab: Rewind, Three things, Talk back, Phrasebook, streak freezes (iPhone)
+- [ ] **Rewind**: tell a real day for 1-2 minutes. The waveform follows your voice smoothly and is big and centered; End unlocks at 1:00; it stops itself at 2:00
+  Notes:
+- [ ] Rewind result: parts of the day, details counted, transcript and **Listen back** match what you said (check a take where the recognizer restarted: no gap in the transcript or the audio)
+  Notes:
+- [ ] Rewind notes: on an iPhone with Apple Intelligence, notes appear (specificity, storytelling, flow, coverage, a quoted detail, one thing to try) and there is no score anywhere
+  Notes:
+- [ ] The 9 PM Rewind reminder arrives, and tapping it opens Rewind, also when the app was closed. After telling your day it doesn't fire again that night
+  Notes:
+- [ ] **Three things**: add one; a close repeat shows the warning; "Say it to yourself" ticks off by itself when you read the sentence aloud
+  Notes:
+- [ ] **Talk back**: pick a worry from onboarding (You, Settings, Practice, profile), then run the 6 steps; the "doesn't fit" step shows your own practice
+  Notes:
+- [ ] **Phrasebook**: add, remove with undo, and "Say N aloud" reads the phrase in Line Rep
+  Notes:
+- [ ] **Streak freeze**: skip a day after 7 practice days; the streak survives and a message says a freeze was used
+  Notes:
+- [ ] iOS native tab bar shows Today, Learn, Library, You, Dev, with the right icons
   Notes:
 
 ## 12. General feel

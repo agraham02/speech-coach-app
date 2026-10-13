@@ -1,28 +1,8 @@
-// Script Practice mode: a fixed script the user reads aloud, with optional
-// on-screen delivery cues (pitch/volume/pause/emphasis) surfaced as the
-// teleprompter scrolls past them.
+import type { Mark, MarkLevel } from "./cadence/marks";
 
-export type CueType =
-  | "pitch_up"
-  | "pitch_down"
-  | "volume_up"
-  | "volume_down"
-  | "pause"
-  | "emphasis"
-  | "slow_down";
-
-export interface ScriptCue {
-  // 0-based index into script.text.trim().split(/\s+/) — i.e. the Nth
-  // whitespace-separated token, punctuation attached (e.g. "half." is one
-  // token). Word-indexed rather than line-indexed because line wrapping
-  // depends on device width/font size at runtime, but word position in the
-  // source text is fixed.
-  wordIndex: number;
-  type: CueType;
-  // Short instruction shown on screen at this cue, e.g. "Inflect up — it's a
-  // rhetorical question."
-  label: string;
-}
+// A full speech read aloud (the Speeches shelf of Mark It Up, formerly
+// Script Practice), with delivery marks — see domain/cadence/marks.ts and
+// content/speeches.ts.
 
 export interface Script {
   id: string;
@@ -30,16 +10,17 @@ export interface Script {
   category: string;
   text: string;
   wordCount: number;
-  // Derived from wordCount at ~130 wpm (matches the app's existing 1-5 minute
-  // recording range), rounded to the nearest 5 seconds.
+  // Derived from wordCount at ~130 wpm — a guide, not a limit: reading with
+  // the pauses the marks ask for runs longer.
   targetDurationSeconds: number;
-  cues: ScriptCue[];
+  marks: Mark[];
 }
 
-// The single tokenization rule every cue's wordIndex is defined against —
-// shared so the teleprompter (positioning cues on screen) and the Gemini
-// grading prompt (describing cues in words the model can locate) never drift
-// out of sync with each other.
+export type { MarkLevel };
+
+// The single tokenization rule every mark's word index is defined against —
+// shared so the teleprompter and the Gemini grading prompt never drift out
+// of sync with each other.
 export function tokenizeScript(text: string): string[] {
   return text.trim().split(/\s+/);
 }

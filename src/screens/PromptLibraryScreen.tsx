@@ -1,17 +1,20 @@
 import { useCallback, useState } from "react";
+import { SkeletonRows } from "../components/common/Skeleton";
 import { FlatList, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
+import { Header } from "../components/common/Header";
+import { IconButton } from "../components/common/IconButton";
 import { Card } from "../components/common/Card";
 import { Badge } from "../components/common/Badge";
 import { SegmentedControl } from "../components/common/SegmentedControl";
 import { getAllPrompts } from "../services/db/promptsRepo";
 import { colorForCategory } from "../domain/categoryColor";
 import type { DifficultyTier, Prompt } from "../domain/sessionTypes";
-import { radii, spacing, typography } from "../theme/theme";
+import { radii, spacing, typography, font, fontDisplay } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import type { Colors } from "../theme/theme";
 
@@ -61,30 +64,13 @@ export function PromptLibraryScreen({ navigation }: Props) {
 
   return (
     <ScreenContainer style={styles.container}>
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Close"
-        >
-          <Ionicons name="close" size={24} color={colors.textPrimary} />
-        </Pressable>
-        <Text style={styles.title}>Prompts</Text>
-        <Pressable
-          onPress={() => navigation.navigate("AddPrompt")}
-          hitSlop={12}
-          style={styles.addButton}
-          accessibilityRole="button"
-          accessibilityLabel="Add a prompt"
-        >
-          <Ionicons name="add" size={22} color={colors.accent} />
-        </Pressable>
-      </View>
+      <Header title="Prompts" onBack={() => navigation.goBack()} backIcon="close"
+        right={<IconButton icon="add" onPress={() => navigation.navigate("AddPrompt")} accessibilityLabel="Add a prompt" size={38} />}
+      />
 
       <View style={styles.searchBox}>
         <Ionicons name="search-outline" size={16} color={colors.textMuted} />
-        <TextInput
+        <TextInput maxLength={80}
           style={styles.searchInput}
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -122,12 +108,12 @@ export function PromptLibraryScreen({ navigation }: Props) {
         })}
       </ScrollView>
 
-      {filteredPrompts.length === 0 ? (
+      {prompts.length === 0 ? (
+        <SkeletonRows count={6} />
+      ) : filteredPrompts.length === 0 ? (
         <View style={styles.empty}>
           <Ionicons name="chatbubble-outline" size={40} color={colors.textMuted} />
-          <Text style={styles.emptyText}>
-            {prompts.length === 0 ? "Loading prompts…" : "Nothing matches your search or filters."}
-          </Text>
+          <Text style={styles.emptyText}>Nothing matches your search or filters.</Text>
         </View>
       ) : (
         <FlatList
@@ -163,37 +149,33 @@ export function PromptLibraryScreen({ navigation }: Props) {
 const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  title: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
+  title: { color: colors.textPrimary, fontSize: typography.title, ...font("700") },
   addButton: { padding: spacing.xs },
   searchBox: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.surfaceRaised,
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
-  searchInput: { flex: 1, color: colors.textPrimary, fontSize: typography.body, padding: 0 },
+  searchInput: { ...font("400"), flex: 1, color: colors.textPrimary, fontSize: typography.body, padding: 0 },
   chipScroll: { flexGrow: 0 },
   chipRow: { flexDirection: "row", gap: spacing.xs },
   chip: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: radii.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.surfaceRaised,
   },
   chipSelected: { backgroundColor: colors.accentMuted, borderColor: colors.accent },
-  chipText: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "600" },
+  chipText: { color: colors.textSecondary, fontSize: typography.caption, ...font("600") },
   chipTextSelected: { color: colors.accent },
   list: { gap: spacing.sm, paddingBottom: spacing.lg },
   promptCard: { gap: spacing.xs },
   promptCardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  promptText: { color: colors.textPrimary, fontSize: typography.bodyLarge, fontWeight: "600", lineHeight: 22 },
+  promptText: { color: colors.textPrimary, fontFamily: fontDisplay.spoken, fontSize: 17, lineHeight: 23, letterSpacing: -0.2 },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
-  emptyText: { color: colors.textMuted, fontSize: typography.body, textAlign: "center", paddingHorizontal: spacing.xl },
+  emptyText: { ...font("400"), color: colors.textMuted, fontSize: typography.body, textAlign: "center", paddingHorizontal: spacing.xl },
 }));

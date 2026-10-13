@@ -6,7 +6,7 @@ import { logger } from "../utils/logger";
 // Loaded lazily: requireNativeModule throws at import time when the native
 // module is missing from the build, which would otherwise crash the screen
 // instead of letting it fall back to the manual timer.
-function loadNativeSpeech(): SpeechNative | null {
+export function loadNativeSpeech(): SpeechNative | null {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { ExpoSpeechRecognitionModule } = require("expo-speech-recognition");

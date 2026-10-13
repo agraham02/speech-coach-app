@@ -1,11 +1,11 @@
 import { Text, View } from "react-native";
 import { LineChart } from "react-native-gifted-charts";
 import type { WpmPoint } from "../../domain/sessionTypes";
-import { spacing, typography } from "../../theme/theme";
+import { spacing, typography, font } from "../../theme/theme";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 // Real words-per-minute over time, from word-level timestamps (on-device
-// ASR/AssemblyAI) — shown alongside (not instead of) the existing Rate
+// ASR) — shown alongside (not instead of) the existing Rate
 // ScoreBar's single averaged number, which stays Gemini's own qualitative
 // judgment. Only renders when word-level data exists; returns null otherwise
 // so it never shows an empty/broken chart for older or Gemini-fallback sessions.
@@ -19,7 +19,7 @@ export function WpmSparkline({ wpmCurve }: { wpmCurve: WpmPoint[] | null }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>PACE OVER TIME</Text>
+      <Text style={styles.label}>Pace over time</Text>
       <LineChart
         data={data}
         height={100}
@@ -38,8 +38,8 @@ export function WpmSparkline({ wpmCurve }: { wpmCurve: WpmPoint[] | null }) {
         rulesType="dashed"
         xAxisColor={colors.border}
         yAxisColor={colors.border}
-        yAxisTextStyle={{ color: colors.textMuted, fontSize: 9 }}
-        xAxisLabelTextStyle={{ color: colors.textMuted, fontSize: 9 }}
+        yAxisTextStyle={{ ...font("400"), color: colors.textMuted, fontSize: 9 }}
+        xAxisLabelTextStyle={{ ...font("400"), color: colors.textMuted, fontSize: 9 }}
         dataPointsColor={colors.accent}
         hideDataPoints
       />
@@ -49,5 +49,5 @@ export function WpmSparkline({ wpmCurve }: { wpmCurve: WpmPoint[] | null }) {
 
 const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.xs, marginTop: spacing.sm },
-  label: { color: colors.textSecondary, fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 0.4 },
+  label: { color: colors.textSecondary, fontSize: 13, ...font("600") },
 }));

@@ -1,60 +1,38 @@
-import { StyleSheet, View, type StyleProp, type ViewProps, type ViewStyle } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { radii, spacing } from "../../theme/theme";
+import { View, type StyleProp, type ViewProps, type ViewStyle } from "react-native";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
-import { withAlpha } from "../../utils/color";
+import { Aura } from "./Aura";
 
 interface HeroCardProps extends ViewProps {
+  // The glow's color — usually a skill's fg. Without one, a faint ink glow.
   accent?: string;
   accentSecondary?: string;
   // Styles the inner content wrapper (e.g. a `gap` between children) — plain
-  // `style` only affects the outer card, since the glow layers need to sit
-  // between the two as siblings rather than have content style bleed into them.
+  // `style` only affects the outer card, since the glow layer has to sit
+  // between the two.
   contentStyle?: StyleProp<ViewStyle>;
 }
 
-// A Card with a soft two-tone gradient glow behind it — reserved for the one
-// surface per screen that should read as "the important thing" (today's
-// prompt, the score you just earned, your streak). Every other Card in the
-// app stays flat on purpose, so this only means something because it's rare.
-export function HeroCard({
-  style,
-  contentStyle,
-  children,
-  accent: accentProp,
-  accentSecondary: accentSecondaryProp,
-  ...props
-}: HeroCardProps) {
+// The "aura" card: a surface with a soft radial glow in a color that means
+// something (today's focus skill, the score you just earned). Reserved for
+// the one thing per screen that matters most, so it only means something
+// because it's rare.
+export function HeroCard({ style, contentStyle, children, accent, accentSecondary, ...props }: HeroCardProps) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const accent = accentProp ?? colors.accent;
-  const accentSecondary = accentSecondaryProp ?? colors.violet;
   return (
     <View style={[styles.card, style]} {...props}>
-      <LinearGradient
-        colors={[withAlpha(accentSecondary, 0.28), "transparent"]}
-        start={{ x: 0.05, y: 0 }}
-        end={{ x: 0.75, y: 0.85 }}
-        style={StyleSheet.absoluteFill}
-      />
-      <LinearGradient
-        colors={[withAlpha(accent, 0.22), "transparent"]}
-        start={{ x: 1, y: 1 }}
-        end={{ x: 0.25, y: 0.15 }}
-        style={StyleSheet.absoluteFill}
-      />
+      <Aura color={accent ?? colors.textPrimary} secondary={accentSecondary} strength={accent ? 0.34 : 0.1} />
       <View style={[styles.content, contentStyle]}>{children}</View>
     </View>
   );
 }
 
-const useStyles = makeStyles(({ colors }) => ({
+const useStyles = makeStyles((t) => ({
   card: {
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.heroBorder,
-    backgroundColor: colors.surface,
+    borderRadius: t.radius.xl - 4,
+    backgroundColor: t.colors.surface,
     overflow: "hidden",
+    ...t.shadow.card,
   },
-  content: { padding: spacing.lg },
+  content: { padding: t.space.lg },
 }));

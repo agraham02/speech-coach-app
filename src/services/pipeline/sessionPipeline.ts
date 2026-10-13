@@ -2,14 +2,12 @@ import * as Haptics from "expo-haptics";
 import { insertSession, getSessionById, updateSessionWants } from "../db/sessionsRepo";
 import { getSessionSteps, seedSessionSteps, setStepStatus } from "../db/stepsRepo";
 import { getScoresBySessionId } from "../db/scoresRepo";
-import { getCompletedSessionDates } from "../db/statsRepo";
 import { claimRecordingForSession } from "../storage/videoStorage";
 import { emitStepEvent } from "./processingEvents";
 import { refreshSessionStatus, runStep } from "./stepRunner";
 import { transcribeStep } from "./steps/transcribeStep";
 import { audioMetricsStep } from "./steps/audioMetricsStep";
 import { cloudReviewStep } from "./steps/cloudReviewStep";
-import { notionStep } from "./steps/notionStep";
 import { presenceStep } from "./steps/presenceStep";
 import { coachStep } from "./steps/coachStep";
 import { putArtifact } from "../db/artifactsRepo";
@@ -20,7 +18,9 @@ import { showGlobalToast } from "../../components/common/ToastProvider";
 import { notifySessionComplete } from "../notifications/sessionCompleteNotifier";
 import { syncDailyReminder } from "../notifications/reminderScheduler";
 import { navigationRef } from "../../navigation/navigationRef";
-import { computeStreaks, streakMilestoneReached } from "../../domain/streaks";
+import { streakMilestoneReached } from "../../domain/streaks";
+import { getStreakState } from "../db/progressRepo";
+import { takeFreezeNotice } from "../streaks/freezeNotice";
 import { planTextToNullableFields } from "../../domain/planYourPoint";
 import { isFreeRecordPrompt } from "../../data/topics";
 import type { SessionStep, StepStatus } from "../../domain/sessionSteps";
@@ -39,16 +39,15 @@ const STEP_RUNNERS: Record<SessionStep, ((sessionId: string) => Promise<void>) |
   presence: presenceStep,
   coach: coachStep,
   cloud_review: cloudReviewStep,
-  notion: notionStep,
 };
 
-// Order matters: voice analysis uses the transcript; Notion needs a
-// transcript, which a deep review can supply when on-device transcription
-// failed.
-const STEP_ORDER: SessionStep[] = ["transcribe", "audio_metrics", "presence", "coach", "cloud_review", "notion"];
+// Order matters: voice analysis and coaching use the transcript, which a
+// deep review can supply when on-device transcription failed.
+const STEP_ORDER: SessionStep[] = ["transcribe", "audio_metrics", "presence", "coach", "cloud_review"];
 
 function subjectToSessionType(subject: RecordingSubject): SessionType {
   if (subject.kind === "script") return "script_practice";
+  if (subject.feeling) return "feeling";
   if (subject.conciseSeconds) return "concise";
   return isFreeRecordPrompt(subject.prompt.id) ? "free_record" : "spontaneous";
 }
@@ -61,6 +60,8 @@ function promptExtras(subject: Extract<RecordingSubject, { kind: "prompt" }>): S
     targetFramework: subject.targetFramework,
     promptText: adhoc ? subject.prompt.text : undefined,
     promptCategory: adhoc ? subject.prompt.category : undefined,
+    feelingEmotion: subject.feeling?.emotion,
+    feelingAngle: subject.feeling?.angle,
   };
   return Object.values(extras).some((v) => v !== undefined) ? extras : null;
 }
@@ -70,7 +71,6 @@ export interface NewTake {
   previewUri: string;
   durationSecondsLocal: number;
   wantsCloudReview: boolean;
-  wantsNotionSync: boolean;
 }
 
 // Saves a kept take: renames the file to <sessionId>.mp4, inserts the row,
@@ -92,9 +92,7 @@ export async function createSessionFromTake(take: NewTake): Promise<string> {
     transcriptVerbatim: null,
     transcriptClean: null,
     status: "processing",
-    notionSyncedAt: null,
     wantsGrading: take.wantsCloudReview,
-    wantsNotionSync: take.wantsNotionSync,
     sessionType: subjectToSessionType(subject),
     scriptId: subject.kind === "script" ? subject.script.id : null,
     cuesEnabled: subject.kind === "script" ? subject.cuesEnabled : null,
@@ -108,7 +106,6 @@ export async function createSessionFromTake(take: NewTake): Promise<string> {
     transcriptWords: null,
     wpmCurve: null,
     repeatedWordCount: null,
-    assemblyaiTranscriptId: null,
     dspStatus: null,
     pitchContourHz: null,
     volumeEnvelopeDbfs: null,
@@ -123,7 +120,6 @@ export async function createSessionFromTake(take: NewTake): Promise<string> {
     lastError: null,
     updatedAt: null,
     subjectExtras: subject.kind === "prompt" ? promptExtras(subject) : null,
-    notionBlockId: null,
   });
 
   const timeline = takePresenceTimeline(take.previewUri);
@@ -135,10 +131,9 @@ export async function createSessionFromTake(take: NewTake): Promise<string> {
     presence: timeline && timeline.length >= 3 ? "pending" : "skipped",
     coach: "pending",
     cloud_review: take.wantsCloudReview ? "pending" : "skipped",
-    notion: take.wantsNotionSync ? "pending" : "skipped",
   };
   await seedSessionSteps(sessionId, initial);
-  logger.info(`[pipeline] ${sessionId}: saved (${subjectToSessionType(subject)}, deep review=${take.wantsCloudReview}, notion=${take.wantsNotionSync})`);
+  logger.info(`[pipeline] ${sessionId}: saved (${subjectToSessionType(subject)}, deep review=${take.wantsCloudReview})`);
 
   runPendingSteps(sessionId).catch((error) =>
     logger.error(`[pipeline] ${sessionId}: run failed — ${(error as Error).message}`),
@@ -174,10 +169,9 @@ export function runPendingSteps(sessionId: string): Promise<void> {
 }
 
 // Queues one step (again) and runs it — used for "Retry", "Re-run voice
-// analysis", "Get deep review" and "Sync to Notion" from the Result screen.
+// analysis" and "Get deep review" from the Result screen.
 export async function requestStep(sessionId: string, step: SessionStep): Promise<void> {
   if (step === "cloud_review") await updateSessionWants(sessionId, { grading: true });
-  if (step === "notion") await updateSessionWants(sessionId, { notion: true });
   await setStepStatus(sessionId, step, "pending");
   emitStepEvent({ sessionId, step, status: "pending" });
   // Downstream steps follow whatever they depend on: voice analysis uses
@@ -216,9 +210,13 @@ async function announceCompletion(sessionId: string, ranCloudReview: boolean): P
   }
   if (scores) await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
 
-  const { currentStreak, longestStreak } = computeStreaks(await getCompletedSessionDates());
+  const state = await getStreakState();
+  const { currentStreak, longestStreak } = state;
   const milestone = streakMilestoneReached(currentStreak);
-  if (milestone) {
+  const freezeNotice = takeFreezeNotice(state);
+  if (freezeNotice) {
+    showGlobalToast(freezeNotice, "success");
+  } else if (milestone) {
     showGlobalToast(`🏆 ${milestone}-day streak milestone!`, "success");
   } else if (currentStreak >= 2 && currentStreak === longestStreak && !ranCloudReview) {
     showGlobalToast(`🔥 ${currentStreak} day streak!`, "success");

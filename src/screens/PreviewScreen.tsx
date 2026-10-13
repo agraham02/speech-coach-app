@@ -10,23 +10,38 @@ import { VideoPlayback } from "../components/result/VideoPlayback";
 import { isFreeRecordPrompt } from "../data/topics";
 import { deleteRecording } from "../services/storage/videoStorage";
 import { createSessionFromTake } from "../services/pipeline/sessionPipeline";
+import { setVideoKeepsake } from "../services/data/videoKeepsakes";
 import { logger } from "../utils/logger";
 import { completePracticeStep } from "../services/practice/practiceEvents";
-import { spacing, typography } from "../theme/theme";
+import { getCloudReviewDefault } from "../services/prefs/prefsStore";
+import { currentProvider, hasConsent, hasProviderKey } from "../services/cloud/providers";
+import { readyForDeepReview } from "../services/cloud/consent";
+import { spacing, typography, font, fontDisplay } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Preview">;
 
 // Use the take, retake it, or throw it away. Nothing is final here: on-device
-// analysis always runs, and a deep review or Notion sync can be added from
-// the session at any time later.
+// analysis always runs, and a deep review can be added from the session at
+// any time later.
 export function PreviewScreen({ route, navigation }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
   const { videoUri, durationSecondsLocal, ...subject } = route.params;
-  const isFreeRecord = subject.kind === "prompt" && isFreeRecordPrompt(subject.prompt.id);
-  const [wantsCloudReview, setWantsCloudReview] = useState(false);
-  const [wantsNotionSync, setWantsNotionSync] = useState(isFreeRecord);
+  // A feeling rep is private by default: nothing leaves the phone unless
+  // switched on here.
+  const isFeeling = subject.kind === "prompt" && !!subject.feeling;
+  // On by default only once a provider is set up and allowed.
+  const provider = currentProvider();
+  const [wantsCloudReview, setWantsCloudReview] = useState(() => !isFeeling && getCloudReviewDefault() && hasConsent(provider.id));
+
+  async function toggleCloudReview(on: boolean) {
+    if (!on) {
+      setWantsCloudReview(false);
+      return;
+    }
+    if (await readyForDeepReview(() => navigation.navigate("Settings", { section: "deepReviews" }))) setWantsCloudReview(true);
+  }
   const [isSaving, setIsSaving] = useState(false);
   // Set once the take has been saved or deliberately thrown away, so leaving
   // the screen no longer needs a confirmation.
@@ -91,11 +106,18 @@ export function PreviewScreen({ route, navigation }: Props) {
         subject,
         previewUri: videoUri,
         durationSecondsLocal,
-        wantsCloudReview,
-        wantsNotionSync,
+        // A key removed since the switch went on: save without the review.
+        wantsCloudReview: wantsCloudReview && (await hasProviderKey(provider.id)),
       });
       // A lesson / daily-plan rep counts as done once the take is kept.
-      if (subject.kind === "prompt") completePracticeStep(subject.practice, null);
+      if (subject.kind === "prompt") completePracticeStep(subject.practice, null, sessionId);
+      if (subject.kind === "prompt" && subject.skillCheck) {
+        // Kept for the side-by-side at the 30-day retake; no scored result
+        // during onboarding.
+        await setVideoKeepsake(sessionId, true);
+        markResolved(() => navigation.goBack());
+        return;
+      }
       markResolved(() => navigation.replace("Result", { sessionId }));
     } catch (error) {
       logger.error(`[preview] save failed — ${(error as Error).message}`);
@@ -116,31 +138,25 @@ export function PreviewScreen({ route, navigation }: Props) {
           </Text>
           <View style={styles.row}>
             <View style={styles.rowText}>
-              <Text style={styles.rowTitle}>Deep review (cloud)</Text>
+              <Text style={styles.rowTitle}>Deep review</Text>
               <Text style={styles.rowSubtitle}>
-                {subject.kind === "script"
-                  ? "Gemini scores delivery, presence and how well you followed the cues. Uploads the video."
-                  : "Gemini scores structure, delivery and presence. Uploads the video."}
+                {provider.input === "video"
+                  ? `${provider.name} scores ${subject.kind === "script" ? "delivery, presence and how well you followed the marks" : "structure, delivery and presence"} from the video. Uses your own key.`
+                  : `${provider.name} scores ${subject.kind === "script" ? "your reading" : "structure, content and delivery"} from your transcript and the phone's measurements — the video stays here. Uses your own key.`}
               </Text>
             </View>
             <Switch
               value={wantsCloudReview}
-              onValueChange={setWantsCloudReview}
-              trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
+              onValueChange={toggleCloudReview}
+              trackColor={{ true: colors.success, false: colors.switchTrackOff }}
+              thumbColor="#FFFFFF"
             />
           </View>
-          <View style={styles.row}>
-            <View style={styles.rowText}>
-              <Text style={styles.rowTitle}>Sync to Notion</Text>
-              <Text style={styles.rowSubtitle}>Append the clean transcript to today's journal entry.</Text>
-            </View>
-            <Switch
-              value={wantsNotionSync}
-              onValueChange={setWantsNotionSync}
-              trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
-            />
-          </View>
-          <Text style={styles.hint}>You can add either of these later from the session.</Text>
+          <Text style={styles.hint}>
+            {isFeeling
+              ? "This is a private feeling rep — the deep review stays off unless you turn it on. You can still add it later."
+              : "You can add a deep review later from the session."}
+          </Text>
         </Card>
       </ScrollView>
 
@@ -161,16 +177,16 @@ export function PreviewScreen({ route, navigation }: Props) {
 
 const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
-  title: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
+  title: { color: colors.textPrimary, fontFamily: fontDisplay.title, fontSize: 30, lineHeight: 36, letterSpacing: -0.8 },
   scroll: { flex: 1 },
   scrollContent: { gap: spacing.md, paddingBottom: spacing.lg },
   section: { gap: spacing.md },
-  note: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18 },
-  hint: { color: colors.textMuted, fontSize: typography.caption },
+  note: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18 },
+  hint: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
   rowText: { flex: 1, gap: spacing.xs },
-  rowTitle: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "600" },
-  rowSubtitle: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },
+  rowTitle: { color: colors.textPrimary, fontSize: typography.body, ...font("600") },
+  rowSubtitle: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },
   actions: { gap: spacing.sm },
   secondaryRow: { flexDirection: "row", gap: spacing.md },
   actionSlot: { flex: 1 },

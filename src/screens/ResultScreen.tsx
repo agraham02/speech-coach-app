@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
+import { Skeleton, SkeletonCard, SkeletonLines, SkeletonRows } from "../components/common/Skeleton";
+import { GuideTip } from "../components/common/GuideTip";
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
 import { PrimaryButton } from "../components/common/PrimaryButton";
-import { LoadingSpinner } from "../components/common/LoadingSpinner";
 import { Card } from "../components/common/Card";
 import { Badge } from "../components/common/Badge";
 import { HeroCard } from "../components/common/HeroCard";
+import { IconButton } from "../components/common/IconButton";
+import { Txt } from "../components/common/Txt";
 import { ProgressRing } from "../components/common/ProgressRing";
 import { SegmentedControl } from "../components/common/SegmentedControl";
 import { ScoreBar } from "../components/result/ScoreBar";
@@ -35,10 +38,13 @@ import { getPrompt } from "../services/db/promptsRepo";
 import { getScriptById } from "../services/db/scriptsRepo";
 import { deleteRecording, resolveVideoUri, videoExists } from "../services/storage/videoStorage";
 import { requestStep } from "../services/pipeline/sessionPipeline";
+import { currentProvider, reviewBlockedReason } from "../services/cloud/providers";
+import { readyForDeepReview } from "../services/cloud/consent";
 import { setVideoKeepsake } from "../services/data/videoKeepsakes";
 import { getArtifact } from "../services/db/artifactsRepo";
 import { describeSessionSubject, subjectFromSession, type SessionSubjectSummary } from "../services/sessions/sessionSubject";
 import { useSessionSteps } from "../hooks/useSessionSteps";
+import { FeelingResultView } from "../components/feelings/FeelingResultView";
 import type { CloudTranscriptArtifact } from "../services/pipeline/steps/cloudReviewStep";
 import type { SessionStep } from "../domain/sessionSteps";
 import { logger } from "../utils/logger";
@@ -46,7 +52,7 @@ import { completePracticeStep } from "../services/practice/practiceEvents";
 import { colorForCategory } from "../domain/categoryColor";
 import { makeAdhocPrompt, type Prompt, type Session, type SessionScores } from "../domain/sessionTypes";
 import { formatDuration } from "../utils/dateUtils";
-import { fontDisplay, spacing, typography } from "../theme/theme";
+import { fontDisplay, radii, spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Result">;
@@ -132,8 +138,16 @@ export function ResultScreen({ route, navigation }: Props) {
 
   if (!session) {
     return (
-      <ScreenContainer style={styles.centered}>
-        <LoadingSpinner />
+      <ScreenContainer style={styles.skeleton}>
+        <Skeleton height={14} width="30%" />
+        <Skeleton height={28} width="75%" />
+        <View style={styles.skeletonTiles}>
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} height={72} radius={16} style={styles.flex} />
+          ))}
+        </View>
+        <SkeletonCard lines={4} />
+        <SkeletonCard lines={3} />
       </ScreenContainer>
     );
   }
@@ -155,7 +169,8 @@ export function ResultScreen({ route, navigation }: Props) {
         { key: "transcript", label: "Transcript" },
       ];
 
-  function handleRunStep(step: SessionStep) {
+  async function handleRunStep(step: SessionStep) {
+    if (step === "cloud_review" && !(await readyForDeepReview(() => navigation.navigate("Settings", { section: "deepReviews" })))) return;
     requestStep(sessionId, step).catch((error) => {
       logger.error(`[result] ${step} failed to start — ${(error as Error).message}`);
       showToast("Couldn't start that — try again", "error");
@@ -189,9 +204,15 @@ export function ResultScreen({ route, navigation }: Props) {
 
   async function handleToggleKeepsake() {
     const keep = !session!.videoKeepsake;
-    await setVideoKeepsake(sessionId, keep);
     setSession((prev) => (prev ? { ...prev, videoKeepsake: keep } : prev));
-    showToast(keep ? "Kept as a progress video — clearing old videos won't remove it" : "No longer a progress video", "success");
+    try {
+      await setVideoKeepsake(sessionId, keep);
+      showToast(keep ? "Kept as a progress video — clearing old videos won't remove it" : "No longer a progress video", "success");
+    } catch (error) {
+      logger.error(`[result] keepsake failed — ${(error as Error).message}`);
+      setSession((prev) => (prev ? { ...prev, videoKeepsake: !keep } : prev));
+      showToast("Couldn't save that — try again", "error");
+    }
   }
 
   async function handleDeleteVideo() {
@@ -223,7 +244,12 @@ export function ResultScreen({ route, navigation }: Props) {
 
   const videoUri = resolveVideoUri(session);
   const hasVideo = !session.videoDeletedAt && videoExists(videoUri);
-  const deepReviewBlocked = !hasVideo ? "Needs the video, which has been deleted." : undefined;
+
+  // A Feeling of the Week rep is process only — no score, chart or coaching.
+  if (session.sessionType === "feeling") {
+    return <FeelingResultView session={session} steps={steps} hasVideo={hasVideo} videoUri={videoUri} onDone={handleDone} onDelete={handleDelete} />;
+  }
+  const deepReviewBlocked = reviewBlockedReason(currentProvider(), { hasVideo, hasDeviceTranscript: !!session.transcriptVerbatim });
   const avgWpm =
     session.transcriptWords && session.transcriptWords.length > 0 && session.durationSeconds > 0
       ? Math.round(session.transcriptWords.length / (session.durationSeconds / 60))
@@ -241,37 +267,24 @@ export function ResultScreen({ route, navigation }: Props) {
   return (
     <ScreenContainer style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.headerText}>
-          <Text style={styles.headerType}>{subjectSummary?.typeLabel.toUpperCase() ?? ""}</Text>
-          <Text style={styles.headerTitle} numberOfLines={2}>
-            {subjectSummary?.title ?? ""}
-          </Text>
-        </View>
-        <View style={styles.headerActions}>
+        <View style={styles.headerTop}>
+          <Txt variant="footnote" weight="500" tone="secondary" style={styles.flex}>
+            {subjectSummary?.typeLabel ?? ""}
+          </Txt>
           {hasVideo ? (
-            <Pressable
+            <IconButton
+              icon={session.videoKeepsake ? "bookmark" : "bookmark-outline"}
+              color={session.videoKeepsake ? colors.warning : undefined}
               onPress={handleToggleKeepsake}
-              hitSlop={12}
-              accessibilityRole="button"
-              accessibilityState={{ selected: !!session.videoKeepsake }}
+              size={38}
               accessibilityLabel={session.videoKeepsake ? "Remove from progress videos" : "Keep as a progress video"}
-            >
-              <Ionicons
-                name={session.videoKeepsake ? "bookmark" : "bookmark-outline"}
-                size={22}
-                color={session.videoKeepsake ? colors.accent : colors.textSecondary}
-              />
-            </Pressable>
+            />
           ) : null}
-          <Pressable
-            onPress={handleDelete}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel="Delete session"
-          >
-            <Ionicons name="trash-outline" size={22} color={colors.textSecondary} />
-          </Pressable>
+          <IconButton icon="trash-outline" onPress={handleDelete} size={38} accessibilityLabel="Delete session" />
         </View>
+        <Txt variant="title1" numberOfLines={3}>
+          {subjectSummary?.title ?? ""}
+        </Txt>
       </View>
 
       <SegmentedControl options={tabs} value={tab} onChange={setTab} />
@@ -284,9 +297,11 @@ export function ResultScreen({ route, navigation }: Props) {
               accent={colorForScore(overall, colors)}
               accentSecondary={colors.violet}
             >
-              <ProgressRing size={132} strokeWidth={10} progress={overall / 10} color={colorForScore(overall, colors)}>
-                <Text style={[styles.scoreHeroNumber, { color: colorForScore(overall, colors) }]}>{overall}</Text>
-                <Text style={styles.scoreHeroOutOf}>OUT OF 10</Text>
+              <ProgressRing size={156} strokeWidth={8} progress={overall / 10} color={colorForScore(overall, colors)}>
+                <Txt variant="display" style={styles.scoreHeroNumber}>
+                  {overall}
+                </Txt>
+                <Text style={styles.scoreHeroOutOf}>out of 10</Text>
               </ProgressRing>
               {scores ? (
                 <Text style={[styles.scoreHeroArchetype, { color: colorForScore(overall, colors) }]}>
@@ -298,7 +313,7 @@ export function ResultScreen({ route, navigation }: Props) {
             </HeroCard>
           ) : coach ? null : (
             <Card style={styles.numbersCard}>
-              <Text style={styles.numbersLabel}>YOUR NUMBERS</Text>
+              <Text style={styles.numbersLabel}>Your numbers</Text>
               <View style={styles.numbersRow}>
                 <NumberTile value={avgWpm != null ? `${avgWpm}` : "—"} label="words / min" />
                 <NumberTile
@@ -354,7 +369,7 @@ export function ResultScreen({ route, navigation }: Props) {
 
           {scores ? (
             <Card style={styles.coachingCard}>
-              <Text style={styles.sectionLabel}>COACHING</Text>
+              <Text style={styles.sectionLabel}>Coaching</Text>
               <Text style={styles.coachingSummary}>{scores.coachingSummary}</Text>
               <View style={styles.coachingRow}>
                 <Ionicons name="thumbs-up-outline" size={16} color={colors.success} />
@@ -371,7 +386,7 @@ export function ResultScreen({ route, navigation }: Props) {
                 </Text>
               </View>
               <View style={styles.drillBox}>
-                <Text style={styles.drillLabel}>NEXT DRILL</Text>
+                <Text style={styles.drillLabel}>Next drill</Text>
                 <Text style={styles.drillText}>{scores.recommendedDrill}</Text>
               </View>
             </Card>
@@ -446,7 +461,7 @@ export function ResultScreen({ route, navigation }: Props) {
       {tab === "transcript" ? (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionLabel}>YOUR RESPONSE</Text>
+            <Text style={styles.sectionLabel}>Your response</Text>
             <Text style={styles.duration}>{formatDuration(session.durationSeconds)}</Text>
           </View>
           <Card>
@@ -474,66 +489,63 @@ export function ResultScreen({ route, navigation }: Props) {
       ) : null}
 
       <PrimaryButton label="Done" onPress={handleDone} />
+      <GuideTip id="result" />
     </ScreenContainer>
   );
 }
 
 const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
-  centered: { alignItems: "center", justifyContent: "center" },
-  header: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: spacing.md },
+  flex: { flex: 1 },
+  skeleton: { gap: 16, paddingTop: 24 },
+  skeletonTiles: { flexDirection: "row", gap: 8 },
+  header: { gap: spacing.xs },
+  headerTop: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   headerText: { flex: 1, gap: 2 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: spacing.lg },
-  headerType: { color: colors.textMuted, fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 1 },
-  headerTitle: { color: colors.textPrimary, fontSize: typography.bodyLarge, fontWeight: "700", lineHeight: 22 },
+  headerType: { color: colors.textMuted, fontSize: 13, ...font("600") },
+  headerTitle: { color: colors.textPrimary, fontSize: typography.bodyLarge, ...font("700"), lineHeight: 22 },
   numbersCard: { gap: spacing.md },
-  numbersLabel: { color: colors.textMuted, fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 1 },
+  numbersLabel: { color: colors.textMuted, fontSize: 13, ...font("600") },
   numbersRow: { flexDirection: "row", gap: spacing.sm },
-  tile: { flex: 1, alignItems: "center", gap: 2, paddingVertical: spacing.sm, borderRadius: 12, backgroundColor: colors.surfaceRaised },
-  tileValue: { color: colors.textPrimary, fontFamily: fontDisplay.bold, fontSize: 22 },
-  tileLabel: { color: colors.textMuted, fontSize: typography.caption - 1 },
+  tile: { flex: 1, alignItems: "center", gap: 2, paddingVertical: spacing.md - 2, borderRadius: radii.md, backgroundColor: colors.surfaceRaised },
+  tileValue: { color: colors.textPrimary, fontFamily: fontDisplay.title, fontSize: 26, lineHeight: 32, letterSpacing: -0.6 },
+  tileLabel: { ...font("400"), color: colors.textMuted, fontSize: typography.caption - 1 },
   scroll: { flex: 1 },
   scrollContent: { gap: spacing.md, paddingBottom: spacing.lg },
-  notionCard: { gap: spacing.sm },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
   rowText: { flex: 1, gap: spacing.xs },
-  rowTitle: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "600" },
-  rowSubtitle: { color: colors.textSecondary, fontSize: typography.caption },
+  rowTitle: { color: colors.textPrimary, fontSize: typography.body, ...font("600") },
+  rowSubtitle: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption },
   gradeCard: { gap: spacing.md },
-  scoreHeroContent: { alignItems: "center", gap: spacing.xs },
-  scoreHeroNumber: { fontFamily: fontDisplay.bold, fontSize: 40, lineHeight: 44 },
-  scoreHeroOutOf: { color: colors.textMuted, fontSize: typography.caption - 2, letterSpacing: 0.5, marginTop: 2 },
-  scoreHeroArchetype: {
-    fontSize: typography.caption,
-    fontWeight: "800",
-    letterSpacing: 1,
-    textTransform: "uppercase",
-    marginTop: spacing.xs,
-  },
-  scoreHeroFit: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17, textAlign: "center", marginTop: spacing.xs },
+  scoreHeroContent: { alignItems: "center", gap: spacing.sm, paddingVertical: spacing.xl },
+  scoreHeroNumber: { fontSize: 60, lineHeight: 66, letterSpacing: -2.4 },
+  scoreHeroOutOf: { ...font("400"), color: colors.textMuted, fontSize: 13, marginTop: 2 },
+  scoreHeroArchetype: { fontSize: 15, ...font("600"), marginTop: spacing.sm },
+  scoreHeroFit: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17, textAlign: "center", marginTop: spacing.xs },
   deltaRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  deltaText: { fontSize: typography.caption, fontWeight: "600" },
-  deltaNeutral: { color: colors.textMuted, fontSize: typography.caption },
+  deltaText: { fontSize: typography.caption, ...font("600") },
+  deltaNeutral: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
   promptCard: { gap: spacing.sm },
-  promptText: { color: colors.textSecondary, fontSize: typography.body, lineHeight: 21, fontStyle: "italic" },
+  promptText: { fontFamily: fontDisplay.spoken, color: colors.textPrimary, fontSize: 19, lineHeight: 26, letterSpacing: -0.2 },
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  sectionLabel: { color: colors.accent, fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 1 },
+  sectionLabel: { color: colors.textSecondary, fontSize: 13, ...font("600") },
   sectionSpacer: { marginTop: spacing.sm },
-  duration: { color: colors.textMuted, fontSize: typography.caption },
-  transcript: { color: colors.textPrimary, fontSize: typography.bodyLarge, lineHeight: 25 },
+  duration: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
+  transcript: { ...font("400"), color: colors.textPrimary, fontSize: typography.bodyLarge, lineHeight: 25 },
   verbatimToggle: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, paddingVertical: spacing.sm },
-  verbatimToggleText: { color: colors.accent, fontSize: typography.body, fontWeight: "600" },
+  verbatimToggleText: { color: colors.textSecondary, fontSize: typography.body, ...font("600") },
   videoRemovedRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, paddingVertical: spacing.sm },
-  videoRemovedText: { color: colors.textMuted, fontSize: typography.body },
+  videoRemovedText: { ...font("400"), color: colors.textMuted, fontSize: typography.body },
   verbatimCard: { backgroundColor: colors.surfaceRaised },
   coachingCard: { gap: spacing.sm },
-  coachingSummary: { color: colors.textPrimary, fontSize: typography.body, lineHeight: 21 },
+  coachingSummary: { ...font("400"), color: colors.textPrimary, fontSize: typography.body, lineHeight: 21 },
   coachingRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
-  coachingRowText: { flex: 1, color: colors.textSecondary, fontSize: typography.body, lineHeight: 20 },
-  coachingRowLabel: { color: colors.textPrimary, fontWeight: "700" },
-  drillBox: { backgroundColor: colors.accentMuted, borderRadius: 10, padding: spacing.md, gap: spacing.xs, marginTop: spacing.xs },
-  drillLabel: { color: colors.accent, fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 1 },
-  drillText: { color: colors.textPrimary, fontSize: typography.body, lineHeight: 20 },
+  coachingRowText: { ...font("400"), flex: 1, color: colors.textSecondary, fontSize: typography.body, lineHeight: 20 },
+  coachingRowLabel: { color: colors.textPrimary, ...font("700") },
+  drillBox: { backgroundColor: colors.surfaceRaised, borderRadius: radii.md, padding: spacing.md, gap: spacing.xs, marginTop: spacing.xs },
+  drillLabel: { color: colors.textSecondary, fontSize: 13, ...font("600") },
+  drillText: { ...font("400"), color: colors.textPrimary, fontSize: typography.body, lineHeight: 20 },
   radarCard: { alignItems: "center" },
-  bodyLanguageNotes: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },
+  bodyLanguageNotes: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },
 }));

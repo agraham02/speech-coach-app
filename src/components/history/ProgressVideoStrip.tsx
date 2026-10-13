@@ -5,7 +5,7 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import type { SessionWithScore } from "../../services/db/sessionsRepo";
 import { resolveVideoUri } from "../../services/storage/videoStorage";
 import { colorForScore } from "../result/scoreColor";
-import { radii, spacing, typography } from "../../theme/theme";
+import { radii, spacing, typography, font } from "../../theme/theme";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 // Progress videos (one kept per month, or pinned by hand) as a row of
@@ -15,7 +15,7 @@ export function ProgressVideoStrip({ sessions, onOpen }: { sessions: SessionWith
   if (!sessions.length) return null;
   return (
     <View style={styles.wrap}>
-      <Text style={styles.label}>PROGRESS VIDEOS</Text>
+      <Text style={styles.label}>Progress videos</Text>
       <FlatList
         horizontal
         data={sessions}
@@ -74,7 +74,7 @@ const CARD_HEIGHT = 136;
 
 const useStyles = makeStyles(({ colors }) => ({
   wrap: { gap: spacing.xs, marginBottom: spacing.md },
-  label: { color: colors.textMuted, fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 1 },
+  label: { color: colors.textMuted, fontSize: 13, ...font("600") },
   row: { gap: spacing.sm },
   card: { width: CARD_WIDTH, height: CARD_HEIGHT, borderRadius: radii.md, overflow: "hidden", backgroundColor: "black" },
   video: { width: CARD_WIDTH, height: CARD_HEIGHT },
@@ -90,8 +90,8 @@ const useStyles = makeStyles(({ colors }) => ({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  month: { color: "white", fontSize: typography.caption - 1, fontWeight: "700" },
-  score: { fontSize: typography.caption, fontWeight: "800" },
+  month: { color: "white", fontSize: typography.caption - 1, ...font("700") },
+  score: { fontSize: typography.caption, ...font("800") },
   play: {
     position: "absolute",
     top: 6,

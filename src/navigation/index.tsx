@@ -20,6 +20,7 @@ import { DebriefScreen } from "../screens/DebriefScreen";
 import { ConversationLogScreen } from "../screens/ConversationLogScreen";
 import { AsrLabScreen } from "../screens/AsrLabScreen";
 import { reconcileOnLaunch } from "../services/pipeline/reconcile";
+import { autoCleanupVideos } from "../services/data/videoKeepsakes";
 import type { PracticeContext } from "../domain/practice";
 import type { ConversationDrillType, DrillType } from "../domain/drills/drillSpecs";
 import { HistoryScreen } from "../screens/HistoryScreen";
@@ -31,8 +32,35 @@ import { PreviewScreen } from "../screens/PreviewScreen";
 import { ProcessingScreen } from "../screens/ProcessingScreen";
 import { ResultScreen } from "../screens/ResultScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
+import { YouScreen } from "../screens/YouScreen";
+import { PhrasebookScreen } from "../screens/PhrasebookScreen";
+import { ThreeThingsScreen } from "../screens/ThreeThingsScreen";
+import { TalkBackScreen } from "../screens/TalkBackScreen";
+import { RewindScreen } from "../screens/RewindScreen";
+import { RewindRecordScreen } from "../screens/RewindRecordScreen";
+import { RewindResultScreen } from "../screens/RewindResultScreen";
+import { syncRewindReminder } from "../services/rewind/rewindReminder";
+import { autoCleanupRewindAudio } from "../services/rewind/rewindCleanup";
+import { ThoughtChallengeScreen } from "../screens/ThoughtChallengeScreen";
+import { ThreeThingsListScreen } from "../screens/ThreeThingsListScreen";
+import type { SettingsSection } from "../components/settings/sections";
 import { TipsScreen } from "../screens/TipsScreen";
-import { ScriptLibraryScreen } from "../screens/ScriptLibraryScreen";
+import { SourcesScreen } from "../screens/SourcesScreen";
+import { MarkItUpScreen } from "../screens/MarkItUpScreen";
+import { LineRepScreen } from "../screens/LineRepScreen";
+import { AddTextScreen } from "../screens/AddTextScreen";
+import { MarkEditScreen } from "../screens/MarkEditScreen";
+import { SpeechStudyScreen } from "../screens/SpeechStudyScreen";
+import { RehearseScreen } from "../screens/RehearseScreen";
+import { MoveItScreen } from "../screens/MoveItScreen";
+import { FeelingScreen } from "../screens/FeelingScreen";
+import { OnboardingScreen } from "../screens/OnboardingScreen";
+import { SetupCheckScreen } from "../screens/SetupCheckScreen";
+import { SkillCheckScreen } from "../screens/SkillCheckScreen";
+import { StartingPointScreen } from "../screens/StartingPointScreen";
+import { OnboardingGateScreen } from "../screens/OnboardingGateScreen";
+import { isOnboardingComplete, removeObsoletePrefs } from "../services/prefs/prefsStore";
+import { deleteRemovedSecrets } from "../services/secrets/secretsStore";
 import { PromptLibraryScreen } from "../screens/PromptLibraryScreen";
 import { AddPromptScreen } from "../screens/AddPromptScreen";
 import { PlanYourPointScreen } from "../screens/PlanYourPointScreen";
@@ -43,22 +71,50 @@ import { navigationRef } from "./navigationRef";
 import { syncDailyReminder } from "../services/notifications/reminderScheduler";
 import { logger } from "../utils/logger";
 import type { Prompt, RecordingSubject } from "../domain/sessionTypes";
+import type { LineCategory } from "../content/lines";
+import type { MarkLevel } from "../domain/cadence/marks";
 import { useTheme } from "../theme/ThemeProvider";
+import { TabBar } from "../components/common/TabBar";
 
 export { navigationRef };
 
 export type TabParamList = {
   Today: undefined;
   Learn: undefined;
-  Progress: undefined;
   Library: undefined;
+  You: undefined;
   Dev: undefined;
 };
 
 export type RootStackParamList = {
   Tabs: NavigatorScreenParams<TabParamList> | undefined;
-  Settings: undefined;
-  ScriptLibrary: undefined;
+  // One section of Settings, or the list of them with no section.
+  Settings: { section?: SettingsSection } | undefined;
+  Progress: undefined;
+  Phrasebook: undefined;
+  ThreeThings: undefined;
+  TalkBack: undefined;
+  Rewind: undefined;
+  RewindRecord: undefined;
+  RewindResult: { id: string };
+  ThoughtChallenge: { thoughtId: string };
+  // capstone: the wrap-up after thirty days.
+  ThreeThingsList: { capstone?: boolean } | undefined;
+  MarkItUp: { shelf?: "lines" | "mine" | "speeches" } | undefined;
+  LineRep: { lineIds?: string[]; mineIds?: string[]; phraseIds?: string[]; aboutYou?: boolean; category?: LineCategory; mode?: "rep" | "lineOfDay"; practice?: PracticeContext } | undefined;
+  AddText: undefined;
+  MarkEdit: { id: string };
+  SpeechStudy: { speechId: string };
+  Rehearse: { speechId: string; markLevel?: MarkLevel };
+  MoveIt: { practice?: PracticeContext } | undefined;
+  Feeling: { practice?: PracticeContext } | undefined;
+  OnboardingGate: undefined;
+  // "profile": the questions only, for someone who's used the app before.
+  Onboarding: { mode?: "full" | "profile" } | undefined;
+  SetupCheck: undefined;
+  // defer: put it off until tomorrow. retake: the 30-day check.
+  SkillCheck: { defer?: boolean; retake?: boolean } | undefined;
+  StartingPoint: { checkId: string };
   PromptLibrary: undefined;
   AddPrompt: undefined;
   PlanYourPoint: { prompt: Prompt };
@@ -71,9 +127,11 @@ export type RootStackParamList = {
   Debrief: { eventId?: string } | undefined;
   ConversationLog: undefined;
   Lesson: { lessonId: string };
-  DailySession: undefined;
+  // slot 1-2: a daily-goal top-up instead of the main plan.
+  DailySession: { slot?: 1 | 2 } | undefined;
   Practice: undefined;
   Frameworks: undefined;
+  Sources: undefined;
   Trends: undefined;
   Curriculum: undefined;
   Recording: RecordingSubject;
@@ -101,11 +159,10 @@ function JSTabs() {
   const { colors } = useTheme();
   return (
     <JSTab.Navigator
+      tabBar={(props) => <TabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.textMuted,
-        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
+        sceneStyle: { backgroundColor: colors.background },
       }}
     >
       <JSTab.Screen
@@ -123,17 +180,17 @@ function JSTabs() {
         }}
       />
       <JSTab.Screen
-        name="Progress"
-        component={ProgressScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => <Ionicons name="stats-chart-outline" size={size} color={color} />,
-        }}
-      />
-      <JSTab.Screen
         name="Library"
         component={HistoryScreen}
         options={{
           tabBarIcon: ({ color, size }) => <Ionicons name="albums-outline" size={size} color={color} />,
+        }}
+      />
+      <JSTab.Screen
+        name="You"
+        component={YouScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <Ionicons name="person-circle-outline" size={size} color={color} />,
         }}
       />
       {SHOW_DEV_TOOLS ? (
@@ -168,7 +225,7 @@ function NativeTabs() {
       // effect. Unconfirmed — remove if it doesn't help.
       minimizeBehavior="never"
       scrollEdgeAppearance="opaque"
-      tabBarStyle={{ backgroundColor: colors.surface }}
+      tabBarStyle={{ backgroundColor: colors.background }}
       screenOptions={{
         tabBarActiveTintColor: colors.accent,
         // Without this, the native wrapper immediately behind each screen's
@@ -194,17 +251,17 @@ function NativeTabs() {
         }}
       />
       <NativeTab.Screen
-        name="Progress"
-        component={ProgressScreen}
-        options={{
-          tabBarIcon: ({ focused }) => ({ sfSymbol: focused ? "chart.bar.fill" : "chart.bar" }),
-        }}
-      />
-      <NativeTab.Screen
         name="Library"
         component={HistoryScreen}
         options={{
           tabBarIcon: ({ focused }) => ({ sfSymbol: focused ? "square.stack.fill" : "square.stack" }),
+        }}
+      />
+      <NativeTab.Screen
+        name="You"
+        component={YouScreen}
+        options={{
+          tabBarIcon: ({ focused }) => ({ sfSymbol: focused ? "person.crop.circle.fill" : "person.crop.circle" }),
         }}
       />
       {SHOW_DEV_TOOLS ? (
@@ -224,7 +281,9 @@ function Tabs() {
   return Platform.OS === "ios" ? <NativeTabs /> : <JSTabs />;
 }
 
-export function AppNavigator() {
+// `onReady` fires once the first screen is mounted (App.tsx hides the
+// splash then).
+export function AppNavigator({ onReady }: { onReady?: () => void }) {
   const { scheme, colors } = useTheme();
   // Keeps React Navigation's own backgrounds (screen transitions, modals)
   // in step with the app's palette instead of its default light theme.
@@ -246,9 +305,11 @@ export function AppNavigator() {
   // as the in-app toast (see sessionProcessor.ts's goToResult).
   useEffect(() => {
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      const sessionId = response.notification.request.content.data?.sessionId;
-      if (typeof sessionId === "string" && navigationRef.isReady()) {
-        navigationRef.navigate("Result", { sessionId });
+      const data = response.notification.request.content.data;
+      if (typeof data?.sessionId === "string" && navigationRef.isReady()) {
+        navigationRef.navigate("Result", { sessionId: data.sessionId });
+      } else if (data?.route === "Rewind" && navigationRef.isReady()) {
+        navigationRef.navigate("Rewind");
       }
     });
     return () => subscription.remove();
@@ -260,21 +321,52 @@ export function AppNavigator() {
   // Resume analysis the app was killed in the middle of, and clean up
   // abandoned video files (see pipeline/reconcile.ts).
   useEffect(() => {
+    removeObsoletePrefs();
+    deleteRemovedSecrets().catch(() => undefined);
     reconcileOnLaunch();
+    autoCleanupVideos().catch((err) => logger.error(`[videos] auto-cleanup failed — ${(err as Error).message}`));
+    autoCleanupRewindAudio().catch((err) => logger.error(`[rewind] audio cleanup failed — ${(err as Error).message}`));
   }, []);
 
   useEffect(() => {
     syncDailyReminder().catch((err) => logger.error(`[reminders] launch resync failed — ${(err as Error).message}`));
+    syncRewindReminder().catch((err) => logger.error(`[rewind] launch resync failed — ${(err as Error).message}`));
   }, []);
 
+  // If tapping the evening nudge is what launched the app, the listener above
+  // wasn't there yet: open Rewind once the navigator is ready.
+  function openFromLaunchNotification() {
+    onReady?.();
+    const last = Notifications.getLastNotificationResponse();
+    if (last?.notification.request.content.data?.route === "Rewind") {
+      Notifications.clearLastNotificationResponse();
+      navigationRef.navigate("Rewind");
+    }
+  }
+
   return (
-    <NavigationContainer ref={navigationRef} theme={navTheme}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <NavigationContainer ref={navigationRef} theme={navTheme} onReady={openFromLaunchNotification}>
+      <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={isOnboardingComplete() ? "Tabs" : "OnboardingGate"}>
         <Stack.Screen name="Tabs" component={Tabs} />
-        <Stack.Screen name="Settings" component={SettingsScreen} options={{ presentation: "modal" }} />
+        <Stack.Screen name="OnboardingGate" component={OnboardingGateScreen} />
+        <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ gestureEnabled: false }} />
+        <Stack.Screen name="SetupCheck" component={SetupCheckScreen} options={{ gestureEnabled: false }} />
+        <Stack.Screen name="SkillCheck" component={SkillCheckScreen} />
+        <Stack.Screen name="StartingPoint" component={StartingPointScreen} options={{ gestureEnabled: false }} />
+        <Stack.Screen name="Settings" component={SettingsScreen} />
+        <Stack.Screen name="Progress" component={ProgressScreen} />
+        <Stack.Screen name="Phrasebook" component={PhrasebookScreen} />
+        <Stack.Screen name="ThreeThings" component={ThreeThingsScreen} />
+        <Stack.Screen name="TalkBack" component={TalkBackScreen} />
+        <Stack.Screen name="Rewind" component={RewindScreen} />
+        <Stack.Screen name="RewindRecord" component={RewindRecordScreen} options={{ gestureEnabled: false }} />
+        <Stack.Screen name="RewindResult" component={RewindResultScreen} />
+        <Stack.Screen name="ThoughtChallenge" component={ThoughtChallengeScreen} />
+        <Stack.Screen name="ThreeThingsList" component={ThreeThingsListScreen} />
         <Stack.Screen name="AsrLab" component={AsrLabScreen} />
         <Stack.Screen name="Practice" component={HomeScreen} />
         <Stack.Screen name="Frameworks" component={TipsScreen} />
+        <Stack.Screen name="Sources" component={SourcesScreen} />
         <Stack.Screen name="Trends" component={TrendsScreen} />
         <Stack.Screen name="Drill" component={DrillRunnerScreen} />
         <Stack.Screen name="Guided" component={GuidedScreen} />
@@ -284,7 +376,14 @@ export function AppNavigator() {
         <Stack.Screen name="ConversationLog" component={ConversationLogScreen} />
         <Stack.Screen name="Lesson" component={LessonScreen} />
         <Stack.Screen name="DailySession" component={DailySessionScreen} />
-        <Stack.Screen name="ScriptLibrary" component={ScriptLibraryScreen} />
+        <Stack.Screen name="MarkItUp" component={MarkItUpScreen} />
+        <Stack.Screen name="LineRep" component={LineRepScreen} />
+        <Stack.Screen name="AddText" component={AddTextScreen} />
+        <Stack.Screen name="MarkEdit" component={MarkEditScreen} />
+        <Stack.Screen name="SpeechStudy" component={SpeechStudyScreen} />
+        <Stack.Screen name="Rehearse" component={RehearseScreen} />
+        <Stack.Screen name="MoveIt" component={MoveItScreen} />
+        <Stack.Screen name="Feeling" component={FeelingScreen} />
         <Stack.Screen name="PromptLibrary" component={PromptLibraryScreen} />
         <Stack.Screen name="AddPrompt" component={AddPromptScreen} options={{ presentation: "modal" }} />
         <Stack.Screen name="PlanYourPoint" component={PlanYourPointScreen} />

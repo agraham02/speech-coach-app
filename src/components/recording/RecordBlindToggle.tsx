@@ -1,5 +1,5 @@
 import { StyleSheet, Switch, Text, View } from "react-native";
-import { darkColors as colors, radii, spacing, typography } from "../../theme/theme";
+import { darkColors as colors, radii, spacing, typography, font } from "../../theme/theme";
 
 interface RecordBlindToggleProps {
   value: boolean;
@@ -18,7 +18,8 @@ export function RecordBlindToggle({ value, onValueChange, disabled }: RecordBlin
         value={value}
         onValueChange={onValueChange}
         disabled={disabled}
-        trackColor={{ true: colors.accent, false: "rgba(255,255,255,0.2)" }}
+        trackColor={{ true: colors.success, false: "rgba(255,255,255,0.2)" }}
+        thumbColor="#FFFFFF"
       />
     </View>
   );
@@ -35,6 +36,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   textGroup: { gap: 2 },
-  label: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "600" },
-  sublabel: { color: colors.textSecondary, fontSize: typography.caption },
+  label: { color: colors.textPrimary, fontSize: typography.body, ...font("600") },
+  sublabel: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption },
 });

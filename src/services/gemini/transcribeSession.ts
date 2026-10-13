@@ -6,6 +6,8 @@ import {
   buildTranscriptCleanOnlySystemPrompt,
   buildTranscriptOnlySystemPrompt,
   RESPONSE_SCHEMA,
+  SPEECH_IS_DATA,
+  STUTTER_NOTE,
   TRANSCRIPT_CLEAN_ONLY_SCHEMA,
   TRANSCRIPT_ONLY_SCHEMA,
 } from "./schema";
@@ -17,9 +19,12 @@ import {
   type TranscriptAnnotation,
   type UploadedGeminiFile,
 } from "./types";
-import type { Script } from "../../domain/scriptTypes";
+import type { MarkLevel, Script } from "../../domain/scriptTypes";
 import type { PlanText } from "../../domain/planYourPoint";
 import { logger } from "../../utils/logger";
+import { defaultsFromProfile } from "../../domain/profile";
+import { getUserProfile } from "../prefs/prefsStore";
+import { speakerContextForReview } from "../cloud/speakerContext";
 
 export type TranscribeProgressStep =
   | "uploading"
@@ -32,12 +37,12 @@ export type TranscribeProgressStep =
 // transcribeSession uses.
 // groundingTranscript (prompt variant only — see schema.ts's decision not to
 // ground script sessions, whose text is already fully known in advance) is
-// an already-verified verbatim transcript from on-device Whisper or
-// AssemblyAI, passed to Gemini as ground truth rather than having it
+// an already-verified verbatim transcript from on-device Whisper,
+// passed to Gemini as ground truth rather than having it
 // re-transcribe from scratch. See sessionProcessor.ts for where it's sourced.
 export type GradingContext =
   | { kind: "prompt"; promptText: string; planText?: PlanText; groundingTranscript?: string }
-  | { kind: "script"; script: Script; cuesEnabled: boolean };
+  | { kind: "script"; script: Script; cuesEnabled: boolean; markLevel?: MarkLevel };
 
 // Shared by transcribeSession and transcribeOnly: upload the recording to the
 // Gemini Files API and wait for it to become ACTIVE before generateContent
@@ -82,7 +87,7 @@ function extractTranscriptFields(
 
 // Exported separately from analyzeUploadedVideo (below) so sessionProcessor.ts
 // can start this upload — today's dominant latency cost — concurrently with
-// on-device ASR/AssemblyAI/DSP, instead of waiting for those to resolve
+// on-device ASR/DSP, instead of waiting for those to resolve
 // first. transcribeSession() (further below) composes the two sequentially
 // for callers that don't need the parallel-upload optimization (the
 // on-demand "Grade with Gemini" retry path).
@@ -138,11 +143,14 @@ export async function analyzeUploadedVideo(
   onProgress?: (step: TranscribeProgressStep) => void,
 ): Promise<GeminiSessionAnalysis> {
   const systemPrompt =
-    context.kind === "script"
-      ? buildScriptSystemPrompt(context.script, context.cuesEnabled)
-      : buildSystemPrompt(context.promptText, context.planText, context.groundingTranscript);
+    (context.kind === "script"
+      ? buildScriptSystemPrompt(context.script, context.cuesEnabled ? context.markLevel ?? "full" : "none")
+      : buildSystemPrompt(context.promptText, context.planText, context.groundingTranscript)) +
+    speakerContextForReview() +
+    SPEECH_IS_DATA +
+    (defaultsFromProfile(getUserProfile()).stutterMode ? STUTTER_NOTE : "");
   const showsCueCompliance =
-    context.kind === "script" && context.cuesEnabled && context.script.cues.length > 0;
+    context.kind === "script" && context.cuesEnabled && context.script.marks.length > 0;
   const responseSchema = showsCueCompliance ? buildResponseSchemaWithCueCompliance() : RESPONSE_SCHEMA;
 
   onProgress?.("transcribing");
@@ -224,7 +232,7 @@ export function parseTranscriptOnly(responseText: string): GeminiTranscriptOnly 
 }
 
 // Text-only call (no video ever uploaded) — rewrites an already-accurate
-// verbatim transcript (on-device or AssemblyAI) into clean journal prose.
+// verbatim transcript (on-device) into clean journal prose.
 // Used when grading wasn't requested and a transcript source resolved, so
 // there's no reason to pay for/wait on a video upload just for this one
 // rewriting task. See sessionProcessor.ts.

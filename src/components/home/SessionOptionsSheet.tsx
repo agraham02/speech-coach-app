@@ -15,7 +15,7 @@ import {
   RECORDING_DURATION_MIN_SECONDS,
   RECORDING_DURATION_STEP_SECONDS,
 } from "../../domain/recordingSettings";
-import { radii, spacing, typography } from "../../theme/theme";
+import { radii, spacing, typography, font, fontDisplay } from "../../theme/theme";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 interface SessionOptionsSheetProps {
@@ -117,7 +117,8 @@ export function SessionOptionsSheet({
             <Switch
               value={warmUpEnabled}
               onValueChange={onWarmUpEnabledChange}
-              trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
+              trackColor={{ true: colors.success, false: colors.switchTrackOff }}
+              thumbColor="#FFFFFF"
             />
           </View>
 
@@ -129,7 +130,8 @@ export function SessionOptionsSheet({
             <Switch
               value={prepSettings.enabled}
               onValueChange={(enabled) => onPrepSettingsChange({ ...prepSettings, enabled })}
-              trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
+              trackColor={{ true: colors.success, false: colors.switchTrackOff }}
+              thumbColor="#FFFFFF"
             />
           </View>
           {prepSettings.enabled ? (
@@ -159,7 +161,8 @@ export function SessionOptionsSheet({
                   onValueChange={(isRandom) =>
                     onPrepSettingsChange({ ...prepSettings, mode: isRandom ? "random" : "fixed" })
                   }
-                  trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
+                  trackColor={{ true: colors.success, false: colors.switchTrackOff }}
+              thumbColor="#FFFFFF"
                 />
               </View>
               {prepManuallySet ? (
@@ -201,7 +204,8 @@ export function SessionOptionsSheet({
                 onValueChange={(isRandom) =>
                   onDurationSettingsChange({ ...durationSettings, mode: isRandom ? "random" : "fixed" })
                 }
-                trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
+                trackColor={{ true: colors.success, false: colors.switchTrackOff }}
+              thumbColor="#FFFFFF"
               />
             </View>
             {durationManuallySet ? (
@@ -242,36 +246,34 @@ const useStyles = makeStyles(({ colors }) => ({
     right: 0,
     bottom: 0,
     backgroundColor: colors.surface,
-    borderTopLeftRadius: radii.lg,
-    borderTopRightRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
   },
-  handle: { alignSelf: "center", width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: spacing.xs },
+  handle: { alignSelf: "center", width: 40, height: 5, borderRadius: 3, backgroundColor: colors.switchTrackOff, marginBottom: spacing.sm },
   panelHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: spacing.md,
   },
-  panelTitle: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
-  doneText: { color: colors.accent, fontSize: typography.body, fontWeight: "600" },
+  panelTitle: { color: colors.textPrimary, fontFamily: fontDisplay.title, fontSize: 24, lineHeight: 30, letterSpacing: -0.5 },
+  doneText: { color: colors.accent, fontSize: typography.body, ...font("600") },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
   rowText: { flex: 1, gap: spacing.xs },
-  rowTitle: { color: colors.textPrimary, fontSize: typography.bodyLarge, fontWeight: "700" },
-  rowSubtitle: { color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18 },
+  rowTitle: { color: colors.textPrimary, fontSize: typography.bodyLarge, ...font("700") },
+  rowSubtitle: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18 },
   subSection: { gap: spacing.sm },
-  divider: { paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
+  divider: { paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.separator },
   switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  switchLabel: { color: colors.textSecondary, fontSize: typography.body },
+  switchLabel: { ...font("400"), color: colors.textSecondary, fontSize: typography.body },
   autoBadge: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     borderRadius: radii.pill,
     backgroundColor: colors.accentMuted,
   },
-  autoBadgeText: { color: colors.accent, fontSize: typography.caption - 1, fontWeight: "700" },
-  linkText: { color: colors.accent, fontSize: typography.caption, fontWeight: "600" },
+  autoBadgeText: { color: colors.accent, fontSize: typography.caption - 1, ...font("700") },
+  linkText: { color: colors.accent, fontSize: typography.caption, ...font("600") },
 }));

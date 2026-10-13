@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Skeleton, SkeletonCard, SkeletonLines, SkeletonRows } from "../components/common/Skeleton";
+import { GuideTip } from "../components/common/GuideTip";
 import { ScrollView, View } from "react-native";
 import * as Speech from "expo-speech";
+import * as Haptics from "expo-haptics";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
@@ -9,7 +12,7 @@ import { Card } from "../components/common/Card";
 import { Txt } from "../components/common/Txt";
 import { Chip } from "../components/common/Chip";
 import { PrimaryButton } from "../components/common/PrimaryButton";
-import { ProgressRing } from "../components/common/ProgressRing";
+import { CountdownRing } from "../components/common/CountdownRing";
 import { StatTile } from "../components/common/StatTile";
 import { useLiveSpeech } from "../hooks/useLiveSpeech";
 import { FIRST_RESULT_LATENCY_MS, fullText } from "../domain/speech/liveTranscript";
@@ -19,6 +22,11 @@ import { prepareDrill, type DrillSetup } from "../domain/drills/prepareDrill";
 import { evaluateDrill, type DrillDetails } from "../domain/drills/evaluateDrill";
 import { DRILL_TITLES, type DrillOutcome } from "../domain/drills/drillSpecs";
 import { uniqueContentWords, usedWord } from "../domain/dsp/volumePauses";
+import { chainWords, nextSeed } from "../domain/drills/wordChain";
+import { countReached, MAX_COUNT_RATE } from "../domain/drills/breathCount";
+import { CHAIN_SEEDS } from "../content/drillContent";
+import { defaultsFromProfile } from "../domain/profile";
+import { getUserProfile } from "../services/prefs/prefsStore";
 import { getDrillLevel, recordDrillOutcome } from "../services/db/progressRepo";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { showGlobalToast } from "../components/common/ToastProvider";
@@ -27,6 +35,11 @@ import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Drill">;
 type Stage = "intro" | "model" | "prep" | "listening" | "finalizing" | "result";
+
+// One-breath count: this long without a new number means the breath ran out.
+// Longer in stuttering mode, so a block is never taken for the end.
+const BREATH_END_MS = 2000;
+const BREATH_END_STUTTER_MS = 3500;
 
 // One screen for every live-speech drill (pace and pause reading, minimal
 // pairs, shadowing, fluency sprints, random-word story, Just a Minute,
@@ -45,6 +58,12 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
   const startedAtRef = useRef(0);
   const finishingRef = useRef(false);
   const seedRef = useRef(Math.floor(Math.random() * 100_000));
+  const profileDefaults = useMemo(() => defaultsFromProfile(getUserProfile()), []);
+  // Word chain: every seed shown so far, and where in the transcript the
+  // current one started (the chain on screen restarts with each seed).
+  const [seeds, setSeeds] = useState<string[]>([]);
+  const [segmentStart, setSegmentStart] = useState(0);
+  const lastActivityRef = useRef(0);
 
   useEffect(() => {
     getDrillLevel(drill).then((level) => setSetup(prepareDrill(drill, level, seedRef.current, contentId)));
@@ -56,7 +75,25 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
     const timer = setInterval(() => {
       const ms = Date.now() - startedAtRef.current;
       setElapsedMs(ms);
-      if (setup?.seconds && ms >= setup.seconds * 1000) finish();
+      if (setup?.seconds && ms >= setup.seconds * 1000) {
+        finish();
+        return;
+      }
+      // One-breath count: ends on its own once the numbers stop.
+      const breathEnd = profileDefaults.stutterMode ? BREATH_END_STUTTER_MS : BREATH_END_MS;
+      if (setup?.live === "breath" && heardCountRef.current > 0 && Date.now() - lastActivityRef.current > breathEnd + FIRST_RESULT_LATENCY_MS) {
+        finish();
+        return;
+      }
+      // Word chain: a blank brings up a fresh word instead of ending it.
+      const stall = setup?.params.stallSeconds;
+      // Recognition lags speech a little, so allow for that on top of the grace.
+      if (setup?.live === "chain" && stall && Date.now() - lastActivityRef.current > stall * 1000 + FIRST_RESULT_LATENCY_MS) {
+        lastActivityRef.current = Date.now();
+        setSeeds((current) => [...current, nextSeed(CHAIN_SEEDS, current, seedRef.current + current.length * 7)]);
+        setSegmentStart(heardCountRef.current);
+        Haptics.selectionAsync().catch(() => undefined);
+      }
     }, 250);
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -76,6 +113,15 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
 
   const target = useMemo(() => (setup?.targetText ? buildTarget(setup.targetText, 1) : []), [setup]);
   const heard = useMemo(() => tokenizeHeard(speech.text).tokens, [speech.text]);
+  const heardCountRef = useRef(0);
+  heardCountRef.current = heard.length;
+
+  // A new recognized word counts as still going (word chain). The volume
+  // meter isn't used: background noise keeps it above "silent" in a lot of
+  // real rooms, so a blank would never be noticed.
+  useEffect(() => {
+    if (stage === "listening") lastActivityRef.current = Date.now();
+  }, [heard.length, stage]);
   const following = stage === "listening" || stage === "finalizing";
   const live = useMemo(
     () => (following && setup?.live === "follow" && target.length ? followLive(target, heard) : null),
@@ -97,7 +143,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
   if (!setup) {
     return (
       <ScreenContainer>
-        <Txt tone="muted">Loading…</Txt>
+        <SkeletonCard lines={4} />
       </ScreenContainer>
     );
   }
@@ -126,6 +172,9 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
 
   function beginListening() {
     if (!setup) return;
+    setSeeds(setup.words ?? []);
+    setSegmentStart(0);
+    lastActivityRef.current = Date.now();
     speech.session.start({
       volumeMeter: true,
       volumeIntervalMs: 100,
@@ -161,6 +210,10 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         transcript: text,
         speakingMs,
         volume,
+        seedWords: setup.live === "chain" ? seeds : undefined,
+        penalizeResets: !profileDefaults.stutterMode,
+        ignoreSlips: profileDefaults.stutterMode,
+        relaxedAccuracy: profileDefaults.relaxAccuracy,
       });
       const change = await recordDrillOutcome({
         drillType: setup.type,
@@ -214,9 +267,9 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
 
         {stage === "prep" ? (
           <View style={styles.center}>
-            <ProgressRing size={120} strokeWidth={8} progress={prepLeft / Math.max(setup.prepSeconds ?? 1, 1)}>
+            <CountdownRing size={120} strokeWidth={8} durationMs={(setup.prepSeconds ?? 1) * 1000}>
               <Txt variant="largeTitle">{prepLeft}</Txt>
-            </ProgressRing>
+            </CountdownRing>
             <Txt tone="secondary">Think of an opening line…</Txt>
           </View>
         ) : null}
@@ -240,7 +293,11 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
 
       {stage === "intro" ? <PrimaryButton label={setup.type === "shadowing" ? "Play and repeat" : "Start"} onPress={start} /> : null}
       {stage === "listening" ? (
-        <PrimaryButton label={secondsLeft != null ? `Finish · ${secondsLeft}s` : "Finish"} variant="danger" onPress={finish} />
+        <PrimaryButton
+          label={setup.live === "breath" ? "Out of breath" : secondsLeft != null ? `Finish · ${secondsLeft}s` : "Finish"}
+          variant="danger"
+          onPress={finish}
+        />
       ) : null}
       {stage === "finalizing" ? <PrimaryButton label="Scoring…" onPress={() => undefined} loading /> : null}
       {stage === "result" ? (
@@ -249,6 +306,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
           <PrimaryButton label="Done" onPress={done} style={styles.flex} />
         </View>
       ) : null}
+      <GuideTip id="drill" />
     </ScreenContainer>
   );
 
@@ -273,11 +331,11 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
       return (
         <Card style={styles.card}>
           {statuses ? (
-            <Txt variant="title3" style={styles.passage}>
+            <Txt variant="quote" style={styles.passage}>
               {target.map((w, i) => (
                 <Txt
                   key={i}
-                  variant="title3"
+                  variant="quote"
                   color={
                     statuses[i] === "hit"
                       ? colors.success
@@ -294,7 +352,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
               ))}
             </Txt>
           ) : (
-            <Txt variant="title3" style={styles.passage}>
+            <Txt variant="quote" style={styles.passage}>
               {setup.displayText}
             </Txt>
           )}
@@ -323,6 +381,50 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
             Counted
           </Txt>
           <Txt variant="callout">{showHeard && counted.length ? counted.join(", ") : "—"}</Txt>
+        </Card>
+      );
+    }
+    if (setup.live === "chain") {
+      const current = seeds[seeds.length - 1] ?? setup.words?.[0] ?? "";
+      const bridge = setup.type === "chain_bridge";
+      const links = showHeard && !bridge ? chainWords(heard.slice(segmentStart), seeds) : [];
+      const said = showHeard && bridge ? heard.slice(segmentStart).slice(-16).join(" ") : "";
+      return (
+        <Card style={styles.card}>
+          <Txt variant="caption2" tone="muted" uppercase>
+            {seeds.length > 1 ? "Fresh word — start here" : "Start from"}
+          </Txt>
+          <Txt variant="largeTitle" tone="accent">
+            {current}
+          </Txt>
+          {links.length ? (
+            <Txt variant="title3" style={styles.passage}>
+              {links.map((w, i) => (
+                <Txt key={`${w}-${i}`} variant="title3" tone={i === links.length - 1 ? "primary" : "secondary"}>
+                  {"→ "}
+                  {w}{" "}
+                </Txt>
+              ))}
+            </Txt>
+          ) : null}
+          {said ? (
+            <Txt variant="callout" tone="secondary">
+              …{said}
+            </Txt>
+          ) : null}
+        </Card>
+      );
+    }
+    if (setup.live === "breath") {
+      const count = showHeard ? countReached(heard) : 0;
+      return (
+        <Card style={[styles.card, styles.center]}>
+          <Txt variant="display" tabular color={count >= (setup.params.target ?? 0) ? colors.success : colors.textPrimary}>
+            {count}
+          </Txt>
+          <Txt variant="footnote" tone="secondary">
+            {stage === "listening" ? "Easy and even — about two a second" : `Target: ${setup.params.target} on one breath`}
+          </Txt>
         </Card>
       );
     }
@@ -380,6 +482,18 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         </View>
       );
     }
+    if (setup.live === "chain") {
+      const target = setup.params.target ?? 8;
+      const links = setup.type === "chain_bridge" ? null : chainWords(heard, seeds).length;
+      return (
+        <View style={styles.row}>
+          {links != null ? <StatTile value={`${links}`} label={`of ${target} links`} color={links >= target ? colors.success : undefined} /> : null}
+          <StatTile value={`${secondsLeft}`} label="seconds left" />
+          <StatTile value={`${Math.max(0, seeds.length - 1)}`} label="fresh words" />
+        </View>
+      );
+    }
+    if (setup.live === "breath") return null;
     if (setup.live === "count") {
       const count = uniqueContentWords(heard, setup.letter).length;
       return (
@@ -419,6 +533,16 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
             ))}
           </View>
         ) : null}
+        {setup.type === "word_chain" && details.counted && details.counted.length > 0 ? (
+          <Txt variant="footnote" tone="secondary">
+            {[seeds[0] ?? setup.words?.[0], ...details.counted].join(" → ")}
+          </Txt>
+        ) : null}
+        {setup.live === "chain" && (details.resets ?? 0) > 0 ? (
+          <Txt variant="footnote" tone="muted">
+            You blanked {details.resets === 1 ? "once" : `${details.resets} times`} and picked it back up. That recovery is the skill.
+          </Txt>
+        ) : null}
         {details.missingWords && details.missingWords.length > 0 ? (
           <Txt variant="footnote" tone="secondary">
             Didn't hear: {details.missingWords.join(", ")}
@@ -427,6 +551,13 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         {setup.type === "pause_reading" ? (
           <Txt variant="footnote" tone="muted">
             Pauses are measured from your volume, so close your mouth fully in each one.
+          </Txt>
+        ) : null}
+        {setup.live === "breath" && details.perSecond != null ? (
+          <Txt variant="footnote" tone="secondary">
+            {details.perSecond > MAX_COUNT_RATE
+              ? `About ${details.perSecond} numbers a second — slow to an easy two, and let the breath do the work.`
+              : `About ${details.perSecond} numbers a second — a steady pace.`}
           </Txt>
         ) : null}
       </Card>
@@ -439,7 +570,7 @@ const useStyles = makeStyles((t) => ({
   scroll: { gap: t.space.md, paddingBottom: t.space.lg },
   center: { alignItems: "center", gap: t.space.md },
   card: { gap: t.space.sm },
-  passage: { lineHeight: 30 },
+  passage: { fontSize: 26, lineHeight: 34 },
   current: { textDecorationLine: "underline" },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: t.space.sm },
   row: { flexDirection: "row", gap: t.space.sm },

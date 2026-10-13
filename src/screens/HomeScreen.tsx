@@ -1,4 +1,6 @@
 import { useCallback, useState } from "react";
+import { Skeleton, SkeletonCard, SkeletonLines, SkeletonRows } from "../components/common/Skeleton";
+import { GuideTip } from "../components/common/GuideTip";
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -6,14 +8,16 @@ import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
 import { PrimaryButton } from "../components/common/PrimaryButton";
-import { LoadingSpinner } from "../components/common/LoadingSpinner";
 import { HeroCard } from "../components/common/HeroCard";
+import { IconButton } from "../components/common/IconButton";
+import { PressableScale } from "../components/common/PressableScale";
 import { Badge } from "../components/common/Badge";
 import { Banner } from "../components/common/Banner";
 import { SessionOptionsSheet } from "../components/home/SessionOptionsSheet";
 import { AVOID_REPEAT_LAST_N, pickRandomPrompt, pickTodaysPrompt } from "../domain/pickTodaysPrompt";
 import { FREE_RECORD_PROMPT } from "../data/topics";
-import { computeStreaks, type StreakResult } from "../domain/streaks";
+import type { StreakResult } from "../domain/streaks";
+import { getStreakState } from "../services/db/progressRepo";
 import { colorForCategory } from "../domain/categoryColor";
 import type { PrepPhaseSettings, RecordingDurationSettings } from "../domain/recordingSettings";
 import { DEFAULT_PREP_PHASE_SETTINGS, DEFAULT_RECORDING_DURATION_SETTINGS } from "../domain/recordingSettings";
@@ -29,7 +33,6 @@ import {
 } from "../domain/curriculum";
 import { getAllPrompts } from "../services/db/promptsRepo";
 import { getRecentlyUsedPromptIds, getTodaysSession } from "../services/db/sessionsRepo";
-import { getCompletedSessionDates } from "../services/db/statsRepo";
 import { getEffectiveCurriculumLevel, recomputeCurriculumLevel } from "../services/db/curriculumRepo";
 import {
   getConciseModeSeconds,
@@ -48,7 +51,7 @@ import {
 } from "../services/prefs/prefsStore";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
 import type { Prompt } from "../domain/sessionTypes";
-import { fontDisplay, radii, spacing, typography } from "../theme/theme";
+import { fontDisplay, radii, spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 const EMPTY_STREAK: StreakResult = { currentStreak: 0, longestStreak: 0 };
@@ -73,15 +76,12 @@ function ShelfCard({ icon, label, onPress }: ShelfCardProps) {
   const styles = useStyles();
   const { colors } = useTheme();
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.shelfCard, pressed && styles.shelfCardPressed]}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-    >
-      <Ionicons name={icon} size={20} color={colors.textPrimary} />
+    <PressableScale onPress={onPress} style={styles.shelfCard} scaleTo={0.95} accessibilityRole="button" accessibilityLabel={label}>
+      <View style={styles.shelfIcon}>
+        <Ionicons name={icon} size={19} color={colors.textPrimary} />
+      </View>
       <Text style={styles.shelfCardLabel}>{label}</Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -165,8 +165,8 @@ export function HomeScreen() {
         .then((session) => setAlreadyPracticedToday(session?.status === "done"))
         .catch(() => setAlreadyPracticedToday(false));
 
-      getCompletedSessionDates()
-        .then((dates) => setStreak(computeStreaks(dates)))
+      getStreakState()
+        .then(setStreak)
         .catch(() => setStreak(EMPTY_STREAK));
 
       const manuallySet = getRecordingDurationManuallySet();
@@ -271,8 +271,10 @@ export function HomeScreen() {
 
   if (!prompt) {
     return (
-      <ScreenContainer style={styles.centered}>
-        <LoadingSpinner />
+      <ScreenContainer style={styles.skeleton}>
+        <Skeleton height={28} width="55%" />
+        <SkeletonCard lines={3} />
+        <SkeletonRows count={3} />
       </ScreenContainer>
     );
   }
@@ -283,31 +285,19 @@ export function HomeScreen() {
   return (
     <ScreenContainer style={styles.container}>
       <View style={styles.header}>
-        <View>
-          <Pressable onPress={() => navigation.goBack()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back" style={styles.back}>
-            <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
-          </Pressable>
-          <Text style={styles.eyebrow}>Practice anything</Text>
-          <Text style={styles.appName}>Free practice</Text>
-          {streak.currentStreak > 0 ? (
-            <View style={styles.streakRow}>
-              <Ionicons name="flame" size={14} color={colors.warning} />
-              <Text style={styles.streakNumber}>{streak.currentStreak}</Text>
-              <Text style={styles.streakText}>
-                day streak{streak.currentStreak === streak.longestStreak ? " · personal best" : ""}
-              </Text>
-            </View>
-          ) : null}
+        <View style={styles.headerBar}>
+          <IconButton icon="chevron-back" onPress={() => navigation.goBack()} accessibilityLabel="Back" size={38} />
         </View>
-        <Pressable
-          onPress={() => navigation.navigate("Settings")}
-          hitSlop={12}
-          style={styles.settingsButton}
-          accessibilityRole="button"
-          accessibilityLabel="Settings"
-        >
-          <Ionicons name="settings-outline" size={24} color={colors.textSecondary} />
-        </Pressable>
+        <Text style={styles.eyebrow}>Practice anything</Text>
+        <Text style={styles.appName}>Free practice</Text>
+        {streak.currentStreak > 0 ? (
+          <View style={styles.streakRow}>
+            <Ionicons name="flame" size={14} color={colors.warning} />
+            <Text style={styles.streakText}>
+              {streak.currentStreak}-day streak{streak.currentStreak === streak.longestStreak ? " · personal best" : ""}
+            </Text>
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.middle}>
@@ -375,14 +365,7 @@ export function HomeScreen() {
       <View style={[styles.actions, { paddingBottom: tabBarInset }]}>
         <View style={styles.primaryRow}>
           <PrimaryButton label={primaryLabel} onPress={handlePrimaryPress} style={styles.primaryButton} />
-          <Pressable
-            onPress={() => setSheetVisible(true)}
-            style={styles.sessionOptionsButton}
-            accessibilityRole="button"
-            accessibilityLabel="Session options"
-          >
-            <Ionicons name="options-outline" size={20} color={colors.textSecondary} />
-          </Pressable>
+          <IconButton icon="options-outline" onPress={() => setSheetVisible(true)} accessibilityLabel="Session options" size={56} />
         </View>
 
         <Pressable
@@ -392,11 +375,11 @@ export function HomeScreen() {
           accessibilityRole="button"
           accessibilityLabel="Free record, no prompt"
         >
-          <Text style={styles.freeLinkText}>Free Record instead →</Text>
+          <Text style={styles.freeLinkText}>Or free record, no prompt</Text>
         </Pressable>
 
         <View style={styles.shelf}>
-          <ShelfCard icon="document-text-outline" label="Script Practice" onPress={() => navigation.navigate("ScriptLibrary")} />
+          <ShelfCard icon="document-text-outline" label="Mark it up" onPress={() => navigation.navigate("MarkItUp")} />
           <ShelfCard icon="library-outline" label="Prompt Library" onPress={() => navigation.navigate("PromptLibrary")} />
           <ShelfCard icon="flash-outline" label="Tongue-Twister Drills" onPress={() => navigation.navigate("Drills")} />
         </View>
@@ -419,6 +402,7 @@ export function HomeScreen() {
         conciseModeSeconds={conciseModeSeconds}
         onConciseModeSecondsChange={updateConciseModeSeconds}
       />
+      <GuideTip id="practice" />
     </ScreenContainer>
   );
 }
@@ -426,74 +410,58 @@ export function HomeScreen() {
 const useStyles = makeStyles(({ colors }) => ({
   container: { justifyContent: "space-between" },
   actions: { gap: spacing.sm },
-  centered: { alignItems: "center", justifyContent: "center" },
-  header: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" },
+  skeleton: { gap: 16, paddingTop: 24 },
+  header: { gap: 2 },
+  headerBar: { flexDirection: "row", justifyContent: "space-between", marginBottom: spacing.md },
   settingsButton: { padding: spacing.xs },
   promptCardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   promptCardHeaderRight: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   levelChip: {
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm + 4,
+    paddingVertical: 6,
     borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
     backgroundColor: colors.subtleFill,
   },
-  levelChipText: { color: colors.textSecondary, fontSize: typography.caption - 1, fontWeight: "700" },
-  eyebrow: { color: colors.textSecondary, fontSize: typography.body },
-  appName: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700" },
-  back: { marginLeft: -6, marginBottom: spacing.xs },
-  streakRow: { flexDirection: "row", alignItems: "baseline", gap: spacing.xs, marginTop: spacing.xs },
-  streakNumber: { color: colors.warning, fontSize: typography.body, fontFamily: fontDisplay.bold },
-  streakText: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "600" },
+  levelChipText: { color: colors.textSecondary, fontSize: 12, ...font("600") },
+  eyebrow: { ...font("500"), color: colors.textSecondary, fontSize: 13 },
+  appName: { color: colors.textPrimary, fontFamily: fontDisplay.title, fontSize: 34, lineHeight: 41, letterSpacing: -1 },
+  streakRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: spacing.xs },
+  streakText: { color: colors.textSecondary, fontSize: typography.caption, ...font("600") },
   middle: { flex: 1, justifyContent: "center", gap: spacing.lg },
   promptCard: { gap: spacing.md },
-  promptText: { color: colors.textPrimary, fontSize: typography.headline, fontWeight: "600", lineHeight: 36 },
-  hint: { color: colors.textMuted, fontSize: typography.body, textAlign: "center" },
+  promptText: { color: colors.textPrimary, fontFamily: fontDisplay.spoken, fontSize: 26, lineHeight: 34, letterSpacing: -0.5 },
+  hint: { ...font("400"), color: colors.textMuted, fontSize: typography.body, textAlign: "center" },
 
   conciseChip: {
     alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: spacing.xs,
+    gap: 6,
+    paddingHorizontal: spacing.sm + 4,
+    paddingVertical: 7,
     borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
     backgroundColor: colors.subtleFill,
   },
   conciseChipOn: { backgroundColor: colors.accent, borderColor: colors.accent },
-  conciseChipText: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "700" },
+  conciseChipText: { color: colors.textSecondary, fontSize: 13, ...font("600") },
   conciseChipTextOn: { color: colors.onAccent },
 
   primaryRow: { flexDirection: "row", gap: spacing.sm, alignItems: "stretch" },
   primaryButton: { flex: 1 },
-  sessionOptionsButton: {
-    width: 54,
-    borderRadius: radii.md,
-    backgroundColor: colors.surfaceRaised,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-  },
 
   freeLinkWrap: { alignSelf: "center", paddingVertical: spacing.xs },
-  freeLinkText: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "600", textDecorationLine: "underline" },
+  freeLinkText: { color: colors.textSecondary, fontSize: 14, ...font("500") },
 
   shelf: { flexDirection: "row", gap: spacing.sm },
   shelfCard: {
     flex: 1,
     alignItems: "center",
-    gap: spacing.xs,
-    paddingVertical: spacing.sm + 2,
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
     paddingHorizontal: spacing.xs,
-    borderRadius: radii.md,
+    borderRadius: radii.lg - 4,
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
-  shelfCardPressed: { opacity: 0.7 },
-  shelfCardLabel: { color: colors.textPrimary, fontSize: typography.caption - 1, fontWeight: "700", textAlign: "center", lineHeight: 15 },
+  shelfIcon: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: colors.accentMuted },
+  shelfCardLabel: { color: colors.textPrimary, fontSize: 12, ...font("600"), textAlign: "center", lineHeight: 16 },
 }));

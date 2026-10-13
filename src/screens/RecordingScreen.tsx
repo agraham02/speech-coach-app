@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { GuideTip } from "../components/common/GuideTip";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -6,7 +7,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { Camera as VisionCamera } from "react-native-vision-camera";
 import type { RootStackParamList } from "../navigation";
 import { PrimaryButton } from "../components/common/PrimaryButton";
-import { ProgressRing } from "../components/common/ProgressRing";
+import { CountdownRing } from "../components/common/CountdownRing";
 import { CameraPreview } from "../components/recording/CameraPreview";
 import { FramingGuideOverlay } from "../components/recording/FramingGuideOverlay";
 import { PrepOverlay } from "../components/recording/PrepOverlay";
@@ -43,11 +44,16 @@ import { logger } from "../utils/logger";
 import { StatusBar } from "expo-status-bar";
 import { stashPresenceTimeline } from "../services/pipeline/presenceTimelineStore";
 import { formatDuration } from "../utils/dateUtils";
-import { darkColors as colors, spacing, typography } from "../theme/theme";
+import { darkColors as colors, spacing, typography, font } from "../theme/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Recording">;
 
 type Stage = "warmup" | "prep" | "idle" | "recording";
+
+// A speech recording stops on its own only at twice its target length.
+const SCRIPT_SOFT_CAP = 2;
+// Room kept below the teleprompter for the record button and its hint.
+const SCRIPT_CONTROLS_HEIGHT = 190;
 
 export function RecordingScreen({ route, navigation }: Props) {
   const subject = route.params;
@@ -78,10 +84,13 @@ export function RecordingScreen({ route, navigation }: Props) {
   const fromPractice = subject.kind === "prompt" && !!subject.practice;
   const lessonPrep = subject.kind === "prompt" ? subject.prepSeconds : undefined;
   const [prepEnabled] = useState(() => {
+    // A speech is studied on its own screen first — no countdown that hides it.
+    if (isScript) return false;
     if (lessonPrep != null) return lessonPrep > 0;
     return getPrepSettingsManuallySet() ? getPrepPhaseSettings().enabled : true;
   });
-  const [warmUpEnabled] = useState(() => !fromPractice && getWarmUpEnabled());
+  const isFeeling = subject.kind === "prompt" && !!subject.feeling;
+  const [warmUpEnabled] = useState(() => !fromPractice && !isScript && !isFeeling && getWarmUpEnabled());
   // Warm-up length scales with curriculum level — harder levels get a
   // longer, more thorough warm-up (see curriculum.ts's LEVEL_WARM_UP_INTENSITY
   // table and its judgment-call note).
@@ -204,13 +213,17 @@ export function RecordingScreen({ route, navigation }: Props) {
   );
 
   const remainingRecordingSeconds = Math.max(0, targetDurationSeconds - elapsedSeconds);
+  // A speech's target is a guide, not a limit — reading with the marked
+  // pauses runs long. Only a generous cap stops it on its own.
+  const scriptCapSeconds = targetDurationSeconds * SCRIPT_SOFT_CAP;
 
   useEffect(() => {
-    if (stage === "recording" && remainingRecordingSeconds === 0) {
+    if (stage !== "recording") return;
+    if (isScript ? elapsedSeconds >= scriptCapSeconds : remainingRecordingSeconds === 0) {
       handleStop();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stage, remainingRecordingSeconds]);
+  }, [stage, remainingRecordingSeconds, elapsedSeconds]);
 
   if (!hasAllPermissions) {
     return (
@@ -228,7 +241,7 @@ export function RecordingScreen({ route, navigation }: Props) {
           <Ionicons name="videocam-outline" size={48} color={colors.accent} />
           <Text style={styles.permissionTitle}>Camera & microphone access</Text>
           <Text style={styles.permissionText}>
-            Speech Coach needs both to record your practice sessions. Nothing is uploaded until you finish recording.
+            Tono needs both to record your practice sessions. Nothing is uploaded until you finish recording.
           </Text>
         </View>
         <PrimaryButton
@@ -261,6 +274,7 @@ export function RecordingScreen({ route, navigation }: Props) {
       {stage === "prep" && (
         <PrepOverlay
           promptText={prepText}
+          notes={subject.kind === "prompt" ? subject.prepNotes : undefined}
           remainingSeconds={prepRemaining}
           onSkip={skipPrep}
           onClose={() => navigation.goBack()}
@@ -325,8 +339,9 @@ export function RecordingScreen({ route, navigation }: Props) {
           )}
           <ScriptTeleprompterOverlay
             script={subject.script}
-            cuesEnabled={subject.cuesEnabled}
+            markLevel={subject.cuesEnabled ? subject.markLevel ?? "full" : "none"}
             isRecording={stage === "recording"}
+            bottomInset={insets.bottom + SCRIPT_CONTROLS_HEIGHT}
           />
         </View>
       )}
@@ -352,16 +367,10 @@ export function RecordingScreen({ route, navigation }: Props) {
             {/* The ring only appears once recording starts (and blind mode isn't
                 hiding it), so it never reads as decoration on the idle button —
                 it's specifically the countdown, made visible. */}
-            {stage === "recording" && !recordBlind ? (
-              <ProgressRing
-                size={120}
-                strokeWidth={6}
-                progress={remainingRecordingSeconds / targetDurationSeconds}
-                color={colors.danger}
-                trackColor="rgba(255,255,255,0.15)"
-              >
+            {stage === "recording" && !recordBlind && !isScript ? (
+              <CountdownRing size={120} strokeWidth={6} durationMs={targetDurationSeconds * 1000} color={colors.danger} trackColor="rgba(255,255,255,0.15)">
                 <RecordButton isRecording disabled={isFinishing} onPress={handleStop} />
-              </ProgressRing>
+              </CountdownRing>
             ) : (
               <RecordButton
                 isRecording={stage === "recording"}
@@ -376,13 +385,16 @@ export function RecordingScreen({ route, navigation }: Props) {
                   ? isConcise
                     ? `One point. ${targetDurationSeconds}s.`
                     : "Tap to start"
-                  : recordBlind
-                    ? "Tap to stop"
-                    : `${formatDuration(remainingRecordingSeconds)} left · tap to stop`}
+                  : isScript
+                    ? `${formatDuration(elapsedSeconds)} · about ${formatDuration(targetDurationSeconds)} · tap to stop`
+                    : recordBlind
+                      ? "Tap to stop"
+                      : `${formatDuration(remainingRecordingSeconds)} left · tap to stop`}
             </Text>
           </View>
         </View>
       )}
+      <GuideTip id="recording" />
     </View>
   );
 }
@@ -397,8 +409,8 @@ const styles = StyleSheet.create({
   },
   closeButton: { alignSelf: "flex-start" },
   permissionBody: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, paddingHorizontal: spacing.lg },
-  permissionTitle: { color: colors.textPrimary, fontSize: typography.title, fontWeight: "700", textAlign: "center" },
-  permissionText: { color: colors.textSecondary, fontSize: typography.body, textAlign: "center", lineHeight: 21 },
+  permissionTitle: { color: colors.textPrimary, fontSize: typography.title, ...font("700"), textAlign: "center" },
+  permissionText: { ...font("400"), color: colors.textSecondary, fontSize: typography.body, textAlign: "center", lineHeight: 21 },
   topBar: {
     position: "absolute",
     left: spacing.lg,
@@ -439,7 +451,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.45)",
     zIndex: 2,
   },
-  restartText: { color: colors.textPrimary, fontSize: typography.caption - 1, fontWeight: "600" },
-  recordHint: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "600" },
-  recordHintUrgent: { color: colors.danger, fontWeight: "700" },
+  restartText: { color: colors.textPrimary, fontSize: typography.caption - 1, ...font("600") },
+  recordHint: { color: colors.textSecondary, fontSize: typography.caption, ...font("600") },
+  recordHintUrgent: { color: colors.danger, ...font("700") },
 });

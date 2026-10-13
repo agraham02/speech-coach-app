@@ -1,10 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { Pressable, Text } from "react-native";
+import { Pressable, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { radii, spacing, typography } from "../../theme/theme";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 import type { Colors } from "../../theme/theme";
+import { spring } from "../../theme/motion";
+import { success as hapticSuccess, warn as hapticWarn } from "../../utils/haptics";
+import { Txt } from "./Txt";
 
 type ToastTone = "success" | "error" | "info";
 type ShowToast = (text: string, tone?: ToastTone, onPress?: () => void) => void;
@@ -16,10 +19,16 @@ interface ToastMessage {
   onPress?: () => void;
 }
 
+const TONE_ICONS: Record<ToastTone, keyof typeof Ionicons.glyphMap> = {
+  success: "checkmark-circle",
+  error: "alert-circle",
+  info: "sparkles",
+};
+
 const toneColors = (colors: Colors): Record<ToastTone, string> => ({
   success: colors.success,
   error: colors.danger,
-  info: colors.accent,
+  info: colors.textSecondary,
 });
 
 const DISMISS_AFTER_MS = 2800;
@@ -59,8 +68,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
     setToast({ id: `${Date.now()}`, text, tone, onPress });
+    if (tone === "success") hapticSuccess();
+    else if (tone === "error") hapticWarn();
     opacity.value = withTiming(1, { duration: 180 });
-    translateY.value = withSpring(0, { damping: 16, stiffness: 180 });
+    translateY.value = withSpring(0, spring.gentle);
 
     timeoutRef.current = setTimeout(dismiss, DISMISS_AFTER_MS);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -83,21 +94,27 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       {toast ? (
         <Animated.View
-          style={[styles.toast, animatedStyle, { top: insets.top + spacing.sm, borderColor: toneColors(colors)[toast.tone] }]}
+          style={[styles.toast, animatedStyle, { top: insets.top + 8 }]}
           pointerEvents={toast.onPress ? "auto" : "none"}
         >
-          {toast.onPress ? (
-            <Pressable
-              onPress={() => {
-                toast.onPress?.();
-                dismiss();
-              }}
-            >
-              <Text style={styles.text}>{toast.text}</Text>
-            </Pressable>
-          ) : (
-            <Text style={styles.text}>{toast.text}</Text>
-          )}
+          <Pressable
+            disabled={!toast.onPress}
+            onPress={() => {
+              toast.onPress?.();
+              dismiss();
+            }}
+            style={styles.body}
+          >
+            <Ionicons name={TONE_ICONS[toast.tone]} size={18} color={toneColors(colors)[toast.tone]} />
+            <Txt variant="subhead" weight="600" style={styles.text}>
+              {toast.text}
+            </Txt>
+            {toast.onPress ? (
+              <View style={styles.chevron}>
+                <Ionicons name="chevron-forward" size={15} color={colors.textMuted} />
+              </View>
+            ) : null}
+          </Pressable>
         </Animated.View>
       ) : null}
     </ToastContext.Provider>
@@ -110,17 +127,17 @@ export function useToast(): ShowToast {
   return ctx;
 }
 
-const useStyles = makeStyles(({ colors }) => ({
+const useStyles = makeStyles((t) => ({
   toast: {
     position: "absolute",
-    left: spacing.lg,
-    right: spacing.lg,
-    backgroundColor: colors.surfaceRaised,
-    borderWidth: 1,
-    borderRadius: radii.md,
-    paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.md,
+    alignSelf: "center",
+    maxWidth: "88%",
+    backgroundColor: t.scheme === "dark" ? t.colors.surfaceRaised : t.colors.surface,
+    borderRadius: t.radius.pill,
     zIndex: 100,
+    ...t.shadow.float,
   },
-  text: { color: colors.textPrimary, fontSize: typography.body, fontWeight: "600", textAlign: "center" },
+  body: { flexDirection: "row", alignItems: "center", gap: t.space.sm, paddingVertical: 11, paddingLeft: 14, paddingRight: 18 },
+  text: { flexShrink: 1 },
+  chevron: { marginLeft: -2 },
 }));

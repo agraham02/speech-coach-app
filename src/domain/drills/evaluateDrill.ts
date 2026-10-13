@@ -3,6 +3,9 @@ import { alignFinal, buildTarget, scoreAlignment, type DrillMiss } from "../spee
 import { summarizeVolume, uniqueContentWords, usedWord, type VolumeReading } from "../dsp/volumePauses";
 import {
   scoreAccuracy,
+  scoreBreathCount,
+  scoreBridges,
+  scoreChain,
   scoreCount,
   scoreJustAMinute,
   scorePace,
@@ -12,6 +15,8 @@ import {
   type DrillOutcome,
 } from "./drillSpecs";
 import type { DrillSetup } from "./prepareDrill";
+import { chainWords, countBridges } from "./wordChain";
+import { countRate, countReached } from "./breathCount";
 
 // Scores one live drill attempt from what the screen measured. Pure.
 
@@ -20,6 +25,14 @@ export interface DrillMeasurements {
   // first recognized speech -> last recognized word (ms); 0 if unknown
   speakingMs: number;
   volume: VolumeReading[];
+  // Word chain: every seed word shown (the first plus one per fresh start).
+  seedWords?: string[];
+  // Word chain: off for people who stutter, so blocks never cost points.
+  penalizeResets?: boolean;
+  // Stuttering: hesitations and fillers never count as slips (Just a Minute).
+  ignoreSlips?: boolean;
+  // Non-native speakers: word-following drills pass at 70% instead of 80%.
+  relaxedAccuracy?: boolean;
 }
 
 export interface DrillDetails {
@@ -33,6 +46,11 @@ export interface DrillDetails {
   hesitations?: number;
   fillers?: number;
   fractionAtTarget?: number;
+  resets?: number;
+  bridges?: number;
+  // One-breath count: how far, and how fast.
+  count?: number;
+  perSecond?: number | null;
 }
 
 const HESITATION_MS = 2000;
@@ -53,7 +71,7 @@ export function evaluateDrill(setup: DrillSetup, m: DrillMeasurements): { outcom
         details.pauses = vol.pauses.length;
         return { outcome: scorePauses(vol.pauses.length, setup.pauseMarks ?? 1), details };
       }
-      return { outcome: scoreAccuracy(score.accuracyPercent), details };
+      return { outcome: scoreAccuracy(score.accuracyPercent, undefined, undefined, m.relaxedAccuracy ? 0.7 : undefined), details };
     }
     case "count": {
       const counted = uniqueContentWords(rawTokens, setup.letter);
@@ -76,9 +94,27 @@ export function evaluateDrill(setup: DrillSetup, m: DrillMeasurements): { outcom
       const span = vol.speechStartMs != null && vol.speechEndMs != null ? vol.speechEndMs - vol.speechStartMs : m.speakingMs;
       const spokeRatio = span / ((setup.seconds ?? 60) * 1000);
       return {
-        outcome: scoreJustAMinute(vol.pauses.length, heard.fillerCount, setup.params.allowedHesitations ?? 1, spokeRatio),
+        outcome: m.ignoreSlips
+          ? scoreJustAMinute(0, 0, 0, spokeRatio)
+          : scoreJustAMinute(vol.pauses.length, heard.fillerCount, setup.params.allowedHesitations ?? 1, spokeRatio),
         details: { hesitations: vol.pauses.length, fillers: heard.fillerCount },
       };
+    }
+    case "chain": {
+      const seeds = m.seedWords ?? setup.words ?? [];
+      const resets = Math.max(0, seeds.length - 1);
+      const counted = chainWords(rawTokens, seeds);
+      const target = setup.params.target ?? 8;
+      if (setup.type === "chain_bridge") {
+        const bridges = countBridges(m.transcript);
+        return { outcome: scoreBridges(bridges, target, resets, m.penalizeResets), details: { counted, bridges, resets } };
+      }
+      return { outcome: scoreChain(counted.length, target, resets, m.penalizeResets), details: { counted, resets } };
+    }
+    case "breath": {
+      const count = countReached(rawTokens);
+      const perSecond = countRate(count, m.speakingMs);
+      return { outcome: scoreBreathCount(count, setup.params.target ?? 10, perSecond), details: { count, perSecond } };
     }
     case "volume": {
       const vol = summarizeVolume(m.volume, 300, setup.params.volumeTarget ?? 4);

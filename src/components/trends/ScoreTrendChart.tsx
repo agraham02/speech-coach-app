@@ -1,5 +1,6 @@
 import { LineChart } from "react-native-gifted-charts";
 import { useTheme } from "../../theme/ThemeProvider";
+import { font } from "../../theme/tokens";
 
 export interface TrendPoint {
   value: number;
@@ -37,8 +38,8 @@ export function ScoreTrendChart({ data, maxValue = 10, noOfSections = 5, height 
       rulesType="dashed"
       xAxisColor={colors.border}
       yAxisColor={colors.border}
-      yAxisTextStyle={{ color: colors.textMuted, fontSize: 10 }}
-      xAxisLabelTextStyle={{ color: colors.textMuted, fontSize: 10 }}
+      yAxisTextStyle={{ ...font("400"), color: colors.textMuted, fontSize: 10 }}
+      xAxisLabelTextStyle={{ ...font("400"), color: colors.textMuted, fontSize: 10 }}
       dataPointsColor={colors.accent}
       isAnimated
       animationDuration={600}

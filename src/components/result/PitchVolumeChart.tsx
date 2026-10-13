@@ -1,7 +1,7 @@
 import { Text, View } from "react-native";
 import { LineChart } from "react-native-gifted-charts";
 import type { DspStatus } from "../../domain/sessionTypes";
-import { spacing, typography } from "../../theme/theme";
+import { spacing, typography, font } from "../../theme/theme";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 interface PitchVolumeChartProps {
@@ -21,7 +21,7 @@ export function PitchVolumeChart({ dspStatus, pitchContourHz, volumeEnvelopeDbfs
   if (dspStatus !== "complete" || !pitchContourHz || !volumeEnvelopeDbfs) {
     return (
       <View style={styles.container}>
-        <Text style={styles.label}>PITCH & VOLUME OVER TIME</Text>
+        <Text style={styles.label}>Pitch & volume over time</Text>
         <Text style={styles.unavailable}>
           {dspStatus === "failed" ? "Not available for this session." : "Not available — no on-device analysis run yet."}
         </Text>
@@ -54,8 +54,8 @@ export function PitchVolumeChart({ dspStatus, pitchContourHz, volumeEnvelopeDbfs
         rulesType="dashed"
         xAxisColor={colors.border}
         yAxisColor={colors.border}
-        yAxisTextStyle={{ color: colors.textMuted, fontSize: 9 }}
-        xAxisLabelTextStyle={{ color: colors.textMuted, fontSize: 9 }}
+        yAxisTextStyle={{ ...font("400"), color: colors.textMuted, fontSize: 9 }}
+        xAxisLabelTextStyle={{ ...font("400"), color: colors.textMuted, fontSize: 9 }}
         hideDataPoints
       />
       <Text style={[styles.label, styles.volumeLabel]}>VOLUME (dBFS)</Text>
@@ -78,7 +78,7 @@ export function PitchVolumeChart({ dspStatus, pitchContourHz, volumeEnvelopeDbfs
         rulesType="dashed"
         xAxisColor={colors.border}
         yAxisColor={colors.border}
-        yAxisTextStyle={{ color: colors.textMuted, fontSize: 9 }}
+        yAxisTextStyle={{ ...font("400"), color: colors.textMuted, fontSize: 9 }}
         hideDataPoints
         hideAxesAndRules={false}
       />
@@ -88,7 +88,7 @@ export function PitchVolumeChart({ dspStatus, pitchContourHz, volumeEnvelopeDbfs
 
 const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.xs, marginTop: spacing.sm },
-  label: { color: colors.textSecondary, fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 0.4 },
+  label: { color: colors.textSecondary, fontSize: 13, ...font("600") },
   volumeLabel: { marginTop: spacing.sm },
-  unavailable: { color: colors.textMuted, fontSize: typography.caption, fontStyle: "italic" },
+  unavailable: { ...font("400"), color: colors.textMuted, fontSize: typography.caption, fontStyle: "italic" },
 }));

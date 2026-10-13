@@ -49,7 +49,7 @@ export async function getCurriculumSessionSummaries(): Promise<CurriculumSession
             s.dsp_status, s.pitch_avg_hz, s.pitch_min_hz, s.pitch_max_hz, s.volume_stddev_dbfs
      FROM sessions s
      JOIN scores sc ON sc.session_id = s.id
-     WHERE s.status = 'done' AND s.deleted_at IS NULL AND s.session_type != 'script_practice'
+     WHERE s.status = 'done' AND s.deleted_at IS NULL AND s.session_type NOT IN ('script_practice', 'feeling')
      ORDER BY s.recorded_at ASC`,
   );
   return rows.map((row) => ({

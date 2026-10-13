@@ -1,8 +1,13 @@
 import { getDatabase } from "./database";
 import { getCompletedSessionDates } from "./statsRepo";
 import { getDrillCompletionDates } from "./drillsRepo";
+import { getRewindDates } from "./rewindRepo";
 import { generateId } from "../../utils/generateId";
-import { todayISODate } from "../../utils/dateUtils";
+import { isoDateFromDate, todayISODate } from "../../utils/dateUtils";
+import { buildTopUpPlan } from "../../domain/dailyGoal";
+import { priorityFor } from "../../domain/profile";
+import { getReminderSettings, getUserProfile } from "../prefs/prefsStore";
+import { computeStreakState, type StreakState } from "../../domain/streaks";
 import type { SkillId } from "../../theme/tokens";
 import { DRILL_SKILL, type DrillOutcome, type DrillType } from "../../domain/drills/drillSpecs";
 import {
@@ -14,7 +19,7 @@ import {
   updateRating,
   type SkillRating,
 } from "../../domain/mastery";
-import { buildDailyPlan, type DailyPlan, type PlanMinutes } from "../../domain/dailyPlan";
+import { buildDailyPlan, PLAN_VERSION, type DailyPlan, type PlanMinutes } from "../../domain/dailyPlan";
 import type { CoachOutput, Verdict } from "../../domain/coach/ruleCoach";
 import { getLesson } from "../../content/lessons";
 import { summarizeAttempt, type AttemptSummary } from "../../domain/conversation/attemptMetrics";
@@ -48,6 +53,17 @@ async function saveSkill(skill: SkillId, state: SkillState): Promise<void> {
      ON CONFLICT(skill) DO UPDATE SET rating = excluded.rating, attempts = excluded.attempts, last_practiced_at = excluded.last_practiced_at`,
     [skill, state.rating, state.attempts, state.lastPracticedAt],
   );
+}
+
+// Starting ratings from the onboarding skill check. Only for skills with no
+// practice history yet — real attempts always outrank a five-minute sample.
+export async function seedSkillRatings(ratings: Partial<Record<SkillId, number | null>>): Promise<void> {
+  const skills = await getSkillStates();
+  for (const skill of SKILLS) {
+    const rating = ratings[skill];
+    if (rating == null || skills[skill].attempts > 0) continue;
+    await saveSkill(skill, { rating, attempts: 0, lastPracticedAt: skills[skill].lastPracticedAt });
+  }
 }
 
 export async function getDrillLevel(type: DrillType): Promise<number> {
@@ -246,7 +262,8 @@ async function readPlan(date: string): Promise<StoredPlan | null> {
 export async function getTodaysPlan(minutes: PlanMinutes, regenerate = false): Promise<StoredPlan> {
   const date = todayISODate();
   const existing = await readPlan(date);
-  if (existing && !regenerate && existing.plan.minutes === minutes) return existing;
+  const outdated = existing && (existing.plan.version ?? 1) < PLAN_VERSION;
+  if (existing && !regenerate && !outdated && existing.plan.minutes === minutes) return existing;
   if (existing && existing.completedStepIds.length > 0) return existing;
 
   const db = await getDatabase();
@@ -264,6 +281,7 @@ export async function getTodaysPlan(minutes: PlanMinutes, regenerate = false): P
     >,
     recentFocus: recent.map((r) => (JSON.parse(r.plan_json) as DailyPlan).focusSkill),
     lessons: Object.fromEntries(Object.entries(lessons).map(([id, l]) => [id, { done: l.done, nextReviewAt: l.nextReviewAt }])),
+    priority: priorityFor(getUserProfile(), date),
   });
   await db.runAsync(
     `INSERT OR REPLACE INTO daily_plans (date, plan_json, completed_steps_json, completed_at) VALUES (?, ?, '[]', NULL)`,
@@ -288,6 +306,87 @@ export async function completePlanStep(date: string, stepId: string): Promise<St
     await completeLesson(stored.plan.lessonId, 0.8, true);
   }
   return { ...stored, completedStepIds: ids, completedAt: allDone ? stored.completedAt ?? new Date().toISOString() : null };
+}
+
+// ---------------------------------------------------------------------------
+// Daily goal: top-up sessions (2 and 3)
+// ---------------------------------------------------------------------------
+
+async function readTopUp(date: string, slot: number): Promise<StoredPlan | null> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ plan_json: string; completed_steps_json: string; completed_at: string | null }>(
+    `SELECT * FROM daily_topups WHERE date = ? AND slot = ?`,
+    [date, slot],
+  );
+  if (!row) return null;
+  return { plan: JSON.parse(row.plan_json), completedStepIds: JSON.parse(row.completed_steps_json), completedAt: row.completed_at };
+}
+
+// Today's top-up for a slot — built once on a skill today hasn't touched yet,
+// then stored so it can be resumed.
+export async function getTopUpPlan(slot: 1 | 2, options: { quiet?: boolean } = {}): Promise<StoredPlan> {
+  const date = todayISODate();
+  const existing = await readTopUp(date, slot);
+  if (existing) return existing;
+  const [main, other, skills, lessons] = await Promise.all([readPlan(date), readTopUp(date, slot === 1 ? 2 : 1), getSkillStates(), getLessonStates()]);
+  const doneSkills = [main?.plan.focusSkill, other?.plan.focusSkill].filter((s): s is SkillId => !!s);
+  const plan = buildTopUpPlan({
+    date,
+    minutes: 5,
+    slot,
+    doneSkills,
+    quiet: options.quiet,
+    skills: Object.fromEntries(SKILLS.map((k) => [k, { rating: skills[k].rating, lastPracticedAt: skills[k].lastPracticedAt }])) as Record<
+      SkillId,
+      { rating: number; lastPracticedAt: string | null }
+    >,
+    recentFocus: [],
+    lessons: Object.fromEntries(Object.entries(lessons).map(([id, l]) => [id, { done: l.done, nextReviewAt: l.nextReviewAt }])),
+  });
+  const db = await getDatabase();
+  await db.runAsync(`INSERT OR REPLACE INTO daily_topups (date, slot, plan_json, completed_steps_json, completed_at) VALUES (?, ?, ?, '[]', NULL)`, [
+    date,
+    slot,
+    JSON.stringify(plan),
+  ]);
+  return { plan, completedStepIds: [], completedAt: null };
+}
+
+// Which top-up slots are finished today.
+export async function getCompletedTopUpSlots(date = todayISODate()): Promise<number[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{ slot: number }>(`SELECT slot FROM daily_topups WHERE date = ? AND completed_at IS NOT NULL`, [date]);
+  return rows.map((r) => r.slot);
+}
+
+export async function completeTopUpStep(date: string, slot: number, stepId: string): Promise<StoredPlan | null> {
+  const stored = await readTopUp(date, slot);
+  if (!stored) return null;
+  const ids = stored.completedStepIds.includes(stepId) ? stored.completedStepIds : [...stored.completedStepIds, stepId];
+  const allDone = stored.plan.steps.every((s) => ids.includes(s.id));
+  const completedAt = allDone ? stored.completedAt ?? new Date().toISOString() : null;
+  const db = await getDatabase();
+  await db.runAsync(`UPDATE daily_topups SET completed_steps_json = ?, completed_at = ? WHERE date = ? AND slot = ?`, [JSON.stringify(ids), completedAt, date, slot]);
+  return { ...stored, completedStepIds: ids, completedAt };
+}
+
+// Sessions done per local day: the first counts for any practice that day
+// (the plan or anything else); each finished top-up adds one.
+export async function getDailySessionCounts(): Promise<Record<string, number>> {
+  const db = await getDatabase();
+  const [practice, topups] = await Promise.all([
+    getPracticeDates(),
+    db.getAllAsync<{ date: string }>(`SELECT date FROM daily_topups WHERE completed_at IS NOT NULL`),
+  ]);
+  const counts: Record<string, number> = {};
+  // recorded_at / started_at are UTC datetimes: use their local date.
+  for (const d of practice) counts[d.length > 10 ? isoDateFromDate(new Date(d)) : d] = 1;
+  for (const t of topups) counts[t.date] = (counts[t.date] ?? 1) + 1;
+  return counts;
+}
+
+export async function getSessionsDoneToday(): Promise<number> {
+  return (await getDailySessionCounts())[todayISODate()] ?? 0;
 }
 
 export async function getPlanCompletionDates(): Promise<string[]> {
@@ -360,4 +459,17 @@ export async function getConversationAttemptSummaries(limit = 60): Promise<(Atte
 export async function getPracticeDates(): Promise<string[]> {
   const [sessions, drills, plans] = await Promise.all([getCompletedSessionDates(), getDrillCompletionDates(), getPlanCompletionDates()]);
   return [...sessions, ...drills, ...plans.map((d) => `${d}T12:00:00`)];
+}
+
+// Every day that counts toward the streak. Kept apart from getPracticeDates,
+// which also decides whether today's session is done.
+export async function getStreakDates(): Promise<string[]> {
+  const [practice, rewinds] = await Promise.all([getPracticeDates(), getRewindDates()]);
+  return [...practice, ...rewinds];
+}
+
+// The one streak every screen shows — practice of any kind, rest days left
+// out, and freezes covering a missed day (see domain/streaks.ts).
+export async function getStreakState(): Promise<StreakState> {
+  return computeStreakState(await getStreakDates(), new Date(), getReminderSettings().practiceDays);
 }

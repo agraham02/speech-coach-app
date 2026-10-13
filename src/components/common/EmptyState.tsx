@@ -21,12 +21,14 @@ export function EmptyState({
   const { colors } = useTheme();
   return (
     <View style={styles.wrap}>
-      <Ionicons name={icon} size={40} color={colors.textMuted} />
-      <Txt variant="headline" align="center">
+      <View style={styles.iconCircle}>
+        <Ionicons name={icon} size={28} color={colors.textSecondary} />
+      </View>
+      <Txt variant="title1" align="center">
         {title}
       </Txt>
       {body ? (
-        <Txt variant="subhead" tone="secondary" align="center">
+        <Txt variant="callout" tone="secondary" align="center" style={styles.body}>
           {body}
         </Txt>
       ) : null}
@@ -36,6 +38,16 @@ export function EmptyState({
 }
 
 const useStyles = makeStyles((t) => ({
-  wrap: { alignItems: "center", justifyContent: "center", gap: t.space.sm, padding: t.space.xl },
+  wrap: { alignItems: "center", justifyContent: "center", gap: t.space.sm + 2, padding: t.space.xl },
+  iconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: t.colors.surfaceRaised,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: t.space.sm,
+  },
+  body: { maxWidth: 320 },
   button: { alignSelf: "stretch", marginTop: t.space.md },
 }));

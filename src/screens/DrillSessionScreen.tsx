@@ -29,7 +29,7 @@ import { showGlobalToast } from "../components/common/ToastProvider";
 import { useLiveSpeech } from "../hooks/useLiveSpeech";
 import { useRecordingTimer } from "../hooks/useRecordingTimer";
 import { logger } from "../utils/logger";
-import { radii, spacing, typography } from "../theme/theme";
+import { radii, spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "DrillSession">;
@@ -400,7 +400,7 @@ function ResultView({
 
       {misses.length > 0 ? (
         <Card style={styles.missesCard}>
-          <Text style={styles.sectionLabel}>WHAT THE MIC HEARD</Text>
+          <Text style={styles.sectionLabel}>What the mic heard</Text>
           {misses.slice(0, 8).map((m) => (
             <Text key={`${m.kind}-${m.target}-${m.heard}`} style={styles.missText}>
               {m.kind === "skipped" ? (
@@ -457,23 +457,24 @@ function styleForStatus(status: WordStatus, styles: ReturnType<typeof useStyles>
 const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  repeatHint: { color: colors.textMuted, fontSize: typography.caption, fontWeight: "600" },
+  repeatHint: { color: colors.textMuted, fontSize: typography.caption, ...font("600") },
   scrollContent: { gap: spacing.md, paddingBottom: spacing.md },
   targetCard: { gap: spacing.md },
-  targetText: { fontSize: typography.title, lineHeight: 34 },
-  wordHit: { color: colors.success, fontWeight: "700" },
-  wordNear: { color: colors.warning, fontWeight: "700" },
-  wordMissed: { color: colors.danger, fontWeight: "700" },
+  targetText: { ...font("400"), fontSize: typography.title, lineHeight: 34 },
+  wordHit: { color: colors.success, ...font("700") },
+  wordNear: { color: colors.warning, ...font("700") },
+  wordMissed: { color: colors.danger, ...font("700") },
   wordPending: { color: colors.textPrimary },
   wordCurrent: { textDecorationLine: "underline", textDecorationColor: colors.accent },
-  focusSounds: { color: colors.textMuted, fontSize: typography.caption },
+  focusSounds: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
   listening: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start" },
   listeningDot: { width: 10, height: 10, borderRadius: 5, marginTop: 4, backgroundColor: colors.textMuted },
   listeningDotOn: { backgroundColor: colors.danger },
   listeningTextWrap: { flex: 1, gap: 2 },
-  listeningLabel: { color: colors.textSecondary, fontSize: typography.caption, fontWeight: "600" },
-  heardText: { color: colors.textMuted, fontSize: typography.caption },
+  listeningLabel: { color: colors.textSecondary, fontSize: typography.caption, ...font("600") },
+  heardText: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
   degradeNotice: {
+    ...font("400"),
     color: colors.warning,
     fontSize: typography.caption,
     backgroundColor: colors.warningMuted,
@@ -483,21 +484,21 @@ const useStyles = makeStyles(({ colors }) => ({
   controls: { gap: spacing.sm },
   resultWrap: { gap: spacing.md },
   resultCard: { gap: spacing.xs, alignItems: "center" },
-  resultBig: { color: colors.textPrimary, fontSize: typography.headline + 8, fontWeight: "800" },
-  resultSub: { color: colors.textSecondary, fontSize: typography.body, textAlign: "center" },
+  resultBig: { color: colors.textPrimary, fontSize: typography.headline + 8, ...font("800") },
+  resultSub: { ...font("400"), color: colors.textSecondary, fontSize: typography.body, textAlign: "center" },
   repsCard: { gap: spacing.sm },
   repRow: { gap: 2 },
-  repLabel: { color: colors.textMuted, fontSize: typography.caption, fontWeight: "700" },
-  repText: { fontSize: typography.bodyLarge, lineHeight: 24 },
-  legend: { color: colors.textMuted, fontSize: typography.caption },
+  repLabel: { color: colors.textMuted, fontSize: typography.caption, ...font("700") },
+  repText: { ...font("400"), fontSize: typography.bodyLarge, lineHeight: 24 },
+  legend: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
   missesCard: { gap: spacing.sm },
-  sectionLabel: { color: colors.textMuted, fontSize: typography.caption - 1, fontWeight: "700", letterSpacing: 0.8 },
-  missText: { color: colors.textSecondary, fontSize: typography.body },
-  missWord: { color: colors.textPrimary, fontWeight: "700" },
+  sectionLabel: { color: colors.textMuted, fontSize: 13, ...font("600") },
+  missText: { ...font("400"), color: colors.textSecondary, fontSize: typography.body },
+  missWord: { color: colors.textPrimary, ...font("700") },
   missCount: { color: colors.textMuted },
-  soundHint: { color: colors.accent, fontSize: typography.caption },
-  cleanNote: { color: colors.success, fontSize: typography.body, textAlign: "center" },
+  soundHint: { ...font("400"), color: colors.accent, fontSize: typography.caption },
+  cleanNote: { ...font("400"), color: colors.success, fontSize: typography.body, textAlign: "center" },
   resultActions: { flexDirection: "row", gap: spacing.sm, width: "100%" },
   resultButton: { flex: 1 },
-  missingText: { color: colors.textMuted, fontSize: typography.body },
+  missingText: { ...font("400"), color: colors.textMuted, fontSize: typography.body },
 }));

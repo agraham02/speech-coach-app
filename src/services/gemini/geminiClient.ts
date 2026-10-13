@@ -3,15 +3,15 @@ import { getGeminiApiKey } from "../secrets/secretsStore";
 import { GeminiApiError, type UploadedGeminiFile } from "./types";
 import { fetchWithTimeout, withDeadline } from "../../utils/fetchWithTimeout";
 import { logger } from "../../utils/logger";
+import { modelFor } from "../cloud/providers";
 
 const API_BASE = "https://generativelanguage.googleapis.com";
-const MODEL = "gemini-flash-latest";
 const SERVER_ERROR_RETRY_DELAYS_MS = [2_000, 6_000, 15_000];
 
 async function apiKeyQuery(): Promise<string> {
   const key = await getGeminiApiKey();
   if (!key) {
-    throw new GeminiApiError("No Gemini API key set — add one in Settings.");
+    throw new GeminiApiError("No Gemini API key set — add one in Settings → Deep reviews.");
   }
   return `key=${encodeURIComponent(key)}`;
 }
@@ -137,7 +137,7 @@ export async function checkExistingFileActive(fileName: string): Promise<boolean
 
 // fileUri/mimeType are optional — omitting both fires a text-only call (no
 // video ever leaves the device), used for the grounded/no-grading path where
-// an on-device or AssemblyAI transcript already exists and Gemini is only
+// an on-device transcript already exists and Gemini is only
 // asked to produce transcript_clean (see transcribeSession.ts). mediaResolution
 // is only meaningful when actual media is attached, so it's omitted for
 // text-only calls rather than sent as a no-op.
@@ -153,7 +153,7 @@ export async function generateContent(args: {
     ? [{ file_data: { file_uri: args.fileUri, mime_type: args.mimeType } }, { text: args.systemPrompt }]
     : [{ text: args.systemPrompt }];
 
-  const url = `${API_BASE}/v1beta/models/${MODEL}:generateContent?${await apiKeyQuery()}`;
+  const url = `${API_BASE}/v1beta/models/${encodeURIComponent(modelFor("gemini"))}:generateContent?${await apiKeyQuery()}`;
   const body = JSON.stringify({
     contents: [{ parts }],
     generationConfig: {

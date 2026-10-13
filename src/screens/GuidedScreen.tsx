@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, Pressable, ScrollView, View } from "react-native";
-import * as Haptics from "expo-haptics";
+import { useEffect, useMemo, useState } from "react";
+import { Pressable, ScrollView, View } from "react-native";
+import Animated, { FadeIn } from "react-native-reanimated";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
@@ -8,18 +8,21 @@ import { Header } from "../components/common/Header";
 import { Card } from "../components/common/Card";
 import { Txt } from "../components/common/Txt";
 import { PrimaryButton } from "../components/common/PrimaryButton";
-import { ProgressRing } from "../components/common/ProgressRing";
+import { BreathAura } from "../components/common/BreathAura";
+import { CountdownRing } from "../components/common/CountdownRing";
 import { WARM_UPS } from "../content/drillContent";
 import { getGuided } from "../content/lessons";
 import { scoreSelfRating } from "../domain/drills/drillSpecs";
 import { getDrillLevel, recordDrillOutcome } from "../services/db/progressRepo";
 import { completePracticeStep } from "../services/practice/practiceEvents";
+import { tick as hapticTick } from "../utils/haptics";
+import { duration } from "../theme/motion";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Guided">;
 
-// The breathing circle never shrinks below this fraction of its full size.
-const BREATH_MIN_SCALE = 0.68;
+// The box the countdown ring and the breathing aura behind it share.
+const RING_WRAP = 300;
 
 // Warm-ups (timed steps) and guided exercises (steps + an honest 1-5
 // self-rating, for things the phone can't measure reliably).
@@ -57,7 +60,6 @@ function WarmUpRunner({
   const totalSeconds = sequence.reduce((sum, s) => sum + s.step.seconds, 0);
   const [index, setIndex] = useState(-1); // -1 = not started
   const [tick, setTick] = useState<{ index: number; left: number } | null>(null);
-  const scale = useRef(new Animated.Value(BREATH_MIN_SCALE)).current;
   const current = sequence[index];
   const finished = index >= sequence.length;
 
@@ -67,15 +69,7 @@ function WarmUpRunner({
     if (index < 0 || index >= sequence.length) return;
     const { step } = sequence[index];
     const deadline = Date.now() + step.seconds * 1000;
-    Haptics.selectionAsync().catch(() => undefined);
-    if (step.phase === "in" || step.phase === "out") {
-      Animated.timing(scale, {
-        toValue: step.phase === "in" ? 1 : BREATH_MIN_SCALE,
-        duration: step.seconds * 1000,
-        easing: Easing.inOut(Easing.sin),
-        useNativeDriver: true,
-      }).start();
-    }
+    hapticTick();
     const timer = setInterval(() => {
       const left = Math.ceil((deadline - Date.now()) / 1000);
       if (left <= 0) {
@@ -86,7 +80,7 @@ function WarmUpRunner({
       }
     }, 250);
     return () => clearInterval(timer);
-  }, [index, sequence, scale]);
+  }, [index, sequence]);
 
   const breathing = current?.step.phase != null;
   // Until the first tick of a step lands, show its full duration (not a stale 0).
@@ -117,20 +111,40 @@ function WarmUpRunner({
         ) : (
           <View style={styles.activeStep}>
             <View style={styles.ringWrap}>
-              {breathing ? <Animated.View style={[styles.breathCircle, { transform: [{ scale }] }]} /> : null}
-              <ProgressRing size={160} strokeWidth={10} progress={remaining / Math.max(current.step.seconds, 1)} color={colors.accent}>
+              {breathing ? (
+                <BreathAura
+                  size={RING_WRAP}
+                  color={colors.skill.confidence.fg}
+                  phase={current.step.phase}
+                  fill={current.step.fill}
+                  seconds={current.step.seconds}
+                  runKey={index}
+                />
+              ) : null}
+              <CountdownRing size={160} strokeWidth={10} durationMs={current.step.seconds * 1000} runKey={index} color={colors.accent}>
                 <Txt variant="largeTitle">{remaining}</Txt>
-              </ProgressRing>
+              </CountdownRing>
             </View>
-            <Txt variant="title2" align="center">
-              {current.step.label}
-            </Txt>
-            <Txt variant="callout" tone="secondary" align="center">
-              {current.step.detail}
-            </Txt>
-            <Txt variant="footnote" tone="muted">
-              {rounds > 1 ? `Round ${current.round + 1} of ${rounds}` : `Step ${index + 1} of ${sequence.length}`}
-            </Txt>
+            {/* Keyed by step, so the words cross-fade as the breath changes. */}
+            <Animated.View key={index} entering={FadeIn.duration(duration.base)} style={styles.stepText}>
+              <Txt variant="title2" align="center">
+                {current.step.label}
+              </Txt>
+              <Txt variant="callout" tone="secondary" align="center">
+                {current.step.detail}
+              </Txt>
+            </Animated.View>
+            {rounds > 1 ? (
+              <View style={styles.roundDots} accessibilityLabel={`Round ${current.round + 1} of ${rounds}`}>
+                {Array.from({ length: rounds }, (_, i) => (
+                  <View key={i} style={[styles.roundDot, i <= current.round && styles.roundDotOn]} />
+                ))}
+              </View>
+            ) : (
+              <Txt variant="footnote" tone="muted">
+                {`Step ${index + 1} of ${sequence.length}`}
+              </Txt>
+            )}
           </View>
         )}
       </View>
@@ -160,7 +174,7 @@ function GuidedRunner({
   const ratingStage = stepIndex >= total;
 
   function go(next: number) {
-    Haptics.selectionAsync().catch(() => undefined);
+    hapticTick();
     setStepIndex(next);
   }
 
@@ -243,8 +257,11 @@ const useStyles = makeStyles((t) => ({
   list: { gap: t.space.md },
   listRow: { gap: 2 },
   activeStep: { alignItems: "center", gap: t.space.md },
-  ringWrap: { width: 240, height: 240, alignItems: "center", justifyContent: "center" },
-  breathCircle: { position: "absolute", width: 240, height: 240, borderRadius: 120, backgroundColor: t.colors.accent, opacity: 0.22 },
+  ringWrap: { width: RING_WRAP, height: RING_WRAP, alignItems: "center", justifyContent: "center" },
+  stepText: { alignItems: "center", gap: t.space.xs },
+  roundDots: { flexDirection: "row", gap: t.space.sm },
+  roundDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: t.colors.surfaceRaised },
+  roundDotOn: { backgroundColor: t.colors.accent },
   dots: { flexDirection: "row", gap: t.space.xs },
   dot: { height: 6, flex: 1, borderRadius: 3, backgroundColor: t.colors.surfaceRaised },
   dotOn: { backgroundColor: t.colors.accent },

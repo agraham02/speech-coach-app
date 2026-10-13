@@ -14,8 +14,8 @@ export async function insertSession(session: Session): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
     `INSERT INTO sessions
-      (id, prompt_id, recorded_at, video_path, duration_seconds, transcription_source, transcript_verbatim, transcript_clean, status, notion_synced_at, wants_grading, wants_notion_sync, session_type, script_id, cues_enabled, plan_point_text, plan_reason_text, plan_example_text, video_file, subject_json, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, prompt_id, recorded_at, video_path, duration_seconds, transcription_source, transcript_verbatim, transcript_clean, status, wants_grading, session_type, script_id, cues_enabled, plan_point_text, plan_reason_text, plan_example_text, video_file, subject_json, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       session.id,
       session.promptId,
@@ -26,9 +26,7 @@ export async function insertSession(session: Session): Promise<void> {
       session.transcriptVerbatim,
       session.transcriptClean,
       session.status,
-      session.notionSyncedAt,
       session.wantsGrading ? 1 : 0,
-      session.wantsNotionSync ? 1 : 0,
       session.sessionType,
       session.scriptId,
       session.cuesEnabled === null ? null : session.cuesEnabled ? 1 : 0,
@@ -54,14 +52,13 @@ export interface TranscriptFields {
   durationSeconds: number;
   source: TranscriptionSource;
   words: TranscriptWord[] | null;
-  assemblyaiTranscriptId: string | null;
 }
 
 export async function updateTranscriptFields(id: string, fields: TranscriptFields): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
     `UPDATE sessions SET transcript_verbatim = ?, transcript_clean = ?, duration_seconds = ?, transcription_source = ?,
-       transcript_words_json = ?, assemblyai_transcript_id = ?
+       transcript_words_json = ?
      WHERE id = ?`,
     [
       fields.verbatim,
@@ -69,7 +66,6 @@ export async function updateTranscriptFields(id: string, fields: TranscriptField
       fields.durationSeconds,
       fields.source,
       fields.words ? JSON.stringify(fields.words) : null,
-      fields.assemblyaiTranscriptId,
       id,
     ],
   );
@@ -126,13 +122,10 @@ export async function updateSessionDerivedStatus(id: string, status: SessionStat
   ]);
 }
 
-export async function updateSessionWants(id: string, wants: { grading?: boolean; notion?: boolean }): Promise<void> {
+export async function updateSessionWants(id: string, wants: { grading?: boolean }): Promise<void> {
   const db = await getDatabase();
   if (wants.grading !== undefined) {
     await db.runAsync(`UPDATE sessions SET wants_grading = ? WHERE id = ?`, [wants.grading ? 1 : 0, id]);
-  }
-  if (wants.notion !== undefined) {
-    await db.runAsync(`UPDATE sessions SET wants_notion_sync = ? WHERE id = ?`, [wants.notion ? 1 : 0, id]);
   }
 }
 
@@ -171,14 +164,6 @@ export async function updateSessionStatus(
   const db = await getDatabase();
   await db.runAsync(`UPDATE sessions SET status = ? WHERE id = ?`, [
     status,
-    id,
-  ]);
-}
-
-export async function markSessionNotionSynced(id: string): Promise<void> {
-  const db = await getDatabase();
-  await db.runAsync(`UPDATE sessions SET notion_synced_at = ? WHERE id = ?`, [
-    new Date().toISOString(),
     id,
   ]);
 }

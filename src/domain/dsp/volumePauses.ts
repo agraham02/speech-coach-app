@@ -54,15 +54,20 @@ const STOPWORDS = new Set(
   "a an the and or but so um uh er erm ah like i you he she it we they me my your is are was were be been am do did does have has had of to in on at for with um okay ok yeah yes no oh and then also um hmm".split(" "),
 );
 
+// The comparison key for a spoken token: lowercased, simple plurals folded
+// so "cat" and "cats" count once. null for fillers and function words.
+export function contentWordKey(token: string, startsWith?: string): string | null {
+  const w = token.toLowerCase().replace(/[^a-z']/g, "");
+  if (w.length < 2 || STOPWORDS.has(w)) return null;
+  if (startsWith && !w.startsWith(startsWith)) return null;
+  return w.length > 3 && w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w;
+}
+
 export function uniqueContentWords(tokens: string[], startsWith?: string): string[] {
   const seen = new Set<string>();
   for (const t of tokens) {
-    const w = t.toLowerCase().replace(/[^a-z']/g, "");
-    if (w.length < 2 || STOPWORDS.has(w)) continue;
-    if (startsWith && !w.startsWith(startsWith)) continue;
-    // fold simple plurals so "cat" and "cats" count once
-    const key = w.length > 3 && w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w;
-    seen.add(key);
+    const key = contentWordKey(t, startsWith);
+    if (key) seen.add(key);
   }
   return [...seen];
 }

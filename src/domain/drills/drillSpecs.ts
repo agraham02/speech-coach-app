@@ -1,4 +1,5 @@
 import type { SkillId } from "../../theme/tokens";
+import { MAX_COUNT_RATE } from "./breathCount";
 import type { DifficultyTier } from "../sessionTypes";
 
 // Every drill type: which skill it trains, how its knobs scale with the
@@ -14,8 +15,13 @@ export type DrillType =
   | "letter_fluency"
   | "random_word_story"
   | "just_a_minute"
+  | "word_chain"
+  | "chain_bridge"
   | "shadowing"
+  | "marked_reading"
+  | "move_it"
   | "projection"
+  | "breath_count"
   | "guided"
   | "warmup"
   | "rep"
@@ -61,11 +67,16 @@ export const DRILL_SKILL: Record<DrillType, SkillId> = {
   pace_reading: "cadence",
   pause_reading: "cadence",
   shadowing: "cadence",
+  marked_reading: "cadence",
+  move_it: "cadence",
   category_fluency: "impromptu",
   letter_fluency: "impromptu",
   random_word_story: "impromptu",
   just_a_minute: "impromptu",
+  word_chain: "impromptu",
+  chain_bridge: "impromptu",
   projection: "confidence",
+  breath_count: "confidence",
   guided: "confidence",
   warmup: "confidence",
   rep: "impromptu",
@@ -91,9 +102,14 @@ export const DRILL_TITLES: Record<DrillType, string> = {
   category_fluency: "Category sprint",
   letter_fluency: "Letter sprint",
   random_word_story: "Random-word story",
-  just_a_minute: "Just a Minute",
+  just_a_minute: "Sixty seconds",
+  word_chain: "Word chain",
+  chain_bridge: "Bridge chain",
   shadowing: "Shadowing",
+  marked_reading: "Mark it up",
+  move_it: "Move it",
   projection: "Projection",
+  breath_count: "One-breath count",
   guided: "Guided exercise",
   warmup: "Warm-up",
   rep: "Impromptu rep",
@@ -142,6 +158,8 @@ export interface DrillParams {
   targetWpm?: number;
   // allowed slips (just a minute)
   allowedHesitations?: number;
+  // word chain: silence (s) before a fresh seed word appears
+  stallSeconds?: number;
   // projection meter target (-2..10 native scale)
   volumeTarget?: number;
   // impromptu rep
@@ -183,10 +201,26 @@ export function paramsFor(type: DrillType, level: number): DrillParams {
       return { target: 2 + Math.floor(l / 4), seconds: 30 + l * 5, prepSeconds: Math.max(0, Math.round(15 - l * 1.5)) };
     case "just_a_minute":
       return { seconds: Math.min(75, 30 + l * 5), allowedHesitations: Math.max(0, 3 - Math.floor(l / 3)) };
+    // More links in less forgiving silence. Level 1 asks for 8 links in 30 s
+    // with a 3 s grace before a fresh word; level 10, 25 links in 60 s.
+    case "word_chain":
+      return {
+        seconds: l <= 3 ? 30 : l <= 6 ? 45 : 60,
+        target: Math.round(6 + l * 1.9),
+        stallSeconds: l <= 3 ? 3 : l <= 6 ? 2.5 : l <= 8 ? 2 : 1.5,
+      };
+    // Each link comes with its reason, so far fewer of them — and a longer
+    // grace, since explaining takes thought.
+    case "chain_bridge":
+      return { seconds: l <= 4 ? 45 : 60, target: 3 + Math.floor(l / 2), stallSeconds: l <= 5 ? 4 : 3 };
     case "shadowing":
       return { target: 80 };
     case "projection":
       return { volumeTarget: Math.min(8, 2 + l * 0.5), seconds: 10 + l };
+    // Numbers counted aloud on one breath: 10 at level 1, 28 at level 10.
+    // The minute is only a cap — it ends when you stop.
+    case "breath_count":
+      return { target: 8 + l * 2, seconds: 60 };
     case "rep":
       return {
         tier: tierForLevel(l),
@@ -233,14 +267,16 @@ export function outcome(score: number, summary: string, success = score >= SUCCE
   return { score: Math.round(clamp(score, 0, 1) * 100) / 100, success, summary };
 }
 
-export function scoreAccuracy(accuracyPercent: number, wpm?: number, targetWpm?: number): DrillOutcome {
+// `passAt` drops to 0.7 for people whose first language isn't English —
+// live recognition is less sure of their words, which isn't their mistake.
+export function scoreAccuracy(accuracyPercent: number, wpm?: number, targetWpm?: number, passAt = SUCCESS): DrillOutcome {
   const acc = accuracyPercent / 100;
   if (targetWpm && wpm != null) {
     const speedOk = wpm >= targetWpm;
     const score = acc * (speedOk ? 1 : Math.max(0.5, wpm / targetWpm));
-    return outcome(score, `${accuracyPercent}% clear at ${wpm} wpm (target ${targetWpm}+)`, acc >= SUCCESS && speedOk);
+    return outcome(score, `${accuracyPercent}% clear at ${wpm} wpm (target ${targetWpm}+)`, acc >= passAt && speedOk);
   }
-  return outcome(acc, `${accuracyPercent}% clear`);
+  return outcome(acc, `${accuracyPercent}% clear`, acc >= passAt);
 }
 
 export function scorePace(wpm: number, accuracyPercent: number, p: DrillParams): DrillOutcome {
@@ -267,6 +303,21 @@ export function scoreStory(wordsUsed: number, wordsRequired: number, spokeRatio:
   return outcome(score, `${wordsUsed} of ${wordsRequired} words worked in`, wordsUsed === wordsRequired && spokeRatio >= 0.6);
 }
 
+// Each fresh start after the first costs a little — blanking happens, and
+// picking the chain back up is the point, so it's never a big penalty.
+const RESET_COST = 0.05;
+
+export function scoreChain(links: number, target: number, resets: number, penalizeResets = true): DrillOutcome {
+  const cost = penalizeResets ? Math.max(0, resets - 1) * RESET_COST : 0;
+  const starts = resets === 1 ? " · 1 fresh start" : resets > 1 ? ` · ${resets} fresh starts` : "";
+  return outcome(Math.min(1, links / Math.max(target, 1)) - cost, `${links} links (target ${target})${starts}`);
+}
+
+export function scoreBridges(bridges: number, target: number, resets: number, penalizeResets = true): DrillOutcome {
+  const cost = penalizeResets ? Math.max(0, resets - 1) * RESET_COST : 0;
+  return outcome(Math.min(1, bridges / Math.max(target, 1)) - cost, `${bridges} links explained (target ${target})`);
+}
+
 export function scoreJustAMinute(hesitations: number, fillers: number, allowed: number, spokeRatio: number): DrillOutcome {
   const slips = hesitations + fillers;
   const score = Math.max(0, 1 - Math.max(0, slips - allowed) * 0.2) * Math.min(1, spokeRatio / 0.7);
@@ -275,6 +326,13 @@ export function scoreJustAMinute(hesitations: number, fillers: number, allowed: 
 
 export function scoreProjection(fractionAbove: number): DrillOutcome {
   return outcome(fractionAbove / 0.8, `${Math.round(fractionAbove * 100)}% of speech at target volume`, fractionAbove >= 0.7);
+}
+
+// Rushing squeezes more numbers into the same breath, so it doesn't pass.
+export function scoreBreathCount(count: number, target: number, perSecond: number | null): DrillOutcome {
+  const rushed = perSecond != null && perSecond > MAX_COUNT_RATE;
+  const summary = rushed ? `${count} on one breath — but rushed (${perSecond} a second)` : `${count} on one breath (target ${target})`;
+  return outcome((count / Math.max(target, 1)) * (rushed ? 0.7 : 1), summary, count >= target && !rushed);
 }
 
 export function scoreSelfRating(rating: number): DrillOutcome {

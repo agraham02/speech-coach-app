@@ -5,7 +5,7 @@ import type { PlanText } from "../../domain/planYourPoint";
 import { ADHOC_PROMPT_PREFIX, type Prompt, type RecordingSubject, type Session } from "../../domain/sessionTypes";
 
 // Rebuilds everything about what a saved session was "about" from its DB
-// row, in one place. History, Result, Notion, Retake/"Practice again" and
+// row, in one place. History, Result, Retake/"Practice again" and
 // the deep review all used to rebuild this separately — and inconsistently
 // (History dropped the PREP plan; scripts showed as "Unknown prompt").
 
@@ -35,6 +35,7 @@ export async function subjectFromSession(session: Session): Promise<RecordingSub
     conciseSeconds: session.sessionType === "concise" ? extras?.conciseSeconds : undefined,
     lessonId: extras?.lessonId,
     targetFramework: extras?.targetFramework,
+    feeling: extras?.feelingEmotion ? { emotion: extras.feelingEmotion, angle: extras.feelingAngle ?? 0 } : undefined,
   };
 }
 
@@ -51,7 +52,7 @@ export async function gradingContextFromSession(session: Session): Promise<Gradi
   const subject = await subjectFromSession(session);
   if (!subject) return null;
   return subject.kind === "script"
-    ? { kind: "script", script: subject.script, cuesEnabled: subject.cuesEnabled }
+    ? { kind: "script", script: subject.script, cuesEnabled: subject.cuesEnabled, markLevel: subject.markLevel }
     : { kind: "prompt", promptText: subject.prompt.text, planText: subject.planText };
 }
 
@@ -65,7 +66,8 @@ const TYPE_LABELS: Record<Session["sessionType"], string> = {
   spontaneous: "Impromptu",
   concise: "Concise",
   free_record: "Free record",
-  script_practice: "Script",
+  script_practice: "Speech",
+  feeling: "Feeling",
 };
 
 // What to show for a session in lists and the journal.

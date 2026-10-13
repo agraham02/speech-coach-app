@@ -1,6 +1,6 @@
-# Speech Coach App
+# Tono
 
-Personal, unpublished daily speaking-practice app. Full product spec, phase-by-phase status, and changelog are in [plan.md](./plan.md). Phases 1, 3, 4, 5, plus unplanned Phases 6 (UI/UX pass), 7 (daily reminder), and 8 (Free Record + preview/discard + per-session opt-in grading/Notion sync) are built; Phase 2 (on-device transcription toggle) is deferred.
+Personal, unpublished daily speaking-practice app. Full product spec, phase-by-phase status, and changelog are in [plan.md](./plan.md). Phases 1, 3, 4, 5, plus unplanned Phases 6 (UI/UX pass), 7 (daily reminder), and 8 (Free Record + preview/discard + per-session opt-in grading) are built; Phase 2 (on-device transcription toggle) is deferred.
 
 ## Setup
 
@@ -10,12 +10,11 @@ Personal, unpublished daily speaking-practice app. Full product spec, phase-by-p
    - `eas build:configure` (populates `extra.eas.projectId` in your EAS project)
    - `eas build --profile development --platform ios`
    - Install the resulting build on your iPhone, then `npx expo start --dev-client` to load JS.
-3. Open the app, go to **Settings → API keys**, and enter:
-   - **Gemini API key** — from Google AI Studio.
-   - **Notion token** — a Notion integration token.
-   - **Notion page ID** — the journal page's ID. **You must also share that page with your Notion integration in Notion's UI** (Share → invite the integration by name), or every Notion API call 404s regardless of a correct token/page ID.
+3. Optional: deep reviews are bring-your-own-key, so the app stays free. In **Settings → Deep reviews**, pick a provider — Google Gemini (watches the video), OpenAI, Anthropic Claude or OpenRouter (these read the on-device transcript and the phone's measurements) — paste your key, and optionally a model ID. "Check key" confirms it works. Before the first review with a provider, the app asks permission to send to that company.
 
-   These are stored via `expo-secure-store` (Keychain/Keystore) on-device only — never baked into the build, unlike the old `.env`-at-build-time approach. Grading and Notion sync just fail with a "add a key in Settings" message until you've entered the relevant one; nothing else is gated on it.
+   Keys are stored via `expo-secure-store` (Keychain/Keystore) on-device only — never baked into the build. Everything else runs on the phone; nothing is gated on a key.
+
+To start over (old data from an earlier version, or a clean test run): **Settings → Your data → Reset app** deletes every recording, video, score and bit of progress, clears your profile and settings, and starts onboarding again. API keys are kept.
 
 ## What's checkable without a device build (this repo was developed on Windows, no local Mac)
 
@@ -23,7 +22,7 @@ Personal, unpublished daily speaking-practice app. Full product spec, phase-by-p
 - `npx expo export --platform ios` — bundles the JS, catches import/babel errors.
 - `npx expo prebuild --platform android --no-install` — cheap pre-flight for config-plugin misconfiguration (iOS native project generation itself requires macOS/Linux).
 
-None of the above exercise the actual native camera, face detection, haptics, or a real Gemini/Notion round-trip — that only happens on the physical iPhone via an EAS development build.
+None of the above exercise the actual native camera, face detection, haptics, or a real Gemini round-trip — that only happens on the physical iPhone via an EAS development build.
 
 ## Known risk: camera/face-detection package versions
 
@@ -42,12 +41,13 @@ If a future need arises to move to the v5 Nitro pair, re-check `visioncamera.mar
 ## Architecture notes
 
 - `src/services/gemini/` — hand-rolled `fetch`-based Gemini client (Files API resumable upload + `generateContent` with a `responseSchema`), not the `@google/genai` SDK, which has reported RN/Hermes friction. The rubric schema now covers transcripts + structure + delivery + presence + combined + coaching (Phases 1/3/4) in one call.
-- `src/services/notion/` — hand-rolled `fetch`-based Notion client. Date headings are created as **toggleable `heading_2` blocks** (plain headings can't visually contain children); transcripts are appended as paragraph children of that block, so a second same-day session just adds another paragraph. Note: toggle headings render **collapsed by default** in Notion's UI — if a page looks empty after a successful sync, click the arrow next to the date heading (or check via the API directly) before assuming something's wrong.
 - `src/services/db/` — `expo-sqlite`, with `mappers.ts` kept pure (row↔object) and separate from native calls so it's unit-testable in plain Jest. `scores` is a separate table joined to `sessions`; `statsRepo.ts` joins them for Trends.
-- `src/services/pipeline/` — `sessionProcessor.ts` runs the whole save→transcribe(/grade)→(optionally) Notion pipeline independently of any mounted screen (fire-and-forget from `PreviewScreen`, after the user chooses "Save"), driven by two explicit per-session booleans (`wantsGrading`, `wantsNotionSync`) resolved from prompted-vs-free-record defaults before the pipeline ever sees them — the pipeline itself doesn't need to know which kind of session it's processing. Also exports `syncSessionToNotion` and `gradeExistingSession` as standalone, independently-triggerable actions for any session missing one or the other (used by Result screen's "Sync to Notion" switch and "Grade with Gemini" button). `processingEvents.ts` is a small pub-sub (with last-known-status caching) that screens subscribe to for live status instead of driving the pipeline themselves.
+- `src/services/pipeline/` — `sessionPipeline.ts` runs each saved take's analysis as independent, resumable steps (transcribe → voice analysis → video analysis → coaching → optional deep review) without any mounted screen; each step can be retried on its own from the Result screen. `processingEvents.ts` is a small pub-sub that screens subscribe to for live status instead of driving the pipeline themselves.
 - `src/screens/PreviewScreen.tsx` — sits between Recording and Processing. Nothing is written to the DB or uploaded anywhere until the user chooses "Save" here (vs. "Discard", which just deletes the temp video file) — recording no longer auto-saves/auto-processes the instant it stops.
 - `src/components/common/ToastProvider.tsx` — a small Reanimated-based toast, plus a module-level `showGlobalToast()` escape hatch so non-component code (the background pipeline) can surface feedback (e.g. "session graded", streak milestones) regardless of which screen is open.
-- `src/services/secrets/secretsStore.ts` — the Gemini key and Notion token/page ID, entered via Settings and stored with `expo-secure-store` (Keychain/Keystore), never embedded in the build (see `plan.md` §12). `geminiClient.ts`/`notionClient.ts` throw a normal `GeminiApiError`/`NotionApiError` with no HTTP status when a key is missing, which the existing `describeGeminiError`/`describeNotionError` + toast pipeline already surfaces without any special-casing.
+- `src/services/secrets/secretsStore.ts` — one key per deep-review provider, entered via Settings and stored with `expo-secure-store` (Keychain/Keystore), never embedded in the build (see `plan.md` §12).
+- `src/services/cloud/` — bring-your-own-key deep reviews. `providers.ts` lists the providers and their defaults; `measuredReview.ts` builds the review for providers that can't take video (the verbatim transcript, a timed transcript with pauses in brackets, and the phone's voice and face measurements) and validates the reply against the same rubric as Gemini's; `textProviders.ts` calls OpenAI (Responses API), Anthropic (Messages API) and OpenRouter (chat completions) with strict JSON-schema output; `consent.ts` asks once per provider before anything is sent (App Review 5.1.2(i)); `cloudErrors.ts` turns failures into fixable messages.
+- `src/services/data/resetApp.ts` — Settings' "Reset app": drops every table and reruns the migrations (like a fresh install), deletes every video, clears preferences and logs, cancels reminders, and sends you back to onboarding. API keys survive.
 
 ## Native dependencies requiring an EAS rebuild
 

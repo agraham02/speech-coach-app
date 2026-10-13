@@ -1,4 +1,6 @@
 import { getArtifact, putArtifact } from "../db/artifactsRepo";
+import { defaultsFromProfile } from "../../domain/profile";
+import { getUserProfile } from "../prefs/prefsStore";
 import { getDatabase } from "../db/database";
 import { getSessionById } from "../db/sessionsRepo";
 import { getScoresBySessionId } from "../db/scoresRepo";
@@ -29,7 +31,9 @@ export function measuredVoice(session: Session): { wpmAvg: number | null; pitchR
 export async function refreshSessionScore(sessionId: string): Promise<SessionScoreBreakdown | null> {
   try {
     const session = await getSessionById(sessionId);
-    if (!session) return null;
+    // Feeling reps are process only — no score, ever.
+    if (!session || session.sessionType === "feeling") return null;
+    const stutterMode = defaultsFromProfile(getUserProfile()).stutterMode;
     const [pauses, presence, coach, cloud] = await Promise.all([
       getArtifact<PauseAnalysis>(sessionId, "pauses"),
       getArtifact<PresenceMetrics>(sessionId, "presence"),
@@ -40,8 +44,9 @@ export async function refreshSessionScore(sessionId: string): Promise<SessionSco
       {
         durationSeconds: session.durationSeconds,
         ...measuredVoice(session),
-        fillerRatePerMinute: session.fillerRatePerMinute,
-        pauses,
+        // Stuttering: fluency isn't measured against you.
+        fillerRatePerMinute: stutterMode ? null : session.fillerRatePerMinute,
+        pauses: stutterMode && pauses ? { ...pauses, hesitations: 0, midPhrasePauses: 0 } : pauses,
         presence,
         coach,
         targetFramework: session.subjectExtras?.targetFramework ?? null,

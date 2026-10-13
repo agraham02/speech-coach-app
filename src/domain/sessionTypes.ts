@@ -1,7 +1,8 @@
 import type { GeminiQuoteAnnotation } from "./transcriptAnnotations";
-import type { Script } from "./scriptTypes";
+import type { MarkLevel, Script } from "./scriptTypes";
 import type { PlanText } from "./planYourPoint";
 import type { PracticeContext } from "./practice";
+import type { EmotionId } from "./feelings";
 
 export type DifficultyTier = "easy" | "medium" | "hard";
 
@@ -61,15 +62,25 @@ export type RecordingSubject =
       prepSeconds?: number;
       // Plan/lesson step this rep completes (not persisted with the session).
       practice?: PracticeContext;
+      // A Feeling of the Week rep (and which angle of it).
+      feeling?: { emotion: EmotionId; angle: number };
+      // Shown during prep, hidden once recording starts.
+      prepNotes?: string[];
+      // The onboarding skill check's talk: kept as a keepsake, and back to
+      // the check after saving instead of a scored result.
+      skillCheck?: boolean;
     }
-  | { kind: "script"; script: Script; cuesEnabled: boolean };
+  // cuesEnabled is what's persisted (marks shown or not); markLevel is the
+  // finer choice made on the Study screen.
+  | { kind: "script"; script: Script; cuesEnabled: boolean; markLevel?: MarkLevel };
 
 // 'whisper_ondevice' is the default free path (react-native-executorch,
 // Phase 2 — the plan originally targeted Moonshine, but the installed
 // package's speech-to-text module only ships Whisper; see plan.md's
-// correction note). 'assemblyai' is the opt-in paid upgrade. 'on_device' is
-// kept for pre-Phase-2 rows that used that generic value; 'gemini' is the
-// fallback when neither on-device nor AssemblyAI produced a transcript.
+// correction note). 'on_device' is kept for pre-Phase-2 rows that used that
+// generic value, and 'assemblyai' for takes from when cloud transcription
+// existed (removed 2026-10-12); 'gemini' is the fallback when on-device
+// transcription didn't produce one.
 export type TranscriptionSource = "gemini" | "on_device" | "whisper_ondevice" | "assemblyai";
 
 export interface TranscriptWord {
@@ -93,7 +104,14 @@ export type SessionStatus =
 
 // "concise" mirrors "free_record" — a distinct opt-in short-recording drill,
 // not a duration variant of "spontaneous".
-export type SessionType = "spontaneous" | "free_record" | "concise" | "script_practice";
+// "feeling" is a Feeling of the Week rep: process only — never scored,
+// never in the curriculum or stats, never a keepsake (see domain/feelings.ts).
+export type SessionType = "spontaneous" | "free_record" | "concise" | "script_practice" | "feeling";
+
+// Sessions whose scores feed the curriculum and the stats.
+export function isScoredPractice(type: SessionType): boolean {
+  return type !== "script_practice" && type !== "feeling";
+}
 
 export interface Session {
   id: string;
@@ -105,9 +123,7 @@ export interface Session {
   transcriptVerbatim: string | null;
   transcriptClean: string | null;
   status: SessionStatus;
-  notionSyncedAt: string | null;
   wantsGrading: boolean;
-  wantsNotionSync: boolean;
   // Defaults to 'spontaneous' for every pre-existing row (see migration v7).
   // scriptId/cuesEnabled are only ever non-null when sessionType is
   // 'script_practice'.
@@ -134,13 +150,11 @@ export interface Session {
   // Audio-first pipeline (Phase 2) — all nullable, populated in a follow-up
   // write after transcription/analysis completes, independent of wantsGrading
   // (same convention as fillerWordCount above). transcriptWords/wpmCurve come
-  // from whichever transcript engine actually ran (on-device ASR by default,
-  // AssemblyAI if opted in) — null if both that and the Gemini-fallback path
-  // were used instead (no word-level timestamps available in that case).
+  // from on-device ASR — null when the deep review supplied the transcript
+  // instead (no word-level timestamps in that case).
   transcriptWords: TranscriptWord[] | null;
   wpmCurve: WpmPoint[] | null;
   repeatedWordCount: number | null;
-  assemblyaiTranscriptId: string | null;
   // dspStatus null = never attempted (e.g. decode failed before analysis
   // could even start); 'failed' = attempted and failed; 'complete' = the
   // pitch/volume fields below are populated.
@@ -168,7 +182,6 @@ export interface Session {
   lastError: string | null;
   updatedAt: string | null;
   subjectExtras: SessionSubjectExtras | null;
-  notionBlockId: string | null;
   // Migration v17. Optional because they're only ever written by their own
   // steps, never on insert. videoKeepsake: kept (compressed) when old videos
   // are cleared — see domain/videoKeepsakes.ts. sessionScore: the combined
@@ -188,6 +201,9 @@ export interface SessionSubjectExtras {
   // the prompt library — follow-up questions, generated drill prompts.
   promptText?: string;
   promptCategory?: string;
+  // Feeling of the Week.
+  feelingEmotion?: EmotionId;
+  feelingAngle?: number;
 }
 
 export const ADHOC_PROMPT_PREFIX = "adhoc_";

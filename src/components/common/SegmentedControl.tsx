@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { type LayoutChangeEvent, Pressable, Text, View } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import { radii, spacing, typography } from "../../theme/theme";
+import { type LayoutChangeEvent, Pressable, View } from "react-native";
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { makeStyles } from "../../theme/ThemeProvider";
+import { spring } from "../../theme/motion";
+import { tick } from "../../utils/haptics";
+import { Txt } from "./Txt";
 
 interface SegmentOption<T extends string> {
   key: T;
@@ -13,14 +15,13 @@ interface SegmentedControlProps<T extends string> {
   options: SegmentOption<T>[];
   value: T;
   onChange: (value: T) => void;
+  size?: "md" | "sm";
 }
 
 const TRACK_PADDING = 3;
 
-// A hand-rolled tab row with a sliding indicator — matches the codebase's
-// preference for small Reanimated-based UI over pulling in a tab-bar
-// dependency (see ToastProvider.tsx).
-export function SegmentedControl<T extends string>({ options, value, onChange }: SegmentedControlProps<T>) {
+// A pill track with a thumb that springs to the selected segment.
+export function SegmentedControl<T extends string>({ options, value, onChange, size = "md" }: SegmentedControlProps<T>) {
   const styles = useStyles();
   const [trackWidth, setTrackWidth] = useState(0);
   const indicatorX = useSharedValue(0);
@@ -28,9 +29,7 @@ export function SegmentedControl<T extends string>({ options, value, onChange }:
   const segmentWidth = trackWidth > 0 ? (trackWidth - TRACK_PADDING * 2) / options.length : 0;
 
   useEffect(() => {
-    if (segmentWidth > 0) {
-      indicatorX.value = withTiming(activeIndex * segmentWidth, { duration: 220 });
-    }
+    if (segmentWidth > 0) indicatorX.value = withSpring(activeIndex * segmentWidth, spring.gentle);
   }, [activeIndex, segmentWidth, indicatorX]);
 
   const indicatorStyle = useAnimatedStyle(() => ({
@@ -46,12 +45,17 @@ export function SegmentedControl<T extends string>({ options, value, onChange }:
         return (
           <Pressable
             key={option.key}
-            style={styles.segment}
-            onPress={() => onChange(option.key)}
+            style={[styles.segment, size === "sm" && styles.segmentSm]}
+            onPress={() => {
+              if (!selected) tick();
+              onChange(option.key);
+            }}
             accessibilityRole="button"
             accessibilityState={{ selected }}
           >
-            <Text style={[styles.label, selected && styles.labelSelected]}>{option.label}</Text>
+            <Txt variant={size === "sm" ? "footnote" : "subhead"} weight={selected ? "600" : "500"} tone={selected ? "primary" : "muted"} numberOfLines={1}>
+              {option.label}
+            </Txt>
           </Pressable>
         );
       })}
@@ -59,13 +63,11 @@ export function SegmentedControl<T extends string>({ options, value, onChange }:
   );
 }
 
-const useStyles = makeStyles(({ colors }) => ({
+const useStyles = makeStyles((t) => ({
   track: {
     flexDirection: "row",
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.md,
+    backgroundColor: t.colors.surfaceRaised,
+    borderRadius: t.radius.pill,
     padding: TRACK_PADDING,
   },
   indicator: {
@@ -73,12 +75,10 @@ const useStyles = makeStyles(({ colors }) => ({
     top: TRACK_PADDING,
     bottom: TRACK_PADDING,
     left: TRACK_PADDING,
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: radii.md - TRACK_PADDING,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: t.scheme === "dark" ? "rgba(255,250,235,0.14)" : t.colors.surface,
+    borderRadius: t.radius.pill,
+    ...t.shadow.card,
   },
-  segment: { flex: 1, paddingVertical: spacing.sm, alignItems: "center", justifyContent: "center" },
-  label: { color: colors.textMuted, fontSize: typography.caption, fontWeight: "700" },
-  labelSelected: { color: colors.textPrimary },
+  segment: { flex: 1, paddingVertical: 9, alignItems: "center", justifyContent: "center" },
+  segmentSm: { paddingVertical: 6 },
 }));

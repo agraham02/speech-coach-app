@@ -66,3 +66,29 @@ export function listSessionFiles(): { name: string; uri: string; modifiedMs: num
     .filter((entry): entry is File => entry instanceof File)
     .map((file) => ({ name: file.name, uri: file.uri, modifiedMs: file.modificationTime ?? null }));
 }
+
+// Deletes every saved video (Reset app).
+export function deleteAllRecordings(): void {
+  const dir = new Directory(Paths.document, SESSIONS_DIR_NAME);
+  if (dir.exists) dir.delete();
+}
+
+// Temporary media the app leaves in the cache: the speech recognizer's WAV
+// takes, the camera's unsaved recordings, empty PCM scratch files, exported
+// database copies. The OS clears caches eventually; Reset app does it now.
+const TEMP_MEDIA = /^(recording_.*\.wav|mrousavy.*\.(mp4|mov)|temp_.*\.pcm|(tono|speech-coach)-.*\.db|asr-lab\.wav)$/;
+
+export function deleteTempMedia(): number {
+  let deleted = 0;
+  for (const entry of Paths.cache.list()) {
+    if (entry instanceof File && TEMP_MEDIA.test(entry.name)) {
+      try {
+        entry.delete();
+        deleted++;
+      } catch {
+        // Still in use (a recording in progress) — leave it.
+      }
+    }
+  }
+  return deleted;
+}

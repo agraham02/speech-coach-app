@@ -1,17 +1,17 @@
 import { View } from "react-native";
 import { makeStyles } from "../../theme/ThemeProvider";
-import { fontDisplay } from "../../theme/theme";
 import { Txt } from "./Txt";
 
-// A compact number + label tile ("148 / words per min").
-export function StatTile({ value, label, color }: { value: string; label: string; color?: string }) {
+// A number over its label ("148 / words per min"). Tiles in a row sit on one
+// quiet fill each; `plain` drops the fill when the row is already on a card.
+export function StatTile({ value, label, color, plain }: { value: string; label: string; color?: string; plain?: boolean }) {
   const styles = useStyles();
   return (
-    <View style={styles.tile}>
-      <Txt variant="title2" color={color} style={styles.value}>
+    <View style={[styles.tile, plain && styles.plain]}>
+      <Txt variant="title1" color={color} style={styles.value} numberOfLines={1} adjustsFontSizeToFit>
         {value}
       </Txt>
-      <Txt variant="caption1" tone="muted" align="center">
+      <Txt variant="caption1" tone="muted" align="center" numberOfLines={2}>
         {label}
       </Txt>
     </View>
@@ -23,10 +23,11 @@ const useStyles = makeStyles((t) => ({
     flex: 1,
     alignItems: "center",
     gap: 2,
-    paddingVertical: t.space.sm + 2,
-    paddingHorizontal: t.space.xs,
+    paddingVertical: t.space.md - 2,
+    paddingHorizontal: t.space.sm,
     borderRadius: t.radius.md,
     backgroundColor: t.colors.surfaceRaised,
   },
-  value: { fontFamily: fontDisplay.bold },
+  plain: { backgroundColor: "transparent", paddingVertical: t.space.xs },
+  value: { fontSize: 28, lineHeight: 34, letterSpacing: -0.8 },
 }));

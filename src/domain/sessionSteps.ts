@@ -6,13 +6,12 @@ import type { SessionStatus } from "./sessionTypes";
 // app was killed, a later "grade" pass could clobber earlier results, and
 // there was no way to retry just one part.
 //
-// - transcribe:    on-device ASR (plus AssemblyAI if enabled) -> transcript
+// - transcribe:    on-device ASR -> transcript
 // - audio_metrics: pitch/volume DSP, fillers, repeated words, WPM curve
 // - presence:      face-timeline summary (video analysis, Phase 2)
 // - coach:         on-device coaching (Phase 2)
 // - cloud_review:  Gemini "deep review" (opt-in)
-// - notion:        journal sync (opt-in)
-export type SessionStep = "transcribe" | "audio_metrics" | "presence" | "coach" | "cloud_review" | "notion";
+export type SessionStep = "transcribe" | "audio_metrics" | "presence" | "coach" | "cloud_review";
 
 export type StepStatus = "pending" | "running" | "done" | "failed" | "skipped" | "interrupted";
 
@@ -25,7 +24,7 @@ export interface StepState {
   updatedAt: string;
 }
 
-export const ALL_STEPS: SessionStep[] = ["transcribe", "audio_metrics", "presence", "coach", "cloud_review", "notion"];
+export const ALL_STEPS: SessionStep[] = ["transcribe", "audio_metrics", "presence", "coach", "cloud_review"];
 
 // Steps that run on-device and are safe to resume automatically after an
 // interruption. Cloud steps cost money/data, so they only auto-resume when
@@ -38,7 +37,6 @@ export const STEP_LABELS: Record<SessionStep, string> = {
   presence: "Video analysis",
   coach: "Coaching",
   cloud_review: "Deep review",
-  notion: "Notion journal",
 };
 
 export function isActive(status: StepStatus | undefined): boolean {
@@ -47,7 +45,7 @@ export function isActive(status: StepStatus | undefined): boolean {
 
 // The session-level status shown in History is derived, never stored on
 // its own: only a failed *transcript* makes the whole session "error".
-// Optional steps (deep review, Notion, video analysis…) failing just shows
+// Optional steps (deep review, video analysis…) failing just shows
 // as a badge on that step.
 export function deriveSessionStatus(steps: Pick<StepState, "step" | "status">[]): SessionStatus {
   const byStep = new Map(steps.map((s) => [s.step, s.status]));
@@ -62,9 +60,7 @@ export interface LegacySessionSignals {
   hasTranscript: boolean;
   dspStatus: string | null;
   hasScores: boolean;
-  notionSyncedAt: string | null;
   wantsGrading: boolean;
-  wantsNotionSync: boolean;
 }
 
 // Backfills step rows for sessions recorded before steps existed, from the
@@ -93,11 +89,6 @@ export function inferLegacySteps(s: LegacySessionSignals): { step: SessionStep; 
     step: "cloud_review",
     status: s.hasScores ? "done" : unfinished(s.wantsGrading),
     lastError: !s.hasScores && s.wantsGrading && s.status === "error" ? unknownError : null,
-  });
-  rows.push({
-    step: "notion",
-    status: s.notionSyncedAt ? "done" : unfinished(s.wantsNotionSync),
-    lastError: null,
   });
   return rows;
 }
