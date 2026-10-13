@@ -67,7 +67,7 @@ export function AddPromptScreen({ navigation }: Props) {
 
       <View style={styles.field}>
         <Text style={styles.label}>Prompt</Text>
-        <TextInput
+        <TextInput maxLength={300}
           style={styles.textArea}
           value={text}
           onChangeText={(value) => setText(value.slice(0, TEXT_MAX_LENGTH))}
@@ -84,7 +84,7 @@ export function AddPromptScreen({ navigation }: Props) {
 
       <View style={styles.field}>
         <Text style={styles.label}>Category</Text>
-        <TextInput
+        <TextInput maxLength={40}
           style={styles.input}
           value={category}
           onChangeText={setCategory}

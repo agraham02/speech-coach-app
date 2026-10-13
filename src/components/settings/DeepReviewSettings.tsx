@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { cleanApiKey, isValidModelId, MAX_KEY_LENGTH, MAX_MODEL_LENGTH, providerForKey } from "../../services/cloud/inputGuards";
 import { Linking, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Card } from "../common/Card";
@@ -42,10 +43,38 @@ export function DeepReviewSettings() {
     setProviderId(id);
   }
 
+  async function commitKey() {
+    const cleaned = cleanApiKey(key);
+    setKey(cleaned);
+    await setProviderKey(providerId, cleaned);
+    return cleaned;
+  }
+
+  function commitModel() {
+    const trimmed = model.trim();
+    if (trimmed && !isValidModelId(trimmed)) {
+      showToast("That doesn't look like a model ID — letters, numbers, dots, dashes, colons and slashes only.", "error");
+      setModel(getCloudModel(providerId) ?? "");
+      return;
+    }
+    setModel(trimmed);
+    setCloudModel(providerId, trimmed);
+  }
+
   async function check() {
+    const cleaned = await commitKey();
+    if (!cleaned) {
+      showToast(`Paste your ${provider.name} key first.`, "error");
+      return;
+    }
+    const looksLike = providerForKey(cleaned);
+    if (looksLike && looksLike !== providerId) {
+      const other = PROVIDERS[looksLike].name;
+      showToast(`That looks like ${/^[aeiou]/i.test(other) ? "an" : "a"} ${other} key. Choose ${other} above, or paste your ${provider.name} key.`, "error");
+      return;
+    }
     setChecking(true);
-    await setProviderKey(providerId, key);
-    const problem = await checkProviderKey(providerId, key);
+    const problem = await checkProviderKey(providerId, cleaned).catch(() => "Couldn't check the key — check your connection and try again.");
     setChecking(false);
     showToast(problem ?? `${provider.name} accepted the key.`, problem ? "error" : "success");
   }
@@ -81,8 +110,9 @@ export function DeepReviewSettings() {
           caption={`${provider.keyHint}. Stored in this phone's keychain only.`}
           value={key}
           onChangeText={setKey}
-          onCommit={() => setProviderKey(providerId, key)}
+          onCommit={commitKey}
           secret
+          maxLength={MAX_KEY_LENGTH}
         />
         <View style={styles.buttons}>
           <PrimaryButton label="Get a key" variant="secondary" size="sm" icon="open-outline" onPress={() => Linking.openURL(provider.keyUrl)} />
@@ -93,8 +123,9 @@ export function DeepReviewSettings() {
           caption={provider.modelHint}
           value={model}
           onChangeText={setModel}
-          onCommit={() => setCloudModel(providerId, model)}
+          onCommit={commitModel}
           placeholder={provider.defaultModel}
+          maxLength={MAX_MODEL_LENGTH}
         />
         <View style={styles.disclosure}>
           <Ionicons name={provider.input === "video" ? "videocam-outline" : "document-text-outline"} size={18} color={colors.textSecondary} />

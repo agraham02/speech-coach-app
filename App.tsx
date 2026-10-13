@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { AppErrorBoundary, installGlobalErrorLogging } from "./src/components/common/AppErrorBoundary";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { View } from "react-native";
@@ -22,6 +23,8 @@ initExecutorch({ resourceFetcher: ExpoResourceFetcher });
 
 // The splash (app.config.ts) stays up until the first screen can draw in the
 // right typeface, then fades — no blank frame or spinner in between.
+installGlobalErrorLogging();
+
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 SplashScreen.setOptions({ duration: 300, fade: true });
 
@@ -47,11 +50,13 @@ export default function App() {
     <SafeAreaProvider>
       <ThemeProvider>
         {fontsLoaded || fontError ? (
-          <ToastProvider>
-            <GuideProvider>
-              <AppNavigator onReady={() => SplashScreen.hide()} />
-            </GuideProvider>
-          </ToastProvider>
+          <AppErrorBoundary>
+            <ToastProvider>
+              <GuideProvider>
+                <AppNavigator onReady={() => SplashScreen.hide()} />
+              </GuideProvider>
+            </ToastProvider>
+          </AppErrorBoundary>
         ) : (
           <Backdrop />
         )}

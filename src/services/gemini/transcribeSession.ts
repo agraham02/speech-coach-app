@@ -6,6 +6,7 @@ import {
   buildTranscriptCleanOnlySystemPrompt,
   buildTranscriptOnlySystemPrompt,
   RESPONSE_SCHEMA,
+  SPEECH_IS_DATA,
   STUTTER_NOTE,
   TRANSCRIPT_CLEAN_ONLY_SCHEMA,
   TRANSCRIPT_ONLY_SCHEMA,
@@ -144,6 +145,7 @@ export async function analyzeUploadedVideo(
     (context.kind === "script"
       ? buildScriptSystemPrompt(context.script, context.cuesEnabled ? context.markLevel ?? "full" : "none")
       : buildSystemPrompt(context.promptText, context.planText, context.groundingTranscript)) +
+    SPEECH_IS_DATA +
     (defaultsFromProfile(getUserProfile()).stutterMode ? STUTTER_NOTE : "");
   const showsCueCompliance =
     context.kind === "script" && context.cuesEnabled && context.script.marks.length > 0;

@@ -49,7 +49,7 @@ export function PlanYourPointScreen({ route, navigation }: Props) {
       <View style={styles.field}>
         <Text style={styles.label}>Point</Text>
         <Text style={styles.hint}>The one thing you want them to remember.</Text>
-        <TextInput
+        <TextInput maxLength={280}
           style={styles.textArea}
           value={point}
           onChangeText={setPoint}
@@ -64,7 +64,7 @@ export function PlanYourPointScreen({ route, navigation }: Props) {
       <View style={styles.field}>
         <Text style={styles.label}>Reason</Text>
         <Text style={styles.hint}>Why does that point matter?</Text>
-        <TextInput
+        <TextInput maxLength={280}
           style={styles.textArea}
           value={reason}
           onChangeText={setReason}
@@ -79,7 +79,7 @@ export function PlanYourPointScreen({ route, navigation }: Props) {
       <View style={styles.field}>
         <Text style={styles.label}>Example</Text>
         <Text style={styles.hint}>A concrete example or story that backs it up.</Text>
-        <TextInput
+        <TextInput maxLength={280}
           style={styles.textArea}
           value={example}
           onChangeText={setExample}

@@ -38,6 +38,7 @@ const KEYS = {
   lastAutoCleanup: "lastAutoCleanup",
   guideSeen: "guideSeen",
   guideOff: "guideOff",
+  cloudCalls: "cloudCalls",
 } as const;
 
 export function getRecordBlindPref(): boolean {
@@ -323,6 +324,16 @@ export function removeObsoletePrefs(): void {
 
 // Every preference, gone (Reset app): the profile, onboarding, goals,
 // reminders, recording settings — back to first-launch defaults.
+// Deep-review calls made today (local date), for the daily limit.
+export function getCloudCallsToday(today: string): number {
+  const stored = readJson<{ date: string; count: number }>(KEYS.cloudCalls, { date: today, count: 0 });
+  return stored.date === today ? stored.count : 0;
+}
+
+export function noteCloudCall(today: string): void {
+  storage.set(KEYS.cloudCalls, JSON.stringify({ date: today, count: getCloudCallsToday(today) + 1 }));
+}
+
 // The app guide: a tip the first time you reach each tab or feature.
 export function getGuideSeen(): string[] {
   return readJson<string[]>(KEYS.guideSeen, []);

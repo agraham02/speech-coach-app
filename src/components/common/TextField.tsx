@@ -15,10 +15,11 @@ interface TextFieldProps {
   placeholder?: string;
   // Masked with a show/hide eye (API keys).
   secret?: boolean;
+  maxLength?: number;
 }
 
 // A labeled single-line field for settings: keys, model IDs.
-export function TextField({ label, caption, value, onChangeText, onCommit, placeholder = "Not set", secret }: TextFieldProps) {
+export function TextField({ label, caption, value, onChangeText, onCommit, placeholder = "Not set", secret, maxLength = 200 }: TextFieldProps) {
   const styles = useStyles();
   const { colors } = useTheme();
   const [visible, setVisible] = useState(false);
@@ -39,6 +40,7 @@ export function TextField({ label, caption, value, onChangeText, onCommit, place
           placeholder={placeholder}
           placeholderTextColor={colors.textMuted}
           secureTextEntry={secret && !visible}
+          maxLength={maxLength}
           autoCapitalize="none"
           autoCorrect={false}
           spellCheck={false}

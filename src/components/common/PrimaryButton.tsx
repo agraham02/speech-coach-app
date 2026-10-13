@@ -1,4 +1,5 @@
 import { ActivityIndicator, View, type StyleProp, type ViewStyle } from "react-native";
+import { useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 import { PressableScale } from "./PressableScale";
@@ -6,7 +7,8 @@ import { Txt } from "./Txt";
 
 interface PrimaryButtonProps {
   label: string;
-  onPress: () => void;
+  // May return a promise: taps are ignored until it settles.
+  onPress: () => void | Promise<unknown>;
   disabled?: boolean;
   loading?: boolean;
   // primary: the one ink action on a screen. secondary: a quiet filled
@@ -37,6 +39,17 @@ export function PrimaryButton({
   accessibilityLabel,
 }: PrimaryButtonProps) {
   const isDisabled = disabled || loading;
+  const pending = useRef(false);
+  function press() {
+    if (pending.current) return;
+    const result = onPress();
+    if (result && typeof (result as Promise<unknown>).finally === "function") {
+      pending.current = true;
+      (result as Promise<unknown>).catch(() => undefined).finally(() => {
+        pending.current = false;
+      });
+    }
+  }
   const styles = useStyles();
   const { colors } = useTheme();
   const fg = {
@@ -49,7 +62,7 @@ export function PrimaryButton({
 
   return (
     <PressableScale
-      onPress={onPress}
+      onPress={press}
       disabled={isDisabled}
       haptic={variant === "primary" ? "tap" : undefined}
       accessibilityRole="button"

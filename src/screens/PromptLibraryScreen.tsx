@@ -70,7 +70,7 @@ export function PromptLibraryScreen({ navigation }: Props) {
 
       <View style={styles.searchBox}>
         <Ionicons name="search-outline" size={16} color={colors.textMuted} />
-        <TextInput
+        <TextInput maxLength={80}
           style={styles.searchInput}
           value={searchQuery}
           onChangeText={setSearchQuery}

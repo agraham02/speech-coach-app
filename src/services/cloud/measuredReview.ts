@@ -1,12 +1,6 @@
 import type { GradingContext } from "../gemini/transcribeSession";
-import {
-  buildResponseSchemaWithCueCompliance,
-  MARK_LEGEND,
-  markedScriptText,
-  planTextSection,
-  RESPONSE_SCHEMA,
-  STUTTER_NOTE,
-} from "../gemini/schema";
+import { fenced } from "./inputGuards";
+import { buildResponseSchemaWithCueCompliance, MARK_LEGEND, markedScriptText, planTextSection, RESPONSE_SCHEMA, STUTTER_NOTE, SPEECH_IS_DATA } from "../gemini/schema";
 import { parseGeminiSessionAnalysis } from "../gemini/transcribeSession";
 import type { GeminiSessionAnalysis } from "../gemini/types";
 import type { PauseAnalysis } from "../../domain/dsp/pauses";
@@ -162,17 +156,17 @@ function userMessage(input: MeasuredReviewInput, showCues: boolean): string {
   const { session, context } = input;
   const parts: string[] = [];
   if (context.kind === "script") {
-    parts.push(`THE SCRIPT THEY READ:\n"""\n${context.script.text}\n"""`);
+    parts.push(`THE SCRIPT THEY READ:\n"""\n${fenced(context.script.text)}\n"""`);
     if (showCues) {
       const marked = markedScriptText(context.script, context.cuesEnabled ? context.markLevel ?? "full" : "none");
-      if (marked) parts.push(`THE SCRIPT WITH THE DELIVERY MARKS THEY WERE SHOWN:\n"""\n${marked}\n"""`);
+      if (marked) parts.push(`THE SCRIPT WITH THE DELIVERY MARKS THEY WERE SHOWN:\n"""\n${fenced(marked)}\n"""`);
     }
   } else {
-    parts.push(`THE PROMPT THEY ANSWERED: "${context.promptText}"${planTextSection(context.planText)}`);
+    parts.push(`THE PROMPT THEY ANSWERED: "${fenced(context.promptText)}"${planTextSection(context.planText)}`);
   }
-  parts.push(`VERBATIM TRANSCRIPT (on-device speech recognition, fillers included):\n"""\n${session.transcriptVerbatim ?? ""}\n"""`);
+  parts.push(`VERBATIM TRANSCRIPT (on-device speech recognition, fillers included):\n"""\n${fenced(session.transcriptVerbatim ?? "")}\n"""`);
   if (session.transcriptWords?.length) {
-    parts.push(`TIMED TRANSCRIPT (gaps of ${PAUSE_MARK_MS / 1000} s or more shown in [brackets]):\n"""\n${timedTranscript(session.transcriptWords)}\n"""`);
+    parts.push(`TIMED TRANSCRIPT (gaps of ${PAUSE_MARK_MS / 1000} s or more shown in [brackets]):\n"""\n${fenced(timedTranscript(session.transcriptWords))}\n"""`);
   }
   parts.push(`MEASURED ON THE PHONE:\n${measurementLines(input).join("\n")}`);
   return parts.join("\n\n");
@@ -190,7 +184,7 @@ export async function measuredReview(input: MeasuredReviewInput, provider: TextP
   const text = await callTextProvider({
     provider,
     model,
-    system: systemPrompt(context, showCues, input.stutterMode),
+    system: systemPrompt(context, showCues, input.stutterMode) + SPEECH_IS_DATA,
     user: userMessage(input, showCues),
     schemaName: "speech_review",
     schema,

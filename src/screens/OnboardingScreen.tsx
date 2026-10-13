@@ -237,7 +237,7 @@ export function OnboardingScreen({ route, navigation }: Props) {
     if (!question) return null;
     switch (question.id) {
       case "name":
-        return <TextInput value={profile.name ?? ""} onChangeText={(name) => update({ name })} placeholder="Your first name" placeholderTextColor={colors.textMuted} style={styles.input} autoFocus returnKeyType="next" onSubmitEditing={next} />;
+        return <TextInput maxLength={40} value={profile.name ?? ""} onChangeText={(name) => update({ name })} placeholder="Your first name" placeholderTextColor={colors.textMuted} style={styles.input} autoFocus returnKeyType="next" onSubmitEditing={next} />;
       case "contexts":
         return <Multi options={CONTEXT_OPTIONS} value={profile.contexts} onChange={(contexts) => update({ contexts })} />;
       case "obstacles":
@@ -256,7 +256,7 @@ export function OnboardingScreen({ route, navigation }: Props) {
                     <Chip key={w.days} label={w.label} selected={eventWhen === w.days} onPress={() => setEventWhen(w.days)} />
                   ))}
                 </View>
-                <TextInput
+                <TextInput maxLength={60}
                   value={profile.event?.note ?? ""}
                   onChangeText={(note) => update({ event: { kind: eventKind, date: profile.event?.date ?? todayISODate(), note } })}
                   placeholder="What is it? (optional)"
@@ -287,7 +287,7 @@ export function OnboardingScreen({ route, navigation }: Props) {
           </View>
         );
       case "voiceNote":
-        return <TextInput value={profile.voiceNote ?? ""} onChangeText={(voiceNote) => update({ voiceNote })} placeholder="e.g. my voice gets tired quickly" placeholderTextColor={colors.textMuted} style={[styles.input, styles.multiline]} multiline />;
+        return <TextInput maxLength={300} value={profile.voiceNote ?? ""} onChangeText={(voiceNote) => update({ voiceNote })} placeholder="e.g. my voice gets tired quickly" placeholderTextColor={colors.textMuted} style={[styles.input, styles.multiline]} multiline />;
       case "goal":
         return (
           <Choices
@@ -338,7 +338,7 @@ export function OnboardingScreen({ route, navigation }: Props) {
           <View style={styles.block}>
             <Choices options={[...ANCHOR_OPTIONS.map((a) => ({ key: a.key, label: a.label })), { key: "custom", label: "Something else" }]} value={anchorKey} onPick={setAnchorKey} />
             {anchorKey === "custom" ? (
-              <TextInput value={customAnchor} onChangeText={setCustomAnchor} placeholder="After I…" placeholderTextColor={colors.textMuted} style={styles.input} autoFocus />
+              <TextInput maxLength={120} value={customAnchor} onChangeText={setCustomAnchor} placeholder="After I…" placeholderTextColor={colors.textMuted} style={styles.input} autoFocus />
             ) : null}
           </View>
         );
@@ -401,7 +401,7 @@ export function OnboardingScreen({ route, navigation }: Props) {
       case "retention":
         return <Choices options={RETENTION_OPTIONS.map((r) => ({ key: r.key, label: r.label }))} value={retention} onPick={setRetention} />;
       case "why":
-        return <TextInput value={profile.why ?? ""} onChangeText={(why) => update({ why })} placeholder="e.g. I'll say what I mean in meetings without rehearsing it in my head first" placeholderTextColor={colors.textMuted} style={[styles.input, styles.multiline]} multiline />;
+        return <TextInput maxLength={300} value={profile.why ?? ""} onChangeText={(why) => update({ why })} placeholder="e.g. I'll say what I mean in meetings without rehearsing it in my head first" placeholderTextColor={colors.textMuted} style={[styles.input, styles.multiline]} multiline />;
     }
   }
 

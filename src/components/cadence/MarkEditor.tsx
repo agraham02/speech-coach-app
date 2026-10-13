@@ -199,7 +199,7 @@ export function MarkEditor({ text, marks, onChange, tools = ALL_TOOLS, locked = 
           <Txt variant="footnote" tone="secondary">
             Note above “{words[noteWord]?.word}”
           </Txt>
-          <TextInput
+          <TextInput maxLength={200}
             value={noteDraft}
             onChangeText={setNoteDraft}
             placeholder="e.g. warmer, like you're smiling"

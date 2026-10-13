@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { formatLogsForSharing } from "../services/logs/logStore";
 import { GuideTip } from "../components/common/GuideTip";
-import { ActivityIndicator, Alert, Linking, Modal, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Modal, View, Share } from "react-native";
 import { CommonActions } from "@react-navigation/native";
 import { resetApp } from "../services/data/resetApp";
 import { DeepReviewSettings } from "../components/settings/DeepReviewSettings";
@@ -290,6 +291,12 @@ export function SettingsScreen({ navigation }: Props) {
             resetGuide();
             showToast("Tips will show again as you go.", "success");
           }}
+        />
+        <ListRow
+          icon="bug-outline"
+          title="Share diagnostics"
+          subtitle="The app's recent log, for reporting a problem. No recordings or keys."
+          onPress={() => Share.share({ message: formatLogsForSharing() }).catch(() => undefined)}
         />
       </ListGroup>
 

@@ -71,7 +71,7 @@ export function AddTextScreen({ navigation }: Props) {
             <Txt variant="subhead" tone="secondary">
               Paste a paragraph from a book, article or anything you like. On iPhone, tap the box and use the keyboard's Scan Text to grab a printed page with the camera.
             </Txt>
-            <TextInput
+            <TextInput maxLength={6000}
               value={source}
               onChangeText={setSource}
               multiline

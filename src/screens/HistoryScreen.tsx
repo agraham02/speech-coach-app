@@ -274,7 +274,7 @@ export function HistoryScreen() {
         <View style={styles.searchRow}>
           <View style={styles.searchBox}>
             <Ionicons name="search" size={16} color={colors.textMuted} />
-            <TextInput
+            <TextInput maxLength={80}
               style={styles.searchInput}
               value={searchQuery}
               onChangeText={setSearchQuery}
