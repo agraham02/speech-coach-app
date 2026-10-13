@@ -131,6 +131,16 @@ export async function listRewinds(): Promise<Rewind[]> {
   return rows.map(fromRow);
 }
 
+// Takes recorded before `cutoffIso` whose audio is still on the phone.
+export async function listRewindAudioBefore(cutoffIso: string): Promise<{ id: string; audioFile: string }[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{ id: string; audio_file: string }>(
+    `SELECT id, audio_file FROM day_recalls WHERE audio_file IS NOT NULL AND recorded_at < ?`,
+    [cutoffIso],
+  );
+  return rows.map((r) => ({ id: r.id, audioFile: r.audio_file }));
+}
+
 export async function deleteRewind(id: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(`UPDATE day_recalls SET deleted_at = ? WHERE id = ?`, [new Date().toISOString(), id]);

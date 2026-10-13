@@ -40,6 +40,7 @@ import { RewindScreen } from "../screens/RewindScreen";
 import { RewindRecordScreen } from "../screens/RewindRecordScreen";
 import { RewindResultScreen } from "../screens/RewindResultScreen";
 import { syncRewindReminder } from "../services/rewind/rewindReminder";
+import { autoCleanupRewindAudio } from "../services/rewind/rewindCleanup";
 import { ThoughtChallengeScreen } from "../screens/ThoughtChallengeScreen";
 import { ThreeThingsListScreen } from "../screens/ThreeThingsListScreen";
 import type { SettingsSection } from "../components/settings/sections";
@@ -324,6 +325,7 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
     deleteRemovedSecrets().catch(() => undefined);
     reconcileOnLaunch();
     autoCleanupVideos().catch((err) => logger.error(`[videos] auto-cleanup failed — ${(err as Error).message}`));
+    autoCleanupRewindAudio().catch((err) => logger.error(`[rewind] audio cleanup failed — ${(err as Error).message}`));
   }, []);
 
   useEffect(() => {

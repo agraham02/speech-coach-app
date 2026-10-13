@@ -8,8 +8,18 @@ import { formatLogsForSharing } from "../../services/logs/logStore";
 import { resetApp } from "../../services/data/resetApp";
 import { exportPracticeData, formatBytes, getVideoStorageBytes } from "../../services/data/dataExport";
 import { deleteOldVideos } from "../../services/data/videoKeepsakes";
-import { getVideoRetentionDays, resetGuide } from "../../services/prefs/prefsStore";
+import { getAudioRetentionDays, getVideoRetentionDays, resetGuide, setAudioRetentionDays } from "../../services/prefs/prefsStore";
+import { deleteOldRewindAudio } from "../../services/rewind/rewindCleanup";
+import { Card } from "../common/Card";
+import { SegmentedControl } from "../common/SegmentedControl";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
+
+const AUDIO_RETENTION = [
+  { key: "30", label: "30 days" },
+  { key: "90", label: "90 days" },
+  { key: "365", label: "1 year" },
+  { key: "0", label: "Forever" },
+];
 
 // Settings → Help & data: the app tips, diagnostics, your data, and a clean
 // slate.
@@ -20,6 +30,7 @@ export function HelpDataSettings() {
   const navigation = useNavigation();
   const [videoBytes, setVideoBytes] = useState(() => getVideoStorageBytes());
   const [resetting, setResetting] = useState(false);
+  const [audioDays, setAudioDays] = useState(getAudioRetentionDays());
 
   async function handleExport() {
     try {
@@ -98,6 +109,24 @@ export function HelpDataSettings() {
         <ListRow icon="share-outline" title="Export practice data" chevron onPress={handleExport} />
         <ListRow icon="trash-outline" title="Clear old videos" subtitle="Keeps the best and the toughest take from each month" destructive onPress={handleDeleteOldVideos} />
       </ListGroup>
+      <Card style={styles.retention}>
+        <View style={styles.retentionText}>
+          <Txt variant="headline">Keep Rewind audio for</Txt>
+          <Txt variant="footnote" tone="secondary">
+            Older recordings of your days are deleted. What you said and the notes stay.
+          </Txt>
+        </View>
+        <SegmentedControl
+          options={AUDIO_RETENTION}
+          value={String(audioDays)}
+          onChange={(key) => {
+            const days = Number(key);
+            setAudioDays(days);
+            setAudioRetentionDays(days);
+            if (days) deleteOldRewindAudio(days).catch(() => undefined);
+          }}
+        />
+      </Card>
       <Txt variant="footnote" tone="secondary" style={styles.note}>
         Your recordings and practice history stay on this phone.
       </Txt>
@@ -130,4 +159,6 @@ export function HelpDataSettings() {
 const useStyles = makeStyles((t) => ({
   resetOverlay: { flex: 1, alignItems: "center", justifyContent: "center", gap: t.space.md, backgroundColor: t.colors.overlayScrim },
   note: { paddingHorizontal: 4, marginTop: -t.space.sm },
+  retention: { gap: t.space.md },
+  retentionText: { gap: 2 },
 }));

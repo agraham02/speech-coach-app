@@ -17,6 +17,8 @@ import { playClip, stopClip } from "../services/audio/clipPlayer";
 import { deleteRewindAudio, rewindAudioExists, resolveRewindUri } from "../services/rewind/rewindStorage";
 import { canReviewOnDevice, reviewInCloud } from "../services/rewind/rewindReview";
 import { syncRewindReminder } from "../services/rewind/rewindReminder";
+import { retranscribeRewind } from "../services/rewind/rewindProcessor";
+import { getAudioRetentionDays } from "../services/prefs/prefsStore";
 import { currentProvider } from "../services/cloud/providers";
 import { formatDuration } from "../utils/dateUtils";
 import { dayLabel } from "../domain/rewind/labels";
@@ -43,6 +45,8 @@ export function RewindResultScreen({ route }: Props) {
   const [playing, setPlaying] = useState(false);
   const [showText, setShowText] = useState(false);
   const [asking, setAsking] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const audioDays = getAudioRetentionDays();
   const alive = useRef(true);
 
   const load = useCallback(async () => {
@@ -99,6 +103,16 @@ export function RewindResultScreen({ route }: Props) {
         },
       },
     ]);
+  }
+
+  // Whisper again, from the saved audio — the phone's recognizer wrote this one.
+  async function again() {
+    if (!rewind || retrying) return;
+    setRetrying(true);
+    const ok = await retranscribeRewind(rewind.id);
+    setRetrying(false);
+    if (ok) load();
+    else showGlobalToast("Couldn't write it out again. Check your connection and try later.", "error");
   }
 
   async function askCloud() {
@@ -217,6 +231,16 @@ export function RewindResultScreen({ route }: Props) {
             Nothing was picked up this time. Check that the microphone isn't blocked or muted, and try again somewhere quieter.
           </Txt>
         </Card>
+      ) : null}
+
+      {!hasAudio && !processing && rewind.transcript ? (
+        <Txt variant="footnote" tone="muted">
+          No recording is kept for this one.{audioDays ? ` Audio is deleted after ${audioDays} days — the words and notes stay.` : ""}
+        </Txt>
+      ) : null}
+
+      {hasAudio && rewind.transcriptSource === "live" ? (
+        <PrimaryButton label="Write it out again" variant="ghost" icon="refresh" onPress={again} loading={retrying} />
       ) : null}
 
       {hasAudio ? (
