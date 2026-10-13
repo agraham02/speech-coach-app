@@ -340,7 +340,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "Fluency is a habit of continuing. Speaking for a set time without stalling trains you to keep a sentence going while your brain finds the next idea.",
       how: ["Start before you feel ready", "Use short sentences — they're easier to finish", "Pause between thoughts, never inside one"],
-      source: "BBC 'Just a Minute' format; fluency practice",
+      source: "Inspired by BBC Radio 4's 'Just a Minute'; fluency practice",
     },
     steps: [{ kind: "drill", drill: "just_a_minute" }, { kind: "drill", drill: "category_fluency" }],
   },

@@ -102,7 +102,7 @@ export const DRILL_TITLES: Record<DrillType, string> = {
   category_fluency: "Category sprint",
   letter_fluency: "Letter sprint",
   random_word_story: "Random-word story",
-  just_a_minute: "Just a Minute",
+  just_a_minute: "Sixty seconds",
   word_chain: "Word chain",
   chain_bridge: "Bridge chain",
   shadowing: "Shadowing",

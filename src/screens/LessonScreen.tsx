@@ -10,6 +10,7 @@ import { HeroCard } from "../components/common/HeroCard";
 import { Badge } from "../components/common/Badge";
 import { SectionHeader } from "../components/common/SectionHeader";
 import { Card } from "../components/common/Card";
+import { PressableScale } from "../components/common/PressableScale";
 import { Txt } from "../components/common/Txt";
 import { PrimaryButton } from "../components/common/PrimaryButton";
 import { getLesson, getGuided, type LessonStep } from "../content/lessons";
@@ -116,9 +117,11 @@ export function LessonScreen({ route, navigation }: Props) {
           </View>
         ))}
         {teachOpen ? (
-          <Txt variant="caption1" tone="muted">
-            Source: {lesson.teach.source}
-          </Txt>
+          <PressableScale onPress={() => navigation.navigate("Sources")} accessibilityRole="link" accessibilityHint="Opens the list of sources">
+            <Txt variant="caption1" tone="muted">
+              Source: {lesson.teach.source}
+            </Txt>
+          </PressableScale>
         ) : null}
       </HeroCard>
 

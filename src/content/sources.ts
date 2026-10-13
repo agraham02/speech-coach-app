@@ -94,7 +94,7 @@ export const SOURCE_GROUPS: SourceGroup[] = [
       },
       {
         citation: "*Just a Minute.* BBC Radio 4 (1967–present).",
-        usedFor: "Talking for a minute without hesitation, repetition or deviation.",
+        usedFor: "The inspiration for the Sixty seconds drill — talking for a minute without hesitation, repetition or deviation.",
         url: "https://www.bbc.co.uk/programmes/b006s5dp",
       },
     ],

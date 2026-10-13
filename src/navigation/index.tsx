@@ -33,6 +33,7 @@ import { ProcessingScreen } from "../screens/ProcessingScreen";
 import { ResultScreen } from "../screens/ResultScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
 import { TipsScreen } from "../screens/TipsScreen";
+import { SourcesScreen } from "../screens/SourcesScreen";
 import { MarkItUpScreen } from "../screens/MarkItUpScreen";
 import { LineRepScreen } from "../screens/LineRepScreen";
 import { AddTextScreen } from "../screens/AddTextScreen";
@@ -107,6 +108,7 @@ export type RootStackParamList = {
   DailySession: { slot?: 1 | 2 } | undefined;
   Practice: undefined;
   Frameworks: undefined;
+  Sources: undefined;
   Trends: undefined;
   Curriculum: undefined;
   Recording: RecordingSubject;
@@ -317,6 +319,7 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
         <Stack.Screen name="AsrLab" component={AsrLabScreen} />
         <Stack.Screen name="Practice" component={HomeScreen} />
         <Stack.Screen name="Frameworks" component={TipsScreen} />
+        <Stack.Screen name="Sources" component={SourcesScreen} />
         <Stack.Screen name="Trends" component={TrendsScreen} />
         <Stack.Screen name="Drill" component={DrillRunnerScreen} />
         <Stack.Screen name="Guided" component={GuidedScreen} />

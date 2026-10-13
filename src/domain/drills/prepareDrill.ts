@@ -164,7 +164,7 @@ export function prepareDrill(type: DrillType, level: number, seed: number, conte
       return {
         ...base,
         contentId: topic,
-        title: "Just a Minute",
+        title: "Sixty seconds",
         instructions: `Talk about “${topic}” for ${params.seconds} seconds without long hesitations (over 2 s) or filler words. Allowed slips: ${params.allowedHesitations}.`,
         live: "free",
         category: topic,
