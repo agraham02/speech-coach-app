@@ -3,6 +3,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { Screen } from "../components/common/Screen";
 import { ListGroup, ListRow } from "../components/common/ListRow";
+import { AppFooter } from "../components/settings/AppFooter";
 import { DeepReviewSettings } from "../components/settings/DeepReviewSettings";
 import { GoalReminderSettings } from "../components/settings/GoalReminderSettings";
 import { HelpDataSettings } from "../components/settings/HelpDataSettings";
@@ -36,6 +37,7 @@ export function SettingsScreen({ route }: Props) {
             <ListRow key={s.key} icon={s.icon} title={s.title} subtitle={s.subtitle} chevron onPress={() => navigation.navigate("Settings", { section: s.key })} />
           ))}
         </ListGroup>
+        <AppFooter />
       </Screen>
     );
   }

@@ -16,7 +16,11 @@ import { countPhrases } from "../services/db/phrasebookRepo";
 import { countThoughts } from "../services/db/selfTalkRepo";
 import { listRewinds } from "../services/db/rewindRepo";
 import { dayLabel } from "../domain/rewind/labels";
-import { getStreakDates, getStreakState } from "../services/db/progressRepo";
+import { getSkillStates, getStreakDates, getStreakState } from "../services/db/progressRepo";
+import { SkillRings } from "../components/common/SkillRings";
+import { AppFooter } from "../components/settings/AppFooter";
+import { SKILLS } from "../domain/mastery";
+import type { SkillId } from "../theme/tokens";
 import { getSelfLikesRun, getUserProfile } from "../services/prefs/prefsStore";
 import { listSelfLikes } from "../services/db/selfLikesRepo";
 import { runDays, RUN_DAYS } from "../domain/innerVoice/run";
@@ -31,6 +35,7 @@ export function YouScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [streak, setStreak] = useState({ current: 0, freezes: 0, daysThisWeek: 0 });
   const [phraseCount, setPhraseCount] = useState(0);
+  const [mastery, setMastery] = useState<Record<SkillId, number>>(() => Object.fromEntries(SKILLS.map((k) => [k, 0])) as Record<SkillId, number>);
   const [thoughtCount, setThoughtCount] = useState(0);
   const [rewindLine, setRewindLine] = useState("Tell your day, two minutes");
   const [threeThings, setThreeThings] = useState("Something you like about yourself, each day");
@@ -40,6 +45,9 @@ export function YouScreen() {
     useCallback(() => {
       Promise.all([getStreakState(), getStreakDates()])
         .then(([state, dates]) => setStreak({ current: state.currentStreak, freezes: state.freezesHeld, daysThisWeek: practiceDaysThisWeek(dates) }))
+        .catch(() => undefined);
+      getSkillStates()
+        .then((s) => setMastery(Object.fromEntries(SKILLS.map((k) => [k, s[k].rating])) as Record<SkillId, number>))
         .catch(() => undefined);
       countPhrases().then(setPhraseCount).catch(() => undefined);
       countThoughts().then(setThoughtCount).catch(() => undefined);
@@ -97,6 +105,7 @@ export function YouScreen() {
             </View>
           </View>
         </View>
+        <SkillRings mastery={mastery} />
         <PrimaryButton label="See all progress" variant="secondary" size="md" iconRight="chevron-forward" onPress={() => navigation.navigate("Progress")} />
       </HeroCard>
 
@@ -128,6 +137,7 @@ export function YouScreen() {
           <ListRow key={s.key} icon={s.icon} title={s.title} subtitle={s.subtitle} chevron onPress={() => navigation.navigate("Settings", { section: s.key })} />
         ))}
       </ListGroup>
+      <AppFooter />
       <GuideTip id="you" />
     </Screen>
   );
