@@ -13,7 +13,7 @@ describe("what a deep review is told about the speaker", () => {
     const text = buildSpeakerContext(profile({ contexts: ["interviews", "meetings"], obstacles: ["ramble", "nerves"] }), "2026-10-12");
     expect(text).toContain("ABOUT THIS SPEAKER");
     expect(text).toContain("job interviews, work meetings");
-    expect(text).toContain("i ramble; nerves");
+    expect(text).toContain("I ramble; Nerves");
     expect(text).toContain("don't raise or lower any score");
   });
 
