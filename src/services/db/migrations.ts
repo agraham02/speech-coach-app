@@ -6,7 +6,7 @@ import type { SessionStatus } from "../../domain/sessionTypes";
 import { logger } from "../../utils/logger";
 
 // Bump this and add a new numbered migration when the schema changes.
-export const LATEST_DB_VERSION = 24;
+export const LATEST_DB_VERSION = 25;
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(
@@ -657,6 +657,25 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
       CREATE INDEX IF NOT EXISTS idx_saved_phrases_created ON saved_phrases(created_at);
     `);
     currentVersion = await commitVersion(db, 24);
+  }
+
+  if (currentVersion < 25) {
+    // Three things: what you like about yourself, one to three a day, never
+    // repeated. A round is 30 days of entries. Plain text, never sent anywhere.
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS self_likes (
+        id TEXT PRIMARY KEY NOT NULL,
+        date TEXT NOT NULL,
+        text TEXT NOT NULL,
+        prompt_id TEXT,
+        round INTEGER NOT NULL DEFAULT 1,
+        said_at TEXT,
+        created_at TEXT NOT NULL,
+        deleted_at TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_self_likes_date ON self_likes(date);
+    `);
+    currentVersion = await commitVersion(db, 25);
   }
 }
 

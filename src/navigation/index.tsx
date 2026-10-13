@@ -34,6 +34,8 @@ import { ResultScreen } from "../screens/ResultScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
 import { YouScreen } from "../screens/YouScreen";
 import { PhrasebookScreen } from "../screens/PhrasebookScreen";
+import { ThreeThingsScreen } from "../screens/ThreeThingsScreen";
+import { ThreeThingsListScreen } from "../screens/ThreeThingsListScreen";
 import type { SettingsSection } from "../components/settings/sections";
 import { TipsScreen } from "../screens/TipsScreen";
 import { SourcesScreen } from "../screens/SourcesScreen";
@@ -83,8 +85,11 @@ export type RootStackParamList = {
   Settings: { section?: SettingsSection } | undefined;
   Progress: undefined;
   Phrasebook: undefined;
+  ThreeThings: undefined;
+  // capstone: the wrap-up after thirty days.
+  ThreeThingsList: { capstone?: boolean } | undefined;
   MarkItUp: { shelf?: "lines" | "mine" | "speeches" } | undefined;
-  LineRep: { lineIds?: string[]; mineIds?: string[]; phraseIds?: string[]; category?: LineCategory; mode?: "rep" | "lineOfDay"; practice?: PracticeContext } | undefined;
+  LineRep: { lineIds?: string[]; mineIds?: string[]; phraseIds?: string[]; aboutYou?: boolean; category?: LineCategory; mode?: "rep" | "lineOfDay"; practice?: PracticeContext } | undefined;
   AddText: undefined;
   MarkEdit: { id: string };
   SpeechStudy: { speechId: string };
@@ -324,6 +329,8 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
         <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen name="Progress" component={ProgressScreen} />
         <Stack.Screen name="Phrasebook" component={PhrasebookScreen} />
+        <Stack.Screen name="ThreeThings" component={ThreeThingsScreen} />
+        <Stack.Screen name="ThreeThingsList" component={ThreeThingsListScreen} />
         <Stack.Screen name="AsrLab" component={AsrLabScreen} />
         <Stack.Screen name="Practice" component={HomeScreen} />
         <Stack.Screen name="Frameworks" component={TipsScreen} />

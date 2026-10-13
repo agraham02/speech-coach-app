@@ -148,6 +148,16 @@ export const SOURCE_GROUPS: SourceGroup[] = [
     title: "Research — conversation and nerves",
     sources: [
       {
+        citation: "Kross, E., Bruehlman-Senecal, E., Park, J., et al. (2014). Self-talk as a regulatory mechanism: How you do it matters. *Journal of Personality and Social Psychology, 106*(2), 304–324.",
+        usedFor: "Three things: saying things to yourself as \"you\" or by name, which lowered anxiety before a speech.",
+        url: doi("10.1037/a0035173"),
+      },
+      {
+        citation: "Creswell, J. D., Welch, W. T., Taylor, S. E., et al. (2005). Affirmation of personal values buffers neuroendocrine and psychological stress responses. *Psychological Science, 16*(11), 846–851.",
+        usedFor: "Three things: why writing down what you value and do well steadies you under stress.",
+        url: doi("10.1111/j.1467-9280.2005.01624.x"),
+      },
+      {
         citation: "Clark, D. M., & Wells, A. (1995). A cognitive model of social phobia. In R. G. Heimberg et al. (Eds.), *Social Phobia: Diagnosis, Assessment, and Treatment* (pp. 69–93). Guilford Press.",
         usedFor: "Self-focused attention and safety behaviours — why attention outward helps.",
       },

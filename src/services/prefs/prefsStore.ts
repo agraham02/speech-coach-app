@@ -10,6 +10,7 @@ import { DEFAULT_REMINDER_SETTINGS, type ReminderSettings } from "../../domain/r
 import { DEFAULT_CURRICULUM_LEVEL } from "../../domain/curriculum";
 import type { DailyGoal } from "../../domain/dailyGoal";
 import type { UserProfile } from "../../domain/profile";
+import { DEFAULT_RUN, type RunState } from "../../domain/innerVoice/run";
 import type { ProviderId } from "../cloud/providers";
 
 const storage = createMMKV({ id: "speech-coach-prefs" });
@@ -40,6 +41,7 @@ const KEYS = {
   guideOff: "guideOff",
   cloudCalls: "cloudCalls",
   freezeAnnouncedThrough: "freezeAnnouncedThrough",
+  selfLikesRun: "selfLikesRun",
 } as const;
 
 export function getRecordBlindPref(): boolean {
@@ -367,6 +369,24 @@ export function getFreezeAnnouncedThrough(): string {
 
 export function setFreezeAnnouncedThrough(date: string): void {
   storage.set(KEYS.freezeAnnouncedThrough, date);
+}
+
+// Where you are in Three things: the round, and whether it's running,
+// being kept light, or paused (domain/innerVoice/run.ts).
+export function getSelfLikesRun(): RunState {
+  const raw = storage.getString(KEYS.selfLikesRun);
+  if (!raw) return DEFAULT_RUN;
+  try {
+    const parsed = JSON.parse(raw) as Partial<RunState>;
+    const mode = parsed.mode === "light" || parsed.mode === "paused" ? parsed.mode : "run";
+    return { round: typeof parsed.round === "number" && parsed.round >= 1 ? Math.floor(parsed.round) : 1, mode };
+  } catch {
+    return DEFAULT_RUN;
+  }
+}
+
+export function setSelfLikesRun(state: RunState): void {
+  storage.set(KEYS.selfLikesRun, JSON.stringify(state));
 }
 
 export function clearAllPrefs(): void {

@@ -22,6 +22,9 @@ import { scoreSelfRating } from "../domain/drills/drillSpecs";
 import { getDrillLevel, recordDrillOutcome } from "../services/db/progressRepo";
 import { getMarkedText, getRecentLineIds, markTextsPracticed } from "../services/db/markedTextsRepo";
 import { getPhrasesByIds, markPhrasesPracticed } from "../services/db/phrasebookRepo";
+import { listSelfLikes } from "../services/db/selfLikesRepo";
+import { toSecondPerson } from "../domain/innerVoice/secondPerson";
+import { getUserProfile } from "../services/prefs/prefsStore";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
@@ -48,7 +51,7 @@ const READS = [
 // one or two sentences, each marked (or checked), read twice with the marks
 // and once without. Line of the day is a one-line version with no rating.
 export function LineRepScreen({ route, navigation }: Props) {
-  const { lineIds, mineIds, phraseIds, category, mode = "rep", practice } = route.params ?? {};
+  const { lineIds, mineIds, phraseIds, aboutYou, category, mode = "rep", practice } = route.params ?? {};
   const styles = useStyles();
   const { colors } = useTheme();
   const recorder = useTakeRecorder();
@@ -75,6 +78,19 @@ export function LineRepScreen({ route, navigation }: Props) {
       const lvl = await getDrillLevel("marked_reading");
       setLevel(lvl);
       const cfg = lineRepConfig(lvl);
+      if (aboutYou) {
+        // What you like about yourself, said to yourself: a few of them, in
+        // the second person, marked by the coach.
+        const name = getUserProfile()?.name;
+        const likes = (await listSelfLikes()).sort(() => Math.random() - 0.5).slice(0, 4);
+        setLines(
+          likes.map((l) => {
+            const spoken = toSecondPerson(l.text, name);
+            return { id: l.id, text: spoken, marks: autoMark(spoken).marks, mine: true, phrase: true };
+          }),
+        );
+        return;
+      }
       if (phraseIds?.length) {
         // A saved phrase has no marks of its own: it gets the coach's.
         const saved = await getPhrasesByIds(phraseIds);

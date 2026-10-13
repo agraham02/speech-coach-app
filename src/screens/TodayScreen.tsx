@@ -19,6 +19,7 @@ import { StepTimeline } from "../components/common/StepTimeline";
 import { ListGroup, ListRow } from "../components/common/ListRow";
 import { ConversationTodayCard } from "../components/conversation/ConversationTodayCard";
 import { FeelingWeekCard } from "../components/feelings/FeelingWeekCard";
+import { PastEntryCard } from "../components/innerVoice/PastEntryCard";
 import { TodaySkillCheckCard } from "../components/onboarding/SkillCheckCards";
 import {
   getCompletedTopUpSlots,
@@ -258,6 +259,7 @@ export function TodayScreen() {
         </View>
       ) : null}
 
+      <PastEntryCard />
       <FeelingWeekCard featured={defaults.featureFeelings} />
 
       <ConversationTodayCard />

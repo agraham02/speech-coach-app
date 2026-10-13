@@ -14,7 +14,10 @@ import { SETTINGS_SECTIONS } from "../components/settings/sections";
 import { practiceDaysThisWeek } from "../domain/streaks";
 import { countPhrases } from "../services/db/phrasebookRepo";
 import { getStreakDates, getStreakState } from "../services/db/progressRepo";
-import { getUserProfile } from "../services/prefs/prefsStore";
+import { getSelfLikesRun, getUserProfile } from "../services/prefs/prefsStore";
+import { listSelfLikes } from "../services/db/selfLikesRepo";
+import { runDays, RUN_DAYS } from "../domain/innerVoice/run";
+import { todayISODate } from "../utils/dateUtils";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 // The "You" tab: how you're doing (a short summary, with the full Progress a
@@ -25,6 +28,7 @@ export function YouScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [streak, setStreak] = useState({ current: 0, freezes: 0, daysThisWeek: 0 });
   const [phraseCount, setPhraseCount] = useState(0);
+  const [threeThings, setThreeThings] = useState("Something you like about yourself, each day");
   const name = getUserProfile()?.name?.trim();
 
   useFocusEffect(
@@ -33,6 +37,24 @@ export function YouScreen() {
         .then(([state, dates]) => setStreak({ current: state.currentStreak, freezes: state.freezesHeld, daysThisWeek: practiceDaysThisWeek(dates) }))
         .catch(() => undefined);
       countPhrases().then(setPhraseCount).catch(() => undefined);
+      listSelfLikes()
+        .then((all) => {
+          const run = getSelfLikesRun();
+          const done = runDays(all, run.round);
+          const today = all.some((e) => e.date === todayISODate());
+          setThreeThings(
+            run.mode === "paused"
+              ? "On a break"
+              : run.mode === "light"
+                ? today
+                  ? "Done for today"
+                  : "One a day, no end"
+                : done >= RUN_DAYS
+                  ? "Thirty days done — see your list"
+                  : `Day ${done + (today ? 0 : 1)} of ${RUN_DAYS}${today ? " · done today" : ""}`,
+          );
+        })
+        .catch(() => undefined);
     }, []),
   );
 
@@ -68,6 +90,10 @@ export function YouScreen() {
         </View>
         <PrimaryButton label="See all progress" variant="secondary" size="md" iconRight="chevron-forward" onPress={() => navigation.navigate("Progress")} />
       </HeroCard>
+
+      <ListGroup title="Inner voice">
+        <ListRow icon="heart-outline" title="Three things" subtitle={threeThings} chevron onPress={() => navigation.navigate("ThreeThings")} />
+      </ListGroup>
 
       <ListGroup>
         <ListRow
