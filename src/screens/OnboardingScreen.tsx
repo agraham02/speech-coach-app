@@ -35,6 +35,7 @@ import {
 } from "../content/onboarding";
 import { defaultsFromProfile, EMPTY_PROFILE, type UserProfile } from "../domain/profile";
 import { defaultExtraHours, sessionHours, type DailyGoal } from "../domain/dailyGoal";
+import { setSessionHour } from "../domain/reminderSettings";
 import {
   getDailySessionGoal,
   getPlanMinutes,
@@ -360,12 +361,9 @@ export function OnboardingScreen({ route, navigation }: Props) {
                 <ReminderHours
                   hours={sessionHours(hour, extraHours, goal)}
                   onChange={(i, h) => {
-                    if (i === 0) return setHour(h);
-                    setExtraHours((prev) => {
-                      const next = sessionHours(hour, prev, goal).slice(1);
-                      next[i - 1] = h;
-                      return next;
-                    });
+                    const next = setSessionHour(sessionHours(hour, extraHours, goal), i, h);
+                    setHour(next[0]);
+                    setExtraHours(next.slice(1));
                   }}
                 />
               </Card>

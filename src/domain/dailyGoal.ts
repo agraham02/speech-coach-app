@@ -2,6 +2,7 @@ import type { SkillId } from "../theme/tokens";
 import { DRILL_TITLES, type DrillType } from "./drills/drillSpecs";
 import { chooseFocusSkill, hashString, type DailyPlan, type PlanInput, type PlanStep } from "./dailyPlan";
 import type { LessonStep } from "../content/lessons";
+import { defaultExtraHours, planSessionHours } from "./reminderSettings";
 
 // The daily goal: 1-3 practice sessions a day. Session 1 is the full daily
 // plan; sessions 2 and 3 are short top-ups (3-5 min) on a different skill
@@ -88,20 +89,12 @@ export function reminderDates(hours: number[], doneToday: number, now: Date, pra
 }
 
 // Every session's reminder hour, first to last: the user's picks, with the
-// spaced defaults filling any session they haven't set.
+// spaced defaults filling any session they haven't set, in increasing order.
 export function sessionHours(firstHour: number, extraHours: number[] | undefined, goal: DailyGoal): number[] {
-  return [firstHour, ...defaultExtraHours(firstHour, goal).map((h, i) => extraHours?.[i] ?? h)];
+  return planSessionHours(firstHour, extraHours, goal);
 }
 
-// Spaced default hours for a goal, anchored on the first reminder.
-export function defaultExtraHours(firstHour: number, goal: DailyGoal): number[] {
-  if (goal === 1) return [];
-  const later = (h: number) => Math.min(21, h);
-  if (firstHour <= 9) return goal === 2 ? [later(firstHour + 9)] : [later(firstHour + 5), later(firstHour + 10)];
-  if (firstHour <= 13) return goal === 2 ? [later(firstHour + 6)] : [later(firstHour + 4), later(firstHour + 8)];
-  // Evening anchors: top-ups go earlier in the day.
-  return goal === 2 ? [Math.max(8, firstHour - 8)] : [Math.max(8, firstHour - 10), Math.max(9, firstHour - 5)];
-}
+export { defaultExtraHours };
 
 // --- goal met ---------------------------------------------------------------
 

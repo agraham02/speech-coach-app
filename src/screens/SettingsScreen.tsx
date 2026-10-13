@@ -25,9 +25,9 @@ import {
   setPlanYourPointEnabled,
   setReminderSettings,
 } from "../services/prefs/prefsStore";
-import { formatReminderHour } from "../domain/reminderSettings";
+import { formatReminderHour, setSessionHour } from "../domain/reminderSettings";
 import { ReminderHours } from "../components/settings/ReminderHours";
-import { defaultExtraHours, sessionHours, type DailyGoal } from "../domain/dailyGoal";
+import { sessionHours, type DailyGoal } from "../domain/dailyGoal";
 import { getDailySessionGoal, getVideoRetentionDays, resetGuide, setDailySessionGoal } from "../services/prefs/prefsStore";
 import { cancelDailyReminder, requestNotificationPermission, syncDailyReminder } from "../services/notifications/reminderScheduler";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
@@ -70,33 +70,23 @@ export function SettingsScreen({ navigation }: Props) {
     showToast(`Daily reminder set for ${formatReminderHour(next.hour)}`, "success");
   }
 
-  async function handleReminderHourChange(hour: number) {
-    const next = { ...reminderSettings, hour };
-    setReminderSettingsState(next);
-    setReminderSettings(next);
-    if (next.enabled) {
-      await syncDailyReminder();
-    }
-  }
 
   async function handleGoalChange(key: string) {
     const next = Number(key) as DailyGoal;
     setGoalState(next);
     setDailySessionGoal(next);
-    // Spread the top-up reminders through the day the first time.
-    const extra = reminderSettings.extraHours ?? [];
-    if (extra.length < next - 1) {
-      const settings = { ...reminderSettings, extraHours: defaultExtraHours(reminderSettings.hour, next) };
-      setReminderSettingsState(settings);
-      setReminderSettings(settings);
-    }
+    // Spread the top-up reminders through the day, each after the one before.
+    const planned = sessionHours(reminderSettings.hour, reminderSettings.extraHours, next);
+    const kept = (reminderSettings.extraHours ?? []).slice(planned.length - 1);
+    const settings = { ...reminderSettings, hour: planned[0], extraHours: [...planned.slice(1), ...kept] };
+    setReminderSettingsState(settings);
+    setReminderSettings(settings);
     await syncDailyReminder();
   }
 
-  async function handleExtraHourChange(index: number, hour: number) {
-    const extraHours = sessionHours(reminderSettings.hour, reminderSettings.extraHours, goal).slice(1);
-    extraHours[index] = hour;
-    const next = { ...reminderSettings, extraHours };
+  async function handleHourChange(index: number, hour: number) {
+    const hours = setSessionHour(sessionHours(reminderSettings.hour, reminderSettings.extraHours, goal), index, hour);
+    const next = { ...reminderSettings, hour: hours[0], extraHours: hours.slice(1) };
     setReminderSettingsState(next);
     setReminderSettings(next);
     if (next.enabled) await syncDailyReminder();
@@ -259,7 +249,7 @@ export function SettingsScreen({ navigation }: Props) {
           <>
             <ReminderHours
               hours={sessionHours(reminderSettings.hour, reminderSettings.extraHours, goal)}
-              onChange={(i, h) => (i === 0 ? handleReminderHourChange(h) : handleExtraHourChange(i - 1, h))}
+              onChange={handleHourChange}
             />
             <PrimaryButton label="Notification settings" variant="secondary" size="sm" icon="open-outline" onPress={() => Linking.openSettings()} style={styles.inlineButton} />
           </>
