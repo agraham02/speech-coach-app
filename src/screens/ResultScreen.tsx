@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { GuideTip } from "../components/common/GuideTip";
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -474,6 +475,7 @@ export function ResultScreen({ route, navigation }: Props) {
       ) : null}
 
       <PrimaryButton label="Done" onPress={handleDone} />
+      <GuideTip id="result" />
     </ScreenContainer>
   );
 }

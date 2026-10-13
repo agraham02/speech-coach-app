@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { GuideTip } from "../components/common/GuideTip";
 import { ScrollView, View } from "react-native";
 import * as Speech from "expo-speech";
 import * as Haptics from "expo-haptics";
@@ -304,6 +305,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
           <PrimaryButton label="Done" onPress={done} style={styles.flex} />
         </View>
       ) : null}
+      <GuideTip id="drill" />
     </ScreenContainer>
   );
 

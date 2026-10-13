@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { GuideTip } from "../components/common/GuideTip";
 import { ActivityIndicator, Alert, Linking, Modal, View } from "react-native";
 import { CommonActions } from "@react-navigation/native";
 import { resetApp } from "../services/data/resetApp";
@@ -26,7 +27,7 @@ import {
 import { formatReminderHour } from "../domain/reminderSettings";
 import { ReminderHours } from "../components/settings/ReminderHours";
 import { defaultExtraHours, sessionHours, type DailyGoal } from "../domain/dailyGoal";
-import { getDailySessionGoal, getVideoRetentionDays, setDailySessionGoal } from "../services/prefs/prefsStore";
+import { getDailySessionGoal, getVideoRetentionDays, resetGuide, setDailySessionGoal } from "../services/prefs/prefsStore";
 import { cancelDailyReminder, requestNotificationPermission, syncDailyReminder } from "../services/notifications/reminderScheduler";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import { SHOW_DEV_TOOLS } from "../config/devTools";
@@ -180,6 +181,7 @@ export function SettingsScreen({ navigation }: Props) {
 
   return (
     <Screen title="Settings" onBack={() => navigation.goBack()} contentStyle={styles.content}>
+      <GuideTip id="settings" inline />
       <ListGroup title="Practice">
         <ListRow
           icon="person-circle-outline"
@@ -278,6 +280,18 @@ export function SettingsScreen({ navigation }: Props) {
       </Txt>
 
       <DeepReviewSettings />
+
+      <ListGroup title="Help">
+        <ListRow
+          icon="sparkles-outline"
+          title="Show tips again"
+          subtitle="A short tip the first time you reach each part of the app"
+          onPress={() => {
+            resetGuide();
+            showToast("Tips will show again as you go.", "success");
+          }}
+        />
+      </ListGroup>
 
       <ListGroup title="Your data">
         <ListRow icon="film-outline" title="Videos" value={formatBytes(videoBytes)} />

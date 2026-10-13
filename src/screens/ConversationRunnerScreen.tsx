@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { GuideTip } from "../components/common/GuideTip";
 import { Pressable, ScrollView, View } from "react-native";
 import * as Speech from "expo-speech";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -436,6 +437,7 @@ export function ConversationRunnerScreen({ route, navigation }: Props) {
           <PrimaryButton label="Done" onPress={done} style={styles.flex} />
         </View>
       ) : null}
+      <GuideTip id="conversation" />
     </ScreenContainer>
   );
 

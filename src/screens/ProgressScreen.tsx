@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { GuideTip } from "../components/common/GuideTip";
 import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -277,6 +278,7 @@ export function ProgressScreen() {
         <ListRow icon="speedometer-outline" title="Level & difficulty" subtitle="Your impromptu level and manual override" chevron onPress={() => navigation.navigate("Curriculum")} />
         <ListRow icon="analytics-outline" title="Deep review trends" subtitle="Scores from cloud deep reviews" chevron onPress={() => navigation.navigate("Trends")} />
       </ListGroup>
+      <GuideTip id="progress" />
     </Screen>
   );
 }

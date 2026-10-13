@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { GuideTip } from "../components/common/GuideTip";
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -401,6 +402,7 @@ export function HomeScreen() {
         conciseModeSeconds={conciseModeSeconds}
         onConciseModeSecondsChange={updateConciseModeSeconds}
       />
+      <GuideTip id="practice" />
     </ScreenContainer>
   );
 }

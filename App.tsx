@@ -8,6 +8,7 @@ import { initExecutorch } from "react-native-executorch";
 import { ExpoResourceFetcher } from "react-native-executorch-expo-resource-fetcher";
 import { AppNavigator } from "./src/navigation";
 import { ToastProvider } from "./src/components/common/ToastProvider";
+import { GuideProvider } from "./src/components/common/GuideTip";
 import { ThemeProvider, useTheme } from "./src/theme/ThemeProvider";
 
 // Must run before anything touches react-native-executorch — the on-device
@@ -47,7 +48,9 @@ export default function App() {
       <ThemeProvider>
         {fontsLoaded || fontError ? (
           <ToastProvider>
-            <AppNavigator onReady={() => SplashScreen.hide()} />
+            <GuideProvider>
+              <AppNavigator onReady={() => SplashScreen.hide()} />
+            </GuideProvider>
           </ToastProvider>
         ) : (
           <Backdrop />

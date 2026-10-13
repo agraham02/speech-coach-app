@@ -36,6 +36,8 @@ const KEYS = {
   cloudConsent: "cloudConsent",
   videoRetentionDays: "videoRetentionDays",
   lastAutoCleanup: "lastAutoCleanup",
+  guideSeen: "guideSeen",
+  guideOff: "guideOff",
 } as const;
 
 export function getRecordBlindPref(): boolean {
@@ -321,6 +323,30 @@ export function removeObsoletePrefs(): void {
 
 // Every preference, gone (Reset app): the profile, onboarding, goals,
 // reminders, recording settings — back to first-launch defaults.
+// The app guide: a tip the first time you reach each tab or feature.
+export function getGuideSeen(): string[] {
+  return readJson<string[]>(KEYS.guideSeen, []);
+}
+
+export function markGuideSeen(id: string): void {
+  const seen = getGuideSeen();
+  if (!seen.includes(id)) storage.set(KEYS.guideSeen, JSON.stringify([...seen, id]));
+}
+
+export function isGuideOff(): boolean {
+  return storage.getBoolean(KEYS.guideOff) ?? false;
+}
+
+export function setGuideOff(off: boolean): void {
+  storage.set(KEYS.guideOff, off);
+}
+
+// Every tip shows again, as you reach it.
+export function resetGuide(): void {
+  storage.remove(KEYS.guideSeen);
+  storage.set(KEYS.guideOff, false);
+}
+
 export function clearAllPrefs(): void {
   storage.clearAll();
 }

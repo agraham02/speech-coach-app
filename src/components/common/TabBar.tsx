@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { Pressable, StyleSheet, View, type LayoutChangeEvent } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { BottomTabBarHeightCallbackContext, type BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 import { spring } from "../../theme/motion";
@@ -35,8 +35,12 @@ export function TabBar({ state, descriptors, navigation, insets }: BottomTabBarP
 
   const pill = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
 
+  // Tells React Navigation the bar's real height, so anything floating above
+  // it (the app guide's tips) can clear it.
+  const reportHeight = useContext(BottomTabBarHeightCallbackContext);
+
   return (
-    <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+    <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }]} onLayout={(e: LayoutChangeEvent) => reportHeight?.(e.nativeEvent.layout.height)}>
       <View style={styles.row} onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}>
         {width > 0 ? <Animated.View style={[styles.pill, pill]} /> : null}
         {state.routes.map((route, index) => {

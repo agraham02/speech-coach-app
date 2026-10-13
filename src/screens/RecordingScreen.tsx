@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { GuideTip } from "../components/common/GuideTip";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -399,6 +400,7 @@ export function RecordingScreen({ route, navigation }: Props) {
           </View>
         </View>
       )}
+      <GuideTip id="recording" />
     </View>
   );
 }

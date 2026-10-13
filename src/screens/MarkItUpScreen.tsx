@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { GuideTip } from "../components/common/GuideTip";
 import { Alert, FlatList, Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -186,6 +187,7 @@ export function MarkItUpScreen({ route, navigation }: Props) {
           }}
         />
       ) : null}
+      <GuideTip id="markItUp" />
     </ScreenContainer>
   );
 }

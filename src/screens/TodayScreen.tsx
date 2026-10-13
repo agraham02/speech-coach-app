@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { GuideTip } from "../components/common/GuideTip";
 import { View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -254,6 +255,7 @@ export function TodayScreen() {
           onPress={() => navigation.navigate("Practice")}
         />
       </ListGroup>
+      <GuideTip id="today" />
     </Screen>
   );
 }

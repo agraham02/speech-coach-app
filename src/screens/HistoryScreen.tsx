@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { GuideTip } from "../components/common/GuideTip";
 import { Alert, Pressable, RefreshControl, ScrollView, SectionList, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -356,6 +357,7 @@ export function HistoryScreen() {
           );
         }}
       />
+      <GuideTip id="library" />
     </ScreenContainer>
   );
 }
