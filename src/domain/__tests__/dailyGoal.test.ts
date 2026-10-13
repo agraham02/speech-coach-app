@@ -1,5 +1,5 @@
 import { buildTopUpPlan, defaultExtraHours, goalDays, reminderDates, sessionHours } from "../dailyGoal";
-import { formatReminderHour, hoursInPeriod, periodHasValidHour, planSessionHours, reminderHours, sessionBounds, setSessionHour, switchPeriod } from "../reminderSettings";
+import { clockHour, formatReminderHour, hoursInPeriod, periodHasValidHour, planSessionHours, reminderHours, sessionBounds, setSessionHour, switchPeriod } from "../reminderSettings";
 import type { PlanInput } from "../dailyPlan";
 
 const base: PlanInput = {
@@ -85,9 +85,11 @@ describe("formatReminderHour", () => {
 });
 
 describe("AM/PM reminder hours", () => {
-  it("offers 1-12 in both periods, in clock order", () => {
-    expect(hoursInPeriod("AM")).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
-    expect(hoursInPeriod("PM")).toEqual([12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]);
+  it("offers 1-12 in both periods, starting at 1 and ending at 12", () => {
+    expect(hoursInPeriod("AM")).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0]);
+    expect(hoursInPeriod("PM")).toEqual([13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 12]);
+    expect(hoursInPeriod("AM").map((h) => clockHour(h))).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+    expect(hoursInPeriod("PM").map((h) => clockHour(h))).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   });
 
   it("reads midnight and noon as 12", () => {

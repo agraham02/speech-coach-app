@@ -21,10 +21,11 @@ export const periodOf = (hour: number): Period => (hour < 12 ? "AM" : "PM");
 // 1-12 on a clock face.
 export const clockHour = (hour: number): number => (hour % 12 === 0 ? 12 : hour % 12);
 
-// The hours a period offers, in clock order: 12, 1, 2 ... 11.
+// The hours a period offers, as a dropdown lists them: 1, 2 ... 11, then 12
+// (12 AM is hour 0, 12 PM is hour 12).
 export function hoursInPeriod(period: Period): number[] {
   const start = period === "AM" ? 0 : 12;
-  return Array.from({ length: 12 }, (_, i) => start + i);
+  return [...Array.from({ length: 11 }, (_, i) => start + i + 1), start];
 }
 
 // Spaced default hours for a goal, anchored on the first reminder. Top-ups
