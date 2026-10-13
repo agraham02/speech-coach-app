@@ -24,6 +24,7 @@ import type { PlanText } from "../../domain/planYourPoint";
 import { logger } from "../../utils/logger";
 import { defaultsFromProfile } from "../../domain/profile";
 import { getUserProfile } from "../prefs/prefsStore";
+import { speakerContextForReview } from "../cloud/speakerContext";
 
 export type TranscribeProgressStep =
   | "uploading"
@@ -145,6 +146,7 @@ export async function analyzeUploadedVideo(
     (context.kind === "script"
       ? buildScriptSystemPrompt(context.script, context.cuesEnabled ? context.markLevel ?? "full" : "none")
       : buildSystemPrompt(context.promptText, context.planText, context.groundingTranscript)) +
+    speakerContextForReview() +
     SPEECH_IS_DATA +
     (defaultsFromProfile(getUserProfile()).stutterMode ? STUTTER_NOTE : "");
   const showsCueCompliance =

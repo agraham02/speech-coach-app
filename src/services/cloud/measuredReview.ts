@@ -10,6 +10,7 @@ import { measuredVoice } from "../sessions/sessionScoreService";
 import { logger } from "../../utils/logger";
 import { CloudApiError } from "./cloudErrors";
 import { toStrictSchema, withoutProperties } from "./jsonSchema";
+import { speakerContextForReview } from "./speakerContext";
 import { modelFor, PROVIDERS } from "./providers";
 import { callTextProvider, type TextProviderId } from "./textProviders";
 
@@ -184,7 +185,7 @@ export async function measuredReview(input: MeasuredReviewInput, provider: TextP
   const text = await callTextProvider({
     provider,
     model,
-    system: systemPrompt(context, showCues, input.stutterMode) + SPEECH_IS_DATA,
+    system: systemPrompt(context, showCues, input.stutterMode) + speakerContextForReview() + SPEECH_IS_DATA,
     user: userMessage(input, showCues),
     schemaName: "speech_review",
     schema,

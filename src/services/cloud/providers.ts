@@ -1,5 +1,5 @@
 import { getProviderKey } from "../secrets/secretsStore";
-import { getCloudConsent, getCloudModel, getCloudProvider } from "../prefs/prefsStore";
+import { getCloudConsent, getCloudModel, getCloudProvider, getShareProfileWithReviews } from "../prefs/prefsStore";
 
 // Deep reviews are bring-your-own-key: the app itself is free and runs on
 // the phone, and a deep review calls the AI provider the user picked, with
@@ -92,9 +92,10 @@ export function hasConsent(id: ProviderId = getCloudProvider()): boolean {
 // What a deep review sends, in one plain sentence (consent, Settings,
 // the save screen).
 export function whatGetsSent(provider: CloudProvider): string {
+  const about = getShareProfileWithReviews() ? " A short note on your goals and what gets in your way (from setup) goes with it, so the feedback fits you — you can see it and turn it off in Settings." : "";
   return provider.input === "video"
-    ? `Your video (with its audio) is uploaded to ${provider.company} for each deep review.`
-    : `Your transcript and the phone's measurements (pace, pauses, pitch, loudness, eye contact, expression) are sent to ${provider.company} for each deep review — never the video.`;
+    ? `Your video (with its audio) is uploaded to ${provider.company} for each deep review.${about}`
+    : `Your transcript and the phone's measurements (pace, pauses, pitch, loudness, eye contact, expression) are sent to ${provider.company} for each deep review — never the video.${about}`;
 }
 
 // Why this take can't get a review from this provider right now, if not.

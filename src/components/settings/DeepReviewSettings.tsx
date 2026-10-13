@@ -11,7 +11,10 @@ import { useToast } from "../common/ToastProvider";
 import { PROVIDER_ORDER, PROVIDERS, whatGetsSent, type ProviderId } from "../../services/cloud/providers";
 import { askCloudConsent } from "../../services/cloud/consent";
 import { checkProviderKey } from "../../services/cloud/textProviders";
-import { getCloudConsent, getCloudModel, getCloudProvider, setCloudConsent, setCloudModel, setCloudProvider } from "../../services/prefs/prefsStore";
+import { getCloudConsent, getCloudModel, getCloudProvider, getShareProfileWithReviews, getUserProfile, setCloudConsent, setCloudModel, setCloudProvider, setShareProfileWithReviews } from "../../services/prefs/prefsStore";
+import { buildSpeakerContext } from "../../domain/reviewerContext";
+import { todayISODate } from "../../utils/dateUtils";
+import { SwitchRow } from "../common/ListRow";
 import { getProviderKey, setProviderKey } from "../../services/secrets/secretsStore";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
@@ -27,6 +30,13 @@ export function DeepReviewSettings() {
   const [model, setModel] = useState("");
   const [allowed, setAllowed] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [shareProfile, setShareProfile] = useState(getShareProfileWithReviews());
+  // Exactly what would be added to a review's prompt, minus its framing.
+  const contextPreview = buildSpeakerContext(getUserProfile(), todayISODate())
+    .split("\n")
+    .filter((line) => line.startsWith("- "))
+    .map((line) => line.slice(2))
+    .join("\n");
 
   useEffect(() => {
     let cancelled = false;
@@ -102,6 +112,23 @@ export function DeepReviewSettings() {
         value={providerId}
         onChange={choose}
       />
+
+      <Card style={styles.section}>
+        <SwitchRow
+          title="Tell reviews about you"
+          subtitle="What you said in setup, so feedback fits what you're working on."
+          value={shareProfile}
+          onValueChange={(on) => {
+            setShareProfile(on);
+            setShareProfileWithReviews(on);
+          }}
+        />
+        {shareProfile ? (
+          <Txt variant="footnote" tone="secondary">
+            {contextPreview || "Nothing to share yet — answer the profile questions in Settings → Practice."}
+          </Txt>
+        ) : null}
+      </Card>
 
       <Card style={styles.section}>
         <Txt variant="headline">{provider.name}</Txt>

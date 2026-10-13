@@ -45,6 +45,8 @@ const KEYS = {
   rewindReminder: "rewindReminder",
   rewindCloudConsent: "rewindCloudConsent",
   rewindNotificationsAsked: "rewindNotificationsAsked",
+  shareProfileWithReviews: "shareProfileWithReviews",
+  audioRetentionDays: "audioRetentionDays",
 } as const;
 
 export function getRecordBlindPref(): boolean {
@@ -433,6 +435,29 @@ export function wasRewindNotificationAsked(): boolean {
 
 export function markRewindNotificationAsked(): void {
   storage.set(KEYS.rewindNotificationsAsked, true);
+}
+
+// Whether a deep review is told what you answered in onboarding (goals,
+// what gets in your way…) so its feedback is relevant. On by default; the
+// exact text is shown in Settings → Deep reviews.
+export function getShareProfileWithReviews(): boolean {
+  return storage.getBoolean(KEYS.shareProfileWithReviews) ?? true;
+}
+
+export function setShareProfileWithReviews(value: boolean): void {
+  storage.set(KEYS.shareProfileWithReviews, value);
+}
+
+// How long Rewind recordings are kept before the audio is deleted (the
+// transcript and notes stay). 0 = forever.
+export const DEFAULT_AUDIO_RETENTION_DAYS = 90;
+
+export function getAudioRetentionDays(): number {
+  return storage.contains(KEYS.audioRetentionDays) ? (storage.getNumber(KEYS.audioRetentionDays) ?? DEFAULT_AUDIO_RETENTION_DAYS) : DEFAULT_AUDIO_RETENTION_DAYS;
+}
+
+export function setAudioRetentionDays(days: number): void {
+  storage.set(KEYS.audioRetentionDays, days);
 }
 
 export function clearAllPrefs(): void {
