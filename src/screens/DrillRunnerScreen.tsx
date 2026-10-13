@@ -12,7 +12,7 @@ import { Card } from "../components/common/Card";
 import { Txt } from "../components/common/Txt";
 import { Chip } from "../components/common/Chip";
 import { PrimaryButton } from "../components/common/PrimaryButton";
-import { ProgressRing } from "../components/common/ProgressRing";
+import { CountdownRing } from "../components/common/CountdownRing";
 import { StatTile } from "../components/common/StatTile";
 import { useLiveSpeech } from "../hooks/useLiveSpeech";
 import { FIRST_RESULT_LATENCY_MS, fullText } from "../domain/speech/liveTranscript";
@@ -267,9 +267,9 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
 
         {stage === "prep" ? (
           <View style={styles.center}>
-            <ProgressRing size={120} strokeWidth={8} progress={prepLeft / Math.max(setup.prepSeconds ?? 1, 1)}>
+            <CountdownRing size={120} strokeWidth={8} durationMs={(setup.prepSeconds ?? 1) * 1000}>
               <Txt variant="largeTitle">{prepLeft}</Txt>
-            </ProgressRing>
+            </CountdownRing>
             <Txt tone="secondary">Think of an opening line…</Txt>
           </View>
         ) : null}

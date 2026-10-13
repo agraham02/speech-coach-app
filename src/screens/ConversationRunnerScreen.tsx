@@ -10,7 +10,7 @@ import { Header } from "../components/common/Header";
 import { Card } from "../components/common/Card";
 import { Txt } from "../components/common/Txt";
 import { PrimaryButton } from "../components/common/PrimaryButton";
-import { ProgressRing } from "../components/common/ProgressRing";
+import { CountdownRing } from "../components/common/CountdownRing";
 import { EmptyState } from "../components/common/EmptyState";
 import { ScaleChips } from "../components/conversation/ScaleChips";
 import { useLiveSpeech } from "../hooks/useLiveSpeech";
@@ -375,9 +375,9 @@ export function ConversationRunnerScreen({ route, navigation }: Props) {
 
         {stage === "hold" ? (
           <View style={styles.center}>
-            <ProgressRing size={120} strokeWidth={8} progress={holdLeft / Math.max(turn.holdSeconds ?? 1, 1)} color={colors.skill.conversation.fg}>
+            <CountdownRing size={120} strokeWidth={8} durationMs={(turn.holdSeconds ?? 1) * 1000} runKey={turnIndex} color={colors.skill.conversation.fg}>
               <Txt variant="largeTitle">{holdLeft}</Txt>
-            </ProgressRing>
+            </CountdownRing>
             <Txt tone="secondary">Keep just one word in mind…</Txt>
           </View>
         ) : null}

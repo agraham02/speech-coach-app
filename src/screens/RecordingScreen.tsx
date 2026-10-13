@@ -7,7 +7,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { Camera as VisionCamera } from "react-native-vision-camera";
 import type { RootStackParamList } from "../navigation";
 import { PrimaryButton } from "../components/common/PrimaryButton";
-import { ProgressRing } from "../components/common/ProgressRing";
+import { CountdownRing } from "../components/common/CountdownRing";
 import { CameraPreview } from "../components/recording/CameraPreview";
 import { FramingGuideOverlay } from "../components/recording/FramingGuideOverlay";
 import { PrepOverlay } from "../components/recording/PrepOverlay";
@@ -368,15 +368,9 @@ export function RecordingScreen({ route, navigation }: Props) {
                 hiding it), so it never reads as decoration on the idle button —
                 it's specifically the countdown, made visible. */}
             {stage === "recording" && !recordBlind && !isScript ? (
-              <ProgressRing
-                size={120}
-                strokeWidth={6}
-                progress={remainingRecordingSeconds / targetDurationSeconds}
-                color={colors.danger}
-                trackColor="rgba(255,255,255,0.15)"
-              >
+              <CountdownRing size={120} strokeWidth={6} durationMs={targetDurationSeconds * 1000} color={colors.danger} trackColor="rgba(255,255,255,0.15)">
                 <RecordButton isRecording disabled={isFinishing} onPress={handleStop} />
-              </ProgressRing>
+              </CountdownRing>
             ) : (
               <RecordButton
                 isRecording={stage === "recording"}
