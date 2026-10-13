@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { SkeletonRows } from "../components/common/Skeleton";
 import { FlatList, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -107,12 +108,12 @@ export function PromptLibraryScreen({ navigation }: Props) {
         })}
       </ScrollView>
 
-      {filteredPrompts.length === 0 ? (
+      {prompts.length === 0 ? (
+        <SkeletonRows count={6} />
+      ) : filteredPrompts.length === 0 ? (
         <View style={styles.empty}>
           <Ionicons name="chatbubble-outline" size={40} color={colors.textMuted} />
-          <Text style={styles.emptyText}>
-            {prompts.length === 0 ? "Loading prompts…" : "Nothing matches your search or filters."}
-          </Text>
+          <Text style={styles.emptyText}>Nothing matches your search or filters.</Text>
         </View>
       ) : (
         <FlatList

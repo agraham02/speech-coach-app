@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { Skeleton, SkeletonCard, SkeletonLines, SkeletonRows } from "../components/common/Skeleton";
 import { GuideTip } from "../components/common/GuideTip";
 import { View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -144,7 +145,9 @@ export function TodayScreen() {
           {eventDays != null && profile?.event ? (
             <View style={styles.pill}>
               <Ionicons name="calendar-clear-outline" size={14} color={colors.textSecondary} />
-              <Txt variant="footnote" weight="600">
+              {/* One line: Android otherwise measures it as one line but wraps
+                  the last word onto a hidden second one. */}
+              <Txt variant="footnote" weight="600" numberOfLines={1}>
                 {eventDays === 0
                   ? `Your ${profile.event.note?.trim() || EVENT_LABELS[profile.event.kind]} is today`
                   : `${eventDays} day${eventDays === 1 ? "" : "s"} to your ${profile.event.note?.trim() || EVENT_LABELS[profile.event.kind]}`}
@@ -159,6 +162,15 @@ export function TodayScreen() {
         ) : null}
       </View>
 
+      {!plan ? (
+        <Card style={styles.heroSkeleton}>
+          <Skeleton height={24} width={110} radius={12} />
+          <Skeleton height={30} width="70%" />
+          <SkeletonLines lines={2} />
+          <SkeletonLines lines={4} height={18} />
+          <Skeleton height={52} radius={26} />
+        </Card>
+      ) : null}
       {plan && lesson && focus ? (
         <HeroCard accent={focus.fg} contentStyle={styles.hero}>
           <View style={styles.heroTop}>
@@ -305,6 +317,7 @@ function TopUpCard({ slot, stored, goal, onStart }: { slot: 1 | 2; stored: Store
 }
 
 const useStyles = makeStyles((t) => ({
+  heroSkeleton: { gap: t.space.md, paddingVertical: t.space.lg },
   meta: { gap: t.space.sm, marginTop: -4 },
   pills: { flexDirection: "row", flexWrap: "wrap", gap: t.space.sm },
   pill: {

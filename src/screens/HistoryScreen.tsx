@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { logger } from "../utils/logger";
+import { Skeleton, SkeletonCard, SkeletonLines, SkeletonRows } from "../components/common/Skeleton";
 import { GuideTip } from "../components/common/GuideTip";
 import { Alert, Pressable, RefreshControl, ScrollView, SectionList, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -90,6 +92,7 @@ export function HistoryScreen() {
   const showToast = useToast();
   const tabBarInset = useTabBarBottomInset();
   const [sessions, setSessions] = useState<SessionWithScore[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -108,7 +111,9 @@ export function HistoryScreen() {
   const hasSecondaryFilters = categoryFilter !== "all" || durationFilter !== "all";
 
   const refresh = useCallback(() => {
-    getAllSessionsWithScores().then(setSessions);
+    getAllSessionsWithScores()
+      .then(setSessions)
+      .finally(() => setLoaded(true));
   }, []);
 
   const refreshPrompts = useCallback(() => {
@@ -165,20 +170,34 @@ export function HistoryScreen() {
     navigation.navigate("Result", { sessionId: session.id });
   }
 
+  // Both deletes are optimistic: the row changes first, and comes back if
+  // the database refuses.
   async function handleDeleteVideo(session: Session) {
-    await deleteSessionVideo(session.id);
-    deleteRecording(resolveVideoUri(session));
-    setSessions((prev) =>
-      prev.map((s) => (s.id === session.id ? { ...s, videoDeletedAt: new Date().toISOString() } : s)),
-    );
-    showToast("Video deleted — transcript and scores kept", "success");
+    const before = sessions;
+    setSessions((prev) => prev.map((s) => (s.id === session.id ? { ...s, videoDeletedAt: new Date().toISOString() } : s)));
+    try {
+      await deleteSessionVideo(session.id);
+      deleteRecording(resolveVideoUri(session));
+      showToast("Video deleted — transcript and scores kept", "success");
+    } catch (error) {
+      logger.error(`[library] delete video failed — ${(error as Error).message}`);
+      setSessions(before);
+      showToast("Couldn't delete the video — try again", "error");
+    }
   }
 
   async function handleDeleteSession(session: Session) {
-    await deleteSession(session.id);
-    deleteRecording(resolveVideoUri(session));
+    const before = sessions;
     setSessions((prev) => prev.filter((s) => s.id !== session.id));
-    showToast("Session deleted", "success");
+    try {
+      await deleteSession(session.id);
+      deleteRecording(resolveVideoUri(session));
+      showToast("Session deleted", "success");
+    } catch (error) {
+      logger.error(`[library] delete failed — ${(error as Error).message}`);
+      setSessions(before);
+      showToast("Couldn't delete that — try again", "error");
+    }
   }
 
   function confirmDelete(session: SessionWithScore) {
@@ -308,7 +327,9 @@ export function HistoryScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.textSecondary} />}
         ListHeaderComponent={header}
         ListEmptyComponent={
-          !hasAnySessions ? (
+          !loaded ? (
+            <SkeletonRows count={5} />
+          ) : !hasAnySessions ? (
             <EmptyState icon="videocam-outline" title="No recordings yet" body="Your takes will show up here, grouped by month, with their scores." />
           ) : (
             <EmptyState

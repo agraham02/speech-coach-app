@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Skeleton, SkeletonCard, SkeletonLines, SkeletonRows } from "../components/common/Skeleton";
 import { GuideTip } from "../components/common/GuideTip";
 import { Pressable, ScrollView, View } from "react-native";
 import * as Speech from "expo-speech";
@@ -307,7 +308,7 @@ export function ConversationRunnerScreen({ route, navigation }: Props) {
   if (!setup) {
     return (
       <ScreenContainer>
-        <Txt tone="muted">Loading…</Txt>
+        <SkeletonCard lines={4} />
       </ScreenContainer>
     );
   }

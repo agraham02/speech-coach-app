@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Skeleton, SkeletonCard, SkeletonLines, SkeletonRows } from "../components/common/Skeleton";
 import { GuideTip } from "../components/common/GuideTip";
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -6,7 +7,6 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
 import { PrimaryButton } from "../components/common/PrimaryButton";
-import { LoadingSpinner } from "../components/common/LoadingSpinner";
 import { Card } from "../components/common/Card";
 import { Badge } from "../components/common/Badge";
 import { HeroCard } from "../components/common/HeroCard";
@@ -138,8 +138,16 @@ export function ResultScreen({ route, navigation }: Props) {
 
   if (!session) {
     return (
-      <ScreenContainer style={styles.centered}>
-        <LoadingSpinner />
+      <ScreenContainer style={styles.skeleton}>
+        <Skeleton height={14} width="30%" />
+        <Skeleton height={28} width="75%" />
+        <View style={styles.skeletonTiles}>
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} height={72} radius={16} style={styles.flex} />
+          ))}
+        </View>
+        <SkeletonCard lines={4} />
+        <SkeletonCard lines={3} />
       </ScreenContainer>
     );
   }
@@ -196,9 +204,15 @@ export function ResultScreen({ route, navigation }: Props) {
 
   async function handleToggleKeepsake() {
     const keep = !session!.videoKeepsake;
-    await setVideoKeepsake(sessionId, keep);
     setSession((prev) => (prev ? { ...prev, videoKeepsake: keep } : prev));
-    showToast(keep ? "Kept as a progress video — clearing old videos won't remove it" : "No longer a progress video", "success");
+    try {
+      await setVideoKeepsake(sessionId, keep);
+      showToast(keep ? "Kept as a progress video — clearing old videos won't remove it" : "No longer a progress video", "success");
+    } catch (error) {
+      logger.error(`[result] keepsake failed — ${(error as Error).message}`);
+      setSession((prev) => (prev ? { ...prev, videoKeepsake: !keep } : prev));
+      showToast("Couldn't save that — try again", "error");
+    }
   }
 
   async function handleDeleteVideo() {
@@ -483,7 +497,8 @@ export function ResultScreen({ route, navigation }: Props) {
 const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
   flex: { flex: 1 },
-  centered: { alignItems: "center", justifyContent: "center" },
+  skeleton: { gap: 16, paddingTop: 24 },
+  skeletonTiles: { flexDirection: "row", gap: 8 },
   header: { gap: spacing.xs },
   headerTop: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   headerText: { flex: 1, gap: 2 },

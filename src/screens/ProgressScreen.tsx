@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { Skeleton } from "../components/common/Skeleton";
 import { GuideTip } from "../components/common/GuideTip";
 import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -194,7 +195,12 @@ export function ProgressScreen() {
             </Txt>
           ) : null}
         </View>
-      ) : null}
+      ) : (
+        <View style={styles.section}>
+          <SectionHeader title="This week" />
+          <Skeleton height={76} radius={20} />
+        </View>
+      )}
 
       {mastery ? (
         <View style={styles.section}>

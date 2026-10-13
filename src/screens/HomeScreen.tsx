@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { Skeleton, SkeletonCard, SkeletonLines, SkeletonRows } from "../components/common/Skeleton";
 import { GuideTip } from "../components/common/GuideTip";
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -7,7 +8,6 @@ import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
 import { PrimaryButton } from "../components/common/PrimaryButton";
-import { LoadingSpinner } from "../components/common/LoadingSpinner";
 import { HeroCard } from "../components/common/HeroCard";
 import { IconButton } from "../components/common/IconButton";
 import { PressableScale } from "../components/common/PressableScale";
@@ -272,8 +272,10 @@ export function HomeScreen() {
 
   if (!prompt) {
     return (
-      <ScreenContainer style={styles.centered}>
-        <LoadingSpinner />
+      <ScreenContainer style={styles.skeleton}>
+        <Skeleton height={28} width="55%" />
+        <SkeletonCard lines={3} />
+        <SkeletonRows count={3} />
       </ScreenContainer>
     );
   }
@@ -410,7 +412,7 @@ export function HomeScreen() {
 const useStyles = makeStyles(({ colors }) => ({
   container: { justifyContent: "space-between" },
   actions: { gap: spacing.sm },
-  centered: { alignItems: "center", justifyContent: "center" },
+  skeleton: { gap: 16, paddingTop: 24 },
   header: { gap: 2 },
   headerBar: { flexDirection: "row", justifyContent: "space-between", marginBottom: spacing.md },
   settingsButton: { padding: spacing.xs },

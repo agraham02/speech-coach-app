@@ -1,4 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
+import { showGlobalToast } from "../components/common/ToastProvider";
+import { logger } from "../utils/logger";
+import { Skeleton, SkeletonCard, SkeletonLines, SkeletonRows } from "../components/common/Skeleton";
 import { GuideTip } from "../components/common/GuideTip";
 import { Alert, FlatList, Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -34,13 +37,16 @@ export function MarkItUpScreen({ route, navigation }: Props) {
   const [shelf, setShelf] = useState<Shelf>(route.params?.shelf ?? "lines");
   const [category, setCategory] = useState<LineCategory | "all">("all");
   const [mine, setMine] = useState<SavedMarkedText[]>([]);
+  const [mineLoaded, setMineLoaded] = useState(false);
   const lines = useMemo(() => getLines(), []);
   const speeches = useMemo(() => getSpeeches(), []);
   const shown = category === "all" ? lines : lines.filter((l) => l.category === category);
 
   useFocusEffect(
     useCallback(() => {
-      listMarkedTexts().then(setMine);
+      listMarkedTexts()
+        .then(setMine)
+        .finally(() => setMineLoaded(true));
     }, []),
   );
 
@@ -51,8 +57,15 @@ export function MarkItUpScreen({ route, navigation }: Props) {
         text: "Delete",
         style: "destructive",
         onPress: async () => {
-          await deleteMarkedText(item.id);
-          setMine(await listMarkedTexts());
+          const before = mine;
+          setMine((prev) => prev.filter((m) => m.id !== item.id));
+          try {
+            await deleteMarkedText(item.id);
+          } catch (error) {
+            logger.error(`[mark-it-up] delete failed — ${(error as Error).message}`);
+            setMine(before);
+            showGlobalToast("Couldn't delete that — try again", "error");
+          }
         },
       },
     ]);
@@ -128,7 +141,7 @@ export function MarkItUpScreen({ route, navigation }: Props) {
               </Txt>
             </View>
           }
-          ListEmptyComponent={<EmptyState icon="create-outline" title="Nothing here yet" body="Lines you mark yourself show up here." />}
+          ListEmptyComponent={mineLoaded ? <EmptyState icon="create-outline" title="Nothing here yet" body="Lines you mark yourself show up here." /> : <SkeletonRows count={3} />}
           renderItem={({ item }) => {
             const s = markSummary(item.marks);
             return (

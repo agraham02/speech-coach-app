@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { showGlobalToast } from "../common/ToastProvider";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -38,26 +39,43 @@ export function ConversationTodayCard() {
     }, [date]),
   );
 
+  // Optimistic: the tap shows at once (same rule as logMission), then the
+  // saved value replaces it — or the old one comes back if saving fails.
   async function tap(missionId: string, target: number) {
     tick();
+    const before = progress[missionId];
+    const count = Math.min(target, (before?.count ?? 0) + 1);
+    setProgress((prev) => ({ ...prev, [missionId]: { missionId, count, completedAt: count >= target ? (before?.completedAt ?? new Date().toISOString()) : null } }));
     try {
-      const p = await logMission(date, missionId, target);
-      setProgress((prev) => ({ ...prev, [missionId]: p }));
+      const saved = await logMission(date, missionId, target);
+      setProgress((prev) => ({ ...prev, [missionId]: saved }));
     } catch (error) {
       logger.error(`[missions] log failed — ${(error as Error).message}`);
+      setProgress((prev) => restore(prev, missionId, before));
+      showGlobalToast("Couldn't save that — try again", "error");
     }
   }
 
   async function reset(missionId: string) {
-    await resetMission(date, missionId).catch(() => undefined);
-    setProgress((prev) => {
-      const next = { ...prev };
-      delete next[missionId];
-      return next;
-    });
+    const before = progress[missionId];
+    setProgress((prev) => restore(prev, missionId, undefined));
+    try {
+      await resetMission(date, missionId);
+    } catch (error) {
+      logger.error(`[missions] reset failed — ${(error as Error).message}`);
+      setProgress((prev) => restore(prev, missionId, before));
+      showGlobalToast("Couldn't undo that — try again", "error");
+    }
   }
 
   const open = openEvents[0];
+
+  function restore(prev: Record<string, MissionProgress>, missionId: string, value: MissionProgress | undefined) {
+    const next = { ...prev };
+    if (value) next[missionId] = value;
+    else delete next[missionId];
+    return next;
+  }
   const c = colors.skill.conversation;
 
   return (

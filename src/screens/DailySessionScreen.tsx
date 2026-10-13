@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { logger } from "../utils/logger";
 import { Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -78,9 +79,19 @@ export function DailySessionScreen({ route, navigation }: Props) {
     }
   }
 
+  // Optimistic: the step ticks off at once; the saved plan (which also knows
+  // whether that finished the day) replaces it, or it un-ticks on failure.
   async function skip(step: PlanStep) {
-    const updated = slot ? await completeTopUpStep(plan.date, slot, step.id) : await completePlanStep(plan.date, step.id);
-    if (updated) setStored(updated);
+    const before = stored;
+    setStored((prev) => (prev && !prev.completedStepIds.includes(step.id) ? { ...prev, completedStepIds: [...prev.completedStepIds, step.id] } : prev));
+    try {
+      const updated = slot ? await completeTopUpStep(plan.date, slot, step.id) : await completePlanStep(plan.date, step.id);
+      if (updated) setStored(updated);
+    } catch (error) {
+      logger.error(`[daily] skip failed — ${(error as Error).message}`);
+      setStored(before);
+      showGlobalToast("Couldn't skip that — try again", "error");
+    }
   }
 
   const focus = colors.skill[plan.focusSkill];
