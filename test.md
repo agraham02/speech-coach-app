@@ -48,9 +48,9 @@ Open Learn → Articulation → a lesson with a twister, or Practice something e
   Notes:
 
 ## 3. Warm-ups and guided exercises
-- [ ] **Box breathing**: 3 rounds (about 48 s), "Round 1 of 3" label, circle grows on "Breathe in" and shrinks on "Breathe out", a light tap at each phase
+- [ ] **Calming sigh**: 5 rounds (about 50 s), "Round 1 of 5" label, circle grows on "Breathe in", tops up on "Sip in more" and shrinks on "Long breath out", a light tap at each phase
   Notes:
-- [ ] Box breathing: Skip works, and ✕ exits without saving
+- [ ] Calming sigh: Skip works, and ✕ exits without saving
   Notes:
 - [ ] **Other warm-ups** (Wake up the articulators, Hum and siren): timed steps run and finish
   Notes:

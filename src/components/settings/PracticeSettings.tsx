@@ -19,7 +19,7 @@ export function PracticeSettings() {
         chevron
         onPress={() => navigation.navigate("Onboarding", { mode: "profile" })}
       />
-      <ListRow icon="speedometer-outline" title="Level & difficulty" subtitle="See your impromptu level, or pin it manually" chevron onPress={() => navigation.navigate("Curriculum")} />
+      <ListRow icon="speedometer-outline" title="Level & difficulty" subtitle="See your impromptu level, or set the level Practice uses" chevron onPress={() => navigation.navigate("Curriculum")} />
       <SwitchRow
         icon="git-branch-outline"
         title="Plan your point"

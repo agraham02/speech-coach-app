@@ -41,8 +41,9 @@ export interface PlanStep {
 }
 
 // Bumped when the plan's shape changes, so a stored plan nobody has started
-// yet is rebuilt (v2: line of the day).
-export const PLAN_VERSION = 2;
+// yet is rebuilt (v2: line of the day; v3: a lesson's own warm-up no longer
+// takes one of its practice slots).
+export const PLAN_VERSION = 3;
 
 export interface DailyPlan {
   version?: number;
@@ -54,12 +55,15 @@ export interface DailyPlan {
   steps: PlanStep[];
 }
 
+// Confidence and conversation days settle nerves with the calming sigh: a
+// long out-breath, no holds — the lessons teach starting to speak on an
+// out-breath, not after holding one.
 const WARMUP_FOR: Record<SkillId, string> = {
   articulation: "wu_articulators",
   cadence: "wu_resonance",
   impromptu: "wu_articulators",
-  confidence: "wu_breath",
-  conversation: "wu_breath",
+  confidence: "wu_sigh",
+  conversation: "wu_sigh",
 };
 
 // A conversation day ends on a conversation drill, not a monologue rep —
@@ -143,12 +147,15 @@ export function buildDailyPlan(input: PlanInput): DailyPlan {
     steps.push({ id: `${steps.length}`, ...d, lessonStep: step });
   };
 
-  // 1. Warm-up (unless the lesson opens with its own), then the line of the
-  // day. A 5-minute plan swaps the generic warm-up for the line, so it stays
-  // at 5 minutes; if the lesson brings its own warm-up, a 5-minute plan
-  // skips the line.
+  // 1. Warm-up — the lesson's own if it opens with one — then the line of
+  // the day. A 5-minute plan swaps the generic warm-up for the line, so it
+  // stays at 5 minutes; if the lesson brings its own warm-up, a 5-minute
+  // plan skips the line. Either way the warm-up never takes a practice slot
+  // below — otherwise a short plan would mark "Breathe low" done without
+  // ever reaching its drill.
   const lessonHasWarmup = lesson.steps[0]?.kind === "warmup";
-  if (!lessonHasWarmup && input.minutes !== 5) push({ kind: "warmup", warmupId: WARMUP_FOR[focusSkill] });
+  if (lessonHasWarmup) push(lesson.steps[0]);
+  else if (input.minutes !== 5) push({ kind: "warmup", warmupId: WARMUP_FOR[focusSkill] });
   if (!lessonHasWarmup || input.minutes !== 5) {
     const line = lineOfTheDay(getLines(), input.date, hashString);
     steps.push({
@@ -162,7 +169,7 @@ export function buildDailyPlan(input: PlanInput): DailyPlan {
   }
 
   // 2. Lesson practice (drills / guided), more of it in longer sessions.
-  const practice = lesson.steps.filter((s) => s.kind !== "rep");
+  const practice = lesson.steps.filter((s) => s.kind !== "rep" && s.kind !== "warmup");
   const practiceCount = input.minutes === 5 ? 1 : input.minutes === 8 ? 2 : practice.length;
   practice.slice(0, Math.max(1, practiceCount)).forEach(push);
 

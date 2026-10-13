@@ -1,6 +1,8 @@
 import { buildDailyPlan, chooseFocusSkill, previewPlans, type PlanInput } from "../dailyPlan";
 import { LESSONS, UNITS, getGuided } from "../../content/lessons";
 import { DRILL_SKILL } from "../drills/drillSpecs";
+import { MINIMAL_PAIRS } from "../../content/drillContent";
+import { TONGUE_TWISTERS } from "../../data/tongueTwisters";
 
 function input(overrides: Partial<PlanInput> = {}): PlanInput {
   return {
@@ -79,6 +81,20 @@ describe("daily plan", () => {
     for (const d of lessonDrills) expect(planDrills).toContain(d);
   });
 
+  it("doesn't let a lesson's own warm-up crowd out its drill in a short plan", () => {
+    // Confidence's breath unit opens with "Breathe low" (warm-up + drill).
+    const skills = { ...input().skills, confidence: { rating: 5, lastPracticedAt: null } };
+    const lessons = { con_b5_calm: { done: true, nextReviewAt: "2026-10-30" }, con_1_excited: { done: true, nextReviewAt: "2026-10-30" } };
+    for (const minutes of [5, 8] as const) {
+      const plan = buildDailyPlan(input({ skills, lessons, minutes }));
+      expect(plan.lessonId).toBe("con_2_breath");
+      const kinds = plan.steps.map((s) => s.lessonStep?.kind === "drill" ? s.lessonStep.drill : s.kind);
+      expect(kinds[0]).toBe("warmup");
+      expect(kinds).toContain("breath_count");
+      expect(kinds.filter((k) => k === "warmup")).toHaveLength(1);
+    }
+  });
+
   it("keeps the 5-minute plan short", () => {
     const plan = buildDailyPlan(input({ minutes: 5 }));
     expect(plan.steps.length).toBeLessThanOrEqual(3);
@@ -117,6 +133,37 @@ describe("curriculum content", () => {
       }
     }
     expect(new Set(LESSONS.map((l) => l.id)).size).toBe(LESSONS.length);
+  });
+
+  it("lists each skill's lessons in unit order, so Next up follows the path Learn shows", () => {
+    for (const skill of ["articulation", "cadence", "impromptu", "confidence", "conversation"]) {
+      const unitOrder = UNITS.filter((u) => u.skill === skill).map((u) => u.id);
+      const lessonUnits = LESSONS.filter((l) => l.skill === skill).map((l) => unitOrder.indexOf(l.unitId));
+      expect(lessonUnits).toEqual([...lessonUnits].sort((a, b) => a - b));
+    }
+  });
+
+  it("feeds each guided self-rating to the skill of the lesson that uses it", () => {
+    for (const lesson of LESSONS) {
+      for (const step of lesson.steps) {
+        if (step.kind === "guided") expect([step.guidedId, getGuided(step.guidedId)?.skill ?? "confidence"]).toEqual([step.guidedId, lesson.skill]);
+      }
+    }
+  });
+
+  it("points every lesson drill at content that exists", () => {
+    for (const lesson of LESSONS) {
+      for (const step of lesson.steps) {
+        if (step.kind !== "drill" || !step.contentId) continue;
+        if (step.drill === "minimal_pairs") expect(MINIMAL_PAIRS.map((m) => m.id)).toContain(step.contentId);
+        if (step.drill === "twister") expect(TONGUE_TWISTERS.map((t) => t.id)).toContain(step.contentId);
+      }
+    }
+  });
+
+  it("runs the surprise-question rep with no prep time", () => {
+    const rep = LESSONS.find((l) => l.id === "imp_10_surprise")!.steps.find((s) => s.kind === "rep");
+    expect(rep).toMatchObject({ kind: "rep", prepSeconds: 0 });
   });
 
   it("has at least two units' worth of lessons per skill", () => {

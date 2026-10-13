@@ -27,6 +27,8 @@ const FRAMEWORKS: Framework[] = [
     points: [
       "What, so what, now what: the point, why it matters, what to do about it.",
       "PREP: point, reason, example — then the point again to close the loop.",
+      "Problem, solution, benefit: the pain, your fix, what it gets them.",
+      "STAR, for “tell me about a time”: situation, task, action, result.",
       "Point first: lead with the answer, then back it up.",
       "Rule of three: three supporting points, no more.",
     ],

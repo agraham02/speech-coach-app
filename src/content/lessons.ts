@@ -17,7 +17,9 @@ export type LessonStep =
   | { kind: "warmup"; warmupId: string }
   | { kind: "drill"; drill: Exclude<DrillType, "rep" | "guided" | "warmup">; contentId?: string }
   | { kind: "guided"; guidedId: string }
-  | { kind: "rep"; framework?: FrameworkId; focus: string; seconds?: number };
+  // `prepSeconds` overrides the level's prep window — 0 for a rep that is
+  // meant to be a surprise.
+  | { kind: "rep"; framework?: FrameworkId; focus: string; seconds?: number; prepSeconds?: number };
 
 export interface Lesson {
   id: string;
@@ -48,13 +50,14 @@ export const UNITS: Unit[] = [
   { id: "cad_score", skill: "cadence", title: "Put it together", summary: "Mark a line yourself — pause, pace, pitch, rhythm, stress — then say it." },
   { id: "imp_start", skill: "impromptu", title: "Just start talking", summary: "Faster word retrieval and fewer stalls — the mind-mouth link." },
   { id: "imp_structure", skill: "impromptu", title: "Structure on the fly", summary: "Frameworks that organize an answer as you give it." },
-  { id: "imp_feet", skill: "impromptu", title: "Think on your feet", summary: "Stories, surprises and follow-up questions." },
-  { id: "con_breath", skill: "confidence", title: "Breath support", summary: "Breath that steadies your pace, carries your volume and calms your voice." },
-  { id: "con_nerves", skill: "confidence", title: "Reframe the nerves", summary: "Turn adrenaline into energy instead of fighting it." },
+  { id: "imp_feet", skill: "impromptu", title: "Think on your feet", summary: "Stories out of nowhere, and points you find as you go." },
+  { id: "con_nerves", skill: "confidence", title: "Work with the nerves", summary: "Settle your body with a long out-breath, then turn what's left into energy." },
+  { id: "con_breath", skill: "confidence", title: "Breath support", summary: "Breath that steadies your pace, carries your volume and keeps your voice even." },
   { id: "con_authority", skill: "confidence", title: "Voice of authority", summary: "Volume, statements, and endings that land." },
   { id: "con_presence", skill: "confidence", title: "Eye contact and face", summary: "Talk to a person, not a phone." },
   { id: "conv_attention", skill: "conversation", title: "Outward attention", summary: "Spend your attention on them, not on watching yourself." },
   { id: "conv_moves", skill: "conversation", title: "Moves", summary: "Small, reliable replies — so you're never stuck for something to say." },
+  { id: "conv_edges", skill: "conversation", title: "Starting and leaving", summary: "A plain way in, and a warm way out." },
   { id: "conv_straight", skill: "conversation", title: "Say it straight", summary: "Point first, one reason, then stop — no more rambling." },
   { id: "conv_wit", skill: "conversation", title: "Wit and warmth", summary: "Reactions, callbacks and play — the parts of humor anyone can learn." },
 ];
@@ -82,15 +85,16 @@ export const LESSONS: Lesson[] = [
     skill: "articulation",
     unitId: "art_wake",
     title: "Finish your words",
-    minutes: 4,
+    minutes: 5,
     teach: {
-      why: "The ends of words carry a surprising amount of meaning — 'cap' vs 'cab', 'right' vs 'ride'. Dropping final consonants is the most common reason clear speakers still sound unclear.",
+      why: "The ends of words carry a surprising amount of meaning — 'cap' vs 'cab', 'right' vs 'ride', 'walk' vs 'walked'. Dropped endings are one of the most common reasons a clear speaker still sounds unclear.",
       how: ["Land the last sound of every word", "Feel the release on t, d, k, p", "Slow down slightly on the last word of each sentence"],
       source: "Ladefoged & Johnson, phonetics; minimal pairs",
     },
     steps: [
       { kind: "drill", drill: "minimal_pairs", contentId: "mp_final" },
       { kind: "drill", drill: "twister" },
+      { kind: "rep", focus: "Land the last sound of every word.", seconds: 60 },
     ],
   },
   {
@@ -116,8 +120,8 @@ export const LESSONS: Lesson[] = [
     title: "R and L",
     minutes: 4,
     teach: {
-      why: "L touches the tongue tip to the ridge behind your teeth; R never touches anything — the tongue pulls back and the lips round a little. Mixing them is common under speed.",
-      how: ["L: tongue tip up and touching", "R: tongue back, touching nothing", "Alternate slowly: right–light, rock–lock"],
+      why: "For L, the tongue tip touches the ridge just behind your top teeth. For R, the tip touches nothing — the tongue pulls back and bunches up, and the lips round a little. Mixing them up is common under speed.",
+      how: ["L: tongue tip up and touching", "R: tongue pulled back, tip touching nothing", "Alternate slowly: right–light, rock–lock"],
       source: "Ladefoged & Johnson, phonetics; minimal-pair training",
     },
     steps: [
@@ -132,13 +136,29 @@ export const LESSONS: Lesson[] = [
     title: "The TH sound",
     minutes: 4,
     teach: {
-      why: "TH is the only English sound where the tongue comes forward between the teeth. Skip that and 'three' becomes 'tree' or 'free'.",
-      how: ["Let the tongue tip peek between your teeth", "Push air over it — it's a soft hiss", "Then move straight to the next sound"],
+      why: "TH is the only English sound made with the tongue between the teeth — and there are two: the soft one in 'thin' and the buzzy one in 'this'. Skip the tongue and 'three' becomes 'tree' or 'free', and 'they' becomes 'day'.",
+      how: ["Let the tongue tip peek between your teeth", "Push air over it: a soft hiss for 'thin', add your voice for 'this'", "Then move straight to the next sound"],
       source: "Ladefoged & Johnson, phonetics; minimal-pair training",
     },
     steps: [
       { kind: "drill", drill: "minimal_pairs", contentId: "mp_th" },
       { kind: "drill", drill: "twister", contentId: "tt_e07" },
+    ],
+  },
+  {
+    id: "art_6b_clusters",
+    skill: "articulation",
+    unitId: "art_speed",
+    title: "Long words and clusters",
+    minutes: 5,
+    teach: {
+      why: "Clusters — several consonants in a row, like the end of “months” or the start of “strength” — are where careful speakers still blur things: “mumths”, “strenth”. Long words go the same way, with the middle syllables swallowed. Both come back with slow, deliberate practice.",
+      how: ["Say every consonant in the cluster, slowly: m-o-n-th-s", "Break a long word into beats — spe-ci-fi-cal-ly — then run it together", "Keep the final sound even when the next word starts"],
+      source: "Ladefoged & Johnson, phonetics; minimal-pair training",
+    },
+    steps: [
+      { kind: "drill", drill: "minimal_pairs", contentId: "mp_clusters" },
+      { kind: "drill", drill: "twister", contentId: "tt_m01" },
     ],
   },
   {
@@ -155,7 +175,7 @@ export const LESSONS: Lesson[] = [
     steps: [
       { kind: "warmup", warmupId: "wu_articulators" },
       { kind: "drill", drill: "twister" },
-      { kind: "drill", drill: "minimal_pairs", contentId: "mp_v_w" },
+      { kind: "rep", focus: "Talk at your normal speed — every word still crisp.", seconds: 60 },
     ],
   },
 
@@ -184,7 +204,7 @@ export const LESSONS: Lesson[] = [
       how: ["Find the one key sentence", "Drop your pace by a third on it", "Then return to normal speed"],
       source: "Vinh Giang — rate of speech",
     },
-    steps: [{ kind: "drill", drill: "pace_reading" }, { kind: "guided", guidedId: "gd_rate_contrast" }],
+    steps: [{ kind: "guided", guidedId: "gd_rate_contrast" }, { kind: "drill", drill: "pace_reading" }],
   },
   {
     id: "cad_3_pause",
@@ -210,7 +230,20 @@ export const LESSONS: Lesson[] = [
       how: ["Start with a two-second silence", "Pause just before your main point", "When you feel an 'um' coming, close your mouth"],
       source: "Vinh Giang; Toastmasters pausing practice",
     },
-    steps: [{ kind: "drill", drill: "pause_reading" }, { kind: "guided", guidedId: "gd_power_pause" }],
+    steps: [{ kind: "guided", guidedId: "gd_power_pause" }, { kind: "drill", drill: "pause_reading" }],
+  },
+  {
+    id: "cad_12_fillers",
+    skill: "cadence",
+    unitId: "cad_pause",
+    title: "Pause instead of um",
+    minutes: 4,
+    teach: {
+      why: "A few ums are normal — listeners barely notice them, and an 'um' can even tell them you're still thinking. It's the steady stream that distracts. What works in studies is simple: catch each one as it happens, then close your mouth for a beat instead.",
+      how: ["Notice each um the moment you say it", "Next time one's coming, close your lips and pause", "Aim for fewer, not zero"],
+      source: "Mancuso & Miltenberger (2016), habit reversal for filler words; Clark & Fox Tree (2002)",
+    },
+    steps: [{ kind: "guided", guidedId: "gd_catch_um" }, { kind: "rep", focus: "When you feel an um coming, close your mouth and pause.", seconds: 60 }],
   },
   {
     id: "cad_7_inflection",
@@ -230,13 +263,17 @@ export const LESSONS: Lesson[] = [
     skill: "cadence",
     unitId: "cad_pitch",
     title: "Use your whole range",
-    minutes: 4,
+    minutes: 5,
     teach: {
-      why: "Most 'monotone' voices aren't monotone — they're under-used. Big physical movement pushes your pitch and loudness around without you thinking about it, and some of that energy stays when you stop moving.",
+      why: "Most 'monotone' voices have plenty of range — it just goes unused. A siren shows you how much is there. Big physical movement pushes your pitch and loudness around without you thinking about it, so you hear what more range sounds like — then you can find it standing still.",
       how: ["Exaggerate more than feels natural", "Let the movement land on the key word", "Then say it standing still — and keep the energy"],
       source: "Laban effort actions (actor voice training); Pouw et al. (2020), gesture–speech physics",
     },
-    steps: [{ kind: "drill", drill: "move_it" }, { kind: "rep", focus: "Let your pitch move — more than feels natural.", seconds: 60 }],
+    steps: [
+      { kind: "warmup", warmupId: "wu_resonance" },
+      { kind: "drill", drill: "move_it" },
+      { kind: "rep", focus: "Let your pitch move — more than feels natural.", seconds: 60 },
+    ],
   },
   {
     id: "cad_9_rhythm",
@@ -259,10 +296,10 @@ export const LESSONS: Lesson[] = [
     minutes: 4,
     teach: {
       why: "Which word you stress changes what a sentence means. A flat delivery hides your meaning; deliberate emphasis tells the listener exactly what matters.",
-      how: ["Pick the one word that matters most", "Lift your pitch or volume on it", "Keep the rest of the sentence relaxed"],
+      how: ["Pick the one word that matters most", "Lift your pitch on it — a little louder and longer helps too", "Keep the rest of the sentence relaxed"],
       source: "Vinh Giang — pitch and melody",
     },
-    steps: [{ kind: "guided", guidedId: "gd_emphasis" }, { kind: "drill", drill: "shadowing" }],
+    steps: [{ kind: "guided", guidedId: "gd_emphasis" }, { kind: "drill", drill: "marked_reading", contentId: "cat:contrast" }],
   },
   {
     id: "cad_6_shadow",
@@ -271,7 +308,7 @@ export const LESSONS: Lesson[] = [
     title: "Shadowing",
     minutes: 4,
     teach: {
-      why: "Echoing a speaker's rhythm and melody right after them trains prosody faster than reading alone — it's one of the best-supported fluency techniques.",
+      why: "Echoing a line right after you hear it makes you copy its rhythm and melody, not just its words. The phone's voice is a steady guide to the beat and the pauses, not a model of natural expression — copy its timing, then make the line your own. In an eight-week study, language learners who shadowed for ten minutes, four times a week, became easier to follow and more fluent when they spoke off the cuff.",
       how: ["Listen to the whole line once", "Repeat it immediately, copying the rhythm", "Match the pauses, not just the words"],
       source: "Foote & McDonough (2017), shadowing",
     },
@@ -288,7 +325,7 @@ export const LESSONS: Lesson[] = [
       how: ["Punch or point on the word that matters", "Keep the rest of the line relaxed", "Then read it still — the stress should stay"],
       source: "Krahmer & Swerts (2007), visual beats and prosodic prominence",
     },
-    steps: [{ kind: "drill", drill: "move_it" }, { kind: "drill", drill: "marked_reading", contentId: "cat:contrast" }],
+    steps: [{ kind: "drill", drill: "move_it" }, { kind: "drill", drill: "marked_reading", contentId: "cat:everyday" }],
   },
   {
     id: "cad_11_markup",
@@ -312,7 +349,7 @@ export const LESSONS: Lesson[] = [
     title: "Word retrieval",
     minutes: 3,
     teach: {
-      why: "Blanking mid-sentence is often a word-retrieval problem, not a thinking problem. Naming things in a category, fast, exercises exactly that mind-mouth connection.",
+      why: "Blanking mid-sentence is often a word-retrieval problem, not a thinking problem. Naming things in a category, fast, exercises that same jump from idea to word.",
       how: ["Say the first word that comes — no editing", "Jump to a sub-group when you stall (pets → farm animals)", "Keep your mouth moving"],
       source: "Verbal-fluency training (category naming)",
     },
@@ -353,7 +390,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "A simple structure frees your brain to find content instead of organizing it. PREP — Point, Reason, Example, Point — works for almost any opinion question.",
       how: ["Point: say your answer in one sentence", "Reason + Example: why, and one concrete case", "Point again: restate it to close"],
-      source: "Matt Abrahams — Think Faster, Talk Smarter",
+      source: "A widely taught business-speaking structure; Toastmasters Table Topics",
     },
     steps: [{ kind: "rep", framework: "PREP", focus: "Hit all four beats: Point, Reason, Example, Point." }],
   },
@@ -371,6 +408,19 @@ export const LESSONS: Lesson[] = [
     steps: [{ kind: "rep", framework: "WhatSoWhatNowWhat", focus: "What, so what, now what — in that order." }],
   },
   {
+    id: "imp_8_psb",
+    skill: "impromptu",
+    unitId: "imp_structure",
+    title: "Problem – Solution – Benefit",
+    minutes: 5,
+    teach: {
+      why: "When you want someone to agree to something — a change, a plan, a purchase — start with the problem they already feel. Then your fix, then what it gets them. Most good pitches have this shape, and it keeps you from opening with the details of your idea.",
+      how: ["Problem: name the pain in a sentence", "Solution: what you'd do about it", "Benefit: what changes for them"],
+      source: "Matt Abrahams — Think Faster, Talk Smarter",
+    },
+    steps: [{ kind: "rep", framework: "ProblemSolutionBenefit", focus: "Problem, solution, benefit — in that order." }],
+  },
+  {
     id: "imp_5_ppf",
     skill: "impromptu",
     unitId: "imp_structure",
@@ -382,6 +432,19 @@ export const LESSONS: Lesson[] = [
       source: "Impromptu speaking frameworks (Toastmasters Table Topics)",
     },
     steps: [{ kind: "rep", framework: "PastPresentFuture", focus: "Walk from past to present to future." }],
+  },
+  {
+    id: "imp_9_star",
+    skill: "impromptu",
+    unitId: "imp_structure",
+    title: "Tell me about a time…",
+    minutes: 5,
+    teach: {
+      why: "“Tell me about a time when…” is a staple of job interviews, and one of the easiest questions to ramble through. STAR keeps it tight: set the scene quickly, then spend most of your time on what you did and how it turned out.",
+      how: ["Situation and task: the setup, in two sentences", "Action: what you did — say “I”, not “we”", "Result: how it ended, and what you learned"],
+      source: "STAR — the standard structure for behavioral interview answers",
+    },
+    steps: [{ kind: "rep", framework: "STAR", focus: "Situation, task, action, result — most of your time on the action." }],
   },
   {
     id: "imp_6_story",
@@ -409,8 +472,54 @@ export const LESSONS: Lesson[] = [
     },
     steps: [{ kind: "drill", drill: "letter_fluency" }, { kind: "rep", framework: "ListOfThree", focus: "Give exactly three points, numbered out loud." }],
   },
+  {
+    id: "imp_10_surprise",
+    skill: "impromptu",
+    unitId: "imp_feet",
+    title: "The question you didn't expect",
+    minutes: 4,
+    teach: {
+      why: "A question out of nowhere is where blanks happen. Saying it back in your own words is easy for your brain — you're repeating, not inventing — so it buys a couple of seconds while you decide where to land. It also shows you were listening, and checks you heard it right.",
+      how: ["Say the question back in your own words", "Pick one point and say it first", "Stop when you've made it — you don't have to fill the time"],
+      source: "Matt Abrahams — Think Faster, Talk Smarter (paraphrasing to buy time)",
+    },
+    steps: [
+      { kind: "guided", guidedId: "gd_buy_time" },
+      { kind: "rep", focus: "No prep: say the question back in your own words, then answer.", seconds: 60, prepSeconds: 0 },
+    ],
+  },
 
   // ---------------- Confidence ----------------
+  {
+    id: "con_b5_calm",
+    skill: "confidence",
+    unitId: "con_nerves",
+    title: "Calm in a minute",
+    minutes: 4,
+    teach: {
+      why: "Slow breaths with long out-breaths settle a racing heart before you speak. In a month-long study, five minutes a day of “cyclic sighing” — two breaths in, one long breath out — improved mood more than mindfulness meditation did.",
+      how: ["Breathe in through your nose, then sip in a little more", "Let it all out slowly — longer than the breath in", "After a few rounds, start your first sentence on an out-breath"],
+      source: "Balban et al. (2023), cyclic sighing",
+    },
+    steps: [
+      { kind: "warmup", warmupId: "wu_sigh" },
+      { kind: "guided", guidedId: "gd_breath_reset" },
+      { kind: "rep", focus: "Start on an out-breath — calm and unhurried.", seconds: 60 },
+    ],
+  },
+  {
+    id: "con_1_excited",
+    skill: "confidence",
+    unitId: "con_nerves",
+    title: "\"I'm excited\"",
+    minutes: 4,
+    teach: {
+      why: "Anxiety and excitement feel almost the same in the body, which is why telling yourself to calm down tends not to work. Calling it excitement does: in one study, people who said “I'm excited” before a speech spoke longer and came across as more confident. The calming breath takes the edge off; this puts the rest to work.",
+      how: ["Notice the nerves — don't fight them", "Say out loud: 'I'm excited'", "Use the energy: start a little louder than feels natural"],
+      source: "Brooks (2014), anxiety reappraisal",
+    },
+    steps: [{ kind: "guided", guidedId: "gd_reappraisal" }, { kind: "rep", focus: "Start with energy. Use the adrenaline.", seconds: 60 }],
+  },
   {
     id: "con_2_breath",
     skill: "confidence",
@@ -432,7 +541,7 @@ export const LESSONS: Lesson[] = [
     minutes: 4,
     teach: {
       why: "Natural speakers breathe at the ends of phrases and sentences, not in the middle of them. Run out of air mid-thought and you rush the end; top up at every pause and your pace evens out, and every sentence gets a full finish.",
-      how: ["Breathe at full stops and commas — that's where pauses go anyway", "Take a quick, quiet sip through your nose", "Top up early instead of pushing to the last drop"],
+      how: ["Breathe at full stops and commas — that's where pauses go anyway", "Take a quick, quiet sip through your mouth — it's faster than your nose", "Top up early instead of pushing to the last drop"],
       source: "Winkworth et al. (1995), breathing in spontaneous speech; Vinh Giang — the power of the pause",
     },
     steps: [{ kind: "guided", guidedId: "gd_phrase_breath" }, { kind: "drill", drill: "pause_reading" }],
@@ -464,47 +573,17 @@ export const LESSONS: Lesson[] = [
     steps: [{ kind: "guided", guidedId: "gd_breath_volume" }, { kind: "drill", drill: "projection" }],
   },
   {
-    id: "con_b5_calm",
-    skill: "confidence",
-    unitId: "con_breath",
-    title: "Calm in a minute",
-    minutes: 4,
-    teach: {
-      why: "Slow breaths with long out-breaths settle a racing heart before you speak. In a month-long study, five minutes a day of “cyclic sighing” — two breaths in, one long breath out — improved mood more than mindfulness meditation did.",
-      how: ["Breathe in through your nose, then sip in a little more", "Let it all out slowly — longer than the breath in", "After a few rounds, start your first sentence on an out-breath"],
-      source: "Balban et al. (2023), cyclic sighing",
-    },
-    steps: [
-      { kind: "warmup", warmupId: "wu_sigh" },
-      { kind: "guided", guidedId: "gd_breath_reset" },
-      { kind: "rep", focus: "Start on an out-breath — calm and unhurried.", seconds: 60 },
-    ],
-  },
-  {
-    id: "con_1_excited",
-    skill: "confidence",
-    unitId: "con_nerves",
-    title: "\"I'm excited\"",
-    minutes: 4,
-    teach: {
-      why: "Anxiety and excitement feel almost identical in the body. Trying to calm down rarely works; telling yourself 'I'm excited' does — in studies it made people speak longer and come across as more confident.",
-      how: ["Notice the nerves — don't fight them", "Say out loud: 'I'm excited'", "Use the energy: speak a little louder and faster to start"],
-      source: "Brooks (2014), anxiety reappraisal",
-    },
-    steps: [{ kind: "guided", guidedId: "gd_reappraisal" }, { kind: "rep", focus: "Start with energy. Use the adrenaline.", seconds: 60 }],
-  },
-  {
     id: "con_3_project",
     skill: "confidence",
     unitId: "con_authority",
     title: "Projection",
-    minutes: 3,
+    minutes: 4,
     teach: {
-      why: "Volume reads as confidence. Projecting isn't shouting — it's supporting your voice with breath and aiming it at the back of the room.",
-      how: ["Breathe from the belly", "Aim your voice past the phone", "Keep the volume up through the end of each sentence"],
+      why: "Volume reads as confidence. Projecting isn't shouting — it's the breath support from the last unit, aimed at someone across the room. The hard part is keeping it up: most voices fade on the last few words, which is where the point usually is.",
+      how: ["Pick a spot across the room and talk to it", "Keep the volume up through the last word of each sentence", "Go quieter only on purpose, never by fading"],
       source: "Vinh Giang — volume",
     },
-    steps: [{ kind: "drill", drill: "projection" }, { kind: "drill", drill: "projection" }],
+    steps: [{ kind: "drill", drill: "projection" }, { kind: "rep", focus: "Keep your volume up to the last word.", seconds: 60 }],
   },
   {
     id: "con_4_hedges",
@@ -649,7 +728,7 @@ export const LESSONS: Lesson[] = [
     teach: {
       why: "The last thing someone said is always a valid place to go next. Asking about it means there's nothing to plan and nothing to remember — the material is right there.",
       how: ["Listen to the end", "Grab a word from their last sentence", "Ask how, what or why about it"],
-      source: "Conversational turn-taking (Stivers et al., 2009); follow-up questions",
+      source: "Huang et al. (2017), follow-up questions",
     },
     steps: [{ kind: "drill", drill: "conv_thread" }, { kind: "drill", drill: "conv_thread" }],
   },
@@ -732,6 +811,32 @@ export const LESSONS: Lesson[] = [
     steps: [{ kind: "drill", drill: "conv_group" }],
   },
   {
+    id: "conv_23_open",
+    skill: "conversation",
+    unitId: "conv_edges",
+    title: "Open with what's here",
+    minutes: 4,
+    teach: {
+      why: "The easiest way to start talking to someone is to say something plain about what you can both see — the room, the food, the wait — and then ask a question about it. It needs no clever line, and a plain opener goes over better than a flippant one: in field experiments, direct and everyday openers got warmer responses than cute ones.",
+      how: ["Notice something you share: the room, the food, the event", "Say it plainly, then ask a question about it", "Let their answer be the next thing you pick up"],
+      source: "Cunningham (1989), opening lines; Huang et al. (2017), question-asking",
+    },
+    steps: [{ kind: "guided", guidedId: "gd_opener" }, { kind: "drill", drill: "conv_thread" }],
+  },
+  {
+    id: "conv_24_exit",
+    skill: "conversation",
+    unitId: "conv_edges",
+    title: "Leaving gracefully",
+    minutes: 3,
+    teach: {
+      why: "Conversations rarely end when either person wants them to, because each side is guessing what the other wants. Ending one yourself is usually a kindness, not rudeness — the other person is probably as unsure as you are. A good exit has three parts: something warm, a reason or a plan, and a clear goodbye.",
+      how: ["Say something specific you enjoyed: “I liked hearing about the trip”", "Give a simple reason or next step: “I'm going to grab a drink — talk soon?”", "Then actually go — don't reopen the conversation on the way out"],
+      source: "Mastroianni et al. (2021), how conversations end",
+    },
+    steps: [{ kind: "guided", guidedId: "gd_exit" }],
+  },
+  {
     id: "conv_14_headline",
     skill: "conversation",
     unitId: "conv_straight",
@@ -751,9 +856,9 @@ export const LESSONS: Lesson[] = [
     title: "Land the plane",
     minutes: 4,
     teach: {
-      why: "Endings that trail off — “so yeah, I don't know” — make a clear answer sound unsure. A final line and then silence sounds like you meant it.",
+      why: "Endings that trail off — “so yeah, I don't know” — make a clear answer sound unsure, and leave the other person guessing whether it's their turn. A clear last line, then quiet, hands the conversation back. The pause that follows is normal; it's not yours to fill.",
       how: ["Know your last line", "Say it", "Stop, and let the silence sit for a beat"],
-      source: "Toastmasters; Abrahams",
+      source: "Toastmasters; Abrahams; turn-taking research (Stivers et al., 2009)",
     },
     steps: [{ kind: "drill", drill: "land_plane" }],
   },
@@ -803,9 +908,9 @@ export const LESSONS: Lesson[] = [
     title: "React out loud",
     minutes: 3,
     teach: {
-      why: "People rated funniest in conversations often aren't the ones making jokes — they're the ones laughing and reacting. Showing you heard something is most of what makes talk feel fun.",
+      why: "Most laughter in conversation doesn't follow jokes at all — it follows ordinary remarks, between people reacting to each other. Showing you heard something is most of what makes talk feel fun, and you don't need to be funny to do it.",
       how: ["Let the reaction out: a laugh, a “no way”", "Say what struck you", "Don't hunt for a punchline"],
-      source: "Brooks, Talk (levity)",
+      source: "Provine (2000), Laughter; Brooks, Talk (levity)",
     },
     steps: [{ kind: "drill", drill: "conv_react" }, { kind: "drill", drill: "conv_react" }],
   },
@@ -842,7 +947,7 @@ export const LESSONS: Lesson[] = [
     title: "Kind teasing, real curiosity",
     minutes: 3,
     teach: {
-      why: "Flirting isn't a script — people's styles vary a lot, and lines rarely land. What works is the same as good conversation: real curiosity, warmth, and a little play.",
+      why: "Flirting isn't a script — people's styles vary a lot, so there's no line that works on everyone. What works is the same as good conversation: real curiosity, warmth, and a little play.",
       how: ["Be curious about them, specifically", "Tease the situation, never the person's insecurities", "Say what you actually enjoy about talking to them"],
       source: "Hall et al. (2010), styles of flirting",
     },
@@ -878,7 +983,7 @@ export const GUIDED: GuidedExercise[] = [
     title: "One breath, one phrase",
     steps: [
       "Read this out loud: “When you speak, | breathe at the pauses, | not in the middle of a thought. || Each phrase gets its own breath, | and each sentence gets a full finish.”",
-      "At every bar, take a quick, quiet sip of air through your nose.",
+      "At every bar, take a quick, quiet sip of air through your mouth.",
       "Read it again a little slower, making sure no phrase runs out of air before its last word.",
     ],
     ratingQuestion: "How easily did each phrase finish on its own breath?",
@@ -906,6 +1011,7 @@ export const GUIDED: GuidedExercise[] = [
   {
     id: "gd_power_pause",
     title: "The power pause",
+    skill: "cadence",
     steps: [
       "Pick any opinion you hold.",
       "Look at the lens and hold a full two seconds of silence.",
@@ -917,6 +1023,7 @@ export const GUIDED: GuidedExercise[] = [
   {
     id: "gd_rate_contrast",
     title: "Rate contrast",
+    skill: "cadence",
     steps: [
       "Tell a 3-sentence story about your morning, quickly, like you're excited.",
       "Now say the last sentence again, slowly, as if it's the most important thing you'll say today.",
@@ -927,12 +1034,24 @@ export const GUIDED: GuidedExercise[] = [
   {
     id: "gd_emphasis",
     title: "Emphasis shift",
+    skill: "cadence",
     steps: [
       "Read this sentence seven times, stressing a different word each time: \"I didn't say she stole the money.\"",
       "Notice how the meaning changes with each version.",
       "Then try: \"We need to finish this today.\" — stress 'need', then 'this', then 'today'.",
     ],
     ratingQuestion: "How distinct did each version sound?",
+  },
+  {
+    id: "gd_catch_um",
+    title: "Catch the um",
+    skill: "cadence",
+    steps: [
+      "Talk out loud for 30 seconds about your morning. Every time you hear yourself say “um” or “uh”, tap the table.",
+      "Now 30 seconds on your plans for the weekend. When you feel an um coming, close your lips and pause instead.",
+      "Notice the pause felt longer to you than it would sound to anyone listening.",
+    ],
+    ratingQuestion: "How well did you catch the ums as they happened?",
   },
   {
     id: "gd_inflection",
@@ -1100,6 +1219,42 @@ export const GUIDED: GuidedExercise[] = [
       "Then something genuine: “I like that you know exactly what you're good at.”",
     ],
     ratingQuestion: "How warm (not performed) did that feel?",
+  },
+  {
+    id: "gd_buy_time",
+    title: "Say it back",
+    skill: "impromptu",
+    steps: [
+      "Imagine a friend asks, out of nowhere: “What's the most overrated food?” Before answering, say it back in your own words: “So, which food do people hype too much?”",
+      "Now answer in one sentence, point first: “Avocado toast — it's mostly the price.”",
+      "Try it with: “Would you rather be famous or rich?” — say it back, then answer.",
+      "And: “What's something you've changed your mind about?”",
+    ],
+    ratingQuestion: "How natural did saying the question back feel?",
+  },
+  {
+    id: "gd_opener",
+    title: "Something plain, then a question",
+    skill: "conversation",
+    steps: [
+      "Look around wherever you are and find one thing anyone nearby could also see — the room, the weather, something on the table.",
+      "Say a plain comment about it out loud, then ask a question: “This place is packed tonight — have you been here before?”",
+      "Do it again with something else: “The line for coffee is huge. What are you having?” Notice neither line was clever, and neither needed to be.",
+      "Now pick a place from your week where you'd have to start a conversation — a meeting, a party, a queue — and say your opener for it.",
+    ],
+    ratingQuestion: "How easy was it to start with something plain?",
+  },
+  {
+    id: "gd_exit",
+    title: "Warm, reason, goodbye",
+    skill: "conversation",
+    steps: [
+      "Say something specific you enjoyed about a conversation: “I loved hearing about your trip.”",
+      "Add a reason or a plan: “I'm going to grab some water — it was great talking.”",
+      "Finish with a clear goodbye, and imagine walking away: “Talk soon!”",
+      "Now the harder one — someone who keeps talking. Say all three again, a little firmer and still warm: “I've got to run — I'll catch you later.”",
+    ],
+    ratingQuestion: "How okay did it feel to be the one who ends it?",
   },
 ];
 

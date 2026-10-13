@@ -26,7 +26,7 @@ const SKILL_BLURB: Record<SkillId, string> = {
   cadence: "Pause, pace, pitch, rhythm and emphasis.",
   impromptu: "Word retrieval, structure on the fly, the mind-mouth link.",
   confidence: "Breath, nerves, volume, statements, eye contact and expression.",
-  conversation: "Knowing what to say, staying present, and getting to the point.",
+  conversation: "Knowing what to say, staying present, starting and leaving, and getting to the point.",
 };
 
 // Every lesson, open to browse — each skill as a path through its units.

@@ -69,7 +69,7 @@ function hash(text: string): number {
 
 export function ruleCoach(input: CoachInput): CoachOutput {
   const transcript = input.transcript?.trim() || null;
-  const structure = transcript ? guessStructure(transcript) : { framework: "None" as FrameworkId, beatsFound: 0, pointUpFront: false };
+  const structure = transcript ? guessStructure(transcript, input.targetFramework) : { framework: "None" as FrameworkId, beatsFound: 0, pointUpFront: false };
   const hedges = transcript ? findHedges(transcript) : [];
   const strongEnding = transcript ? hasStrongEnding(transcript) : null;
   const findings: Finding[] = [];

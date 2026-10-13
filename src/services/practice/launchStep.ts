@@ -3,6 +3,7 @@ import type { RootStackParamList } from "../../navigation";
 import type { LessonStep } from "../../content/lessons";
 import type { PracticeContext } from "../../domain/practice";
 import { isConversationDrill, paramsFor } from "../../domain/drills/drillSpecs";
+import { FRAMEWORK_PROMPT_CATEGORIES } from "../../domain/coach/structureHeuristics";
 import { getDrillLevel } from "../db/progressRepo";
 import { getAllPrompts } from "../db/promptsRepo";
 import { getRecentlyUsedPromptIds } from "../db/sessionsRepo";
@@ -49,15 +50,23 @@ export async function launchStep(navigation: Nav, step: LessonStep, practice: Pr
       const level = await getDrillLevel("rep");
       const params = paramsFor("rep", level);
       const [prompts, recent] = await Promise.all([getAllPrompts(), getRecentlyUsedPromptIds(20)]);
-      const eligible = prompts.filter((p) => !isFreeRecordPrompt(p.id));
+      const all = prompts.filter((p) => !isFreeRecordPrompt(p.id));
+      // A structure rep gets a prompt that structure can answer (PREP needs
+      // a side to take, STAR a "tell me about a time"), then the level's
+      // tier within that.
+      const categories = step.framework && step.framework !== "None" ? FRAMEWORK_PROMPT_CATEGORIES[step.framework] : null;
+      const fitting = categories ? all.filter((p) => categories.includes(p.category)) : all;
+      const eligible = fitting.length >= 5 ? fitting : all;
       const tiered = eligible.filter((p) => p.difficultyTier === params.tier);
       // Half the reps (all of them close to an event) come from the
-      // situations you said matter to you.
+      // situations you said matter to you — except a structure rep, which
+      // keeps to prompts its structure fits until the event is near.
       const profile = getUserProfile();
       const today = todayISODate();
       const contexts = promptContexts(profile, today);
       const daysToEvent = daysUntilEvent(profile, today);
-      const useContext = contexts.length > 0 && ((daysToEvent != null && daysToEvent <= 14) || Math.random() < 0.5);
+      const nearEvent = daysToEvent != null && daysToEvent <= 14;
+      const useContext = contexts.length > 0 && (nearEvent || (!categories && Math.random() < 0.5));
       const prompt = useContext
         ? (() => {
             const context = contexts[Math.floor(Math.random() * contexts.length)];
@@ -71,7 +80,7 @@ export async function launchStep(navigation: Nav, step: LessonStep, practice: Pr
         lessonId: practice.lessonId,
         targetFramework: step.framework,
         targetSeconds: step.seconds ?? params.seconds,
-        prepSeconds: params.prepSeconds,
+        prepSeconds: step.prepSeconds ?? params.prepSeconds,
         practice,
       });
       return;
