@@ -24,7 +24,7 @@ export const SOURCE_GROUPS: SourceGroup[] = [
     sources: [
       {
         citation: "Abrahams, M. (2023). *Think Faster, Talk Smarter: How to Speak Successfully When You're Put on the Spot.* Simon Element.",
-        usedFor: "Structured spontaneity — the impromptu structures, and how structure is scored.",
+        usedFor: "Structured spontaneity — What, so what, now what; Problem, solution, benefit; paraphrasing a question to buy time; and how structure is scored.",
         url: "https://mattabrahams.com",
       },
       {
@@ -35,6 +35,10 @@ export const SOURCE_GROUPS: SourceGroup[] = [
         citation: "Van Edwards, V. (2017). *Captivate: The Science of Succeeding with People.* Portfolio.",
         usedFor: "Conversation sparks, asking for the story, and 'me too' moments.",
         url: "https://www.scienceofpeople.com",
+      },
+      {
+        citation: "Provine, R. R. (2000). *Laughter: A Scientific Investigation.* Viking.",
+        usedFor: "Most laughter follows ordinary remarks, not jokes — 'React out loud'.",
       },
       {
         citation: "Adams, K. (2007). *How to Improvise a Full-Length Play: The Art of Spontaneous Theater.* Allworth Press.",
@@ -123,6 +127,16 @@ export const SOURCE_GROUPS: SourceGroup[] = [
         url: doi("10.1177/0261927X04273034"),
       },
       {
+        citation: "Clark, H. H., & Fox Tree, J. E. (2002). Using uh and um in spontaneous speaking. *Cognition, 84*(1), 73–111.",
+        usedFor: "Why a few ums are normal — they tell listeners you're still thinking.",
+        url: doi("10.1016/S0010-0277(02)00017-3"),
+      },
+      {
+        citation: "Mancuso, C., & Miltenberger, R. G. (2016). Using habit reversal to decrease filled pauses in public speaking. *Journal of Applied Behavior Analysis, 49*(1), 188–192.",
+        usedFor: "Catch each um as it happens, then pause instead — 'Pause instead of um'.",
+        url: doi("10.1002/jaba.267"),
+      },
+      {
         citation: "Hoit, J. D., Plassman, B. L., Lansing, R. W., & Hixon, T. J. (1988). Abdominal muscle activity during speech production. *Journal of Applied Physiology, 65*(6), 2656–2664.",
         usedFor: "Why 'breathe low': the belly muscles work while you speak.",
         url: doi("10.1152/jappl.1988.65.6.2656"),
@@ -139,7 +153,7 @@ export const SOURCE_GROUPS: SourceGroup[] = [
       },
       {
         citation: "Balban, M. Y., Neri, E., Kogon, M. M., et al. (2023). Brief structured respiration practices enhance mood and reduce physiological arousal. *Cell Reports Medicine, 4*(1), 100895.",
-        usedFor: "Cyclic sighing and long out-breaths to settle nerves (Calm in a minute, box breathing).",
+        usedFor: "Cyclic sighing and long out-breaths to settle nerves (Calm in a minute, and the calming-sigh warm-up).",
         url: doi("10.1016/j.xcrm.2022.100895"),
       },
     ],
@@ -205,12 +219,22 @@ export const SOURCE_GROUPS: SourceGroup[] = [
       },
       {
         citation: "Stivers, T., Enfield, N. J., Brown, P., et al. (2009). Universals and cultural variation in turn-taking in conversation. *PNAS, 106*(26), 10587–10592.",
-        usedFor: "The reply window and turn-taking drills.",
+        usedFor: "The reply window, turn-taking drills, and handing the turn back in 'Land the plane'.",
         url: doi("10.1073/pnas.0903616106"),
       },
       {
+        citation: "Cunningham, M. R. (1989). Reactions to heterosexual opening gambits: Female selectivity and male responsiveness. *Personality and Social Psychology Bulletin, 15*(1), 27–41.",
+        usedFor: "Plain openers get warmer responses than cute ones — 'Open with what's here'.",
+        url: doi("10.1177/0146167289151003"),
+      },
+      {
+        citation: "Mastroianni, A. M., Gilbert, D. T., Cooney, G., & Wilson, T. D. (2021). Do conversations end when people want them to? *PNAS, 118*(10), e2011809118.",
+        usedFor: "Conversations rarely end when either person wants them to — 'Leaving gracefully'.",
+        url: doi("10.1073/pnas.2011809118"),
+      },
+      {
         citation: "Hall, J. A., Carter, S., Cody, M. J., & Albright, J. M. (2010). Individual differences in the communication of romantic interest. *Communication Quarterly, 58*(4), 365–393.",
-        usedFor: "'Kind teasing, real curiosity' — styles vary, and lines rarely land.",
+        usedFor: "'Kind teasing, real curiosity' — flirting styles vary a lot, so no line works on everyone.",
         url: doi("10.1080/01463373.2010.524874"),
       },
       {
@@ -288,8 +312,12 @@ export const SOURCE_GROUPS: SourceGroup[] = [
     title: "Practices and traditions",
     sources: [
       {
-        citation: "PREP (point, reason, example, point) and what / so what / now what.",
-        usedFor: "Widely taught business-speaking structures with no single author; Abrahams covers several.",
+        citation: "PREP (point, reason, example, point).",
+        usedFor: "A widely taught business-speaking structure with no single author.",
+      },
+      {
+        citation: "STAR (situation, task, action, result) — the standard structure for behavioral interview answers.",
+        usedFor: "'Tell me about a time…' answers.",
       },
       {
         citation: "The tricolon — the rule of three in classical rhetoric.",
@@ -297,7 +325,7 @@ export const SOURCE_GROUPS: SourceGroup[] = [
       },
       {
         citation: "Bottom line up front (BLUF), from military writing.",
-        usedFor: "Leading with the point in 'Point first'.",
+        usedFor: "Leading with the point in 'Headline first'.",
       },
       {
         citation: "Verbal fluency tasks (naming words in a category or starting with a letter).",

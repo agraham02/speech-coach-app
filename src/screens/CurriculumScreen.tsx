@@ -25,13 +25,6 @@ type Props = NativeStackScreenProps<RootStackParamList, "Curriculum">;
 
 const LEVELS: CurriculumLevel[] = [1, 2, 3, 4, 5];
 
-const COMPONENT_LABEL: Record<string, string> = {
-  overall: "overall scores",
-  delivery: "delivery scores",
-  coherence: "coherence",
-  drill: "tongue-twister accuracy",
-};
-
 function directionIcon(direction: string): keyof typeof Ionicons.glyphMap {
   if (direction === "up") return "arrow-up";
   if (direction === "down") return "arrow-down";
@@ -50,8 +43,7 @@ function formatChangeDate(iso: string): string {
 
 function historyReasonLabel(entry: CurriculumStateEntry): string {
   if (entry.direction === "initial") return "Started here — the default level.";
-  const label = COMPONENT_LABEL[entry.reasonCode] ?? "recent performance";
-  return entry.direction === "up" ? `Moved up — strong ${label}.` : `Eased back — ${label} dipped.`;
+  return entry.direction === "up" ? "Moved up — your reps went well." : "Eased back — a rep was a stretch.";
 }
 
 // The full "why" behind today's level, plus history and the manual
@@ -138,10 +130,10 @@ export function CurriculumScreen({ navigation }: Props) {
         <Card style={styles.section}>
           <Text style={styles.sectionTitle}>Set level</Text>
           <Text style={styles.sectionSubtitle}>
-            Auto moves gradually, at most one level at a time, only after a stretch of consistent sessions — this is
-            meant to track months of practice, not a single good or bad day. Pin a level to take over manually; auto
-            keeps computing quietly in the background, so switching back to Auto picks up right where it would've
-            been.
+            Auto follows your impromptu reps: each one that goes well nudges it up a little, and one that's a stretch
+            eases it back, so it settles where most of your reps go well. Pin a level to choose the prompt difficulty,
+            recording length and prep time on the Practice tab, and the drills' starting tier, yourself. Lessons and
+            your daily plan keep following your reps. Switching back to Auto picks up wherever your reps have taken it.
           </Text>
           <View style={styles.chipRow}>
             <Pressable onPress={() => handleSelectOverride(null)} style={[styles.chip, override === null && styles.chipActive]}>

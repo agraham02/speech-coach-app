@@ -19,7 +19,7 @@ const TOOLBOX: Record<SkillId, { drill: TopUpDrill; loud?: boolean }[]> = {
   articulation: [{ drill: "twister" }, { drill: "minimal_pairs" }],
   cadence: [{ drill: "marked_reading" }, { drill: "move_it", loud: true }, { drill: "pace_reading" }],
   impromptu: [{ drill: "word_chain" }, { drill: "just_a_minute" }, { drill: "category_fluency" }],
-  confidence: [{ drill: "projection", loud: true }, { drill: "breath_count" }, { drill: "chain_bridge" }],
+  confidence: [{ drill: "projection", loud: true }, { drill: "breath_count" }],
   conversation: [{ drill: "conv_reply" }, { drill: "conv_echo" }, { drill: "conv_thread" }],
 };
 

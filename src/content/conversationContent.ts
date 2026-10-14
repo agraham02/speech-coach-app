@@ -101,7 +101,7 @@ export const GROUP_SCENES: GroupScene[] = [
     exchanges: [
       { lines: [{ voice: "a", text: "Did anyone else's meeting run way over today?" }, { voice: "b", text: "Mine went an hour long. It could have been an email." }], threads: ["meeting", "email", "hour"] },
       { lines: [{ voice: "a", text: "Anyway, I'm trying a new taco place this weekend." }, { voice: "b", text: "The one on Fifth? I heard the line is ridiculous." }], threads: ["taco", "weekend", "line", "fifth"] },
-      { lines: [{ voice: "b", text: "Speaking of food, I've been trying to cook more." }, { voice: "a", text: "He burned rice last week. Rice." }], threads: ["cook", "rice", "burned"] },
+      { lines: [{ voice: "b", text: "Speaking of food, I've been trying to cook more." }, { voice: "a", text: "Says the person who burned rice last week. Rice." }], threads: ["cook", "rice", "burned"] },
       { lines: [{ voice: "a", text: "So, any plans for the long weekend?" }, { voice: "b", text: "I'm thinking about a cabin, if I can get the time off." }], threads: ["long weekend", "cabin", "time off"] },
     ],
   },
@@ -277,6 +277,8 @@ export const MISSIONS: Mission[] = [
   { id: "m_surprise", text: "Learn one surprising thing about someone.", target: 1 },
   { id: "m_last", text: "Ask about the last thing someone said.", target: 1 },
   { id: "m_headline", text: "Give one answer that starts with the point.", target: 1 },
+  { id: "m_open", text: "Start one conversation with a plain comment about what's around you.", target: 1 },
+  { id: "m_exit", text: "End one conversation yourself: something you liked, a reason, goodbye.", target: 1 },
 ];
 
 // Prime card suggestions.

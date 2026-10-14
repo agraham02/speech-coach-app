@@ -60,8 +60,9 @@ export interface MinimalPairSet {
 export const MINIMAL_PAIRS: MinimalPairSet[] = [
   { id: "mp_s_sh", title: "S vs SH", focus: "s / sh", pairs: [["sip", "ship"], ["sell", "shell"], ["sort", "short"], ["seat", "sheet"], ["sock", "shock"], ["same", "shame"], ["sign", "shine"], ["mass", "mash"]] },
   { id: "mp_r_l", title: "R vs L", focus: "r / l", pairs: [["right", "light"], ["rock", "lock"], ["rate", "late"], ["road", "load"], ["grass", "glass"], ["pray", "play"], ["fry", "fly"], ["crowd", "cloud"]] },
-  { id: "mp_th", title: "TH vs T and F", focus: "th", pairs: [["thin", "tin"], ["three", "tree"], ["thought", "taught"], ["thank", "tank"], ["three", "free"], ["thirst", "first"], ["math", "mat"], ["both", "boat"]] },
-  { id: "mp_final", title: "Finish the word", focus: "final consonants", pairs: [["bet", "bed"], ["cap", "cab"], ["back", "bag"], ["right", "ride"], ["half", "have"], ["fine", "find"], ["send", "sent"], ["card", "car"]] },
+  { id: "mp_th", title: "TH vs T, D and F", focus: "th", pairs: [["thin", "tin"], ["three", "tree"], ["thought", "taught"], ["thank", "tank"], ["thirst", "first"], ["they", "day"], ["then", "den"], ["both", "boat"]] },
+  { id: "mp_final", title: "Finish the word", focus: "final consonants", pairs: [["bet", "bed"], ["cap", "cab"], ["back", "bag"], ["right", "ride"], ["walk", "walked"], ["fine", "find"], ["send", "sent"], ["card", "car"]] },
+  { id: "mp_clusters", title: "Endings and clusters", focus: "consonant clusters", pairs: [["month", "months"], ["ask", "asked"], ["text", "texts"], ["six", "sixth"], ["strength", "strengths"], ["list", "lists"], ["film", "films"], ["twelve", "twelfth"]] },
   { id: "mp_v_w", title: "V vs W", focus: "v / w", pairs: [["vest", "west"], ["vine", "wine"], ["veil", "whale"], ["vent", "went"], ["verse", "worse"], ["vow", "wow"], ["vary", "wary"], ["veal", "wheel"]] },
   { id: "mp_b_p", title: "B vs P", focus: "b / p", pairs: [["bat", "pat"], ["bear", "pear"], ["big", "pig"], ["bin", "pin"], ["bull", "pull"], ["buy", "pie"], ["cab", "cap"], ["rib", "rip"]] },
 ];
@@ -110,16 +111,6 @@ export const CHAIN_SEEDS = [
   "tree", "market", "ice", "cinema", "bridge", "horse", "letter", "salt", "rocket", "mirror",
 ];
 
-// Same sentence, stress a different word each time — each version means
-// something different. Classic emphasis drill.
-export const EMPHASIS_SENTENCES = [
-  "I didn't say she stole the money.",
-  "We need to finish this today.",
-  "You should call him back now.",
-  "This is the best idea we've had.",
-  "I never promised you a perfect plan.",
-];
-
 // Lines read aloud by the phone (expo-speech) for shadowing: listen, then
 // repeat with the same rhythm and melody.
 export const SHADOWING_LINES = [
@@ -153,17 +144,6 @@ export interface WarmUp {
 }
 
 export const WARM_UPS: WarmUp[] = [
-  {
-    id: "wu_breath",
-    title: "Box breathing",
-    rounds: 3,
-    steps: [
-      { label: "Breathe in", detail: "Through your nose, belly first.", seconds: 4, phase: "in" },
-      { label: "Hold", detail: "Shoulders down, jaw loose.", seconds: 4, phase: "hold" },
-      { label: "Breathe out", detail: "Slowly through your mouth.", seconds: 4, phase: "out" },
-      { label: "Hold", detail: "Stay relaxed, then go again.", seconds: 4, phase: "hold" },
-    ],
-  },
   {
     id: "wu_low_breath",
     title: "Low breath",

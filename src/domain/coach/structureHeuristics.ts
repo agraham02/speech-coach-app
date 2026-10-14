@@ -8,6 +8,7 @@ export type FrameworkId =
   | "ProblemSolutionBenefit"
   | "PastPresentFuture"
   | "StoryArc"
+  | "STAR"
   | "ListOfThree"
   | "None";
 
@@ -17,8 +18,23 @@ export const FRAMEWORK_LABELS: Record<FrameworkId, string> = {
   ProblemSolutionBenefit: "Problem – Solution – Benefit",
   PastPresentFuture: "Past – Present – Future",
   StoryArc: "Story arc",
+  STAR: "Situation – Task – Action – Result",
   ListOfThree: "List of three",
   None: "No clear structure",
+};
+
+// The prompt categories each structure fits, so a structure rep gets a
+// prompt it can actually answer — PREP needs a question to take a side on,
+// STAR needs a "tell me about a time". Categories are the prompt library's
+// (data/topics.ts).
+export const FRAMEWORK_PROMPT_CATEGORIES: Record<Exclude<FrameworkId, "None">, string[]> = {
+  PREP: ["Opinion", "Hypothetical"],
+  WhatSoWhatNowWhat: ["Explain"],
+  ProblemSolutionBenefit: ["Opinion", "Hypothetical"],
+  PastPresentFuture: ["Personal", "Spontaneous"],
+  StoryArc: ["Story"],
+  STAR: ["Story"],
+  ListOfThree: ["Opinion", "Hypothetical", "Spontaneous"],
 };
 
 const CUES: Record<Exclude<FrameworkId, "None">, RegExp[]> = {
@@ -27,6 +43,11 @@ const CUES: Record<Exclude<FrameworkId, "None">, RegExp[]> = {
   ProblemSolutionBenefit: [/\bproblem\b|\bchallenge\b|\bissue\b/, /\bsolution\b|\bfix\b|\binstead\b/, /\bbenefit\b|\bresult\b|\bwhich means\b|\bso that\b/],
   PastPresentFuture: [/\bused to\b|\bback then\b|\bin the past\b|\byears ago\b/, /\bnow\b|\btoday\b|\bthese days\b|\bcurrently\b/, /\bin the future\b|\bgoing forward\b|\bnext year\b|\bwill\b/],
   StoryArc: [/\bone (time|day)\b|\bi remember\b|\bonce\b/, /\bthen\b|\bsuddenly\b|\bbut\b/, /\bin the end\b|\beventually\b|\bfinally\b|\bi learned\b/],
+  STAR: [
+    /\bi was (working|asked|responsible|in charge)\b|\bmy (job|role|task) was\b|\bwe (had|needed) to\b|\bthe (situation|goal|task) was\b|\bat my (last|old|first) job\b/,
+    /\bso i\b|\bi decided\b|\bwhat i did\b|\bi (started|took|set up|reached out|talked to|built|organized|suggested|asked)\b/,
+    /\bas a result\b|\bthe result\b|\bin the end\b|\bwe ended up\b|\bwhich meant\b|\bi learned\b/,
+  ],
   ListOfThree: [/\bfirst(ly)?\b|\bone\b/, /\bsecond(ly)?\b|\bnext\b|\btwo\b/, /\bthird(ly)?\b|\bfinally\b|\blast(ly)?\b|\bthree\b/],
 };
 
@@ -45,7 +66,10 @@ function sentences(text: string): string[] {
     .filter(Boolean);
 }
 
-export function guessStructure(transcript: string): StructureGuess {
+// `target` is the structure a rep was practicing: on a tie it wins, so an
+// answer that hits every PREP beat isn't marked wrong for also happening to
+// say "first… second… finally".
+export function guessStructure(transcript: string, target?: FrameworkId | null): StructureGuess {
   const lower = transcript.toLowerCase();
   let best: { id: FrameworkId; beats: number } = { id: "None", beats: 0 };
   for (const [id, beats] of Object.entries(CUES) as [Exclude<FrameworkId, "None">, RegExp[]][]) {
@@ -58,7 +82,7 @@ export function guessStructure(transcript: string): StructureGuess {
       found += 1;
       from += m.index + m[0].length;
     }
-    if (found > best.beats) best = { id, beats: found };
+    if (found > best.beats || (found === best.beats && found > 0 && id === target)) best = { id, beats: found };
   }
   const first = sentences(transcript)[0] ?? "";
   const firstWords = first.split(/\s+/).filter(Boolean).length;

@@ -84,6 +84,20 @@ describe("structure heuristics", () => {
     expect(guessStructure("First, it's cheap. Second, it's fast. Finally, it's fun.").framework).toBe("ListOfThree");
   });
 
+  it("gives a tie to the structure the rep was practicing", () => {
+    // Hits every PREP beat and every list-of-three beat.
+    const text = "First, it's cheap, because it runs on a phone. Second, for example, my team uses it daily. Finally, that's why I'd choose it.";
+    expect(guessStructure(text).framework).toBe("PREP");
+    expect(guessStructure(text, "ListOfThree").framework).toBe("ListOfThree");
+    // A target with fewer beats than the best still loses.
+    expect(guessStructure("First, it's cheap. Second, it's fast. Finally, it's fun.", "PREP").framework).toBe("ListOfThree");
+  });
+
+  it("recognizes STAR", () => {
+    const text = "At my last job the goal was to cut our support backlog. So I set up a triage rota for the team. As a result, the backlog halved in a month.";
+    expect(guessStructure(text, "STAR")).toMatchObject({ framework: "STAR", beatsFound: 3 });
+  });
+
   it("finds hedges and weak endings", () => {
     expect(findHedges("I guess it's kind of maybe fine")).toEqual(["kind of", "i guess", "maybe"]);
     expect(hasStrongEnding("That is my point.")).toBe(true);

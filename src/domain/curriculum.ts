@@ -272,39 +272,25 @@ export interface CurriculumExplanationContext {
   overrideActive: boolean;
 }
 
-const COMPONENT_LABEL: Record<CurriculumComponent, string> = {
-  overall: "Overall scores",
-  delivery: "Delivery scores",
-  coherence: "Coherence",
-  drill: "Tongue-twister accuracy",
-};
-
-// Data-driven template selector keyed on (direction, dominantComponent),
-// plus insufficient_data/cooldown/override templates — not bespoke prose
-// per case. The override template supersedes everything else, since a
-// manual pin means none of the auto reasoning is currently in effect.
+// What Level & difficulty and Trends say about the level. Since curriculum
+// v2 the auto level follows the impromptu rep staircase (curriculumRepo's
+// recomputeCurriculumLevel), not evaluateCurriculum() above, so the copy
+// describes that: a rep that goes well nudges it up a little, one that's a
+// stretch eases it back. The override template supersedes everything else.
 export function explainCurriculumChange(ctx: CurriculumExplanationContext): string {
   if (ctx.overrideActive) {
-    return `You've manually set Level ${ctx.level} — auto-adjustment stays paused until you switch back to Auto.`;
-  }
-  if (ctx.reason === "insufficient_data") {
-    return "Not enough sessions yet to personalize your level — keep practicing and this adjusts automatically.";
-  }
-  if (ctx.reason === "cooldown" || ctx.reason === "stable") {
-    return `Holding steady at Level ${ctx.level} — the level only moves gradually, after a stretch of consistent sessions.`;
+    return `You've set Level ${ctx.level} for Practice — it stays there until you switch back to Auto. Lessons and your daily plan still follow your reps.`;
   }
   if (ctx.direction === "initial") {
-    return `Starting at Level ${ctx.level}, the default — this adjusts automatically as you build a practice history.`;
+    return `Starting at Level ${ctx.level}. From here it follows your impromptu reps.`;
   }
-  if (!ctx.component) {
-    return `Holding steady at Level ${ctx.level}.`;
+  if (ctx.reason === "changed" && ctx.direction === "up") {
+    return `Your recent reps went well — moving up to Level ${ctx.level}.`;
   }
-
-  const label = COMPONENT_LABEL[ctx.component];
-  const scoreText = ctx.componentScore !== null ? `${ctx.componentScore}/10` : "recently";
-  return ctx.direction === "up"
-    ? `${label} have been strong (${scoreText}) — moving up to Level ${ctx.level}.`
-    : `${label} dipped to ${scoreText} recently — easing back to Level ${ctx.level} to rebuild consistency.`;
+  if (ctx.reason === "changed" && ctx.direction === "down") {
+    return `Your last rep was a stretch — easing back to Level ${ctx.level}.`;
+  }
+  return `Level ${ctx.level}. It follows your impromptu reps: each one that goes well nudges it up a little, and one that's a stretch eases it back.`;
 }
 
 export function levelToDifficultyTier(level: CurriculumLevel): DifficultyTier {
