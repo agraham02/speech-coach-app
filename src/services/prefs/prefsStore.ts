@@ -47,7 +47,19 @@ const KEYS = {
   rewindNotificationsAsked: "rewindNotificationsAsked",
   shareProfileWithReviews: "shareProfileWithReviews",
   audioRetentionDays: "audioRetentionDays",
+  scoreVersion: "scoreVersion",
 } as const;
+
+// The session-score rules every stored score was last computed with (see
+// SCORE_BREAKDOWN_VERSION); older scores are recomputed once on launch so a
+// trend never mixes two sets of rules.
+export function getScoreVersion(): number {
+  return storage.getNumber(KEYS.scoreVersion) ?? 1;
+}
+
+export function setScoreVersion(version: number): void {
+  storage.set(KEYS.scoreVersion, version);
+}
 
 export function getRecordBlindPref(): boolean {
   return storage.getBoolean(KEYS.recordBlind) ?? false;
@@ -245,10 +257,13 @@ export function setSkillCheckPending(value: boolean): void {
   storage.set(KEYS.skillCheckPending, value);
 }
 
-// Defaults for the Preview screen's switches (onboarding 3.7). Cloud review
-// is the paid/uploading path, so it's off unless chosen.
+// Whether a take gets a deep review unless switched off on its save screen.
+// On unless turned off (an opt-out, since the phone alone can't judge
+// content or tone) — but nothing is ever sent until a provider has a key
+// and the user has allowed it (see PreviewScreen and consent.ts). An
+// explicit "off" from before this became the default is kept.
 export function getCloudReviewDefault(): boolean {
-  return storage.getBoolean(KEYS.cloudReviewDefault) ?? false;
+  return storage.getBoolean(KEYS.cloudReviewDefault) ?? true;
 }
 
 export function setCloudReviewDefault(value: boolean): void {

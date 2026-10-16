@@ -9,18 +9,19 @@ import { priorityFor } from "../../domain/profile";
 import { getReminderSettings, getUserProfile } from "../prefs/prefsStore";
 import { computeStreakState, type StreakState } from "../../domain/streaks";
 import type { SkillId } from "../../theme/tokens";
-import { DRILL_SKILL, type DrillOutcome, type DrillType } from "../../domain/drills/drillSpecs";
+import { DRILL_SKILL, DRILL_TITLES, type DrillOutcome, type DrillType } from "../../domain/drills/drillSpecs";
 import {
   INITIAL_RATING,
   MIN_LEVEL,
   SKILLS,
+  expectedScore,
   nextDifficulty,
   nextReviewIntervalDays,
   updateRating,
   type SkillRating,
 } from "../../domain/mastery";
+import type { SkillEvidence } from "../../domain/repEvidence";
 import { buildDailyPlan, PLAN_VERSION, type DailyPlan, type PlanMinutes } from "../../domain/dailyPlan";
-import type { CoachOutput, Verdict } from "../../domain/coach/ruleCoach";
 import { getLesson } from "../../content/lessons";
 import { summarizeAttempt, type AttemptSummary } from "../../domain/conversation/attemptMetrics";
 
@@ -57,13 +58,117 @@ async function saveSkill(skill: SkillId, state: SkillState): Promise<void> {
 
 // Starting ratings from the onboarding skill check. Only for skills with no
 // practice history yet — real attempts always outrank a five-minute sample.
-export async function seedSkillRatings(ratings: Partial<Record<SkillId, number | null>>): Promise<void> {
+export async function seedSkillRatings(ratings: Partial<Record<SkillId, number | null>>, label = "Skill check"): Promise<void> {
   const skills = await getSkillStates();
   for (const skill of SKILLS) {
     const rating = ratings[skill];
     if (rating == null || skills[skill].attempts > 0) continue;
     await saveSkill(skill, { rating, attempts: 0, lastPracticedAt: skills[skill].lastPracticedAt });
+    await logSkillEvent({ skill, before: skills[skill].rating, after: rating, source: "seed", label });
   }
+}
+
+// --- What moved each rating (skill_events) ---------------------------------
+
+export type SkillEventSource = "drill" | "rep" | "seed";
+
+export interface SkillEvent {
+  id: string;
+  skill: SkillId;
+  at: string;
+  ratingBefore: number;
+  ratingAfter: number;
+  source: SkillEventSource;
+  label: string;
+  // 0-1 result, and what the rating predicted at that difficulty.
+  score: number | null;
+  expected: number | null;
+  level: number | null;
+  sessionId: string | null;
+  drillType: DrillType | null;
+  // Reps: the phone's and the deep review's evidence (0-1) before blending.
+  detail: { local?: number; cloud?: number } | null;
+}
+
+async function logSkillEvent(e: {
+  skill: SkillId;
+  before: number;
+  after: number;
+  source: SkillEventSource;
+  label: string;
+  score?: number;
+  expected?: number;
+  level?: number;
+  sessionId?: string;
+  drillType?: DrillType;
+  detail?: SkillEvent["detail"];
+}): Promise<void> {
+  try {
+    const db = await getDatabase();
+    await db.runAsync(
+      `INSERT INTO skill_events (id, skill, at, rating_before, rating_after, source, label, score, expected, level, session_id, drill_type, detail_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        generateId(),
+        e.skill,
+        new Date().toISOString(),
+        e.before,
+        e.after,
+        e.source,
+        e.label,
+        e.score ?? null,
+        e.expected ?? null,
+        e.level ?? null,
+        e.sessionId ?? null,
+        e.drillType ?? null,
+        e.detail ? JSON.stringify(e.detail) : null,
+      ],
+    );
+  } catch {
+    // A missing history line must never block practice.
+  }
+}
+
+export async function getSkillEvents(skill: SkillId, limit = 40): Promise<SkillEvent[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{
+    id: string;
+    skill: string;
+    at: string;
+    rating_before: number;
+    rating_after: number;
+    source: string;
+    label: string;
+    score: number | null;
+    expected: number | null;
+    level: number | null;
+    session_id: string | null;
+    drill_type: string | null;
+    detail_json: string | null;
+  }>(`SELECT * FROM skill_events WHERE skill = ? ORDER BY at DESC LIMIT ?`, [skill, limit]);
+  return rows.map((r) => {
+    let detail: SkillEvent["detail"] = null;
+    try {
+      detail = r.detail_json ? JSON.parse(r.detail_json) : null;
+    } catch {
+      detail = null;
+    }
+    return {
+      id: r.id,
+      skill: r.skill as SkillId,
+      at: r.at,
+      ratingBefore: r.rating_before,
+      ratingAfter: r.rating_after,
+      source: r.source as SkillEventSource,
+      label: r.label,
+      score: r.score,
+      expected: r.expected,
+      level: r.level,
+      sessionId: r.session_id,
+      drillType: (r.drill_type as DrillType | null) ?? null,
+      detail,
+    };
+  });
 }
 
 export async function getDrillLevel(type: DrillType): Promise<number> {
@@ -140,6 +245,17 @@ export async function recordDrillOutcome(args: {
   const before = skills[skill];
   const updated = updateRating(before, args.outcome.score, args.level);
   await saveSkill(skill, { ...updated, lastPracticedAt: now });
+  await logSkillEvent({
+    skill,
+    before: before.rating,
+    after: updated.rating,
+    source: "drill",
+    label: DRILL_TITLES[args.drillType] ?? "Drill",
+    score: args.outcome.score,
+    expected: expectedScore(before.rating, args.level),
+    level: args.level,
+    drillType: args.drillType,
+  });
   return {
     skill,
     ratingBefore: before.rating,
@@ -150,31 +266,39 @@ export async function recordDrillOutcome(args: {
   };
 }
 
-const VERDICT_SCORE: Record<Verdict, number> = { good: 0.9, ok: 0.6, work: 0.3 };
-
-// Turns the coach's measured observations for an impromptu rep into skill
-// updates — this is how real speaking (not just drills) moves mastery,
-// without needing any cloud grading.
-export async function recordRepOutcome(coach: CoachOutput): Promise<ProgressChange[]> {
-  const bySkill = new Map<SkillId, number[]>();
-  for (const o of coach.observations) {
-    const list = bySkill.get(o.skill) ?? [];
-    list.push(VERDICT_SCORE[o.verdict]);
-    bySkill.set(o.skill, list);
-  }
-  if (bySkill.size === 0) return [];
+// Turns one impromptu rep's evidence (domain/repEvidence.ts: the phone's
+// verdicts, led by the deep review when there is one) into skill updates —
+// this is how real speaking, not just drills, moves mastery.
+export async function recordRepOutcome(
+  evidence: SkillEvidence,
+  context: { sessionId: string; label: string; local: SkillEvidence; cloud: SkillEvidence },
+): Promise<ProgressChange[]> {
+  const entries = (Object.entries(evidence) as [SkillId, number][]).filter(([, v]) => v != null && Number.isFinite(v));
+  if (entries.length === 0) return [];
   const level = await getDrillLevel("rep");
   const skills = await getSkillStates();
   const now = new Date().toISOString();
   const changes: ProgressChange[] = [];
   let total = 0;
   let n = 0;
-  for (const [skill, scores] of bySkill) {
-    const score = scores.reduce((a, b) => a + b, 0) / scores.length;
+  for (const [skill, score] of entries) {
     total += score;
     n += 1;
     const updated = updateRating(skills[skill], score, level);
     await saveSkill(skill, { ...updated, lastPracticedAt: now });
+    await logSkillEvent({
+      skill,
+      before: skills[skill].rating,
+      after: updated.rating,
+      source: "rep",
+      label: context.label,
+      score,
+      expected: expectedScore(skills[skill].rating, level),
+      level,
+      sessionId: context.sessionId,
+      drillType: "rep",
+      detail: { local: context.local[skill], cloud: context.cloud[skill] },
+    });
     changes.push({ skill, ratingBefore: skills[skill].rating, ratingAfter: updated.rating, levelBefore: level, levelAfter: level, leveledUp: false });
   }
   const success = total / n >= 0.7;
