@@ -1,5 +1,5 @@
-import { useState, type ReactNode, type Ref } from "react";
-import { StyleSheet, View, type LayoutChangeEvent, type ScrollViewProps, type StyleProp, type ViewStyle } from "react-native";
+import { useCallback, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
+import { StyleSheet, useWindowDimensions, View, type LayoutChangeEvent, type ScrollViewProps, type StyleProp, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, { interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, Extrapolation } from "react-native-reanimated";
@@ -8,7 +8,11 @@ import { enter } from "../../theme/motion";
 import { useTabBarBottomInset } from "../../hooks/useTabBarBottomInset";
 import { withAlpha } from "../../utils/color";
 import { IconButton } from "./IconButton";
+import { TourScrollContext, type TourScroll } from "./GuideTip";
 import { Txt } from "./Txt";
+
+// Room a tour card needs below a target it points at.
+const TOUR_CARD_ROOM = 200;
 
 interface ScreenProps {
   title?: string;
@@ -80,6 +84,32 @@ export function Screen({
     opacity: interpolate(scrollY.value, [0, 12], [0, 1], Extrapolation.CLAMP),
   }));
 
+  // The scroll view, for the app guide: a tour step pointing at something
+  // further down scrolls it into view first. The caller's own ref still
+  // gets the scroll view too.
+  const { height: windowHeight } = useWindowDimensions();
+  const scroller = useRef<Animated.ScrollView | null>(null);
+  const setScroller = useCallback(
+    (node: Animated.ScrollView | null) => {
+      scroller.current = node;
+      if (typeof scrollRef === "function") scrollRef(node);
+      else if (scrollRef) (scrollRef as { current: Animated.ScrollView | null }).current = node;
+    },
+    [scrollRef],
+  );
+  const tourScroll = useMemo<TourScroll>(
+    () => ({
+      reveal: (windowY, height) => {
+        const top = insets.top + BAR_HEIGHT + 16;
+        const bottom = windowHeight - (footer ? footerHeight : bottomInset) - TOUR_CARD_ROOM;
+        if (windowY >= top && windowY + Math.min(height, bottom - top) <= bottom) return false;
+        scroller.current?.scrollTo({ y: Math.max(0, scrollY.value + windowY - top - 8), animated: true });
+        return true;
+      },
+    }),
+    [insets.top, windowHeight, footer, footerHeight, bottomInset, scrollY],
+  );
+
   const showBar = !!(onBack || right || (scroll && title));
   const titleBlock =
     title || eyebrow ? (
@@ -118,20 +148,22 @@ export function Screen({
       ) : null}
 
       {scroll ? (
-        <Animated.ScrollView
-          ref={scrollRef}
-          onScroll={onScroll}
-          scrollEventThrottle={16}
-          showsVerticalScrollIndicator={false}
-          refreshControl={refreshControl}
-          keyboardShouldPersistTaps={keyboardShouldPersistTaps}
-          contentContainerStyle={[styles.content, { paddingBottom: (footer ? footerHeight : bottomInset) + 32, paddingTop: showBar ? 4 : 16 }]}
-        >
-          {titleBlock}
-          <Animated.View entering={stagger ? enter(1) : undefined} style={[styles.stack, contentStyle]}>
-            {children}
-          </Animated.View>
-        </Animated.ScrollView>
+        <TourScrollContext.Provider value={tourScroll}>
+          <Animated.ScrollView
+            ref={setScroller}
+            onScroll={onScroll}
+            scrollEventThrottle={16}
+            showsVerticalScrollIndicator={false}
+            refreshControl={refreshControl}
+            keyboardShouldPersistTaps={keyboardShouldPersistTaps}
+            contentContainerStyle={[styles.content, { paddingBottom: (footer ? footerHeight : bottomInset) + 32, paddingTop: showBar ? 4 : 16 }]}
+          >
+            {titleBlock}
+            <Animated.View entering={stagger ? enter(1) : undefined} style={[styles.stack, contentStyle]}>
+              {children}
+            </Animated.View>
+          </Animated.ScrollView>
+        </TourScrollContext.Provider>
       ) : (
         <View style={[styles.content, styles.fill, { paddingBottom: footer ? footerHeight : bottomInset }]}>
           {titleBlock}

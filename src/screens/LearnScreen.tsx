@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { GuideTip } from "../components/common/GuideTip";
+import { GuideTip, TourTarget } from "../components/common/GuideTip";
 import { ScrollView, View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -56,6 +56,7 @@ export function LearnScreen() {
 
   return (
     <Screen tabRoot large title="Learn">
+      <TourTarget id="learn.skills">
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll} contentContainerStyle={styles.tabs}>
         {SKILLS.map((s) => {
           const selected = s === skill;
@@ -83,6 +84,7 @@ export function LearnScreen() {
           );
         })}
       </ScrollView>
+      </TourTarget>
 
       <Animated.View key={skill} entering={FadeIn.duration(duration.base)} style={styles.body}>
         <HeroCard accent={c.fg} contentStyle={styles.skillCard}>
@@ -107,8 +109,8 @@ export function LearnScreen() {
           </ProgressRing>
         </HeroCard>
 
-        {UNITS.filter((u) => u.skill === skill).map((unit) => (
-          <View key={unit.id} style={styles.unit}>
+        {UNITS.filter((u) => u.skill === skill).map((unit, unitIndex) => (
+          <TourTarget key={unit.id} id={unitIndex === 0 ? "learn.path" : undefined} style={styles.unit}>
             <View style={styles.unitHead}>
               <Txt variant="title3">{unit.title}</Txt>
               <Txt variant="subhead" tone="secondary">
@@ -136,7 +138,7 @@ export function LearnScreen() {
                   })}
               />
             </Card>
-          </View>
+          </TourTarget>
         ))}
 
         {skill === "conversation" ? (

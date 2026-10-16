@@ -90,7 +90,7 @@ export function HelpDataSettings() {
         <ListRow
           icon="sparkles-outline"
           title="Show tips again"
-          subtitle="A short tip the first time you reach each part of the app"
+          subtitle="A short tour the first time you reach each part of the app"
           onPress={() => {
             resetGuide();
             showToast("Tips will show again as you go.", "success");
