@@ -132,7 +132,7 @@ export const QUESTIONS: Question[] = [
     title: "How much help from the cloud?",
     changes: "The defaults on the save screen. You can always change them per recording.",
   },
-  { id: "retention", chapter: 2, title: "How long should full videos be kept?", changes: "Older videos are cleared automatically; the best one from each month is always kept." },
+  { id: "retention", chapter: 2, title: "How long should full videos be kept?", changes: "Older videos are cleared automatically; the best and the toughest take from each month are always kept." },
   {
     id: "why",
     chapter: 2,
