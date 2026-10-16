@@ -13,13 +13,16 @@ interface CameraPreviewProps {
   cameraRef: RefObject<VisionCamera | null>;
   isActive: boolean;
   onFaceFrame: (output: FaceLandmarkerOutput) => void;
+  // Off when nothing is recorded (the setup check's framing step), so the
+  // camera doesn't hold the microphone the next step needs.
+  audio?: boolean;
 }
 
 // ~10 detections a second is plenty for presence metrics and leaves the
 // phone headroom for recording.
 const MIN_INTERVAL_MS = 100;
 
-export function CameraPreview({ cameraRef, isActive, onFaceFrame }: CameraPreviewProps) {
+export function CameraPreview({ cameraRef, isActive, onFaceFrame, audio = true }: CameraPreviewProps) {
   const device = useCameraDevice("front");
   const plugin = useFaceLandmarkerPlugin();
   const busy = useSharedValue(false);
@@ -75,7 +78,7 @@ export function CameraPreview({ cameraRef, isActive, onFaceFrame }: CameraPrevie
       device={device}
       isActive={isActive}
       video={true}
-      audio={true}
+      audio={audio}
       // MediaPipe on iOS only accepts BGRA buffers ("rgb" here); Android
       // converts YUV itself.
       pixelFormat={Platform.OS === "ios" ? "rgb" : "yuv"}
