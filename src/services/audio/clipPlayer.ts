@@ -1,4 +1,4 @@
-import { AudioContext, decodeAudioData, type AudioBufferSourceNode } from "react-native-audio-api";
+import { AudioContext, type AudioBufferSourceNode } from "react-native-audio-api";
 import { logger } from "../../utils/logger";
 import { withTimeout } from "../../utils/withTimeout";
 
@@ -16,7 +16,11 @@ export async function playClip(uri: string, onEnded?: () => void): Promise<boole
   try {
     context ??= new AudioContext();
     await context.resume();
-    const buffer = await withTimeout(decodeAudioData(uri), DECODE_TIMEOUT_MS, null);
+    // Decode at the context's own rate. The takes are 16 kHz WAVs, and a
+    // buffer source plays samples at the context's rate (48 kHz on iPhone)
+    // without converting — decoded at the file's rate, a take played back
+    // about three times too fast.
+    const buffer = await withTimeout(context.decodeAudioData(uri), DECODE_TIMEOUT_MS, null);
     if (!buffer) {
       logger.error("[clipPlayer] decode timed out");
       return false;
