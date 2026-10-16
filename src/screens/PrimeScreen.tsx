@@ -9,7 +9,7 @@ import { Txt } from "../components/common/Txt";
 import { Chip } from "../components/common/Chip";
 import { PrimaryButton } from "../components/common/PrimaryButton";
 import { Field } from "../components/conversation/Field";
-import { ScaleChips } from "../components/conversation/ScaleChips";
+import { ScaleSlider } from "../components/common/ScaleSlider";
 import { OUTWARD_GOALS, STORY_QUESTIONS, TOPIC_IDEAS } from "../content/conversationContent";
 import { createPrimedEvent } from "../services/db/socialRepo";
 import { showGlobalToast } from "../components/common/ToastProvider";
@@ -106,7 +106,7 @@ export function PrimeScreen({ navigation }: Props) {
 
           <Card style={styles.card}>
             <Txt variant="headline">How awkward do you expect it to be?</Txt>
-            <ScaleChips value={predicted} onChange={setPredicted} lowLabel="Easy" highLabel="Very awkward" accessibilityLabel="Expected awkwardness, 0 to 10" />
+            <ScaleSlider value={predicted} onChange={setPredicted} lowLabel="Easy" highLabel="Very awkward" accessibilityLabel="Expected awkwardness, 0 to 10" />
             <Txt variant="caption1" tone="muted">
               A forecast, not a fact. You'll compare it with how it actually went.
             </Txt>

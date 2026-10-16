@@ -3,8 +3,9 @@ import * as Haptics from "expo-haptics";
 import { makeStyles } from "../../theme/ThemeProvider";
 import { Txt } from "../common/Txt";
 
-// A row of numbered chips for quick self-ratings (0-10 attention, 0-10
-// awkwardness, 1-5 presence). Neutral colors on purpose: a rating is an
+// A row of numbered chips for quick 1-5 verdicts on a take (how it came
+// across, how present you were). Amounts — 0-10 attention or awkwardness —
+// use ScaleSlider instead. Neutral colors on purpose: a rating is an
 // observation, not a grade.
 export function ScaleChips({
   value,

@@ -10,7 +10,7 @@ import { Txt } from "../components/common/Txt";
 import { Chip } from "../components/common/Chip";
 import { PrimaryButton } from "../components/common/PrimaryButton";
 import { Field } from "../components/conversation/Field";
-import { ScaleChips } from "../components/conversation/ScaleChips";
+import { ScaleSlider } from "../components/common/ScaleSlider";
 import { getOpenEvents, saveDebrief, type SocialEvent } from "../services/db/socialRepo";
 import { showGlobalToast } from "../components/common/ToastProvider";
 import { logger } from "../utils/logger";
@@ -114,7 +114,7 @@ export function DebriefScreen({ route, navigation }: Props) {
                 You predicted {primed.predictedAwkward}.
               </Txt>
             ) : null}
-            <ScaleChips value={actual} onChange={setActual} lowLabel="Easy" highLabel="Very awkward" accessibilityLabel="Actual awkwardness, 0 to 10" />
+            <ScaleSlider value={actual} onChange={setActual} lowLabel="Easy" highLabel="Very awkward" accessibilityLabel="Actual awkwardness, 0 to 10" />
           </Card>
 
           <Card style={styles.card}>
