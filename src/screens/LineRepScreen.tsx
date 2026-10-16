@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { ScrollView, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
@@ -12,6 +11,7 @@ import { PrimaryButton } from "../components/common/PrimaryButton";
 import { RatingScale } from "../components/common/RatingScale";
 import { MarkedTextView } from "../components/cadence/MarkedTextView";
 import { MarkLegend } from "../components/cadence/MarkLegend";
+import { GuideTip, TourScrollContext, TourTarget, useTourScroll } from "../components/common/GuideTip";
 import { MarkEditor, toolsFor } from "../components/cadence/MarkEditor";
 import { useTakeRecorder } from "../hooks/useTakeRecorder";
 import { getLines, LINE_CATEGORIES, type LineCategory } from "../content/lines";
@@ -55,6 +55,7 @@ export function LineRepScreen({ route, navigation }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
   const recorder = useTakeRecorder();
+  const { tourScroll, scrollProps } = useTourScroll();
   const [level, setLevel] = useState(1);
   const [lines, setLines] = useState<RepLine[] | null>(null);
   const [index, setIndex] = useState(0);
@@ -152,6 +153,8 @@ export function LineRepScreen({ route, navigation }: Props) {
   const readMarks = chosen ?? line.marks;
   const readText: MarkedText = { text: line.text, marks: readMarks };
   const takeKey = `${index}:${stage === "remix" ? "remix" : read}`;
+  const take: string | undefined = takes[takeKey];
+  const recording = recorder.state === "recording";
   const remix = remixEmphasis({ text: line.text, marks: readMarks }, index * 3 + line.text.length);
 
   function toggleHidden(kinds: MarkKind[]) {
@@ -236,7 +239,8 @@ export function LineRepScreen({ route, navigation }: Props) {
   return (
     <ScreenContainer style={styles.container}>
       <Header eyebrow={eyebrow} title={stageTitle(stage, read, markingMode)} onBack={() => navigation.goBack()} backIcon="close" />
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <TourScrollContext.Provider value={tourScroll}>
+      <ScrollView {...scrollProps} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {stage === "mark" ? (
           <Card style={styles.card}>
             <Txt variant="subhead" tone="secondary">
@@ -252,6 +256,7 @@ export function LineRepScreen({ route, navigation }: Props) {
 
         {stage === "read" ? (
           <>
+            <TourTarget id="lineRep.text">
             <HeroCard accent={colors.skill.cadence.fg} contentStyle={styles.readCard}>
               <View style={styles.readHead}>
                 <Txt variant="caption2" tone="accent" uppercase>
@@ -268,7 +273,12 @@ export function LineRepScreen({ route, navigation }: Props) {
                 </Txt>
               ) : null}
             </HeroCard>
-            {READS[read].level !== "none" ? <MarkLegend marks={readMarks} hidden={hidden} onToggle={toggleHidden} /> : null}
+            </TourTarget>
+            {READS[read].level !== "none" ? (
+              <TourTarget id="lineRep.legend">
+                <MarkLegend marks={readMarks} hidden={hidden} onToggle={toggleHidden} />
+              </TourTarget>
+            ) : null}
           </>
         ) : null}
 
@@ -297,35 +307,50 @@ export function LineRepScreen({ route, navigation }: Props) {
           </Card>
         ) : null}
       </ScrollView>
+      </TourScrollContext.Provider>
 
-      {(stage === "read" || stage === "remix") && recorder.canSave ? (
-        <View style={styles.takeRow}>
-          <Pressable
-            onPress={toggleRecording}
-            style={[styles.takeButton, recorder.state === "recording" && { backgroundColor: colors.dangerMuted }]}
-            accessibilityRole="button"
-            accessibilityLabel={recorder.state === "recording" ? "Stop recording" : "Record this read"}
-          >
-            <Ionicons name={recorder.state === "recording" ? "stop-circle" : "mic-outline"} size={20} color={recorder.state === "recording" ? colors.danger : colors.textSecondary} />
-            <Txt variant="footnote" weight="600" tone="secondary">
-              {recorder.state === "recording" ? "Stop" : "Record this read"}
-            </Txt>
-          </Pressable>
-          {takes[takeKey] && recorder.state !== "recording" ? (
-            <Pressable onPress={() => recorder.play(takes[takeKey])} style={styles.takeButton} accessibilityRole="button" accessibilityLabel="Play it back">
-              <Ionicons name={recorder.playing === takes[takeKey] ? "pause" : "play"} size={20} color={colors.accent} />
-              <Txt variant="footnote" weight="600" tone="accent">
-                {recorder.playing === takes[takeKey] ? "Stop" : "Play it back"}
-              </Txt>
-            </Pressable>
+      {stage === "read" || stage === "remix" ? (
+        <TourTarget id="lineRep.record" style={styles.actions}>
+          {/* Saying the line aloud is the point, so recording it is the main
+              action; moving on is secondary. Where the phone can't keep the
+              audio, moving on is all there is. */}
+          {recorder.canSave ? (
+            <PrimaryButton
+              label={recording ? "Stop recording" : take ? "Re-record this read" : "Record this read"}
+              icon={recording ? "stop" : take ? "refresh" : "mic"}
+              variant={recording ? "danger" : "primary"}
+              onPress={toggleRecording}
+              loading={recorder.state === "stopping"}
+            />
           ) : null}
-        </View>
+          <View style={styles.actionRow}>
+            {take && !recording ? (
+              <PrimaryButton
+                label={recorder.playing === take ? "Stop" : "Play it back"}
+                icon={recorder.playing === take ? "pause" : "play"}
+                variant="secondary"
+                size="md"
+                style={styles.flex}
+                onPress={() => recorder.play(take)}
+              />
+            ) : null}
+            <PrimaryButton
+              label={stage === "remix" ? (index < lines.length - 1 ? "Next line" : "Finish") : read < READS.length - 1 ? "Next read" : lineOfDay ? "Done" : "Next"}
+              iconRight={stage === "read" && read < READS.length - 1 ? "arrow-forward" : undefined}
+              variant={recorder.canSave ? "secondary" : "primary"}
+              size={recorder.canSave ? "md" : "lg"}
+              style={styles.flex}
+              onPress={stage === "remix" ? nextLine : nextRead}
+              disabled={recorder.state === "stopping"}
+            />
+          </View>
+        </TourTarget>
       ) : null}
 
       {stage === "mark" ? <PrimaryButton label="Compare with the coach" onPress={compare} disabled={!mine.length} /> : null}
-      {stage === "read" ? <PrimaryButton label={read < READS.length - 1 ? "Next read" : lineOfDay ? "Done" : "Next"} onPress={nextRead} loading={recorder.state === "stopping"} /> : null}
-      {stage === "remix" ? <PrimaryButton label={index < lines.length - 1 ? "Next line" : "Finish"} onPress={nextLine} loading={recorder.state === "stopping"} /> : null}
       {stage === "rate" ? <PrimaryButton label="Done" onPress={save} disabled={rating == null} loading={saving} /> : null}
+      {/* Once there are marks to read (Mark it up starts with marking). */}
+      {stage === "read" ? <GuideTip id="lineRep" /> : null}
     </ScreenContainer>
   );
 }
@@ -374,14 +399,7 @@ const useStyles = makeStyles((t) => ({
   card: { gap: t.space.md },
   readCard: { gap: t.space.lg, paddingVertical: t.space.xl },
   readHead: { gap: 2 },
-  takeRow: { flexDirection: "row", gap: t.space.sm, justifyContent: "center" },
-  takeButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: t.space.md,
-    paddingVertical: t.space.sm,
-    borderRadius: t.radius.pill,
-    backgroundColor: t.colors.surfaceRaised,
-  },
+  actions: { gap: t.space.sm },
+  actionRow: { flexDirection: "row", gap: t.space.sm },
+  flex: { flex: 1 },
 }));
