@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { Skeleton, SkeletonCard, SkeletonLines, SkeletonRows } from "../components/common/Skeleton";
-import { GuideTip } from "../components/common/GuideTip";
+import { GuideTip, TourTarget } from "../components/common/GuideTip";
 import { View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -187,6 +187,7 @@ export function TodayScreen() {
         </Card>
       ) : null}
       {plan && lesson && focus ? (
+        <TourTarget id="today.plan">
         <HeroCard accent={focus.fg} contentStyle={styles.hero}>
           <View style={styles.heroTop}>
             <Badge label={SKILL_LABELS[plan.focusSkill]} fg={focus.fg} bg={focus.bg} dot />
@@ -239,6 +240,7 @@ export function TodayScreen() {
             />
           )}
         </HeroCard>
+        </TourTarget>
       ) : (
         <HeroCard contentStyle={styles.hero}>
           <View style={styles.placeholder} />
@@ -267,12 +269,12 @@ export function TodayScreen() {
       <ConversationTodayCard />
 
       {mastery ? (
-        <View style={styles.section}>
+        <TourTarget id="today.skills" style={styles.section}>
           <SectionHeader title="Your skills" action="Progress" onAction={() => navigation.navigate("Progress")} />
           <Card>
-            <SkillRings mastery={mastery} focus={plan?.focusSkill} />
+            <SkillRings mastery={mastery} focus={plan?.focusSkill} onPressSkill={(s) => navigation.navigate("SkillDetail", { skill: s })} />
           </Card>
-        </View>
+        </TourTarget>
       ) : null}
 
       <ListGroup>

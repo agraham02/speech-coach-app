@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { Skeleton } from "../components/common/Skeleton";
-import { GuideTip } from "../components/common/GuideTip";
+import { GuideTip, TourTarget } from "../components/common/GuideTip";
 import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -117,6 +117,7 @@ export function ProgressScreen() {
     <Screen large title="Progress" onBack={() => navigation.goBack()}>
       <ProgressProfileCards />
 
+      <TourTarget id="progress.streak">
       <HeroCard accent={colors.warning} contentStyle={styles.streakCard}>
         <View style={styles.streakTop}>
           <View style={styles.streakNumber}>
@@ -196,6 +197,7 @@ export function ProgressScreen() {
           ))}
         </View>
       </HeroCard>
+      </TourTarget>
 
       {weeks2 ? (
         <View style={styles.section}>
@@ -223,21 +225,21 @@ export function ProgressScreen() {
       )}
 
       {mastery ? (
-        <View style={styles.section}>
-          <SectionHeader title="Skill mastery" subtitle="Rises when you beat what your level predicts. Drills adjust so you succeed about 4 times in 5." />
+        <TourTarget id="progress.skills" style={styles.section}>
+          <SectionHeader title="Skill mastery" subtitle="Rises when you beat what your level predicts. Tap a skill to see what moved it." />
           <Card>
-            <SkillRings mastery={mastery} />
+            <SkillRings mastery={mastery} onPressSkill={(s) => navigation.navigate("SkillDetail", { skill: s })} />
           </Card>
-        </View>
+        </TourTarget>
       ) : null}
 
       <View style={styles.section}>
         <SectionHeader title="By skill" />
-        <View style={styles.chips}>
+        <TourTarget id="progress.bySkill" style={styles.chips}>
           {SKILLS.map((s) => (
             <Chip key={s} label={SKILL_LABELS[s]} dot={colors.skill[s].fg} selected={s === skill} onPress={() => setSkill(s)} />
           ))}
-        </View>
+        </TourTarget>
         <Animated.View key={skill} entering={FadeIn.duration(duration.base)}>
           <Card style={styles.card}>
             {/* Conversation drills are scored on process, not quality, so no

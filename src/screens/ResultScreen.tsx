@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { Skeleton, SkeletonCard, SkeletonLines, SkeletonRows } from "../components/common/Skeleton";
-import { GuideTip } from "../components/common/GuideTip";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { Reveal, Skeleton, SkeletonCard, SkeletonHero } from "../components/common/Skeleton";
+import { GuideTip, TourScrollContext, TourTarget, useTourScroll } from "../components/common/GuideTip";
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
@@ -22,7 +22,7 @@ import { AnalysisStepsCard } from "../components/result/AnalysisStepsCard";
 import { CoachCard } from "../components/result/CoachCard";
 import { ComparisonCard } from "../components/result/ComparisonCard";
 import { ScoreBreakdownCard } from "../components/result/ScoreBreakdownCard";
-import type { SessionScoreBreakdown } from "../domain/sessionScore";
+import { SCORE_BREAKDOWN_VERSION, type SessionScoreBreakdown } from "../domain/sessionScore";
 import { refreshSessionScore } from "../services/sessions/sessionScoreService";
 import { FeltObservedCard } from "../components/result/FeltObservedCard";
 import { getPromptComparison } from "../services/db/statsRepo";
@@ -123,9 +123,10 @@ export function ResultScreen({ route, navigation }: Props) {
     getScoresBySessionId(sessionId).then(setScores);
     getArtifact<CloudTranscriptArtifact>(sessionId, "cloud_transcript").then(setCloudTranscript);
     getArtifact<CoachOutput>(sessionId, "coach").then(setCoach);
-    // Sessions analyzed before the combined score existed get one now.
+    // Sessions analyzed before the combined score (or before it explained
+    // itself) get it now.
     getArtifact<SessionScoreBreakdown>(sessionId, "session_score").then((b) =>
-      b ? setBreakdown(b) : refreshSessionScore(sessionId).then(setBreakdown),
+      b && (b.version ?? 1) >= SCORE_BREAKDOWN_VERSION ? setBreakdown(b) : refreshSessionScore(sessionId).then((fresh) => setBreakdown(fresh ?? b)),
     );
     getPromptComparison(sessionId).then(setComparison);
   }, [sessionId]);
@@ -135,6 +136,7 @@ export function ResultScreen({ route, navigation }: Props) {
   }, [loadAll]);
 
   const { steps } = useSessionSteps(sessionId, loadAll);
+  const { tourScroll, scrollProps } = useTourScroll();
 
   if (!session) {
     return (
@@ -264,6 +266,15 @@ export function ResultScreen({ route, navigation }: Props) {
   const annotatedTranscript =
     scores && scores.annotations.length > 0 && cloudTranscript ? cloudTranscript.verbatim : session.transcriptVerbatim ?? "";
 
+  // What's still being worked out, so each section can hold its place with
+  // a skeleton instead of popping in when its step finishes.
+  const working = (step: SessionStep) => {
+    const status = steps.find((s) => s.step === step)?.status;
+    return status === "pending" || status === "running" || status === "interrupted";
+  };
+  const measuring = steps.length === 0 || (["transcribe", "audio_metrics", "presence", "coach"] as SessionStep[]).some(working);
+  const reviewing = working("cloud_review");
+
   return (
     <ScreenContainer style={styles.container}>
       <View style={styles.header}>
@@ -290,47 +301,82 @@ export function ResultScreen({ route, navigation }: Props) {
       <SegmentedControl options={tabs} value={tab} onChange={setTab} />
 
       {tab === "overview" ? (
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <TourScrollContext.Provider value={tourScroll}>
+        <ScrollView {...scrollProps} style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <TourTarget id="result.score">
           {overall != null ? (
-            <HeroCard
-              contentStyle={styles.scoreHeroContent}
-              accent={colorForScore(overall, colors)}
-              accentSecondary={colors.violet}
-            >
-              <ProgressRing size={156} strokeWidth={8} progress={overall / 10} color={colorForScore(overall, colors)}>
-                <Txt variant="display" style={styles.scoreHeroNumber}>
-                  {overall}
-                </Txt>
-                <Text style={styles.scoreHeroOutOf}>out of 10</Text>
-              </ProgressRing>
-              {scores ? (
-                <Text style={[styles.scoreHeroArchetype, { color: colorForScore(overall, colors) }]}>
-                  {scores.archetypeDetected}
-                </Text>
-              ) : null}
-              <ScoreDelta current={overall} previous={previousOverallScore} />
-              {scores ? <Text style={styles.scoreHeroFit}>{scores.archetypeFitForTopic}</Text> : null}
-            </HeroCard>
+            <Reveal key="hero">
+              <HeroCard
+                contentStyle={styles.scoreHeroContent}
+                accent={colorForScore(overall, colors)}
+                accentSecondary={colors.violet}
+              >
+                <ProgressRing size={156} strokeWidth={8} progress={overall / 10} color={colorForScore(overall, colors)}>
+                  <Txt variant="display" style={styles.scoreHeroNumber}>
+                    {overall}
+                  </Txt>
+                  <Text style={styles.scoreHeroOutOf}>out of 10</Text>
+                </ProgressRing>
+                {scores ? (
+                  <Text style={[styles.scoreHeroArchetype, { color: colorForScore(overall, colors) }]}>
+                    {scores.archetypeDetected}
+                  </Text>
+                ) : null}
+                <ScoreDelta current={overall} previous={previousOverallScore} />
+                {scores ? <Text style={styles.scoreHeroFit}>{scores.archetypeFitForTopic}</Text> : null}
+                {reviewing ? (
+                  <View style={styles.reviewingRow}>
+                    <ActivityIndicator size="small" color={colors.textMuted} />
+                    <Txt variant="footnote" tone="muted">
+                      Deep review on the way — this score will sharpen.
+                    </Txt>
+                  </View>
+                ) : null}
+              </HeroCard>
+            </Reveal>
+          ) : measuring || reviewing ? (
+            <SkeletonHero key="hero-skeleton" note={measuring ? "Listening back and measuring, on this phone…" : "Waiting for the deep review…"} />
           ) : coach ? null : (
-            <Card style={styles.numbersCard}>
-              <Text style={styles.numbersLabel}>Your numbers</Text>
-              <View style={styles.numbersRow}>
-                <NumberTile value={avgWpm != null ? `${avgWpm}` : "—"} label="words / min" />
-                <NumberTile
-                  value={session.fillerRatePerMinute != null ? `${session.fillerRatePerMinute}` : "—"}
-                  label="fillers / min"
-                />
-                <NumberTile value={pitchRange != null ? `${pitchRange} Hz` : "—"} label="pitch range" />
-              </View>
-              <Text style={styles.rowSubtitle}>Measured on this phone. A deep review adds structure and presence scores.</Text>
-            </Card>
+            <Reveal key="numbers">
+              <Card style={styles.numbersCard}>
+                <Text style={styles.numbersLabel}>Your numbers</Text>
+                <View style={styles.numbersRow}>
+                  <NumberTile value={avgWpm != null ? `${avgWpm}` : "—"} label="words / min" />
+                  <NumberTile
+                    value={session.fillerRatePerMinute != null ? `${session.fillerRatePerMinute}` : "—"}
+                    label="fillers / min"
+                  />
+                  <NumberTile value={pitchRange != null ? `${pitchRange} Hz` : "—"} label="pitch range" />
+                </View>
+                <Text style={styles.rowSubtitle}>Measured on this phone. A deep review adds structure and presence scores.</Text>
+              </Card>
+            </Reveal>
           )}
+          </TourTarget>
 
-          {breakdown ? <ScoreBreakdownCard breakdown={breakdown} /> : null}
+          <TourTarget id="result.breakdown">
+          {breakdown ? (
+            <Reveal key="breakdown">
+              <ScoreBreakdownCard breakdown={breakdown} review={scores} />
+            </Reveal>
+          ) : measuring ? (
+            <SkeletonCard key="breakdown-skeleton" lines={4} />
+          ) : null}
+          </TourTarget>
 
-          {coach ? <CoachCard coach={coach} onAnswerFollowUp={handleAnswerFollowUp} /> : null}
+          {coach ? (
+            <Reveal key="coach">
+              <CoachCard coach={coach} onAnswerFollowUp={handleAnswerFollowUp} />
+            </Reveal>
+          ) : measuring ? (
+            <SkeletonCard key="coach-skeleton" lines={3} />
+          ) : null}
 
-          {comparison ? <ComparisonCard current={comparison.current} previous={comparison.previous} /> : null}
+          {comparison ? (
+            <Reveal key="comparison">
+              <ComparisonCard current={comparison.current} previous={comparison.previous} />
+            </Reveal>
+          ) : null}
 
           {prompt ? (
             <Card style={styles.promptCard}>
@@ -365,35 +411,41 @@ export function ResultScreen({ route, navigation }: Props) {
             </View>
           )}
 
-          <AnalysisStepsCard steps={steps} onRun={handleRunStep} disabledReason={{ cloud_review: deepReviewBlocked }} />
+          <TourTarget id="result.steps">
+            <AnalysisStepsCard steps={steps} onRun={handleRunStep} disabledReason={{ cloud_review: deepReviewBlocked }} />
+          </TourTarget>
 
+          {!scores && reviewing ? <SkeletonCard key="coaching-skeleton" lines={4} /> : null}
           {scores ? (
-            <Card style={styles.coachingCard}>
-              <Text style={styles.sectionLabel}>Coaching</Text>
-              <Text style={styles.coachingSummary}>{scores.coachingSummary}</Text>
-              <View style={styles.coachingRow}>
-                <Ionicons name="thumbs-up-outline" size={16} color={colors.success} />
-                <Text style={styles.coachingRowText}>
-                  <Text style={styles.coachingRowLabel}>Strength: </Text>
-                  {scores.topStrength}
-                </Text>
-              </View>
-              <View style={styles.coachingRow}>
-                <Ionicons name="build-outline" size={16} color={colors.warning} />
-                <Text style={styles.coachingRowText}>
-                  <Text style={styles.coachingRowLabel}>Focus on: </Text>
-                  {scores.topFocusArea}
-                </Text>
-              </View>
-              <View style={styles.drillBox}>
-                <Text style={styles.drillLabel}>Next drill</Text>
-                <Text style={styles.drillText}>{scores.recommendedDrill}</Text>
-              </View>
-            </Card>
+            <Reveal key="coaching">
+              <Card style={styles.coachingCard}>
+                <Text style={styles.sectionLabel}>Coaching</Text>
+                <Text style={styles.coachingSummary}>{scores.coachingSummary}</Text>
+                <View style={styles.coachingRow}>
+                  <Ionicons name="thumbs-up-outline" size={16} color={colors.success} />
+                  <Text style={styles.coachingRowText}>
+                    <Text style={styles.coachingRowLabel}>Strength: </Text>
+                    {scores.topStrength}
+                  </Text>
+                </View>
+                <View style={styles.coachingRow}>
+                  <Ionicons name="build-outline" size={16} color={colors.warning} />
+                  <Text style={styles.coachingRowText}>
+                    <Text style={styles.coachingRowLabel}>Focus on: </Text>
+                    {scores.topFocusArea}
+                  </Text>
+                </View>
+                <View style={styles.drillBox}>
+                  <Text style={styles.drillLabel}>Next drill</Text>
+                  <Text style={styles.drillText}>{scores.recommendedDrill}</Text>
+                </View>
+              </Card>
+            </Reveal>
           ) : null}
 
           <PrimaryButton label="Practice this prompt again" variant="secondary" onPress={handlePracticeAgain} />
         </ScrollView>
+        </TourScrollContext.Provider>
       ) : null}
 
       {tab === "scores" && scores ? (
@@ -523,6 +575,7 @@ const useStyles = makeStyles(({ colors }) => ({
   scoreHeroOutOf: { ...font("400"), color: colors.textMuted, fontSize: 13, marginTop: 2 },
   scoreHeroArchetype: { fontSize: 15, ...font("600"), marginTop: spacing.sm },
   scoreHeroFit: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17, textAlign: "center", marginTop: spacing.xs },
+  reviewingRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.sm },
   deltaRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   deltaText: { fontSize: typography.caption, ...font("600") },
   deltaNeutral: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
