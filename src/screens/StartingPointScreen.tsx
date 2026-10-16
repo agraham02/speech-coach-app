@@ -8,14 +8,18 @@ import { Header } from "../components/common/Header";
 import { Card } from "../components/common/Card";
 import { Txt } from "../components/common/Txt";
 import { PrimaryButton } from "../components/common/PrimaryButton";
-import { RatingScale } from "../components/common/RatingScale";
+import { ScaleSlider } from "../components/common/ScaleSlider";
 import { LoadingSpinner } from "../components/common/LoadingSpinner";
 import { VideoPlayback } from "../components/result/VideoPlayback";
 import { useSessionSteps } from "../hooks/useSessionSteps";
 import { getSkillCheck, saveConfidenceCheckin, setSkillCheckResults, type StoredSkillCheck } from "../services/db/skillChecksRepo";
 import { getSessionById } from "../services/db/sessionsRepo";
 import { getArtifact } from "../services/db/artifactsRepo";
-import { measuredVoice } from "../services/sessions/sessionScoreService";
+import { cloudSourceOf, measuredVoice } from "../services/sessions/sessionScoreService";
+import { getScoresBySessionId } from "../services/db/scoresRepo";
+import { cloudRepEvidence } from "../domain/repEvidence";
+import type { CloudTranscriptArtifact } from "../services/pipeline/steps/cloudReviewStep";
+import type { SessionScores } from "../domain/sessionTypes";
 import { getLessonStates, getSkillStates, seedSkillRatings } from "../services/db/progressRepo";
 import { completeOnboarding, resetToTabs } from "../services/onboarding/onboarding";
 import { getUserProfile, setUserProfile } from "../services/prefs/prefsStore";
@@ -35,7 +39,7 @@ import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "StartingPoint">;
 
-const ANALYSIS_STEPS = ["transcribe", "audio_metrics", "presence", "coach"];
+const ANALYSIS_STEPS = ["transcribe", "audio_metrics", "presence", "coach", "cloud_review"];
 const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 async function buildInput(check: StoredSkillCheck, session: Session | null): Promise<SkillCheckInput> {
@@ -51,14 +55,25 @@ async function buildInput(check: StoredSkillCheck, session: Session | null): Pro
     stutterMode: defaultsFromProfile(profile).stutterMode,
   };
   if (!session) return input;
-  const [pauses, presence, coach] = await Promise.all([
+  const [pauses, presence, coach, scores, transcript] = await Promise.all([
     getArtifact<PauseAnalysis>(session.id, "pauses"),
     getArtifact<PresenceMetrics>(session.id, "presence"),
     getArtifact<CoachOutput>(session.id, "coach"),
+    getScoresBySessionId(session.id),
+    getArtifact<CloudTranscriptArtifact>(session.id, "cloud_transcript"),
   ]);
   const voice = measuredVoice(session);
+  const reviewed = scores ? cloudRepEvidence(scores) : null;
   return {
     ...input,
+    review: reviewed
+      ? {
+          cadence: reviewed.cadence != null ? reviewed.cadence * 10 : null,
+          impromptu: reviewed.impromptu != null ? reviewed.impromptu * 10 : null,
+          confidence: reviewed.confidence != null ? reviewed.confidence * 10 : null,
+          source: cloudSourceOf(transcript),
+        }
+      : null,
     talkSeconds: session.durationSeconds,
     talkWpm: voice.wpmAvg,
     pitchRangeHz: voice.pitchRangeHz,
@@ -82,7 +97,6 @@ export function StartingPointScreen({ route, navigation }: Props) {
   const { colors } = useTheme();
   const [check, setCheck] = useState<StoredSkillCheck | null>(null);
   const [previous, setPrevious] = useState<StoredSkillCheck | null>(null);
-  const [result, setResult] = useState<SkillCheckResult | null>(null);
   const [week, setWeek] = useState<DailyPlan[] | null>(null);
   const [sessions, setSessions] = useState<{ now: Session | null; then: Session | null }>({ now: null, then: null });
   const [comfort, setComfort] = useState<number | null>(null);
@@ -96,21 +110,31 @@ export function StartingPointScreen({ route, navigation }: Props) {
   }, [checkId]);
 
   const { steps } = useSessionSteps(check?.sessionId ?? "", () => undefined);
-  // If the analysis stalls (the app was killed mid-way), go with what's there.
-  const [waitedOut, setWaitedOut] = useState(false);
+  // The AI coach's review of the talk leads the starting point, so wait for
+  // it when one is coming — longer than for the phone's own analysis, since
+  // it uploads the video. If either stalls (the app was killed mid-way, no
+  // connection), go with what's there.
+  const reviewComing = steps.some((s) => s.step === "cloud_review" && (s.status === "pending" || s.status === "running"));
+  const [waited, setWaited] = useState(0);
+  const [result, setResult] = useState<SkillCheckResult | null>(null);
   useEffect(() => {
-    const t = setTimeout(() => setWaitedOut(true), 90_000);
-    return () => clearTimeout(t);
-  }, []);
+    if (result) return;
+    const t = setInterval(() => setWaited((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [result]);
+  const waitedOut = waited >= (reviewComing ? 240 : 90);
   const analysisDone =
     waitedOut ||
     !check?.sessionId ||
-    (steps.length > 0 && steps.filter((s) => ANALYSIS_STEPS.includes(s.step)).every((s) => s.status !== "pending" && s.status !== "running"));
+    (steps.length > 0 &&
+      steps.filter((s) => ANALYSIS_STEPS.includes(s.step)).every((s) => s.status !== "pending" && s.status !== "running" && s.status !== "interrupted"));
+  const [review, setReview] = useState<SessionScores | null>(null);
 
   const evaluate = useCallback(async () => {
     if (!check || result) return;
     const session = check.sessionId ? await getSessionById(check.sessionId) : null;
     const input = await buildInput(check, session);
+    if (session) setReview(await getScoresBySessionId(session.id));
     const evaluated = evaluateSkillCheck(input);
     await setSkillCheckResults(check.id, input, evaluated);
     if (!check.retakeOf) {
@@ -163,7 +187,11 @@ export function StartingPointScreen({ route, navigation }: Props) {
       <ScreenContainer style={styles.centered}>
         <LoadingSpinner />
         <Txt variant="callout" tone="secondary" align="center">
-          {check?.sessionId && !analysisDone ? "Listening back to your recording — on this phone, about a minute." : "Putting it together…"}
+          {check?.sessionId && !analysisDone
+            ? reviewComing
+              ? "Your AI coach is watching your talk — usually a minute or two."
+              : "Listening back to your recording — on this phone, about a minute."
+            : "Putting it together…"}
         </Txt>
       </ScreenContainer>
     );
@@ -181,7 +209,7 @@ export function StartingPointScreen({ route, navigation }: Props) {
           <Card style={[styles.card, { borderColor: colors.success }]}>
             <Txt variant="title3">You came across better than you thought.</Txt>
             <Txt variant="subhead" tone="secondary">
-              You rated it {check.felt} out of 5. What the phone measured looks more like a {result.observed}. That gap — being harder on yourself than anyone listening — is common, and it shrinks with practice.
+              You rated it {check.felt} out of 5. What we measured looks more like a {result.observed}. That gap — being harder on yourself than anyone listening — is common, and it shrinks with practice.
             </Txt>
           </Card>
         ) : null}
@@ -239,6 +267,27 @@ export function StartingPointScreen({ route, navigation }: Props) {
           </Card>
         ) : null}
 
+        {review ? (
+          <Card style={styles.card}>
+            <Txt variant="caption2" tone="muted" uppercase>
+              What your AI coach saw
+            </Txt>
+            <Txt variant="callout">{review.coachingSummary}</Txt>
+            <View style={styles.point}>
+              <Ionicons name="thumbs-up-outline" size={18} color={colors.success} />
+              <Txt variant="footnote" tone="secondary" style={styles.flex}>
+                {review.topStrength}
+              </Txt>
+            </View>
+            <View style={styles.point}>
+              <Ionicons name="build-outline" size={18} color={colors.warning} />
+              <Txt variant="footnote" tone="secondary" style={styles.flex}>
+                {review.topFocusArea}
+              </Txt>
+            </View>
+          </Card>
+        ) : null}
+
         {result.focus.length ? (
           <Card style={styles.card}>
             <Txt variant="caption2" tone="accent" uppercase>
@@ -261,7 +310,7 @@ export function StartingPointScreen({ route, navigation }: Props) {
         {retake ? (
           <Card style={styles.card}>
             <Txt variant="headline">How do you feel about speaking in front of people now?</Txt>
-            <RatingScale value={comfort} onChange={setComfort} lowLabel="I avoid it" highLabel="I enjoy it" />
+            <ScaleSlider value={comfort} onChange={setComfort} min={1} max={5} lowLabel="I avoid it" highLabel="I enjoy it" accessibilityLabel="How you feel about speaking in front of people now, 1 to 5" />
             {profile?.speakingComfort ? (
               <Txt variant="footnote" tone="muted">
                 A month ago you said {profile.speakingComfort}.

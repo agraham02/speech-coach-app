@@ -9,13 +9,14 @@ import { Aura } from "../components/common/Aura";
 import { ChoiceList } from "../components/common/ChoiceList";
 import { Enter } from "../components/common/Enter";
 import { IconButton } from "../components/common/IconButton";
-import Animated, { FadeInLeft, FadeInRight, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming } from "react-native-reanimated";
-import { duration, easeOut, spring } from "../theme/motion";
+import Animated, { FadeInLeft, FadeInRight, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import { duration, easeOut } from "../theme/motion";
+import { Waveform, WelcomeIntro } from "../components/onboarding/WelcomeIntro";
 import { Txt } from "../components/common/Txt";
 import { Card } from "../components/common/Card";
 import { Chip } from "../components/common/Chip";
 import { PrimaryButton } from "../components/common/PrimaryButton";
-import { RatingScale } from "../components/common/RatingScale";
+import { ScaleSlider } from "../components/common/ScaleSlider";
 import { ReminderHours } from "../components/settings/ReminderHours";
 import {
   ANCHOR_OPTIONS,
@@ -43,6 +44,8 @@ import {
   getPlanMinutes,
   getReminderSettings,
   getUserProfile,
+  setCloudConsent,
+  setCloudProvider,
   setCloudReviewDefault,
   setDailySessionGoal,
   setPlanMinutes,
@@ -54,6 +57,11 @@ import {
   setWarmUpEnabled,
 } from "../services/prefs/prefsStore";
 import { requestNotificationPermission, syncDailyReminder } from "../services/notifications/reminderScheduler";
+import { AiCoachSetup, providerForPastedKey } from "../components/onboarding/AiCoachSetup";
+import { cleanApiKey } from "../services/cloud/inputGuards";
+import { checkProviderKey } from "../services/cloud/textProviders";
+import { currentProvider, hasConsent, hasProviderKey, PROVIDERS } from "../services/cloud/providers";
+import { setProviderKey } from "../services/secrets/secretsStore";
 import { isoDateFromDate, todayISODate } from "../utils/dateUtils";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
@@ -80,12 +88,20 @@ export function OnboardingScreen({ route, navigation }: Props) {
   const [remind, setRemind] = useState(reminder.enabled);
   const [hour, setHour] = useState(reminder.hour);
   const [extraHours, setExtraHours] = useState<number[]>(reminder.extraHours ?? []);
-  const [cloudReview, setCloudReview] = useState(false);
+  const [cloudKey, setCloudKey] = useState("");
+  const [cloudError, setCloudError] = useState<string | null>(null);
+  // Already set up (profile mode, or a key added before onboarding).
+  const [connected, setConnected] = useState<string | null>(null);
   const [retention, setRetention] = useState<string | null>(null);
   const [eventKind, setEventKind] = useState(profile.event?.kind ?? null);
   const [eventWhen, setEventWhen] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [customThought, setCustomThought] = useState("");
+
+  useEffect(() => {
+    const provider = currentProvider();
+    hasProviderKey(provider.id).then((has) => setConnected(has && hasConsent(provider.id) ? provider.name : null));
+  }, []);
 
   // 1 = forward, -1 = back: which way the next question slides in.
   const [direction, setDirection] = useState(1);
@@ -121,13 +137,37 @@ export function OnboardingScreen({ route, navigation }: Props) {
         return !!profile.practicePlace;
       case "retention":
         return !!retention;
+      case "cloud":
+        return !!connected || cleanApiKey(cloudKey).length > 0;
       default:
         return true;
     }
   })();
 
-  // Applies one answer to the app, right away.
-  async function apply(id: string) {
+  // The AI coach step: checks the pasted key with its provider before going
+  // on. Turning it on here is the user's permission to send takes there, so
+  // reviews run by default from now on. Returns false to stay on the step.
+  async function connectAiCoach(): Promise<boolean> {
+    const cleaned = cleanApiKey(cloudKey);
+    if (!cleaned) return true;
+    const providerId = providerForPastedKey(cleaned);
+    setCloudError(null);
+    const problem = await checkProviderKey(providerId, cleaned).catch(() => "Couldn't check the key — check your connection and try again.");
+    if (problem) {
+      setCloudError(problem);
+      return false;
+    }
+    await setProviderKey(providerId, cleaned);
+    setCloudProvider(providerId);
+    setCloudConsent(providerId, true);
+    setCloudReviewDefault(true);
+    setConnected(PROVIDERS[providerId].name);
+    setCloudKey("");
+    return true;
+  }
+
+  // Applies one answer to the app, right away. False keeps you on the step.
+  async function apply(id: string): Promise<boolean> {
     switch (id) {
       case "innerCritic": {
         const critic = profile.innerCritic ?? { presets: [], custom: [] };
@@ -136,7 +176,7 @@ export function OnboardingScreen({ route, navigation }: Props) {
         update({ innerCritic: { presets: critic.presets, custom } });
         setCustomThought("");
         await syncOnboardingThoughts(critic.presets, custom);
-        return;
+        return true;
       }
       case "event":
         if (eventKind && eventWhen) {
@@ -146,13 +186,13 @@ export function OnboardingScreen({ route, navigation }: Props) {
         } else if (!eventKind) {
           update({ event: null });
         }
-        return;
+        return true;
       case "goal":
         setDailySessionGoal(goal);
-        return;
+        return true;
       case "minutes":
         setPlanMinutes(minutes as 5 | 8 | 12);
-        return;
+        return true;
       case "anchor": {
         const option = ANCHOR_OPTIONS.find((a) => a.key === anchorKey);
         const text = option ? option.anchor : customAnchor.trim() ? `After ${customAnchor.trim().replace(/^after\s+/i, "")}` : null;
@@ -161,7 +201,7 @@ export function OnboardingScreen({ route, navigation }: Props) {
           setHour(option.hour);
           setExtraHours(defaultExtraHours(option.hour, goal));
         }
-        return;
+        return true;
       }
       case "reminders": {
         let enabled = remind;
@@ -169,27 +209,30 @@ export function OnboardingScreen({ route, navigation }: Props) {
         const hours = sessionHours(hour, extraHours, goal).slice(1);
         setReminderSettings({ enabled, hour, extraHours: hours, practiceDays: days.length === 7 ? [] : days });
         await syncDailyReminder().catch(() => undefined);
-        return;
+        return true;
       }
       case "days":
         setReminderSettings({ ...getReminderSettings(), practiceDays: days.length === 7 ? [] : days });
-        return;
+        return true;
       case "cloud":
-        setCloudReviewDefault(cloudReview);
-        return;
+        return connectAiCoach();
       case "retention": {
         const option = RETENTION_OPTIONS.find((r) => r.key === retention);
         if (option) setVideoRetentionDays(option.days);
-        return;
+        return true;
       }
     }
+    return true;
   }
 
-  async function next() {
+  // `skip`: an optional question left unanswered. The AI coach step then
+  // sends nothing anywhere, even if a key was half-pasted.
+  async function next(skip = false) {
     if (busy) return;
     setBusy(true);
     try {
-      if (question) await apply(question.id);
+      if (question && !(skip && question.id === "cloud") && !(await apply(question.id))) return;
+      if (skip && question?.id === "cloud") setCloudKey("");
       const nextStep = step + 1;
       if (nextStep >= QUESTIONS.length) {
         await finish();
@@ -250,7 +293,7 @@ export function OnboardingScreen({ route, navigation }: Props) {
     if (!question) return null;
     switch (question.id) {
       case "name":
-        return <TextInput maxLength={40} value={profile.name ?? ""} onChangeText={(name) => update({ name })} placeholder="Your first name" placeholderTextColor={colors.textMuted} style={styles.input} autoFocus returnKeyType="next" onSubmitEditing={next} />;
+        return <TextInput maxLength={40} value={profile.name ?? ""} onChangeText={(name) => update({ name })} placeholder="Your first name" placeholderTextColor={colors.textMuted} style={styles.input} autoFocus returnKeyType="next" onSubmitEditing={() => next()} />;
       case "contexts":
         return <Multi options={CONTEXT_OPTIONS} value={profile.contexts} onChange={(contexts) => update({ contexts })} />;
       case "obstacles":
@@ -281,7 +324,7 @@ export function OnboardingScreen({ route, navigation }: Props) {
           </View>
         );
       case "comfort":
-        return <RatingScale value={profile.speakingComfort ?? null} onChange={(speakingComfort) => update({ speakingComfort })} lowLabel="I avoid it" highLabel="I enjoy it" />;
+        return <ScaleSlider value={profile.speakingComfort ?? null} onChange={(speakingComfort) => update({ speakingComfort })} min={1} max={5} lowLabel="I avoid it" highLabel="I enjoy it" accessibilityLabel="How you feel about speaking in front of people, 1 to 5" />;
       case "video":
         return <Choices options={VIDEO_OPTIONS} value={profile.videoComfort} onPick={(videoComfort) => update({ videoComfort })} />;
       case "experience":
@@ -421,30 +464,25 @@ export function OnboardingScreen({ route, navigation }: Props) {
           </View>
         );
       case "cloud":
-        return (
-          <View style={styles.block}>
-            <View style={styles.phoneOnly}>
-              <Ionicons name="phone-portrait-outline" size={20} color={colors.textSecondary} />
-              <View style={styles.flex}>
-                <Txt variant="headline">Always on this phone</Txt>
-                <Txt variant="footnote" tone="secondary">
-                  Transcripts, pace, pauses, pitch and eye contact are worked out here. Nothing leaves it.
-                </Txt>
-              </View>
+        return connected && !cloudKey ? (
+          <View style={styles.phoneOnly}>
+            <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+            <View style={styles.flex}>
+              <Txt variant="headline">Connected to {connected}</Txt>
+              <Txt variant="footnote" tone="secondary">
+                Your AI coach is ready. Change the provider, the key, or whether every take gets a review in Settings → Deep reviews.
+              </Txt>
             </View>
-            <ChoiceList
-              multiple
-              options={[
-                {
-                  key: "review",
-                  label: "AI deep reviews with your own key",
-                  detail: "A detailed review of a take from Google Gemini, OpenAI, Claude or OpenRouter — you add your own key in Settings, so the app stays free. You'll be asked before anything is sent.",
-                },
-              ]}
-              value={cloudReview ? ["review"] : []}
-              onChange={() => setCloudReview((on) => !on)}
-            />
           </View>
+        ) : (
+          <AiCoachSetup
+            apiKey={cloudKey}
+            onChangeKey={(k) => {
+              setCloudKey(k);
+              setCloudError(null);
+            }}
+            error={cloudError}
+          />
         );
       case "retention":
         return <Choices options={RETENTION_OPTIONS.map((r) => ({ key: r.key, label: r.label }))} value={retention} onPick={setRetention} />;
@@ -452,6 +490,8 @@ export function OnboardingScreen({ route, navigation }: Props) {
         return <TextInput maxLength={300} value={profile.why ?? ""} onChangeText={(why) => update({ why })} placeholder="e.g. I'll say what I mean in meetings without rehearsing it in my head first" placeholderTextColor={colors.textMuted} style={[styles.input, styles.multiline]} multiline />;
     }
   }
+
+  if (step < 0 && mode === "full") return <WelcomeIntro onDone={() => go(0)} />;
 
   if (step < 0) {
     return (
@@ -464,14 +504,12 @@ export function OnboardingScreen({ route, navigation }: Props) {
             </Enter>
             <Enter index={1}>
               <Txt variant="display" style={styles.welcomeTitle}>
-                {mode === "profile" ? "Tell us about you" : "Speaking well is a skill, not a trait."}
+                Tell us about you
               </Txt>
             </Enter>
             <Enter index={2}>
               <Txt variant="body" tone="secondary">
-                {mode === "profile"
-                  ? "A few questions so your plan fits you. About three minutes; skip anything you like."
-                  : "A few questions (about three minutes), a quick setup check, then a short skill check so your plan starts where you are. Nothing is graded, and you can skip anything."}
+                A few questions so your plan fits you. About three minutes; skip anything you like.
               </Txt>
             </Enter>
           </View>
@@ -519,8 +557,16 @@ export function OnboardingScreen({ route, navigation }: Props) {
           </Animated.View>
         </ScrollView>
         <View style={styles.actions}>
-          {question.optional ? <PrimaryButton label="Skip" variant="ghost" style={styles.flex} onPress={next} disabled={busy} /> : null}
-          <PrimaryButton label={step === QUESTIONS.length - 1 ? "Done" : "Continue"} style={styles.flexWide} onPress={next} disabled={!answered} loading={busy} />
+          {question.optional && !(question.id === "cloud" && connected && !cloudKey) ? (
+            <PrimaryButton label={question.id === "cloud" ? "Not now" : "Skip"} variant="ghost" style={styles.flex} onPress={() => next(true)} disabled={busy} />
+          ) : null}
+          <PrimaryButton
+            label={step === QUESTIONS.length - 1 ? "Done" : question.id === "cloud" && cloudKey ? "Allow and turn on" : "Continue"}
+            style={styles.flexWide}
+            onPress={() => next()}
+            disabled={!answered}
+            loading={busy}
+          />
         </View>
       </KeyboardAvoidingView>
     </ScreenContainer>
@@ -542,37 +588,12 @@ function ProgressBar({ progress }: { progress: number }) {
   );
 }
 
-// The welcome's one flourish: a voice's waveform rising into place.
-const BARS = [0.35, 0.6, 0.45, 0.85, 1, 0.7, 0.5, 0.8, 0.55, 0.3, 0.65, 0.4];
-function Waveform() {
-  const styles = useStyles();
-  return (
-    <View style={styles.wave} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      {BARS.map((h, i) => (
-        <Bar key={i} height={h} index={i} />
-      ))}
-    </View>
-  );
-}
-
-function Bar({ height, index }: { height: number; index: number }) {
-  const styles = useStyles();
-  const v = useSharedValue(0.08);
-  useEffect(() => {
-    v.value = withDelay(200 + index * 45, withSpring(height, spring.gentle));
-  }, [height, index, v]);
-  const style = useAnimatedStyle(() => ({ height: 56 * v.value }));
-  return <Animated.View style={[styles.bar, style]} />;
-}
-
 const useStyles = makeStyles((t) => ({
   container: { gap: t.space.md },
   welcomeRoot: { flex: 1, backgroundColor: t.colors.background },
   welcome: { flex: 1, justifyContent: "space-between", paddingHorizontal: t.layout.gutter, paddingBottom: t.space.md },
   welcomeBody: { flex: 1, justifyContent: "center", gap: t.space.lg },
   welcomeTitle: { fontSize: 44, lineHeight: 50, letterSpacing: -1.6 },
-  wave: { flexDirection: "row", alignItems: "center", gap: 5, height: 56 },
-  bar: { width: 5, borderRadius: 3, backgroundColor: t.colors.textPrimary },
   top: { flexDirection: "row", alignItems: "center", gap: t.space.md },
   track: { height: 4, borderRadius: 2, backgroundColor: t.colors.surfaceRaised, marginTop: 8, overflow: "hidden" },
   fill: { height: "100%", borderRadius: 2, backgroundColor: t.colors.accent },
