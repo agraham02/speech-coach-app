@@ -72,11 +72,12 @@ export interface SessionScoreBreakdown {
   sources: ("device" | "cloud")[];
   cloudSource?: CloudSource;
   cloudOverallShare?: number;
-  // 2: carries factors and shares. Older stored breakdowns are recomputed.
+  // 2: carries factors and shares. 3: presence rebuilt after the iOS vertical
+  // gaze was found upside down. Older stored breakdowns are recomputed.
   version?: number;
 }
 
-export const SCORE_BREAKDOWN_VERSION = 2;
+export const SCORE_BREAKDOWN_VERSION = 3;
 
 const CATEGORY_WEIGHTS: Record<ScoreCategory, number> = {
   delivery: 0.25,

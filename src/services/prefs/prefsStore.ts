@@ -12,6 +12,7 @@ import type { DailyGoal } from "../../domain/dailyGoal";
 import type { UserProfile } from "../../domain/profile";
 import { DEFAULT_RUN, type RunState } from "../../domain/innerVoice/run";
 import type { ProviderId } from "../cloud/providers";
+import { parseCalibration, type FaceCalibration } from "../../domain/faceCalibration";
 
 const storage = createMMKV({ id: "speech-coach-prefs" });
 
@@ -48,6 +49,8 @@ const KEYS = {
   shareProfileWithReviews: "shareProfileWithReviews",
   audioRetentionDays: "audioRetentionDays",
   scoreVersion: "scoreVersion",
+  gazeYFixed: "gazeYFixed",
+  faceCalibration: "faceCalibration",
 } as const;
 
 // The session-score rules every stored score was last computed with (see
@@ -486,4 +489,28 @@ export function unmarkGuideSeen(id: string): void {
 
 export function resetCloudCallsToday(): void {
   storage.remove(KEYS.cloudCalls);
+}
+
+// Stored iOS presence timelines had the vertical gaze upside down; set once
+// they've been flipped (services/face/gazeYRepair.ts).
+export function getGazeYFixed(): boolean {
+  return storage.getBoolean(KEYS.gazeYFixed) ?? false;
+}
+
+export function setGazeYFixed(value: boolean): void {
+  storage.set(KEYS.gazeYFixed, value);
+}
+
+// What the face check learned about this face (domain/faceCalibration.ts):
+// null until it has been done, or after Reset.
+export function getFaceCalibration(): FaceCalibration | null {
+  return parseCalibration(storage.getString(KEYS.faceCalibration));
+}
+
+export function setFaceCalibration(value: FaceCalibration): void {
+  storage.set(KEYS.faceCalibration, JSON.stringify(value));
+}
+
+export function clearFaceCalibration(): void {
+  storage.remove(KEYS.faceCalibration);
 }

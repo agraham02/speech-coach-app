@@ -506,6 +506,11 @@ export function OnboardingScreen({ route, navigation }: Props) {
       <View style={styles.welcomeRoot}>
         <Aura color={colors.skill.cadence.fg} secondary={colors.skill.conversation.fg} strength={0.42} at={{ x: 0.2, y: 0.1 }} />
         <SafeAreaView style={styles.welcome}>
+          {mode === "profile" ? (
+            <View style={styles.welcomeTop}>
+              <IconButton icon="close" onPress={() => navigation.goBack()} accessibilityLabel="Close" size={38} />
+            </View>
+          ) : null}
           <View style={styles.welcomeBody}>
             <Enter index={0}>
               <Waveform />
@@ -600,6 +605,7 @@ const useStyles = makeStyles((t) => ({
   container: { gap: t.space.md },
   welcomeRoot: { flex: 1, backgroundColor: t.colors.background },
   welcome: { flex: 1, justifyContent: "space-between", paddingHorizontal: t.layout.gutter, paddingBottom: t.space.md },
+  welcomeTop: { paddingTop: t.space.sm, alignItems: "flex-start" },
   welcomeBody: { flex: 1, justifyContent: "center", gap: t.space.lg },
   welcomeTitle: { fontSize: 44, lineHeight: 50, letterSpacing: -1.6 },
   top: { flexDirection: "row", alignItems: "center", gap: t.space.md },

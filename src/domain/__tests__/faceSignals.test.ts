@@ -47,6 +47,21 @@ describe("sampleFromFace", () => {
   });
 });
 
+describe("sampleFromFace invertGazeY", () => {
+  const looksUp = face({ eyeLookUpLeft: 0.5, eyeLookUpRight: 0.5 });
+  it("keeps up positive by default", () => {
+    expect(sampleFromFace(looksUp, 0, true).gazeY).toBeCloseTo(0.5);
+  });
+  it("flips the vertical gaze when asked, without touching gazeX", () => {
+    const s = sampleFromFace(face({ eyeLookUpLeft: 0.5, eyeLookUpRight: 0.5, eyeLookOutLeft: 0.4, eyeLookInRight: 0.4 }), 0, true, { invertGazeY: true });
+    expect(s.gazeY).toBeCloseTo(-0.5);
+    expect(s.gazeX).toBeCloseTo(0.4);
+  });
+  it("never returns negative zero", () => {
+    expect(Object.is(sampleFromFace(face({}), 0, true, { invertGazeY: true }).gazeY, 0)).toBe(true);
+  });
+});
+
 describe("computePresenceMetrics with gaze", () => {
   const sample = (tMs: number, gazeX: number, extra: Partial<PresenceSample> = {}): PresenceSample => ({
     tMs,
