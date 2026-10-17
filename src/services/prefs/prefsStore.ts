@@ -478,3 +478,12 @@ export function setAudioRetentionDays(days: number): void {
 export function clearAllPrefs(): void {
   storage.clearAll();
 }
+
+// Dev tab: show one tip again, or start today's deep-review count over.
+export function unmarkGuideSeen(id: string): void {
+  storage.set(KEYS.guideSeen, JSON.stringify(getGuideSeen().filter((seen) => seen !== id)));
+}
+
+export function resetCloudCallsToday(): void {
+  storage.remove(KEYS.cloudCalls);
+}

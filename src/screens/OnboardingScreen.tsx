@@ -58,6 +58,8 @@ import {
 } from "../services/prefs/prefsStore";
 import { requestNotificationPermission, syncDailyReminder } from "../services/notifications/reminderScheduler";
 import { AiCoachSetup, providerForPastedKey } from "../components/onboarding/AiCoachSetup";
+import { TranscriptionSetup } from "../components/onboarding/TranscriptionSetup";
+import { useTranscriptionModel } from "../hooks/useTranscriptionModel";
 import { cleanApiKey } from "../services/cloud/inputGuards";
 import { checkProviderKey } from "../services/cloud/textProviders";
 import { currentProvider, hasConsent, hasProviderKey, PROVIDERS } from "../services/cloud/providers";
@@ -111,6 +113,7 @@ export function OnboardingScreen({ route, navigation }: Props) {
   }
 
   const question = QUESTIONS[step];
+  const transcriptionModel = useTranscriptionModel();
   const chapterIndex = question?.chapter ?? 0;
   const progress = useMemo(() => (step < 0 ? 0 : (step + 1) / QUESTIONS.length), [step]);
 
@@ -137,6 +140,9 @@ export function OnboardingScreen({ route, navigation }: Props) {
         return !!profile.practicePlace;
       case "retention":
         return !!retention;
+      // Required, but only to start: the download carries on in the background.
+      case "transcription":
+        return transcriptionModel.status !== "missing";
       case "cloud":
         return !!connected || cleanApiKey(cloudKey).length > 0;
       default:
@@ -463,6 +469,8 @@ export function OnboardingScreen({ route, navigation }: Props) {
             ) : null}
           </View>
         );
+      case "transcription":
+        return <TranscriptionSetup />;
       case "cloud":
         return connected && !cloudKey ? (
           <View style={styles.phoneOnly}>
@@ -557,7 +565,7 @@ export function OnboardingScreen({ route, navigation }: Props) {
           </Animated.View>
         </ScrollView>
         <View style={styles.actions}>
-          {question.optional && !(question.id === "cloud" && connected && !cloudKey) ? (
+          {question.optional && !(question.id === "cloud" && connected && !cloudKey)  ? (
             <PrimaryButton label={question.id === "cloud" ? "Not now" : "Skip"} variant="ghost" style={styles.flex} onPress={() => next(true)} disabled={busy} />
           ) : null}
           <PrimaryButton

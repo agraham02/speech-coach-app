@@ -3,6 +3,7 @@ import { logger } from "../../utils/logger";
 import { getProviderKey } from "../secrets/secretsStore";
 import { CloudApiError } from "./cloudErrors";
 import { PROVIDERS, type ProviderId } from "./providers";
+import { usageFromAnthropic, usageFromOpenAI, type TokenUsage } from "../../domain/cloudUsage";
 
 // Text-in, JSON-out calls to the providers that don't watch video: OpenAI
 // (Responses API), Anthropic (Messages API) and OpenRouter (OpenAI-style
@@ -19,6 +20,8 @@ interface TextCall {
   schemaName: string;
   // Already strict (see toStrictSchema): every object closed and complete.
   schema: object;
+  // Told how many tokens the call used, as the provider reports it.
+  onUsage?: (usage: TokenUsage) => void;
 }
 
 const TIMEOUT_MS = 180_000;
@@ -56,7 +59,7 @@ async function post(provider: TextProviderId, url: string, headers: Record<strin
   }
 }
 
-async function callOpenAI({ model, system, user, schemaName, schema }: TextCall): Promise<string> {
+async function callOpenAI({ model, system, user, schemaName, schema, onUsage }: TextCall): Promise<string> {
   const key = await requireKey("openai");
   const data = (await post("openai", "https://api.openai.com/v1/responses", { Authorization: `Bearer ${key}` }, {
     model,
@@ -64,7 +67,9 @@ async function callOpenAI({ model, system, user, schemaName, schema }: TextCall)
     input: [{ role: "user", content: user }],
     max_output_tokens: MAX_OUTPUT_TOKENS,
     text: { format: { type: "json_schema", name: schemaName, schema, strict: true } },
-  })) as { status?: string; output?: { type: string; content?: { type: string; text?: string; refusal?: string }[] }[] };
+  })) as { status?: string; usage?: unknown; output?: { type: string; content?: { type: string; text?: string; refusal?: string }[] }[] };
+  const openAiUsage = usageFromOpenAI(data.usage);
+  if (openAiUsage) onUsage?.(openAiUsage);
   for (const item of data.output ?? []) {
     if (item.type !== "message") continue;
     for (const part of item.content ?? []) {
@@ -75,7 +80,7 @@ async function callOpenAI({ model, system, user, schemaName, schema }: TextCall)
   throw new CloudApiError("OpenAI", `OpenAI didn't return a review${data.status && data.status !== "completed" ? ` (${data.status})` : ""}.`, undefined, data);
 }
 
-async function callAnthropic({ model, system, user, schema }: TextCall): Promise<string> {
+async function callAnthropic({ model, system, user, schema, onUsage }: TextCall): Promise<string> {
   const key = await requireKey("anthropic");
   const data = (await post("anthropic", "https://api.anthropic.com/v1/messages", { "x-api-key": key, "anthropic-version": "2023-06-01" }, {
     model,
@@ -83,7 +88,9 @@ async function callAnthropic({ model, system, user, schema }: TextCall): Promise
     system,
     messages: [{ role: "user", content: user }],
     output_config: { format: { type: "json_schema", schema } },
-  })) as { stop_reason?: string; content?: { type: string; text?: string }[] };
+  })) as { stop_reason?: string; usage?: unknown; content?: { type: string; text?: string }[] };
+  const anthropicUsage = usageFromAnthropic(data.usage);
+  if (anthropicUsage) onUsage?.(anthropicUsage);
   if (data.stop_reason === "refusal") throw new CloudApiError("Anthropic Claude", "Claude declined to review this take.");
   const text = (data.content ?? []).find((block) => block.type === "text" && block.text)?.text;
   if (!text) throw new CloudApiError("Anthropic Claude", "Claude didn't return a review.", undefined, data);
@@ -98,7 +105,7 @@ function extractJsonObject(text: string): string {
   return start >= 0 && end > start ? text.slice(start, end + 1) : text;
 }
 
-async function callOpenRouter({ model, system, user, schemaName, schema }: TextCall): Promise<string> {
+async function callOpenRouter({ model, system, user, schemaName, schema, onUsage }: TextCall): Promise<string> {
   const key = await requireKey("openrouter");
   const headers = { Authorization: `Bearer ${key}`, "X-Title": "Tono" };
   const messages = [
@@ -113,7 +120,7 @@ async function callOpenRouter({ model, system, user, schemaName, schema }: TextC
         : [...messages, { role: "user", content: `Reply with only a JSON object matching this JSON Schema:\n${JSON.stringify(schema)}` }],
       max_tokens: MAX_OUTPUT_TOKENS,
       ...(structured ? { response_format: { type: "json_schema", json_schema: { name: schemaName, strict: true, schema } } } : {}),
-    })) as { choices?: { message?: { content?: string } }[] };
+    })) as { usage?: unknown; choices?: { message?: { content?: string } }[] };
 
   let data;
   try {
@@ -125,6 +132,8 @@ async function callOpenRouter({ model, system, user, schemaName, schema }: TextC
     logger.warn(`[cloud] openrouter ${model}: no structured output, retrying with the schema in the prompt`);
     data = await ask(false);
   }
+  const routerUsage = usageFromOpenAI(data.usage);
+  if (routerUsage) onUsage?.(routerUsage);
   const text = data.choices?.[0]?.message?.content;
   if (!text) throw new CloudApiError("OpenRouter", "OpenRouter didn't return a review.", undefined, data);
   return extractJsonObject(text);

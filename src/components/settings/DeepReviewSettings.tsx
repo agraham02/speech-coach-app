@@ -27,6 +27,7 @@ import {
 import { buildSpeakerContext } from "../../domain/reviewerContext";
 import { todayISODate } from "../../utils/dateUtils";
 import { SwitchRow } from "../common/ListRow";
+import { DeepReviewUsage } from "./DeepReviewUsage";
 import { getProviderKey, setProviderKey } from "../../services/secrets/secretsStore";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
@@ -197,6 +198,7 @@ export function DeepReviewSettings() {
           style={styles.allow}
         />
       </Card>
+      <DeepReviewUsage />
     </View>
   );
 }

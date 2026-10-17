@@ -42,6 +42,7 @@ import { getLesson } from "../content/lessons";
 import { SKILL_LABELS, type SkillId } from "../theme/tokens";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import { success } from "../utils/haptics";
+import { TranscriptionBanner } from "../components/common/TranscriptionBanner";
 
 const EVENT_LABELS: Record<EventKind, string> = {
   interview: "interview",
@@ -126,6 +127,7 @@ export function TodayScreen() {
       eyebrow={profile?.name ? `${greeting()}, ${profile.name}` : greeting()}
       title="Today"
     >
+      <TranscriptionBanner />
       <View style={styles.meta}>
         <Txt variant="subhead" tone="secondary">
           {todayLabel()}

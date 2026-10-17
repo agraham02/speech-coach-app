@@ -1,17 +1,12 @@
 import * as Notifications from "expo-notifications";
-import { getRewindReminder, markRewindNotificationAsked, wasRewindNotificationAsked } from "../prefs/prefsStore";
+import { getRewindReminder, getUserProfile, markRewindNotificationAsked, wasRewindNotificationAsked } from "../prefs/prefsStore";
+import { rewindReminderText } from "../../domain/notificationCopy";
 import { hasRewindToday } from "../db/rewindRepo";
 import { REMINDER_DAYS_AHEAD, rewindReminderDates } from "../../domain/rewind/reminder";
 import { requestNotificationPermission } from "../notifications/reminderScheduler";
 import { logger } from "../../utils/logger";
 
 const IDENTIFIER = "rewind-reminder";
-
-const MESSAGES = [
-  "Tell your day, morning to night — two minutes.",
-  "Rewind: what happened today? Say it out loud, details and all.",
-  "Two minutes to put your day into words.",
-];
 
 export async function cancelRewindReminder(): Promise<void> {
   for (let i = 0; i < REMINDER_DAYS_AHEAD; i++) await Notifications.cancelScheduledNotificationAsync(`${IDENTIFIER}-${i}`).catch(() => undefined);
@@ -34,10 +29,12 @@ export async function syncRewindReminder(options: { askIfFirst?: boolean } = {})
   if (!allowed) return;
 
   const dates = rewindReminderDates({ hour: settings.hour, now: new Date(), toldToday: await hasRewindToday().catch(() => false) });
+  const name = getUserProfile()?.name;
   for (const [i, date] of dates.entries()) {
+    const text = rewindReminderText(name, date);
     await Notifications.scheduleNotificationAsync({
       identifier: `${IDENTIFIER}-${i}`,
-      content: { title: "Tono", body: MESSAGES[(date.getDate() + i) % MESSAGES.length], data: { route: "Rewind" } },
+      content: { title: text.title, body: text.body, data: { route: "Rewind" } },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date },
     });
   }

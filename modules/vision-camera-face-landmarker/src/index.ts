@@ -17,6 +17,8 @@ export interface FaceLandmarkerFace {
   // 4x4 facial transformation (head pose). Row-major on iOS, column-major on
   // Android — see headPoseFromMatrix. Empty when unavailable.
   matrix: number[];
+  // The orientation the image was given to MediaPipe in (iOS).
+  orientation?: string;
 }
 
 export type FaceLandmarkerOutput = FaceLandmarkerFace | { error: string } | Record<string, never>;
@@ -46,9 +48,11 @@ export function useFaceLandmarkerPlugin(): FrameProcessorPlugin | undefined {
   }, []);
 }
 
-export function detectFaceLandmarks(plugin: FrameProcessorPlugin, frame: Frame): FaceLandmarkerOutput {
+// args.orientation ("up", "down", "left", "right") overrides the automatic
+// choice on iOS; the Dev tab Face Lab uses it to compare them.
+export function detectFaceLandmarks(plugin: FrameProcessorPlugin, frame: Frame, args?: { orientation?: string }): FaceLandmarkerOutput {
   "worklet";
-  return plugin.call(frame) as unknown as FaceLandmarkerOutput;
+  return (args ? plugin.call(frame, args) : plugin.call(frame)) as unknown as FaceLandmarkerOutput;
 }
 
 export function isFace(output: FaceLandmarkerOutput | null | undefined): output is FaceLandmarkerFace {

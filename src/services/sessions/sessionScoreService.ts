@@ -6,6 +6,7 @@ import { getSessionById } from "../db/sessionsRepo";
 import { getScoresBySessionId } from "../db/scoresRepo";
 import { computeSessionScore, SCORE_BREAKDOWN_VERSION, type CloudSource, type SessionScoreBreakdown } from "../../domain/sessionScore";
 import { PROVIDERS } from "../cloud/providers";
+import { computeFillerStats } from "../../domain/transcriptAnnotations";
 import type { CloudTranscriptArtifact } from "../pipeline/steps/cloudReviewStep";
 import type { CoachOutput } from "../../domain/coach/ruleCoach";
 import type { PauseAnalysis } from "../../domain/dsp/pauses";
@@ -49,12 +50,20 @@ export async function refreshSessionScore(sessionId: string): Promise<SessionSco
       getScoresBySessionId(sessionId),
       getArtifact<CloudTranscriptArtifact>(sessionId, "cloud_transcript"),
     ]);
+    // A deep review that watched the video has heard the audio, so its
+    // transcript has the ums the phone's recognizer tends to drop. When there
+    // is one, the filler rate is counted there.
+    const aiFillers =
+      cloudSourceOf(cloudTranscript) === "video" && cloudTranscript?.verbatim?.trim()
+        ? computeFillerStats(cloudTranscript.verbatim, session.durationSeconds)
+        : null;
     const breakdown = computeSessionScore(
       {
         durationSeconds: session.durationSeconds,
         ...measuredVoice(session),
         // Stuttering: fluency isn't measured against you.
-        fillerRatePerMinute: stutterMode ? null : session.fillerRatePerMinute,
+        fillerRatePerMinute: stutterMode ? null : aiFillers?.ratePerMinute ?? session.fillerRatePerMinute,
+        fillersFromAi: !stutterMode && !!aiFillers,
         pauses: stutterMode && pauses ? { ...pauses, hesitations: 0, midPhrasePauses: 0 } : pauses,
         presence,
         coach,

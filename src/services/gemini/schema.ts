@@ -25,7 +25,7 @@ export const RESPONSE_SCHEMA = {
     transcript_verbatim: {
       type: "string",
       description:
-        "Verbatim transcript including filler words, false starts, and repetitions.",
+        "Exactly what was said, as heard: every um, uh, er and hmm, false starts, repeated and cut-off words. Never tidied; filler words are counted from it.",
     },
     transcript_clean: {
       type: "string",
@@ -239,30 +239,18 @@ export function planTextSection(planText?: PlanText): string {
   return `\nBefore recording, the speaker planned their point using the PREP framework:\n${lines.join("\n")}\n\nTreat this as their STATED INTENT. Judge relevance and coherence partly by whether the actual response executed on this plan — did they cover what they said they would, roughly in that order? If the response drifted from or contradicted their own stated plan, call that out specifically in relevance_notes or coherence_notes.\n`;
 }
 
-// When present, gives Gemini an already-verified verbatim transcript (from
-// on-device Whisper — see cloudReviewStep.ts) as grounding —
-// Gemini still produces its own transcript_verbatim/transcript_clean (so its
-// own evidence-quote annotations stay guaranteed-locatable within whatever
-// it returns), but is told to treat the provided text as ground truth rather
-// than re-transcribing from scratch, and to lean on it for coherence/
-// relevance judgment.
-function groundingSection(groundingTranscript?: string): string {
-  if (!groundingTranscript || !groundingTranscript.trim()) return "";
-  return `\nA dedicated speech-to-text system has already produced this verified verbatim transcript of the recording:\n"""\n${groundingTranscript.trim()}\n"""\nUse it as ground truth for what was actually said — your own transcript_verbatim should match it closely (word choice, filler words included) rather than re-transcribing independently, and use it to inform your coherence/relevance judgment.\n`;
-}
-
-export function buildSystemPrompt(promptText: string, planText?: PlanText, groundingTranscript?: string): string {
+export function buildSystemPrompt(promptText: string, planText?: PlanText): string {
   return `You are a rigorous, critical speaking coach grading a personal daily speaking-practice session — not a supportive cheerleader. Analyze this video clip of someone responding, unscripted, to a prompt.
 
 The speaker was responding to this prompt: "${promptText}"
-${planTextSection(planText)}${groundingSection(groundingTranscript)}
+${planTextSection(planText)}
 GRADING PHILOSOPHY (read this before scoring anything):
 - Be honest and demanding. Most unrehearsed, spontaneous responses should land in the 4-7 range across dimensions. Reserve 8-10 for genuinely strong, polished delivery you'd hold up as an example. Do not round scores up out of politeness, and do not default to the middle just because you're uncertain — look for specific evidence either way.
 - Anchor every score against this band: 1-2 unacceptable (a real problem that undermines the response), 3-4 weak (noticeably holds the response back), 5-6 developing (competent but with clear, nameable flaws), 7-8 strong (few flaws, would need a specific stretch to reach 9-10), 9-10 exceptional (nothing meaningful to critique).
 - Every "notes" field must name specific evidence — a count, a quote, or a specific observed moment — and explicitly state what's missing to reach a 10. "Good energy but could improve pacing" is not acceptable; "spoke at a steady ~140wpm but rushed through the conclusion in the last 8 seconds, undercutting the payoff — pausing there for 1-2 seconds would let it land" is.
 
 Produce two transcripts of what they said:
-1. transcript_verbatim: word-for-word, including filler words (um, uh, like), false starts, and repetitions.
+1. transcript_verbatim: word-for-word exactly as heard. Write every um, uh, er and hmm where it was said, plus false starts, repeated words and cut-off words. Do not tidy it: the app counts filler words from this transcript, so each dropped um makes the speaker look more fluent than they were.
 2. transcript_clean: the same content rewritten as grammatically clean prose, with fillers and false starts removed, suitable for pasting directly into a personal journal. Preserve the speaker's meaning, tone, and word choice as much as possible — do not summarize or add content that wasn't said.
 
 Also report duration_seconds: the approximate duration of the spoken response in seconds.
@@ -335,7 +323,7 @@ GRADING PHILOSOPHY (read this before scoring anything):
 - Every "notes" field must name specific evidence — a count, a quote, or a specific observed moment — and state what's missing to reach a 10.
 
 Produce two transcripts of what they actually said:
-1. transcript_verbatim: word-for-word, including filler words, false starts, and repetitions — even if it doesn't exactly match the script, transcribe what was actually spoken.
+1. transcript_verbatim: word-for-word exactly as heard. Write every um, uh, er and hmm where it was said, plus false starts, repeated words and cut-off words. Do not tidy it: the app counts filler words from this transcript, so each dropped um makes the speaker look more fluent than they were. Even if it doesn't exactly match the script, transcribe what was actually spoken.
 2. transcript_clean: the same content rewritten as grammatically clean prose, fillers and false starts removed.
 
 Also report duration_seconds: the approximate duration of the spoken response in seconds.

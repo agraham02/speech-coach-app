@@ -13,6 +13,7 @@ import { toStrictSchema, withoutProperties } from "./jsonSchema";
 import { speakerContextForReview } from "./speakerContext";
 import { modelFor, PROVIDERS } from "./providers";
 import { callTextProvider, type TextProviderId } from "./textProviders";
+import type { TokenUsage } from "../../domain/cloudUsage";
 
 // A deep review by a provider that can't watch video (OpenAI, Claude,
 // OpenRouter): it reads the on-device transcript — with word timings, so
@@ -173,7 +174,7 @@ function userMessage(input: MeasuredReviewInput, showCues: boolean): string {
   return parts.join("\n\n");
 }
 
-export async function measuredReview(input: MeasuredReviewInput, provider: TextProviderId): Promise<GeminiSessionAnalysis> {
+export async function measuredReview(input: MeasuredReviewInput, provider: TextProviderId, onUsage?: (usage: TokenUsage) => void): Promise<GeminiSessionAnalysis> {
   const { session, context } = input;
   const showCues = context.kind === "script" && context.cuesEnabled && context.script.marks.length > 0;
   const base = showCues ? buildResponseSchemaWithCueCompliance() : RESPONSE_SCHEMA;
@@ -189,6 +190,7 @@ export async function measuredReview(input: MeasuredReviewInput, provider: TextP
     user: userMessage(input, showCues),
     schemaName: "speech_review",
     schema,
+    onUsage,
   });
 
   let parsed: Record<string, unknown>;

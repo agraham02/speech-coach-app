@@ -1,19 +1,12 @@
-import { SpeechToTextModule, WHISPER_BASE_EN } from "react-native-executorch";
 import { logger } from "../../utils/logger";
 import { withTimeout } from "../../utils/withTimeout";
+import { DEFAULT_ASR_MODEL, isModelDownloaded } from "../asr/whisperModels";
 
-// react-native-executorch's speech-to-text module — chosen as the default,
-// free, on-device transcription engine (see plan.md's Phase 2). Note: the
-// plan originally targeted Moonshine as the default model, but the installed
-// package (0.9.3, the current stable release) only exposes Whisper variants
-// in its speech-to-text module — confirmed by reading the actual shipped
-// type definitions, not assumed. WHISPER_BASE_EN (English-only, non-
-// multilingual) is used over the smaller "tiny" variant for better accuracy
-// while staying small, matching the plan's original size-tier reasoning.
-//
-// This uses the imperative SpeechToTextModule class, not the useSpeechToText
-// hook — the hook only works inside a mounted React component, and this
-// needs to run from sessionProcessor.ts's background pipeline, which isn't one.
+// The app's speech-to-text: Whisper large-v3-turbo through whisper.rn
+// (whisper.cpp), primed with a filler-heavy prompt. In the ASR Lab it kept
+// 10 of 10 ums and uhs with 0.8% word errors and real word timings. The model
+// is a download (onboarding, or Settings, Coaching & AI), so until it is on
+// the phone there is nothing to transcribe with.
 
 export interface OnDeviceTranscriptWord {
   text: string;
@@ -27,64 +20,40 @@ export interface OnDeviceTranscriptResult {
   durationSeconds: number;
 }
 
-let modulePromise: Promise<SpeechToTextModule> | null = null;
-
-// Lazily created once per app session and reused across every transcription —
-// loading involves downloading the model on first use (fromModelName handles
-// its own disk caching internally, so subsequent loads are fast) and we don't
-// want to repeat that per session. If loading ever fails, the cached promise
-// is cleared so the next call gets a fresh attempt instead of repeating the
-// same failure forever.
-function getModule(onDownloadProgress?: (progress: number) => void): Promise<SpeechToTextModule> {
-  if (!modulePromise) {
-    modulePromise = SpeechToTextModule.fromModelName(WHISPER_BASE_EN, undefined, onDownloadProgress).catch(
-      (error) => {
-        modulePromise = null;
-        throw error;
-      },
-    );
+// The transcription model has not been downloaded yet.
+export class TranscriptionModelMissingError extends Error {
+  constructor() {
+    super("The transcription model isn't on this phone yet. Download it in Settings, Coaching & AI, then retry.");
+    this.name = "TranscriptionModelMissingError";
   }
-  return modulePromise;
 }
 
-// Covers both model load (first-run download, ~100-200MB for WHISPER_BASE_EN
-// over a slow connection) and the transcribe() call itself. Exists because
-// the underlying native bridge has been observed to hang indefinitely
-// (never resolving OR rejecting) rather than reject cleanly when the
-// ResourceFetcher adapter is misconfigured — see withTimeout.ts and
-// sessionProcessor.ts's resolveTranscriptAndAudio, which otherwise froze the
-// whole session pipeline at "Save your recording" with no error shown and
-// no way to recover short of force-quitting.
-const TRANSCRIBE_TIMEOUT_MS = 90_000;
+const ASR_SAMPLE_RATE = 16000;
 
-// Transcribes an already-decoded 16kHz mono waveform on-device. Free, no API
-// key, no per-session cost — the default transcription source for every
-// session (see sessionProcessor.ts). `verbose: true` is required to get
-// word-level timestamps back (via segments[].words) — without it there's no
-// WPM curve and no repeated-words detection, so this is not optional.
-export async function transcribeOnDevice(
-  waveform: Float32Array,
-  onDownloadProgress?: (progress: number) => void,
-): Promise<OnDeviceTranscriptResult> {
-  const result = await withTimeout(
-    (async () => {
-      const model = await getModule(onDownloadProgress);
-      return model.transcribe(waveform, { verbose: true });
-    })(),
-    TRANSCRIBE_TIMEOUT_MS,
-    null,
-  );
-  if (!result) {
-    throw new Error(`on-device ASR timed out after ${TRANSCRIBE_TIMEOUT_MS}ms`);
+// Transcribes an already-decoded 16 kHz mono waveform on the phone. Free, no
+// API key, no per-session cost.
+export async function transcribeOnDevice(waveform: Float32Array): Promise<OnDeviceTranscriptResult> {
+  if (!isModelDownloaded(DEFAULT_ASR_MODEL)) throw new TranscriptionModelMissingError();
+  // Lazy: whisper.rn's native module loads only when a take needs it.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { transcribeWithWhisperRn, releaseWhisperContext, FILLER_PROMPT } = require("../asr/whisperRn") as typeof import("../asr/whisperRn");
+  const seconds = waveform.length / ASR_SAMPLE_RATE;
+  // About 0.3x real time on an iPhone 15 Pro; this allows 3x plus the load.
+  // Without a limit a stuck native call would freeze the whole pipeline.
+  const budgetMs = 60_000 + seconds * 1000;
+  try {
+    const started = Date.now();
+    const result = await withTimeout(transcribeWithWhisperRn(DEFAULT_ASR_MODEL, waveform, { prompt: FILLER_PROMPT }), budgetMs, null);
+    if (!result) throw new Error(`on-device ASR timed out after ${Math.round(budgetMs / 1000)}s`);
+    if (!result.text.trim()) throw new Error("on-device ASR returned no text");
+    logger.info(`[onDeviceAsr] transcribed ${result.words.length} words in ${((Date.now() - started) / 1000).toFixed(1)}s`);
+    return {
+      text: result.text,
+      words: result.words.map((w) => ({ text: w.text, startSeconds: w.startMs / 1000, endSeconds: w.endMs / 1000 })),
+      durationSeconds: seconds,
+    };
+  } finally {
+    // The model is over half a gigabyte in memory: free it between takes.
+    await releaseWhisperContext().catch(() => undefined);
   }
-
-  const words: OnDeviceTranscriptWord[] = (result.segments ?? [])
-    .flatMap((segment) => segment.words ?? [])
-    .map((word) => ({ text: word.word, startSeconds: word.start, endSeconds: word.end }));
-
-  logger.info(
-    `[onDeviceAsr] transcribed ${result.text.length} chars, ${words.length} words, duration=${result.duration}s`,
-  );
-
-  return { text: result.text, words, durationSeconds: result.duration };
 }

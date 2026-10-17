@@ -18,6 +18,9 @@ export interface PresenceSample {
   browDown?: number; // 0-1, frowning/tension
   jawOpen?: number; // 0-1
   mouthPress?: number; // 0-1, pressed lips
+  // Blinks finished since the previous sample, counted on every camera frame
+  // (absent on older timelines, whose blinks are read from the samples).
+  blinks?: number;
 }
 
 export interface PresenceMetrics {
@@ -48,21 +51,71 @@ export interface PresenceMetrics {
   framedPercent: number;
 }
 
-// Head within this many degrees of straight-on counts as facing the lens.
-export const EYE_CONTACT_MAX_DEG = 15;
-// With gaze data the head may turn a little more, as long as the eyes come
-// back to the lens.
-const GAZE_HEAD_MAX_DEG = 20;
-// Eye-in-head offset (blendshape units, ~0.35 ≈ 10°) still counted as on
-// the lens. Generous on purpose: the phone's lens sits just above the
-// screen, and glancing at your own preview shouldn't count as looking away.
-const GAZE_MAX_OFFSET = 0.35;
-const LOOKING_DOWN = -0.35;
-const TILTED_DEG = 12;
-const SMILE_THRESHOLD = 0.5;
-const EYES_CLOSED = 0.3;
-const BROW_RAISE = 0.5;
-const TENSE = 0.45;
+// The cut-offs the metrics are computed with. They were set without device
+// data; the Dev tab's Face Lab tunes them against real takes.
+export interface PresenceThresholds {
+  // Head within this many degrees of straight-on counts as facing the lens.
+  eyeContactMaxDeg: number;
+  // With gaze data the head may turn a little more, as long as the eyes come
+  // back to the lens.
+  gazeHeadMaxDeg: number;
+  // Eye-in-head offset (blendshape units, ~0.35 = 10 degrees) still counted
+  // as on the lens. Generous on purpose: the phone lens sits just above the
+  // screen, and glancing at your own preview should not count as looking away.
+  gazeMaxOffset: number;
+  // Eyes this far below the lens (gazeY) count as looking down.
+  lookingDown: number;
+  tiltedDeg: number;
+  smile: number;
+  eyesClosed: number;
+  browRaise: number;
+  tense: number;
+}
+
+export const DEFAULT_PRESENCE_THRESHOLDS: PresenceThresholds = {
+  eyeContactMaxDeg: 15,
+  gazeHeadMaxDeg: 20,
+  gazeMaxOffset: 0.35,
+  lookingDown: -0.35,
+  tiltedDeg: 12,
+  smile: 0.5,
+  eyesClosed: 0.3,
+  browRaise: 0.5,
+  tense: 0.45,
+};
+
+// Kept for existing callers.
+export const EYE_CONTACT_MAX_DEG = DEFAULT_PRESENCE_THRESHOLDS.eyeContactMaxDeg;
+
+export type LookReason = "no_face" | "head_away" | "eyes_away" | "blink" | "on_lens";
+
+export interface LookClassification {
+  looking: boolean;
+  reason: LookReason;
+  // For head_away / eyes_away: the measured value and the limit it crossed
+  // (degrees, or gaze units).
+  value?: number;
+  limit?: number;
+}
+
+// Whether one sample counts as looking at the lens, and why. This is the
+// rule computePresenceMetrics uses, exposed so the Face Lab can show it live.
+// A blink drags the "look down" blendshapes up, so a closed-eye sample keeps
+// whatever the eyes were doing rather than reading as looking away.
+export function classifyLook(s: PresenceSample, t: PresenceThresholds = DEFAULT_PRESENCE_THRESHOLDS, hasGaze = true): LookClassification {
+  if (!s.present) return { looking: false, reason: "no_face" };
+  const head = Math.max(Math.abs(s.yaw), Math.abs(s.pitch));
+  if (!hasGaze) {
+    return head <= t.eyeContactMaxDeg
+      ? { looking: true, reason: "on_lens" }
+      : { looking: false, reason: "head_away", value: head, limit: t.eyeContactMaxDeg };
+  }
+  if (head > t.gazeHeadMaxDeg) return { looking: false, reason: "head_away", value: head, limit: t.gazeHeadMaxDeg };
+  if (s.eyesOpen < t.eyesClosed) return { looking: true, reason: "blink" };
+  const offset = Math.hypot(s.gazeX ?? 0, s.gazeY ?? 0);
+  if (offset > t.gazeMaxOffset) return { looking: false, reason: "eyes_away", value: offset, limit: t.gazeMaxOffset };
+  return { looking: true, reason: "on_lens" };
+}
 
 function stddev(values: number[]): number {
   if (values.length < 2) return 0;
@@ -85,21 +138,13 @@ function risingEdges(values: number[], threshold: number): number {
   return n;
 }
 
-export function computePresenceMetrics(timeline: PresenceSample[]): PresenceMetrics | null {
+export function computePresenceMetrics(timeline: PresenceSample[], t: PresenceThresholds = DEFAULT_PRESENCE_THRESHOLDS): PresenceMetrics | null {
   if (timeline.length < 3) return null;
   const present = timeline.filter((s) => s.present);
   const hasGaze = present.some((s) => s.gazeX !== undefined);
 
-  const facing = (s: PresenceSample) =>
-    s.present && Math.abs(s.yaw) <= EYE_CONTACT_MAX_DEG && Math.abs(s.pitch) <= EYE_CONTACT_MAX_DEG;
-  // A blink drags the "look down" blendshapes up, so a closed-eye sample
-  // keeps whatever the eyes were doing rather than reading as looking away.
-  const looking = (s: PresenceSample) => {
-    if (!hasGaze) return facing(s);
-    if (!s.present || Math.abs(s.yaw) > GAZE_HEAD_MAX_DEG || Math.abs(s.pitch) > GAZE_HEAD_MAX_DEG) return false;
-    if (s.eyesOpen < EYES_CLOSED) return true;
-    return Math.hypot(s.gazeX ?? 0, s.gazeY ?? 0) <= GAZE_MAX_OFFSET;
-  };
+  const facing = (s: PresenceSample) => s.present && Math.abs(s.yaw) <= t.eyeContactMaxDeg && Math.abs(s.pitch) <= t.eyeContactMaxDeg;
+  const looking = (s: PresenceSample) => classifyLook(s, t, hasGaze).looking;
 
   let longestAway = 0;
   let awayStart: number | null = null;
@@ -112,10 +157,15 @@ export function computePresenceMetrics(timeline: PresenceSample[]): PresenceMetr
     }
   }
 
-  const blinks = risingEdges(
-    present.map((s) => 1 - s.eyesOpen),
-    1 - EYES_CLOSED,
-  );
+  // Counted at the frame rate when recorded that way. The 200 ms samples
+  // miss most blinks, which is all older timelines have.
+  const frameCounted = timeline.some((s) => s.blinks !== undefined);
+  const blinks = frameCounted
+    ? timeline.reduce((n, s) => n + (s.blinks ?? 0), 0)
+    : risingEdges(
+        present.map((s) => 1 - s.eyesOpen),
+        1 - t.eyesClosed,
+      );
   const durationMin = Math.max((timeline[timeline.length - 1].tMs - timeline[0].tMs) / 60000, 1 / 60);
 
   const metrics: PresenceMetrics = {
@@ -125,7 +175,7 @@ export function computePresenceMetrics(timeline: PresenceSample[]): PresenceMetr
     eyeContactSource: hasGaze ? "gaze" : "head",
     facingLensPercent: pct(present.filter(facing).length, present.length),
     longestLookAwayMs: longestAway,
-    smilePercent: pct(present.filter((s) => s.smile >= SMILE_THRESHOLD).length, present.length),
+    smilePercent: pct(present.filter((s) => s.smile >= t.smile).length, present.length),
     expressiveness: Math.min(100, Math.round(stddev(present.map((s) => s.smile)) * 250)),
     headMovement: Math.round(((stddev(present.map((s) => s.yaw)) + stddev(present.map((s) => s.pitch))) / 2) * 10) / 10,
     blinksPerMinute: Math.round(blinks / durationMin),
@@ -133,7 +183,7 @@ export function computePresenceMetrics(timeline: PresenceSample[]): PresenceMetr
   };
   if (!hasGaze) return metrics;
 
-  const open = present.filter((s) => s.eyesOpen >= EYES_CLOSED);
+  const open = present.filter((s) => s.eyesOpen >= t.eyesClosed);
   const rolls = present.map((s) => Math.abs(s.roll ?? 0));
   // Smile, brows and jaw together: a face that moves with the words.
   const expression =
@@ -141,10 +191,10 @@ export function computePresenceMetrics(timeline: PresenceSample[]): PresenceMetr
   return {
     ...metrics,
     expressiveness: Math.min(100, Math.round(expression * 400)),
-    lookingDownPercent: pct(open.filter((s) => (s.gazeY ?? 0) <= LOOKING_DOWN).length, open.length),
+    lookingDownPercent: pct(open.filter((s) => (s.gazeY ?? 0) <= t.lookingDown).length, open.length),
     headTiltDeg: Math.round(median(rolls) * 10) / 10,
-    tiltedPercent: pct(rolls.filter((r) => r > TILTED_DEG).length, rolls.length),
-    browRaisesPerMinute: Math.round(risingEdges(present.map((s) => s.browRaise ?? 0), BROW_RAISE) / durationMin),
-    tensePercent: pct(present.filter((s) => (s.browDown ?? 0) >= TENSE || (s.mouthPress ?? 0) >= TENSE).length, present.length),
+    tiltedPercent: pct(rolls.filter((r) => r > t.tiltedDeg).length, rolls.length),
+    browRaisesPerMinute: Math.round(risingEdges(present.map((s) => s.browRaise ?? 0), t.browRaise) / durationMin),
+    tensePercent: pct(present.filter((s) => (s.browDown ?? 0) >= t.tense || (s.mouthPress ?? 0) >= t.tense).length, present.length),
   };
 }

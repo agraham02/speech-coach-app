@@ -10,6 +10,8 @@ import { logger } from "../../utils/logger";
 // A step failure the user should read as-is (e.g. "No transcript yet").
 export class StepError extends Error {}
 
+const elapsed = (since: number) => ((Date.now() - since) / 1000).toFixed(1) + " s";
+
 function describeStepError(error: unknown): string {
   if (error instanceof StepError) return error.message;
   return describeCloudError(error);
@@ -31,15 +33,17 @@ export function runStep(sessionId: string, step: SessionStep, task: () => Promis
     await setStepStatus(sessionId, step, "running", { bumpAttempts: true });
     emitStepEvent({ sessionId, step, status: "running" });
     await refreshSessionStatus(sessionId);
+    // Timed, so the Logs show where a slow take spent its time.
+    const started = Date.now();
     try {
       await task();
       await setStepStatus(sessionId, step, "done");
       emitStepEvent({ sessionId, step, status: "done" });
-      logger.info(`[pipeline] ${sessionId} ${step}: done`);
+      logger.info(`[pipeline] ${sessionId} ${step}: done in ${elapsed(started)}`);
       return true;
     } catch (error) {
       const message = describeStepError(error);
-      logger.error(`[pipeline] ${sessionId} ${step}: failed — ${(error as Error)?.message ?? error}`);
+      logger.error(`[pipeline] ${sessionId} ${step}: failed after ${elapsed(started)} — ${(error as Error)?.message ?? error}`);
       await setStepStatus(sessionId, step, "failed", { lastError: message });
       emitStepEvent({ sessionId, step, status: "failed", errorMessage: message });
       // Only shows when the app is backgrounded (the Result screen shows it

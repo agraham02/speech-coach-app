@@ -22,6 +22,7 @@ export type QuestionId =
   | "anchor"
   | "place"
   | "reminders"
+  | "transcription"
   | "cloud"
   | "retention"
   | "why";
@@ -126,6 +127,13 @@ export const QUESTIONS: Question[] = [
   },
   { id: "place", chapter: 2, title: "Where will you usually practice?", changes: "Somewhere shared? Top-ups skip the loud drills, and camera checks are skipped in the car." },
   { id: "reminders", chapter: 2, title: "Want a reminder?", changes: "One nudge per session, skipped once it's done." },
+  {
+    id: "transcription",
+    chapter: 2,
+    title: "Get the transcription model",
+    subtitle: "Tono turns what you say into text on your phone. The model that does it is too big to ship inside the app, so it downloads once.",
+    changes: "Start the download and carry on: it keeps going in the background. Until it finishes, a banner shows its progress, and takes you save are transcribed afterwards.",
+  },
   {
     id: "cloud",
     chapter: 2,

@@ -20,6 +20,26 @@ public class VisionCameraFaceLandmarker: FrameProcessorPlugin {
   // fallbacks tried until a face is found once, in case that's wrong on
   // some device.
   private static let orientations: [UIImage.Orientation] = [.right, .left, .up, .down]
+
+  private static func parse(_ name: String) -> UIImage.Orientation? {
+    switch name {
+    case "up": return .up
+    case "down": return .down
+    case "left": return .left
+    case "right": return .right
+    default: return nil
+    }
+  }
+
+  private static func name(_ orientation: UIImage.Orientation) -> String {
+    switch orientation {
+    case .up: return "up"
+    case .down: return "down"
+    case .left: return "left"
+    case .right: return "right"
+    default: return "other"
+    }
+  }
   private static let missesBeforeNextOrientation = 15
 
   private var landmarker: FaceLandmarker?
@@ -66,7 +86,10 @@ public class VisionCameraFaceLandmarker: FrameProcessorPlugin {
 
   public override func callback(_ frame: Frame, withArguments arguments: [AnyHashable: Any]?) -> Any {
     guard let landmarker = landmarker else { return ["error": "unavailable"] }
-    let orientation = Self.orientations[orientationIndex]
+    // The Dev tab Face Lab can ask for a specific orientation (to compare
+    // them); everything else uses the automatic choice.
+    let requested = (arguments?["orientation"] as? String).flatMap(Self.parse)
+    let orientation = requested ?? Self.orientations[orientationIndex]
     do {
       let image = try MPImage(sampleBuffer: frame.buffer, orientation: orientation)
       // Video mode needs strictly increasing timestamps.
@@ -76,10 +99,10 @@ public class VisionCameraFaceLandmarker: FrameProcessorPlugin {
 
       let result = try landmarker.detect(videoFrame: image, timestampInMilliseconds: timestamp)
       guard let face = result.faceLandmarks.first, !face.isEmpty else {
-        noteMiss()
+        if requested == nil { noteMiss() }
         return [String: Any]()
       }
-      orientationLocked = true
+      if requested == nil { orientationLocked = true }
       consecutiveMisses = 0
 
       let sideways = orientation == .left || orientation == .right
@@ -121,6 +144,7 @@ public class VisionCameraFaceLandmarker: FrameProcessorPlugin {
         "landmarks": landmarks,
         "blendshapes": blendshapes,
         "matrix": matrix,
+        "orientation": Self.name(orientation),
       ] as [String: Any]
     } catch {
       NSLog("[FaceLandmarker] detection failed: \(error)")

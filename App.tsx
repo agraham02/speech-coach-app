@@ -5,21 +5,12 @@ import * as SplashScreen from "expo-splash-screen";
 import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useFonts } from "expo-font";
-import { initExecutorch } from "react-native-executorch";
-import { ExpoResourceFetcher } from "react-native-executorch-expo-resource-fetcher";
 import { AppNavigator } from "./src/navigation";
+import { isModelDownloaded, DEFAULT_ASR_MODEL, removeRetiredModels, subscribeModelReady } from "./src/services/asr/whisperModels";
+import { retryWaitingTakes } from "./src/services/pipeline/retryWaitingTakes";
 import { ToastProvider } from "./src/components/common/ToastProvider";
 import { GuideProvider } from "./src/components/common/GuideTip";
 import { ThemeProvider, useTheme } from "./src/theme/ThemeProvider";
-
-// Must run before anything touches react-native-executorch — the on-device
-// ASR pipeline (onDeviceAsrClient.ts) loads its model from a background
-// task, not a mounted component, so there's no hook/component lifecycle to
-// hang this off of. Module-scope, at the app's entry point, is the one spot
-// guaranteed to run before that background work can ever kick off. Without
-// this, every SpeechToTextModule.fromModelName() call fails with
-// "ResourceFetcher adapter is not initialized."
-initExecutorch({ resourceFetcher: ExpoResourceFetcher });
 
 // The splash (app.config.ts) stays up until the first screen can draw in the
 // right typeface, then fades — no blank frame or spinner in between.
@@ -40,6 +31,16 @@ export default function App() {
     "InstrumentSans-SemiBold": require("./assets/fonts/InstrumentSans-SemiBold.ttf"),
     "InstrumentSans-Bold": require("./assets/fonts/InstrumentSans-Bold.ttf"),
   });
+
+  // Model files from finished experiments (CrisperWhisper) are deleted once.
+  useEffect(() => removeRetiredModels(), []);
+
+  // Takes saved while the transcription model was missing are transcribed
+  // when it arrives (and on launch, if it arrived while the app was closed).
+  useEffect(() => {
+    if (isModelDownloaded(DEFAULT_ASR_MODEL)) retryWaitingTakes().catch(() => undefined);
+    return subscribeModelReady(() => retryWaitingTakes().catch(() => undefined));
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => SplashScreen.hide(), SPLASH_TIMEOUT_MS);
