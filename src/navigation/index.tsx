@@ -18,7 +18,15 @@ import { ConversationRunnerScreen } from "../screens/ConversationRunnerScreen";
 import { PrimeScreen } from "../screens/PrimeScreen";
 import { DebriefScreen } from "../screens/DebriefScreen";
 import { ConversationLogScreen } from "../screens/ConversationLogScreen";
-import { AsrLabScreen } from "../screens/AsrLabScreen";
+import { AsrLabScreen } from "../screens/dev/AsrLabScreen";
+import { LogsScreen } from "../screens/dev/LogsScreen";
+import { PipelineScreen } from "../screens/dev/PipelineScreen";
+import { SessionDetailScreen } from "../screens/dev/SessionDetailScreen";
+import { ArtifactScreen } from "../screens/dev/ArtifactScreen";
+import { FaceLabScreen } from "../screens/dev/FaceLabScreen";
+import { ToolsScreen } from "../screens/dev/ToolsScreen";
+import type { ArtifactKind } from "../services/db/artifactsRepo";
+import type { LogLevelFilter } from "../domain/dev/logFilter";
 import { reconcileOnLaunch } from "../services/pipeline/reconcile";
 import { autoCleanupVideos } from "../services/data/videoKeepsakes";
 import type { PracticeContext } from "../domain/practice";
@@ -27,7 +35,7 @@ import { HistoryScreen } from "../screens/HistoryScreen";
 import { TrendsScreen } from "../screens/TrendsScreen";
 import type { SkillId } from "../theme/tokens";
 import { SkillDetailScreen } from "../screens/SkillDetailScreen";
-import { DevScreen } from "../screens/DevScreen";
+import { DevHomeScreen } from "../screens/dev/DevHomeScreen";
 import { SHOW_DEV_TOOLS } from "../config/devTools";
 import { RecordingScreen } from "../screens/RecordingScreen";
 import { PreviewScreen } from "../screens/PreviewScreen";
@@ -145,6 +153,12 @@ export type RootStackParamList = {
   Processing: { sessionId: string };
   Result: { sessionId: string; practice?: PracticeContext };
   AsrLab: undefined;
+  DevLogs: { tag?: string; level?: LogLevelFilter } | undefined;
+  DevPipeline: { problemsOnly?: boolean } | undefined;
+  DevSession: { sessionId: string };
+  DevArtifact: { sessionId: string; kind: ArtifactKind };
+  DevFaceLab: undefined;
+  DevTools: undefined;
 };
 
 const JSTab = createBottomTabNavigator<TabParamList>();
@@ -200,7 +214,7 @@ function JSTabs() {
       {SHOW_DEV_TOOLS ? (
         <JSTab.Screen
           name="Dev"
-          component={DevScreen}
+          component={DevHomeScreen}
           options={{
             tabBarIcon: ({ color, size }) => <Ionicons name="bug-outline" size={size} color={color} />,
           }}
@@ -271,7 +285,7 @@ function NativeTabs() {
       {SHOW_DEV_TOOLS ? (
         <NativeTab.Screen
           name="Dev"
-          component={DevScreen}
+          component={DevHomeScreen}
           options={{
             tabBarIcon: ({ focused }) => ({ sfSymbol: focused ? "ladybug.fill" : "ladybug" }),
           }}
@@ -367,7 +381,17 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
         <Stack.Screen name="RewindResult" component={RewindResultScreen} />
         <Stack.Screen name="ThoughtChallenge" component={ThoughtChallengeScreen} />
         <Stack.Screen name="ThreeThingsList" component={ThreeThingsListScreen} />
-        <Stack.Screen name="AsrLab" component={AsrLabScreen} />
+        {SHOW_DEV_TOOLS ? (
+          <Stack.Group>
+            <Stack.Screen name="DevLogs" component={LogsScreen} />
+            <Stack.Screen name="DevPipeline" component={PipelineScreen} />
+            <Stack.Screen name="DevSession" component={SessionDetailScreen} />
+            <Stack.Screen name="DevArtifact" component={ArtifactScreen} />
+            <Stack.Screen name="DevFaceLab" component={FaceLabScreen} />
+            <Stack.Screen name="DevTools" component={ToolsScreen} />
+            <Stack.Screen name="AsrLab" component={AsrLabScreen} />
+          </Stack.Group>
+        ) : null}
         <Stack.Screen name="Practice" component={HomeScreen} />
         <Stack.Screen name="Frameworks" component={TipsScreen} />
         <Stack.Screen name="Sources" component={SourcesScreen} />

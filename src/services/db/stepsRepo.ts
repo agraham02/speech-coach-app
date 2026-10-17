@@ -28,6 +28,23 @@ export async function getSessionSteps(sessionId: string): Promise<StepState[]> {
   return rows.map(rowToStep).sort((a, b) => (order.get(a.step) ?? 0) - (order.get(b.step) ?? 0));
 }
 
+// Steps for many sessions at once, grouped by session (the Dev pipeline list).
+export async function getStepsForSessions(sessionIds: string[]): Promise<Map<string, StepState[]>> {
+  const grouped = new Map<string, StepState[]>();
+  if (sessionIds.length === 0) return grouped;
+  const db = await getDatabase();
+  const placeholders = sessionIds.map(() => "?").join(", ");
+  const rows = await db.getAllAsync<StepRow>(`SELECT * FROM session_steps WHERE session_id IN (${placeholders})`, sessionIds);
+  const order = new Map(ALL_STEPS.map((s, i) => [s, i]));
+  for (const step of rows.map(rowToStep)) {
+    const list = grouped.get(step.sessionId) ?? [];
+    list.push(step);
+    grouped.set(step.sessionId, list);
+  }
+  for (const list of grouped.values()) list.sort((a, b) => (order.get(a.step) ?? 0) - (order.get(b.step) ?? 0));
+  return grouped;
+}
+
 export async function getStepsWithStatus(statuses: StepStatus[]): Promise<StepState[]> {
   const db = await getDatabase();
   const placeholders = statuses.map(() => "?").join(", ");
