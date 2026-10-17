@@ -38,7 +38,19 @@ export type DrillType =
   | "land_plane"
   | "squeeze"
   | "callback"
-  | "conv_react";
+  | "conv_react"
+  // Say it short: summarize, then stop (see domain/summary).
+  | "sum_up"
+  | "relay"
+  | "explain_simple";
+
+export const SUMMARY_DRILLS = ["sum_up", "relay", "explain_simple"] as const satisfies readonly DrillType[];
+
+export type SummaryDrillType = (typeof SUMMARY_DRILLS)[number];
+
+export function isSummaryDrill(type: DrillType): type is SummaryDrillType {
+  return (SUMMARY_DRILLS as readonly DrillType[]).includes(type);
+}
 
 export const CONVERSATION_DRILLS = [
   "conv_reply",
@@ -92,6 +104,9 @@ export const DRILL_SKILL: Record<DrillType, SkillId> = {
   squeeze: "conversation",
   callback: "conversation",
   conv_react: "conversation",
+  sum_up: "impromptu",
+  relay: "impromptu",
+  explain_simple: "impromptu",
 };
 
 export const DRILL_TITLES: Record<DrillType, string> = {
@@ -125,6 +140,9 @@ export const DRILL_TITLES: Record<DrillType, string> = {
   squeeze: "Squeeze it",
   callback: "Call it back",
   conv_react: "React",
+  sum_up: "Sum it up",
+  relay: "Rolling summary",
+  explain_simple: "Explain it simply",
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -178,6 +196,15 @@ export interface DrillParams {
   budgetSeconds?: number;
   // squeeze: share of the short take's content words drawn from the long one
   retentionTarget?: number;
+  // say it short: most sentences an answer may use
+  sentenceLimit?: number;
+  // rolling summary: paragraphs in the passage
+  paragraphs?: number;
+  // rolling summary: key words from the paragraph a summary must mention
+  keyWordsNeeded?: number;
+  // explain it simply: average words per sentence, and the share of long words
+  maxSentenceWords?: number;
+  longWordShare?: number;
 }
 
 export function paramsFor(type: DrillType, level: number): DrillParams {
@@ -246,6 +273,18 @@ export function paramsFor(type: DrillType, level: number): DrillParams {
       return { retentionTarget: Math.round((0.25 + l * 0.02) * 100) / 100 };
     case "callback":
       return { replyWindowSec: 8 };
+    // Summaries ask for less as you improve: level 1 gives two sentences and
+    // thirty seconds; level 10 asks for one sentence in twelve.
+    case "sum_up":
+      return { sentenceLimit: l <= 6 ? 2 : 1, budgetSeconds: Math.round(32 - l * 2) };
+    case "relay":
+      return { paragraphs: l <= 3 ? 3 : l <= 7 ? 4 : 5, sentenceLimit: 2, budgetSeconds: Math.round(32 - l), keyWordsNeeded: l <= 4 ? 1 : 2 };
+    case "explain_simple":
+      return {
+        budgetSeconds: Math.round(47 - l * 2.2),
+        maxSentenceWords: Math.round(16 - l * 0.45),
+        longWordShare: Math.round((0.12 - l * 0.006) * 1000) / 1000,
+      };
     default:
       return {};
   }

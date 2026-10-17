@@ -93,9 +93,10 @@ export function hasConsent(id: ProviderId = getCloudProvider()): boolean {
 // the save screen).
 export function whatGetsSent(provider: CloudProvider): string {
   const about = getShareProfileWithReviews() ? " A short note on your goals and what gets in your way (from setup) goes with it, so the feedback fits you — you can see it and turn it off in Settings." : "";
+  const drills = ` The words you say in the Say it short drills (summaries and plain explanations) are sent as text too, so it can check the idea — never audio or video.`;
   return provider.input === "video"
-    ? `Your video (with its audio) is uploaded to ${provider.company} for each deep review.${about}`
-    : `Your transcript and the phone's measurements (pace, pauses, pitch, loudness, eye contact, expression) are sent to ${provider.company} for each deep review — never the video.${about}`;
+    ? `Your video (with its audio) is uploaded to ${provider.company} for each deep review.${about}${drills}`
+    : `Your transcript and the phone's measurements (pace, pauses, pitch, loudness, eye contact, expression) are sent to ${provider.company} for each deep review — never the video.${about}${drills}`;
 }
 
 // Why this take can't get a review from this provider right now, if not.

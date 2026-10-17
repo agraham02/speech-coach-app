@@ -15,6 +15,7 @@ import { DailySessionScreen } from "../screens/DailySessionScreen";
 import { DrillRunnerScreen } from "../screens/DrillRunnerScreen";
 import { GuidedScreen } from "../screens/GuidedScreen";
 import { ConversationRunnerScreen } from "../screens/ConversationRunnerScreen";
+import { SummaryRunnerScreen } from "../screens/SummaryRunnerScreen";
 import { PrimeScreen } from "../screens/PrimeScreen";
 import { DebriefScreen } from "../screens/DebriefScreen";
 import { ConversationLogScreen } from "../screens/ConversationLogScreen";
@@ -30,7 +31,7 @@ import type { LogLevelFilter } from "../domain/dev/logFilter";
 import { reconcileOnLaunch } from "../services/pipeline/reconcile";
 import { autoCleanupVideos } from "../services/data/videoKeepsakes";
 import type { PracticeContext } from "../domain/practice";
-import type { ConversationDrillType, DrillType } from "../domain/drills/drillSpecs";
+import type { ConversationDrillType, DrillType, SummaryDrillType } from "../domain/drills/drillSpecs";
 import { HistoryScreen } from "../screens/HistoryScreen";
 import { TrendsScreen } from "../screens/TrendsScreen";
 import type { SkillId } from "../theme/tokens";
@@ -135,6 +136,7 @@ export type RootStackParamList = {
   Drill: { drill: DrillType; contentId?: string; practice?: PracticeContext };
   Guided: { guidedId?: string; warmupId?: string; practice?: PracticeContext };
   Conversation: { drill: ConversationDrillType; contentId?: string; practice?: PracticeContext; blankMomentId?: string };
+  Summary: { drill: SummaryDrillType; contentId?: string; practice?: PracticeContext };
   Prime: undefined;
   Debrief: { eventId?: string } | undefined;
   ConversationLog: undefined;
@@ -400,6 +402,7 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
         <Stack.Screen name="Drill" component={DrillRunnerScreen} />
         <Stack.Screen name="Guided" component={GuidedScreen} />
         <Stack.Screen name="Conversation" component={ConversationRunnerScreen} />
+        <Stack.Screen name="Summary" component={SummaryRunnerScreen} />
         <Stack.Screen name="Prime" component={PrimeScreen} options={{ presentation: "modal" }} />
         <Stack.Screen name="Debrief" component={DebriefScreen} options={{ presentation: "modal" }} />
         <Stack.Screen name="ConversationLog" component={ConversationLogScreen} />
