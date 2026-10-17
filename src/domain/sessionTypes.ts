@@ -74,10 +74,9 @@ export type RecordingSubject =
   // finer choice made on the Study screen.
   | { kind: "script"; script: Script; cuesEnabled: boolean; markLevel?: MarkLevel };
 
-// 'whisper_ondevice' is the default free path (react-native-executorch,
-// Phase 2 — the plan originally targeted Moonshine, but the installed
-// package's speech-to-text module only ships Whisper; see plan.md's
-// correction note). 'on_device' is kept for pre-Phase-2 rows that used that
+// 'whisper_ondevice' is the default free path (Whisper on the phone: base.en
+// through react-native-executorch until 2026-10-16, large-v3-turbo through
+// whisper.rn since). 'on_device' is kept for pre-Phase-2 rows that used that
 // generic value, and 'assemblyai' for takes from when cloud transcription
 // existed (removed 2026-10-12); 'gemini' is the fallback when on-device
 // transcription didn't produce one.

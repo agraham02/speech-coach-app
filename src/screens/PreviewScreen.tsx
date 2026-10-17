@@ -18,6 +18,7 @@ import { currentProvider, hasConsent, hasProviderKey } from "../services/cloud/p
 import { readyForDeepReview } from "../services/cloud/consent";
 import { spacing, typography, font, fontDisplay } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
+import { TranscriptionBanner } from "../components/common/TranscriptionBanner";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Preview">;
 
@@ -131,6 +132,8 @@ export function PreviewScreen({ route, navigation }: Props) {
       <Text style={styles.title}>Review your take</Text>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <VideoPlayback videoUri={videoUri} />
+
+        <TranscriptionBanner />
 
         <Card style={styles.section}>
           <Text style={styles.note}>

@@ -3,8 +3,8 @@
 // native-bridge calls (audio decode, on-device ASR) that have no internal
 // timeout of their own and have been observed to hang indefinitely — never
 // resolving or rejecting — rather than fail cleanly when the underlying
-// native module is in a bad state (e.g. the ExecuTorch ResourceFetcher-not-
-// initialized incident: see sessionProcessor.ts's resolveTranscriptAndAudio).
+// native module is in a bad state (e.g. a model fetcher that was never
+// initialized, which once froze the session pipeline).
 // A genuine rejection from `promise` still propagates as a rejection — this
 // only guards against silence, not against real errors, which callers
 // already handle via their own try/catch or .catch().

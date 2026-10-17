@@ -3,13 +3,54 @@
 
 const FILLER_RE = /^(um+|uh+|uhm+|erm?|ah+|hmm+)$/;
 
+// Engines write numbers either way ("the 1st time", "3 times"): spell the
+// small ones out so formatting does not count as a mistake.
+const NUMBER_WORDS: Record<string, string> = {
+  "0": "zero", "1": "one", "2": "two", "3": "three", "4": "four", "5": "five", "6": "six", "7": "seven", "8": "eight", "9": "nine", "10": "ten",
+  "11": "eleven", "12": "twelve", "13": "thirteen", "14": "fourteen", "15": "fifteen", "16": "sixteen", "17": "seventeen", "18": "eighteen", "19": "nineteen", "20": "twenty",
+  "1st": "first", "2nd": "second", "3rd": "third", "4th": "fourth", "5th": "fifth", "6th": "sixth", "7th": "seventh", "8th": "eighth", "9th": "ninth", "10th": "tenth",
+};
+
 export function normalizeForWer(text: string): string[] {
   return text
     .toLowerCase()
     .replace(/[‘’]/g, "'")
     .replace(/[^a-z0-9' ]+/g, " ")
     .split(/\s+/)
-    .filter(Boolean);
+    .filter(Boolean)
+    .map((w) => NUMBER_WORDS[w] ?? w);
+}
+
+// Lines the hypothesis up against the reference (the edit-distance path):
+// for each reference word, the hypothesis word it matched or was swapped
+// for, or -1 when the engine dropped it.
+export function alignWords(ref: string[], hyp: string[]): number[] {
+  const cols = hyp.length + 1;
+  const cost = new Int32Array((ref.length + 1) * cols);
+  for (let j = 0; j <= hyp.length; j++) cost[j] = j;
+  for (let i = 1; i <= ref.length; i++) {
+    cost[i * cols] = i;
+    for (let j = 1; j <= hyp.length; j++) {
+      const swap = cost[(i - 1) * cols + j - 1] + (ref[i - 1] === hyp[j - 1] ? 0 : 1);
+      cost[i * cols + j] = Math.min(cost[(i - 1) * cols + j] + 1, cost[i * cols + j - 1] + 1, swap);
+    }
+  }
+  const refToHyp = new Array<number>(ref.length).fill(-1);
+  let i = ref.length;
+  let j = hyp.length;
+  while (i > 0 && j > 0) {
+    const here = cost[i * cols + j];
+    if (here === cost[(i - 1) * cols + j - 1] + (ref[i - 1] === hyp[j - 1] ? 0 : 1)) {
+      refToHyp[i - 1] = j - 1;
+      i -= 1;
+      j -= 1;
+    } else if (here === cost[(i - 1) * cols + j] + 1) {
+      i -= 1;
+    } else {
+      j -= 1;
+    }
+  }
+  return refToHyp;
 }
 
 // Word error rate = (substitutions + deletions + insertions) / reference words.
@@ -32,12 +73,40 @@ export function countFillers(text: string): number {
   return normalizeForWer(text).filter((w) => FILLER_RE.test(w)).length;
 }
 
-// Share of the reference's fillers ("um", "uh") the engine kept. Null when
-// the reference has none to compare against.
+export interface FillerMatch {
+  // Fillers in the reference.
+  expected: number;
+  // Of those, how many the engine wrote in the same place.
+  kept: number;
+  // Fillers the engine wrote where none was said.
+  invented: number;
+}
+
+// Matches fillers by position, not by count: an engine that drops the real
+// ums and invents others elsewhere (a filler prompt can do that) keeps none.
+export function matchFillers(reference: string, hypothesis: string): FillerMatch {
+  const ref = normalizeForWer(reference);
+  const hyp = normalizeForWer(hypothesis);
+  const refToHyp = alignWords(ref, hyp);
+  const matchedHyp = new Set<number>();
+  let kept = 0;
+  ref.forEach((word, i) => {
+    const j = refToHyp[i];
+    if (FILLER_RE.test(word) && j >= 0 && FILLER_RE.test(hyp[j])) {
+      kept += 1;
+      matchedHyp.add(j);
+    }
+  });
+  const hypFillers = hyp.filter((w) => FILLER_RE.test(w)).length;
+  return { expected: ref.filter((w) => FILLER_RE.test(w)).length, kept, invented: hypFillers - matchedHyp.size };
+}
+
+// Share of the reference's fillers ("um", "uh") the engine kept, in place.
+// Null when the reference has none to compare against.
 export function fillerRetention(reference: string, hypothesis: string): number | null {
-  const expected = countFillers(reference);
+  const { expected, kept } = matchFillers(reference, hypothesis);
   if (expected === 0) return null;
-  return Math.min(1, Math.round((countFillers(hypothesis) / expected) * 100) / 100);
+  return Math.round((kept / expected) * 100) / 100;
 }
 
 // 16-bit PCM mono WAV bytes from a float waveform — what Apple's file

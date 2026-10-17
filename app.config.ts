@@ -30,6 +30,14 @@ export default (): ExpoConfig => ({
     ios: {
         bundleIdentifier: "com.ahmadgraham.tono",
         supportsTablet: false,
+        // The transcription model (Whisper large-v3-turbo) is over half a
+        // gigabyte in memory, which whisper.rn asks extended addressing and
+        // the higher memory limit for. EAS syncs these capabilities onto the
+        // App ID.
+        entitlements: {
+            "com.apple.developer.kernel.extended-virtual-addressing": true,
+            "com.apple.developer.kernel.increased-memory-limit": true,
+        },
         infoPlist: {
             ITSAppUsesNonExemptEncryption: false,
         },
@@ -62,6 +70,7 @@ export default (): ExpoConfig => ({
         },
     },
     plugins: [
+        "expo-asset",
         "expo-sqlite",
         // The mark on the theme's background — paper in light mode, ink in
         // dark — so launch flows straight into the first screen. App.tsx
@@ -87,8 +96,8 @@ export default (): ExpoConfig => ({
         // permission. `false` deletes the key (config-plugins applyPermissions).
         ["expo-secure-store", { faceIDPermission: false }],
         "react-native-bottom-tabs",
-        // MediaPipe + ExecuTorch both set a conditional linker flag that
-        // CocoaPods can't merge (it drops both); see the plugin for details.
+        // MediaPipe's conditional linker flag, set on the app target so
+        // CocoaPods never has to merge it; see the plugin for details.
         "./plugins/withMediaPipeLinkerFlags",
         [
             "react-native-vision-camera",
@@ -103,15 +112,8 @@ export default (): ExpoConfig => ({
         [
             "expo-build-properties",
             {
-                // 17.0, not 16.4 — react-native-executorch's podspec pins
-                // `s.platforms = { :ios => '17.0' }` (needed for on-device
-                // Whisper ASR, Phase 2/3), the highest floor among this
-                // project's native deps. Confirmed via EAS build failure:
-                // "Specs satisfying the react-native-executorch dependency
-                // were found, but they required a higher minimum deployment
-                // target." Every other native dep here (VisionCamera 12.4,
-                // face-detector 15.5, Skia 14.0, audio-api 14.0) is well
-                // under this, so 17.0 is the actual constraint, not a guess.
+                // 17.0 was set by react-native-executorch (since removed).
+                // Left alone: lowering it is a separate, untested change.
                 ios: { deploymentTarget: "17.0" },
                 android: { minSdkVersion: 26 },
             },
@@ -144,7 +146,9 @@ export default (): ExpoConfig => ({
             {
                 microphonePermission: MICROPHONE_PERMISSION,
                 speechRecognitionPermission: SPEECH_RECOGNITION_PERMISSION,
-                androidSpeechServicePackages: ["com.google.android.googlequicksearchbox"],
+                androidSpeechServicePackages: [
+                    "com.google.android.googlequicksearchbox",
+                ],
             },
         ],
     ],
