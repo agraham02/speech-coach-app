@@ -63,6 +63,40 @@ function headPoseFromLandmarks(face: FaceLandmarkerFace): HeadPose | null {
   };
 }
 
+// Positions in the plugin landmark array (LANDMARK_INDICES order).
+const NOSE_TIP = 0;
+const CHIN = 2;
+const EDGE_RIGHT = 3;
+const EDGE_LEFT = 4;
+const BETWEEN_EYES = 7;
+
+export interface HeadProxies {
+  // Nose tip's drop below the eyes, as a share of eyes-to-chin. Larger when
+  // the chin tips down, smaller when it tips up (the nose sticks out, so it
+  // swings further than the chin). Compare it with your own level head.
+  tip: number;
+  // Nose tip's sideways offset from the middle of the face, as a share of
+  // face width. Positive when the nose points toward the screen right,
+  // which on the mirrored preview is the user's right.
+  turn: number;
+}
+
+// Head pitch and turn from the landmarks alone, in the upright preview
+// coordinates orientFace gives. Unlike the matrix angles, which way they point
+// follows from the picture, not from a sign convention. Null without them.
+export function headProxies(face: FaceLandmarkerFace | OrientedFace): HeadProxies | null {
+  const l = face.landmarks;
+  if (l.length < (BETWEEN_EYES + 1) * 3) return null;
+  const x = (i: number) => l[i * 3];
+  const y = (i: number) => l[i * 3 + 1];
+  const width = x(EDGE_LEFT) - x(EDGE_RIGHT);
+  const height = y(CHIN) - y(BETWEEN_EYES);
+  if (!(width > 0.01) || !(height > 0.01)) return null;
+  const tip = (y(NOSE_TIP) - y(BETWEEN_EYES)) / height;
+  const turn = (x(NOSE_TIP) - (x(EDGE_RIGHT) + x(EDGE_LEFT)) / 2) / width;
+  return Number.isFinite(tip) && Number.isFinite(turn) ? { tip, turn } : null;
+}
+
 const avg = (...values: number[]) => values.reduce((a, b) => a + b, 0) / values.length;
 
 // How shut the eyes are, 0 open to 1 closed (MediaPipe's blink blendshapes).
@@ -70,7 +104,12 @@ export function eyeClosure(face: FaceLandmarkerFace | OrientedFace): number {
   return avg(face.blendshapes.eyeBlinkLeft ?? 0, face.blendshapes.eyeBlinkRight ?? 0);
 }
 
-export function sampleFromFace(face: FaceLandmarkerFace | OrientedFace, tMs: number, framed: boolean): PresenceSample {
+export interface SampleOptions {
+  // Flip the vertical gaze: the iOS front camera reports it upside down.
+  invertGazeY?: boolean;
+}
+
+export function sampleFromFace(face: FaceLandmarkerFace | OrientedFace, tMs: number, framed: boolean, opts: SampleOptions = {}): PresenceSample {
   const b = (name: string) => face.blendshapes[name] ?? 0;
   const sideways = "axes" in face && !!face.axes?.swap;
   const pose = headPoseFromMatrix(face.matrix, sideways) ?? headPoseFromLandmarks(face) ?? { yaw: 0, pitch: 0, roll: 0 };
@@ -85,9 +124,9 @@ export function sampleFromFace(face: FaceLandmarkerFace | OrientedFace, tMs: num
     framed,
     // Eyes relative to the head, -1..1. Positive x = toward MediaPipe's left,
     // which on the iOS front camera (a mirrored image) is the user's physical
-    // right; positive y = up.
+    // right; positive y = up (after invertGazeY, where the platform needs it).
     gazeX: avg(b("eyeLookOutLeft") - b("eyeLookInLeft"), b("eyeLookInRight") - b("eyeLookOutRight")),
-    gazeY: avg(b("eyeLookUpLeft"), b("eyeLookUpRight")) - avg(b("eyeLookDownLeft"), b("eyeLookDownRight")),
+    gazeY: (opts.invertGazeY ? -1 : 1) * (avg(b("eyeLookUpLeft"), b("eyeLookUpRight")) - avg(b("eyeLookDownLeft"), b("eyeLookDownRight"))) || 0,
     browRaise: Math.max(b("browInnerUp"), avg(b("browOuterUpLeft"), b("browOuterUpRight"))),
     browDown: avg(b("browDownLeft"), b("browDownRight")),
     jawOpen: b("jawOpen"),

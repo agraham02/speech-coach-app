@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { IconButton } from "../common/IconButton";
+import { FaceCalibrationRows } from "./FaceCalibrationRows";
 import { ListGroup, ListRow } from "../common/ListRow";
 import { DEFAULT_ASR_MODEL, cancelDownload, formatModelSize, formatSpeed, getDownloadState, isModelDownloaded, modelInfo, pauseDownload, startDownload, subscribeDownloads } from "../../services/asr/whisperModels";
 import { Txt } from "../common/Txt";
@@ -27,6 +28,7 @@ export function OnDeviceAiSettings() {
         <StatusLine label="Coaching" value={appleCoach ? "Apple Intelligence" : "Built-in rules"} ok />
         <StatusLine label="Live recognition" value={onDeviceRecognition ? "On-device" : "System recognizer"} ok={onDeviceRecognition} />
         <TranscriptionModelRow />
+        <FaceCalibrationRows />
       </ListGroup>
       <Txt variant="footnote" tone="secondary" style={styles.note}>
         All of this runs on your phone. Nothing leaves it unless you ask for a deep review.

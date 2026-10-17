@@ -75,6 +75,10 @@ export interface LiveSpeechStartOptions {
   // Save what was heard to WAV files (one per recognition task) — for
   // listen-back and pitch analysis. Ignored where unsupported.
   persistAudio?: boolean;
+  // Ask the recognizer for full stops and commas, so a summary can be counted
+  // in sentences. iOS only; on Android it needs on-device recognition. Off
+  // elsewhere: every other drill reads unpunctuated text.
+  punctuation?: boolean;
 }
 
 export interface VolumeSample {
@@ -208,6 +212,7 @@ export class LiveSpeechSession {
       volumeMeter: options.volumeMeter ?? false,
       volumeIntervalMs: options.volumeIntervalMs ?? 200,
       persistAudio: (options.persistAudio ?? false) && this.canPersistAudio(),
+      punctuation: options.punctuation ?? false,
     };
     this.volumeSamples = [];
     this.recordings = [];
@@ -306,7 +311,7 @@ export class LiveSpeechSession {
         interimResults: true,
         continuous: true,
         maxAlternatives: 3,
-        addsPunctuation: false,
+        addsPunctuation: this.options.punctuation,
         requiresOnDeviceRecognition: this.options.preferOnDevice,
         contextualStrings: this.options.contextualStrings,
         ...(this.options.volumeMeter

@@ -5,6 +5,7 @@ import { orientFace } from "../domain/faceOrientation";
 import { eyeClosure, sampleFromFace } from "../domain/faceSignals";
 import { feedBlink, loseFace, newBlinkState } from "../domain/blinkCounter";
 import type { PresenceSample } from "../domain/presenceMetrics";
+import { INVERT_GAZE_Y } from "../services/face/faceAxes";
 import { logger } from "../utils/logger";
 
 export type FramingStatus = "none" | "off_center" | "good";
@@ -76,7 +77,7 @@ export function useFaceDetection() {
     const wellFramed = isWellFramed(face.bounds);
     setFramingStatus(wellFramed ? "good" : "off_center");
     if (timeline) blinkRef.current = feedBlink(blinkRef.current, eyeClosure(face), now);
-    if (sampleDue) timeline.push({ ...sampleFromFace(face, tMs, wellFramed), blinks: newBlinks() });
+    if (sampleDue) timeline.push({ ...sampleFromFace(face, tMs, wellFramed, { invertGazeY: INVERT_GAZE_Y }), blinks: newBlinks() });
   }, []);
 
   return { faceDetected, framingStatus, onFaceFrame, startTimeline, stopTimeline };

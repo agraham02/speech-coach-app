@@ -13,6 +13,7 @@ const KEYS = [
   "hall", "krahmer", "pouw", "laban", "ladefoged", "schmidt", "johnstone", "tagalidou", "foote", "blankenship",
   "balban", "wells", "tricolon", "bottom line up front", "just a minute", "verbal fluency", "script marking",
   "speaking coach", "warm up", "hoit", "linklater", "winkworth", "provine", "mancuso", "cunningham", "mastroianni", "behavioral interview",
+  "olson", "logline", "fiorella", "feynman",
 ];
 
 describe("sources", () => {

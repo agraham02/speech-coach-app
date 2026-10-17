@@ -277,6 +277,8 @@ export const MISSIONS: Mission[] = [
   { id: "m_surprise", text: "Learn one surprising thing about someone.", target: 1 },
   { id: "m_last", text: "Ask about the last thing someone said.", target: 1 },
   { id: "m_headline", text: "Give one answer that starts with the point.", target: 1 },
+  { id: "m_sum", text: "Tell someone about a show, book or game in two sentences, then stop.", target: 1 },
+  { id: "m_recap", text: "Sum up a meeting, a class or a chat in one sentence.", target: 1 },
   { id: "m_open", text: "Start one conversation with a plain comment about what's around you.", target: 1 },
   { id: "m_exit", text: "End one conversation yourself: something you liked, a reason, goodbye.", target: 1 },
 ];

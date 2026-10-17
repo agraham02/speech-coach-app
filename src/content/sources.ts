@@ -32,6 +32,10 @@ export const SOURCE_GROUPS: SourceGroup[] = [
         usedFor: "The TALK maxims (topics, asking, levity, kindness) behind the conversation lessons.",
       },
       {
+        citation: "Olson, R. (2015). *Houston, We Have a Narrative: Why Science Needs Story.* University of Chicago Press.",
+        usedFor: "The And, But, Therefore template in 'Sum it up'.",
+      },
+      {
         citation: "Van Edwards, V. (2017). *Captivate: The Science of Succeeding with People.* Portfolio.",
         usedFor: "Conversation sparks, asking for the story, and 'me too' moments.",
         url: "https://www.scienceofpeople.com",
@@ -282,6 +286,11 @@ export const SOURCE_GROUPS: SourceGroup[] = [
         usedFor: "Why a missed day can derail a habit, and why streak freezes cover a miss for you.",
       },
       {
+        citation: "Fiorella, L., & Mayer, R. E. (2016). Eight ways to promote generative learning. *Educational Psychology Review, 28*(4), 717–741.",
+        usedFor: "Why summarizing in your own words helps you hold an idea — the basis of 'Rolling summary'.",
+        url: doi("10.1007/s10648-015-9348-9"),
+      },
+      {
         citation: "Wilson, R. C., Shenhav, A., Straccia, M., & Cohen, J. D. (2019). The eighty five percent rule for optimal learning. *Nature Communications, 10*, 4646.",
         usedFor: "Drills adjust so you succeed about 85% of the time.",
         url: doi("10.1038/s41467-019-12552-4"),
@@ -322,6 +331,14 @@ export const SOURCE_GROUPS: SourceGroup[] = [
       {
         citation: "The tricolon — the rule of three in classical rhetoric.",
         usedFor: "Lists of three in the structure and rhythm lessons.",
+      },
+      {
+        citation: "The logline — a story summed up in a sentence or two, from screenwriting.",
+        usedFor: "Who, what they want and what stands in the way, in 'Sum it up'.",
+      },
+      {
+        citation: "The Feynman technique — explain an idea in plain words to find where your understanding stops.",
+        usedFor: "'Explain it simply'. Named for the physicist Richard Feynman's teaching; there is no single source.",
       },
       {
         citation: "Bottom line up front (BLUF), from military writing.",

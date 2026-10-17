@@ -20,7 +20,10 @@ import { Mono } from "../../components/dev/Mono";
 import { Stepper } from "../../components/dev/Stepper";
 import { isWellFramed } from "../../domain/faceFraming";
 import { describeFaceAxes, orientFace, type OrientedFace } from "../../domain/faceOrientation";
-import { eyeClosure, sampleFromFace } from "../../domain/faceSignals";
+import { eyeClosure, headProxies, sampleFromFace } from "../../domain/faceSignals";
+import { EYES_LABEL, FACE_LABEL, HEAD_LABEL, ZERO_CENTER, readFace, type FaceCenter } from "../../domain/faceReadout";
+import { getFaceCalibration } from "../../services/prefs/prefsStore";
+import { INVERT_GAZE_Y } from "../../services/face/faceAxes";
 import { feedBlink, loseFace, newBlinkState } from "../../domain/blinkCounter";
 import {
   CALIBRATION_MS,
@@ -49,6 +52,8 @@ const NO_FACE: PresenceSample = { tMs: 0, present: false, yaw: 0, pitch: 0, smil
 
 interface LiveFrame {
   face: OrientedFace | null;
+  // Head tip and turn from the landmarks (what the face check reads).
+  proxies: { tip: number; turn: number } | null;
   sample: PresenceSample;
   framed: boolean;
   trail: GazePoint[];
@@ -87,12 +92,12 @@ export function FaceLabScreen({ navigation }: Props) {
     frameCount.current += 1;
     const face = isFace(output) ? orientFace(output) : null;
     const framed = face ? isWellFramed(face.bounds) : false;
-    const sample = face ? sampleFromFace(face, now, framed) : { ...NO_FACE, tMs: now };
+    const sample = face ? sampleFromFace(face, now, framed, { invertGazeY: INVERT_GAZE_Y }) : { ...NO_FACE, tMs: now };
     blinks.current.state = face ? feedBlink(blinks.current.state, eyeClosure(face), now) : loseFace(blinks.current.state);
 
     if (face) trail.current.push({ x: sample.gazeX ?? 0, y: sample.gazeY ?? 0, t: now });
     trail.current = trail.current.filter((p) => now - p.t <= TRAIL_MS);
-    setFrame({ face, sample, framed, trail: trail.current.map((p) => ({ x: p.x, y: p.y })) });
+    setFrame({ face, proxies: face ? headProxies(face) : null, sample, framed, trail: trail.current.map((p) => ({ x: p.x, y: p.y })) });
 
     const active = run.current;
     if (active) {
@@ -167,6 +172,13 @@ export function FaceLabScreen({ navigation }: Props) {
   const results = useMemo(() => (calibration.status === "done" ? summarizeCalibration(calibration.samples, thresholds) : null), [calibration, thresholds]);
   const dirty = !thresholdsEqual(thresholds, DEFAULT_PRESENCE_THRESHOLDS);
   const sample = frame?.face ? frame.sample : undefined;
+  const saved = useMemo(() => getFaceCalibration(), []);
+  // The saved face-check center when there is one; a typical level head otherwise.
+  const readCenter: FaceCenter = useMemo(
+    () => (saved ? { ...ZERO_CENTER, ...saved.center, tip: saved.center.tip ?? 0.42, turn: saved.center.turn ?? 0, smile: saved.rest.smile, browRaise: saved.rest.browRaise } : { ...ZERO_CENTER, tip: 0.42 }),
+    [saved],
+  );
+  const readout = useMemo(() => (frame?.face ? readFace({ tMs: frame.sample.tMs, sample: frame.sample, framed: frame.framed, tip: frame.proxies?.tip ?? readCenter.tip, turn: frame.proxies?.turn ?? readCenter.turn }, readCenter) : null), [frame, readCenter]);
   const lookColor = !look ? colors.textMuted : look.reason === "no_face" ? colors.textMuted : look.looking ? colors.success : colors.warning;
 
   function shareRun() {
@@ -240,6 +252,12 @@ export function FaceLabScreen({ navigation }: Props) {
             />
           </Card>
           <Card style={styles.meters}>
+            <Mono tone="secondary">
+              {readout ? FACE_LABEL[readout.face] + " | eyes: " + (readout.eyes ? EYES_LABEL[readout.eyes] : "-") + " | head: " + (readout.head ? HEAD_LABEL[readout.head] : "-") + " | " + (readout.smiling ? "smiling" : "neutral") + " | brows " + (readout.brows ? "raised" : "relaxed") : "No face"}
+            </Mono>
+            <Mono tone="muted" variant="caption2">
+              {"head tip " + (frame?.proxies ? frame.proxies.tip.toFixed(3) : "-") + " (centre " + readCenter.tip.toFixed(3) + ", down is higher) | turn " + (frame?.proxies ? frame.proxies.turn.toFixed(3) : "-") + " | " + (saved ? "calibrated " + saved.at.slice(0, 10) : "not calibrated")}
+            </Mono>
             <Meter label="Head turn" value={sample?.yaw} min={-45} max={45} centered marks={[-thresholds.gazeHeadMaxDeg, thresholds.gazeHeadMaxDeg]} decimals={0} unit={"°"} alert={!!sample && Math.abs(sample.yaw) > thresholds.gazeHeadMaxDeg} />
             <Meter label="Head up/down" value={sample?.pitch} min={-45} max={45} centered marks={[-thresholds.gazeHeadMaxDeg, thresholds.gazeHeadMaxDeg]} decimals={0} unit={"°"} alert={!!sample && Math.abs(sample.pitch) > thresholds.gazeHeadMaxDeg} />
             <Meter label="Head tilt" value={sample?.roll} min={-30} max={30} centered marks={[-thresholds.tiltedDeg, thresholds.tiltedDeg]} decimals={0} unit={"°"} alert={!!sample && Math.abs(sample.roll ?? 0) > thresholds.tiltedDeg} />

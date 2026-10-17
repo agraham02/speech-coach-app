@@ -2,27 +2,25 @@ import { useEffect, useRef, useState } from "react";
 import { Linking, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import type { Camera as VisionCamera } from "react-native-vision-camera";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
 import { Header } from "../components/common/Header";
 import { Card } from "../components/common/Card";
 import { Txt } from "../components/common/Txt";
 import { PrimaryButton } from "../components/common/PrimaryButton";
-import { CameraPreview } from "../components/recording/CameraPreview";
-import { FramingGuideOverlay } from "../components/recording/FramingGuideOverlay";
+import { FaceCheck } from "../components/setup/FaceCheck";
+import { LevelBars, levelOf } from "../components/setup/LevelBars";
+import { LiveWords } from "../components/setup/LiveWords";
 import { useCameraPermissions } from "../hooks/useCameraPermissions";
-import { useFaceDetection } from "../hooks/useFaceDetection";
 import { useLiveSpeech } from "../hooks/useLiveSpeech";
 import { defaultsFromProfile } from "../domain/profile";
 import { getUserProfile } from "../services/prefs/prefsStore";
+import { success } from "../utils/haptics";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "SetupCheck">;
 type Step = "permissions" | "camera" | "mic" | "done";
 
-// The meter's 0-1 level from the recognizer's -2..10 volume.
-const levelOf = (volume: number) => Math.max(0, Math.min(1, (volume + 2) / 12));
 // A reading at or above this is a voice, not the room.
 const VOICE_LEVEL = 0.45;
 // About half a second of voice (a reading every 100 ms) proves the mic.
@@ -38,11 +36,8 @@ export function SetupCheckScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const audioFirst = defaultsFromProfile(getUserProfile()).audioFirst;
   const perms = useCameraPermissions();
-  const cameraRef = useRef<VisionCamera>(null);
-  const { faceDetected, framingStatus, onFaceFrame } = useFaceDetection();
   const speech = useLiveSpeech();
   const [step, setStep] = useState<Step>("permissions");
-  const [goodFor, setGoodFor] = useState(0);
   const [heardWords, setHeardWords] = useState(false);
   const [listening, setListening] = useState(false);
   const [micSettled, setMicSettled] = useState(false);
@@ -51,13 +46,6 @@ export function SetupCheckScreen({ navigation }: Props) {
   const [problem, setProblem] = useState<"denied" | "failed" | null>(null);
   const retried = useRef(false);
   const heardVoice = voiceReadings >= VOICE_READINGS;
-
-  // Framing counts as checked after ~2 s of a well-placed face.
-  useEffect(() => {
-    if (step !== "camera") return;
-    const t = setInterval(() => setGoodFor((g) => (framingStatus === "good" ? g + 1 : 0)), 500);
-    return () => clearInterval(t);
-  }, [step, framingStatus]);
 
   useEffect(() => {
     if (listening && speech.text.trim().split(/\s+/).length >= 2) setHeardWords(true);
@@ -138,9 +126,14 @@ export function SetupCheckScreen({ navigation }: Props) {
   const recognitionWorks = speech.status !== "unavailable";
   const micWorks = heardWords || heardVoice;
 
+  // The moment Tono first hears you gets a tap.
+  useEffect(() => {
+    if (micWorks) success();
+  }, [micWorks]);
+
   return (
     <ScreenContainer style={styles.container}>
-      <Header eyebrow="Setup check" title={step === "camera" ? "Find your frame" : step === "mic" ? "Check your mic" : step === "done" ? "All set" : "Camera and mic"} />
+      <Header eyebrow="Setup check" title={step === "camera" ? "See what Tono sees" : step === "mic" ? "Check your mic" : step === "done" ? "All set" : "Camera and mic"} />
 
       {step === "permissions" ? (
         <View style={styles.body}>
@@ -158,29 +151,14 @@ export function SetupCheckScreen({ navigation }: Props) {
         </View>
       ) : null}
 
-      {step === "camera" ? (
-        <View style={styles.cameraWrap}>
-          <CameraPreview cameraRef={cameraRef} isActive onFaceFrame={onFaceFrame} audio={false} />
-          <FramingGuideOverlay status={framingStatus} />
-          <View style={styles.cameraNote}>
-            <Txt variant="footnote" color="white" align="center">
-              {goodFor >= 4
-                ? "Looks good."
-                : faceDetected
-                  ? "Center your face, eyes about a third of the way down."
-                  : "Can't find your face — face a window or a lamp, and hold the phone at eye level."}
-            </Txt>
-          </View>
-        </View>
-      ) : null}
+      {step === "camera" ? <FaceCheck onDone={() => setStep("mic")} /> : null}
 
       {step === "mic" ? (
         <View style={styles.body}>
           <Card style={styles.card}>
-            <Txt variant="title3">Say: “Hello, my name is ___.”</Txt>
-            <View style={styles.meter}>
-              <View style={[styles.meterFill, { width: `${level * 100}%`, backgroundColor: level > 0.5 ? colors.success : colors.warning }]} />
-            </View>
+            <Txt variant="title3">Say: “Hi, I'm ___, and I'm here to practice.”</Txt>
+            <LiveWords text={listening ? speech.text : ""} placeholder="Your words will appear here as you speak." />
+            <LevelBars session={speech.session} active={listening} voiceLevel={VOICE_LEVEL} />
             <Txt variant="footnote" tone="secondary">
               {problem === "denied"
                 ? "Tono can't use the microphone or speech recognition. Turn both on for Tono in your phone's Settings, then come back."
@@ -191,7 +169,7 @@ export function SetupCheckScreen({ navigation }: Props) {
                   : !listening
                     ? "Tap Start, then speak at your normal volume."
                     : heardWords
-                      ? `Heard: “${speech.text.trim()}” — your mic and speech recognition both work.`
+                      ? "Keep going if you like, or tap Next."
                       : heardVoice
                         ? listenedFor >= 8
                           ? "Your mic hears you, but no words have come through yet. Word-following drills may use a self-rating instead."
@@ -206,6 +184,19 @@ export function SetupCheckScreen({ navigation }: Props) {
               </Txt>
             ) : null}
           </Card>
+          {micWorks ? (
+            <Card tone="raised" style={styles.heard}>
+              <Ionicons name="checkmark-circle" size={28} color={colors.success} />
+              <View style={styles.heardText}>
+                <Txt variant="headline">{heardWords ? "Tono heard you." : "Tono hears your voice."}</Txt>
+                <Txt variant="footnote" tone="secondary">
+                  {heardWords
+                    ? `${speech.onDevice ? "Recognized on this phone. " : ""}That's live recognition, the kind the drills use. After a recorded take, a slower on-device model transcribes it more carefully, and that one catches every um.`
+                    : "No words came through yet, so word-following drills may ask you to rate yourself instead."}
+                </Txt>
+              </View>
+            </Card>
+          ) : null}
           {problem === "denied" ? <PrimaryButton label="Open Settings" variant="secondary" icon="open-outline" onPress={() => Linking.openSettings()} /> : null}
         </View>
       ) : null}
@@ -232,7 +223,6 @@ export function SetupCheckScreen({ navigation }: Props) {
           />
         )
       ) : null}
-      {step === "camera" ? <PrimaryButton label={goodFor >= 4 ? "Next" : "Skip for now"} variant={goodFor >= 4 ? "primary" : "secondary"} onPress={() => setStep("mic")} /> : null}
       {step === "mic" ? (
         listening || micWorks ? (
           <PrimaryButton label={micWorks ? "Next" : "Skip"} variant={micWorks ? "primary" : "secondary"} onPress={finishMic} />
@@ -259,10 +249,8 @@ const useStyles = makeStyles((t) => ({
   container: { gap: t.space.md },
   body: { flex: 1, justifyContent: "center", gap: t.space.md },
   card: { gap: t.space.md },
-  cameraWrap: { flex: 1, borderRadius: t.radius.lg, overflow: "hidden", backgroundColor: "black" },
-  cameraNote: { position: "absolute", left: t.space.md, right: t.space.md, bottom: t.space.md, padding: t.space.sm, borderRadius: t.radius.md, backgroundColor: "rgba(0,0,0,0.55)" },
-  meter: { height: 18, borderRadius: 9, backgroundColor: t.colors.surfaceRaised, overflow: "hidden" },
-  meterFill: { height: "100%", borderRadius: 9 },
+  heard: { flexDirection: "row", alignItems: "flex-start", gap: t.space.md },
+  heardText: { flex: 1, gap: 4 },
   row: { flexDirection: "row", gap: t.space.sm },
   flex: { flex: 1 },
 }));
