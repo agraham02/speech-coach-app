@@ -7,6 +7,7 @@ import { AppFooter } from "../components/settings/AppFooter";
 import { DeepReviewSettings } from "../components/settings/DeepReviewSettings";
 import { GoalReminderSettings } from "../components/settings/GoalReminderSettings";
 import { HelpDataSettings } from "../components/settings/HelpDataSettings";
+import { LegalLinks } from "../components/settings/LegalLinks";
 import { OnDeviceAiSettings } from "../components/settings/OnDeviceAiSettings";
 import { PracticeSettings } from "../components/settings/PracticeSettings";
 import { SETTINGS_SECTIONS, type SettingsSection } from "../components/settings/sections";
@@ -37,6 +38,7 @@ export function SettingsScreen({ route }: Props) {
             <ListRow key={s.key} icon={s.icon} title={s.title} subtitle={s.subtitle} chevron onPress={() => navigation.navigate("Settings", { section: s.key })} />
           ))}
         </ListGroup>
+        <LegalLinks />
         <AppFooter />
       </Screen>
     );
