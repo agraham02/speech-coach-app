@@ -1,17 +1,12 @@
 import * as Notifications from "expo-notifications";
 import { reminderHours } from "../../domain/reminderSettings";
 import { reminderDates } from "../../domain/dailyGoal";
-import { getDailySessionGoal, getPracticeAnchor, getReminderSettings } from "../prefs/prefsStore";
-import { getSessionsDoneToday } from "../db/progressRepo";
+import { daysUntil, reminderText } from "../../domain/notificationCopy";
+import { getDailySessionGoal, getPracticeAnchor, getReminderSettings, getUserProfile } from "../prefs/prefsStore";
+import { getSessionsDoneToday, getStreakState } from "../db/progressRepo";
 import { logger } from "../../utils/logger";
 
 const REMINDER_IDENTIFIER = "daily-practice-reminder";
-
-const REMINDER_MESSAGES = [
-  "Time for today's practice — pick a prompt and go.",
-  "One response, 1-5 minutes. Today's rep is waiting.",
-  "Keep the streak alive — today's practice is ready when you are.",
-];
 
 export async function requestNotificationPermission(): Promise<boolean> {
   const current = await Notifications.getPermissionsAsync();
@@ -42,12 +37,26 @@ export async function syncDailyReminder(): Promise<void> {
   const doneToday = await getSessionsDoneToday().catch(() => 0);
   const dates = reminderDates(reminderHours(settings, goal), doneToday, new Date(), settings.practiceDays ?? []);
   const anchor = getPracticeAnchor();
+  const profile = getUserProfile();
+  const streak = await getStreakState().then((s) => s.currentStreak).catch(() => 0);
+  const eventDays = profile?.event ? daysUntil(profile.event.date, new Date()) : NaN;
 
   for (const [i, date] of dates.entries()) {
-    const slot = isToday(date) ? Math.min(doneToday, goal - 1) + i : 0;
+    const today = isToday(date);
+    const slot = today ? Math.min(doneToday, goal - 1) + i : 0;
+    // A reminder for a later day only knows the streak if today's rep is done.
+    const text = reminderText({
+      name: profile?.name,
+      slot,
+      anchor,
+      streak: today || doneToday > 0 ? streak : 0,
+      atRiskToday: today && doneToday === 0,
+      when: date,
+      event: profile?.event && Number.isFinite(eventDays) ? { daysLeft: daysUntil(profile.event.date, date), kind: profile.event.kind } : null,
+    });
     await Notifications.scheduleNotificationAsync({
       identifier: `${REMINDER_IDENTIFIER}-${i}`,
-      content: { title: "Tono", body: messageFor(slot, anchor) },
+      content: { title: text.title, body: text.body },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date },
     });
   }
@@ -58,19 +67,6 @@ function isToday(date: Date): boolean {
   const now = new Date();
   return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
 }
-
-function messageFor(slot: number, anchor: string | null): string {
-  if (slot > 0) return TOP_UP_MESSAGES[Math.floor(Math.random() * TOP_UP_MESSAGES.length)];
-  // The if-then plan from onboarding ("After my morning coffee…") makes the
-  // nudge land on the habit it's tied to.
-  if (anchor) return `${anchor} — time for today's practice.`;
-  return REMINDER_MESSAGES[Math.floor(Math.random() * REMINDER_MESSAGES.length)];
-}
-
-const TOP_UP_MESSAGES = [
-  "Quick top-up? Four minutes on something new.",
-  "A short second session — spacing it out is what makes it stick.",
-];
 
 const MAX_REMINDERS = 4;
 
