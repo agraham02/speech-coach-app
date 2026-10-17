@@ -1,4 +1,5 @@
 import type { FaceLandmarkerFace } from "vision-camera-face-landmarker";
+import type { OrientedFace } from "./faceOrientation";
 import type { PresenceSample } from "./presenceMetrics";
 
 // Turns one MediaPipe Face Landmarker result into a PresenceSample. Pure, so
@@ -16,15 +17,32 @@ const DEG = 180 / Math.PI;
 // native side sends iOS matrices row-major and Android ones column-major;
 // the translation (the face is tens of cm from the lens, so it's never 0)
 // sits in the last column either way, which tells the two apart.
-export function headPoseFromMatrix(m: number[]): HeadPose | null {
+//
+// quarterTurn: the matrix is in the raw sideways camera frame (iOS reports
+// landmarks and pose that way; see faceOrientation.ts), so a level head reads
+// as rolled by about 90 degrees and yaw and pitch trade places. Turning the
+// camera frame a quarter turn about the viewing axis, whichever way leaves
+// the smaller roll, puts the pose upright.
+export function headPoseFromMatrix(m: number[], quarterTurn = false): HeadPose | null {
   if (m.length !== 16) return null;
   const columnMajor = Math.abs(m[12]) + Math.abs(m[13]) + Math.abs(m[14]) > Math.abs(m[3]) + Math.abs(m[7]) + Math.abs(m[11]);
   const r = (row: number, col: number) => (columnMajor ? m[col * 4 + row] : m[row * 4 + col]);
-  const pitch = Math.atan2(r(2, 1), r(2, 2)) * DEG;
-  const yaw = Math.asin(Math.max(-1, Math.min(1, -r(2, 0)))) * DEG;
-  const roll = Math.atan2(r(1, 0), r(0, 0)) * DEG;
-  if (![pitch, yaw, roll].every(Number.isFinite)) return null;
-  return { yaw, pitch, roll };
+  const euler = (rot: number[][]): HeadPose => ({
+    pitch: Math.atan2(rot[2][1], rot[2][2]) * DEG,
+    yaw: Math.asin(Math.max(-1, Math.min(1, -rot[2][0]))) * DEG,
+    roll: Math.atan2(rot[1][0], rot[0][0]) * DEG,
+  });
+  const rows = [0, 1, 2].map((row) => [0, 1, 2].map((col) => r(row, col)));
+  let pose = euler(rows);
+  if (quarterTurn) {
+    // Rz(+90) and Rz(-90) applied to the rotation: new row 0 is -row 1 or
+    // row 1, new row 1 is row 0 or -row 0.
+    const plus = euler([rows[1].map((v) => -v), rows[0], rows[2]]);
+    const minus = euler([rows[1], rows[0].map((v) => -v), rows[2]]);
+    pose = Math.abs(plus.roll) <= Math.abs(minus.roll) ? plus : minus;
+  }
+  if (![pose.pitch, pose.yaw, pose.roll].every(Number.isFinite)) return null;
+  return pose;
 }
 
 // Fallback from landmarks when there's no matrix: yaw from the depth
@@ -47,9 +65,15 @@ function headPoseFromLandmarks(face: FaceLandmarkerFace): HeadPose | null {
 
 const avg = (...values: number[]) => values.reduce((a, b) => a + b, 0) / values.length;
 
-export function sampleFromFace(face: FaceLandmarkerFace, tMs: number, framed: boolean): PresenceSample {
+// How shut the eyes are, 0 open to 1 closed (MediaPipe's blink blendshapes).
+export function eyeClosure(face: FaceLandmarkerFace | OrientedFace): number {
+  return avg(face.blendshapes.eyeBlinkLeft ?? 0, face.blendshapes.eyeBlinkRight ?? 0);
+}
+
+export function sampleFromFace(face: FaceLandmarkerFace | OrientedFace, tMs: number, framed: boolean): PresenceSample {
   const b = (name: string) => face.blendshapes[name] ?? 0;
-  const pose = headPoseFromMatrix(face.matrix) ?? headPoseFromLandmarks(face) ?? { yaw: 0, pitch: 0, roll: 0 };
+  const sideways = "axes" in face && !!face.axes?.swap;
+  const pose = headPoseFromMatrix(face.matrix, sideways) ?? headPoseFromLandmarks(face) ?? { yaw: 0, pitch: 0, roll: 0 };
   return {
     tMs,
     present: true,
@@ -57,10 +81,11 @@ export function sampleFromFace(face: FaceLandmarkerFace, tMs: number, framed: bo
     pitch: pose.pitch,
     roll: pose.roll,
     smile: avg(b("mouthSmileLeft"), b("mouthSmileRight")),
-    eyesOpen: 1 - avg(b("eyeBlinkLeft"), b("eyeBlinkRight")),
+    eyesOpen: 1 - eyeClosure(face),
     framed,
-    // Eyes relative to the head, -1..1. Positive x = toward the subject's
-    // own left; positive y = up.
+    // Eyes relative to the head, -1..1. Positive x = toward MediaPipe's left,
+    // which on the iOS front camera (a mirrored image) is the user's physical
+    // right; positive y = up.
     gazeX: avg(b("eyeLookOutLeft") - b("eyeLookInLeft"), b("eyeLookInRight") - b("eyeLookOutRight")),
     gazeY: avg(b("eyeLookUpLeft"), b("eyeLookUpRight")) - avg(b("eyeLookDownLeft"), b("eyeLookDownRight")),
     browRaise: Math.max(b("browInnerUp"), avg(b("browOuterUpLeft"), b("browOuterUpRight"))),

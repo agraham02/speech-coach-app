@@ -16,13 +16,15 @@ interface CameraPreviewProps {
   // Off when nothing is recorded (the setup check's framing step), so the
   // camera doesn't hold the microphone the next step needs.
   audio?: boolean;
+  // Dev tab Face Lab only: the MediaPipe orientation to use (iOS).
+  orientation?: string;
 }
 
 // ~10 detections a second is plenty for presence metrics and leaves the
 // phone headroom for recording.
 const MIN_INTERVAL_MS = 100;
 
-export function CameraPreview({ cameraRef, isActive, onFaceFrame, audio = true }: CameraPreviewProps) {
+export function CameraPreview({ cameraRef, isActive, onFaceFrame, audio = true, orientation }: CameraPreviewProps) {
   const device = useCameraDevice("front");
   const plugin = useFaceLandmarkerPlugin();
   const busy = useSharedValue(false);
@@ -41,7 +43,7 @@ export function CameraPreview({ cameraRef, isActive, onFaceFrame, audio = true }
       Worklets.defaultContext.createRunAsync((frame: RefCountedFrame) => {
         "worklet";
         try {
-          if (plugin) deliver(JSON.stringify(detectFaceLandmarks(plugin, frame)));
+          if (plugin) deliver(JSON.stringify(detectFaceLandmarks(plugin, frame, orientation ? { orientation } : undefined)));
         } catch (error) {
           deliver(JSON.stringify({ error: String(error) }));
         } finally {
@@ -49,7 +51,7 @@ export function CameraPreview({ cameraRef, isActive, onFaceFrame, audio = true }
           busy.value = false;
         }
       }),
-    [plugin, deliver, busy],
+    [plugin, deliver, busy, orientation],
   );
 
   const frameProcessor = useFrameProcessor(

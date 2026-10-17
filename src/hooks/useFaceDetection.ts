@@ -1,17 +1,14 @@
 import { useCallback, useRef, useState } from "react";
 import { isFace, type FaceLandmarkerOutput } from "vision-camera-face-landmarker";
-import { sampleFromFace } from "../domain/faceSignals";
+import { isWellFramed } from "../domain/faceFraming";
+import { orientFace } from "../domain/faceOrientation";
+import { eyeClosure, sampleFromFace } from "../domain/faceSignals";
+import { feedBlink, loseFace, newBlinkState } from "../domain/blinkCounter";
 import type { PresenceSample } from "../domain/presenceMetrics";
 import { logger } from "../utils/logger";
 
 export type FramingStatus = "none" | "off_center" | "good";
 
-// Generous "center" region as a fraction of the image — a face whose center
-// falls outside this box (or is too small, i.e. too far away) doesn't count
-// as well-framed even though it was technically detected. The preview fills
-// the screen, so image fractions are close to screen fractions.
-const CENTER_ZONE = { xMin: 0.15, xMax: 0.85, yMin: 0.08, yMax: 0.85 };
-const MIN_FACE_WIDTH_RATIO = 0.12;
 const SAMPLE_INTERVAL_MS = 200;
 
 // Turns face-landmarker frames into framing state for the recording UI, and
@@ -26,11 +23,17 @@ export function useFaceDetection() {
   const timelineStartRef = useRef(0);
   const lastSampleAtRef = useRef(0);
   const loggedErrorRef = useRef(false);
+  // Blinks are counted on every frame (too quick for the 200 ms samples);
+  // each sample carries how many finished since the one before.
+  const blinkRef = useRef(newBlinkState());
+  const blinksSampledRef = useRef(0);
 
   const startTimeline = useCallback(() => {
     timelineRef.current = [];
     timelineStartRef.current = Date.now();
     lastSampleAtRef.current = 0;
+    blinkRef.current = newBlinkState();
+    blinksSampledRef.current = 0;
   }, []);
 
   // Ends sampling and hands back what was collected (null if not running).
@@ -50,9 +53,15 @@ export function useFaceDetection() {
     const sampleDue = timeline && now - lastSampleAtRef.current >= SAMPLE_INTERVAL_MS;
     if (sampleDue) lastSampleAtRef.current = now;
     const tMs = now - timelineStartRef.current;
+    const newBlinks = () => {
+      const n = blinkRef.current.count - blinksSampledRef.current;
+      blinksSampledRef.current = blinkRef.current.count;
+      return n;
+    };
 
     if (!isFace(output)) {
-      if (sampleDue) timeline.push({ tMs, present: false, yaw: 0, pitch: 0, smile: 0, eyesOpen: 0, framed: false });
+      blinkRef.current = loseFace(blinkRef.current);
+      if (sampleDue) timeline.push({ tMs, present: false, yaw: 0, pitch: 0, smile: 0, eyesOpen: 0, framed: false, blinks: newBlinks() });
       if (now - lastSeenAtRef.current > 500) {
         setFaceDetected(false);
         setFramingStatus("none");
@@ -62,17 +71,12 @@ export function useFaceDetection() {
 
     lastSeenAtRef.current = now;
     setFaceDetected(true);
-    const [minX, minY, maxX, maxY] = output.bounds;
-    const centerX = (minX + maxX) / 2;
-    const centerY = (minY + maxY) / 2;
-    const wellFramed =
-      centerX >= CENTER_ZONE.xMin &&
-      centerX <= CENTER_ZONE.xMax &&
-      centerY >= CENTER_ZONE.yMin &&
-      centerY <= CENTER_ZONE.yMax &&
-      maxX - minX >= MIN_FACE_WIDTH_RATIO;
+    // Upright, as the preview shows it: the plugin reports the sideways buffer.
+    const face = orientFace(output);
+    const wellFramed = isWellFramed(face.bounds);
     setFramingStatus(wellFramed ? "good" : "off_center");
-    if (sampleDue) timeline.push(sampleFromFace(output, tMs, wellFramed));
+    if (timeline) blinkRef.current = feedBlink(blinkRef.current, eyeClosure(face), now);
+    if (sampleDue) timeline.push({ ...sampleFromFace(face, tMs, wellFramed), blinks: newBlinks() });
   }, []);
 
   return { faceDetected, framingStatus, onFaceFrame, startTimeline, stopTimeline };
