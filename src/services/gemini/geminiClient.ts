@@ -4,9 +4,13 @@ import { GeminiApiError, type UploadedGeminiFile } from "./types";
 import { fetchWithTimeout, withDeadline } from "../../utils/fetchWithTimeout";
 import { logger } from "../../utils/logger";
 import { modelFor } from "../cloud/providers";
+import { usageFromGemini, type TokenUsage } from "../../domain/cloudUsage";
+import { extractResponseText, rateLimitRetryMs } from "./responseHandling";
 
 const API_BASE = "https://generativelanguage.googleapis.com";
 const SERVER_ERROR_RETRY_DELAYS_MS = [2_000, 6_000, 15_000];
+// A per-minute rate limit (common on the free tier) clears in seconds.
+const RATE_LIMIT_RETRIES = 2;
 
 async function apiKeyQuery(): Promise<string> {
   const key = await getGeminiApiKey();
@@ -147,6 +151,8 @@ export async function generateContent(args: {
   systemPrompt: string;
   responseSchema: object;
   mediaResolution?: "MEDIA_RESOLUTION_LOW" | "MEDIA_RESOLUTION_MEDIUM";
+  // Told how many tokens the call used, as Gemini reports it.
+  onUsage?: (usage: TokenUsage) => void;
 }): Promise<string> {
   const hasMedia = !!args.fileUri && !!args.mimeType;
   const parts: object[] = hasMedia
@@ -165,20 +171,30 @@ export async function generateContent(args: {
 
   // 5xx (mostly 503 "model overloaded") is Gemini-side and usually clears
   // within seconds, so it's retried here instead of failing the whole step.
+  // So is a short per-minute rate limit (429); a daily quota is not.
   let response: Response;
-  for (let attempt = 0; ; attempt++) {
+  let serverRetries = 0;
+  let rateLimitRetries = 0;
+  for (;;) {
     response = await fetchWithTimeout(
       url,
       { method: "POST", headers: { "Content-Type": "application/json" }, body },
       hasMedia ? 180_000 : 45_000,
       "Gemini analysis",
     );
-    if (response.status < 500 || attempt >= SERVER_ERROR_RETRY_DELAYS_MS.length) break;
-    const retryAfterSeconds = Number(response.headers.get("retry-after"));
-    const delayMs =
-      retryAfterSeconds > 0 ? Math.min(retryAfterSeconds * 1000, 30_000) : SERVER_ERROR_RETRY_DELAYS_MS[attempt];
-    logger.warn(`[gemini] generateContent ${response.status}, retrying in ${Math.round(delayMs / 1000)}s`);
-    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    let delayMs: number | null = null;
+    if (response.status === 429 && rateLimitRetries < RATE_LIMIT_RETRIES) {
+      delayMs = rateLimitRetryMs(await response.clone().text().catch(() => ""), response.headers.get("retry-after"));
+      if (delayMs !== null) rateLimitRetries += 1;
+    } else if (response.status >= 500 && serverRetries < SERVER_ERROR_RETRY_DELAYS_MS.length) {
+      const retryAfterSeconds = Number(response.headers.get("retry-after"));
+      delayMs = retryAfterSeconds > 0 ? Math.min(retryAfterSeconds * 1000, 30_000) : SERVER_ERROR_RETRY_DELAYS_MS[serverRetries];
+      serverRetries += 1;
+    }
+    if (delayMs === null) break;
+    const waitMs = delayMs;
+    logger.warn(`[gemini] generateContent ${response.status}, retrying in ${Math.round(waitMs / 1000)}s`);
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
   }
 
   if (!response.ok) {
@@ -190,9 +206,12 @@ export async function generateContent(args: {
   }
 
   const data = await response.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (typeof text !== "string") {
-    throw new GeminiApiError("Gemini response did not include text content", undefined, data);
+  const usage = usageFromGemini(data?.usageMetadata);
+  if (usage) args.onUsage?.(usage);
+  const answer = extractResponseText(data);
+  if (!answer.ok) {
+    logger.warn(`[gemini] no usable answer: ${answer.reason}`);
+    throw new GeminiApiError(answer.reason, undefined, data);
   }
-  return text;
+  return answer.text;
 }

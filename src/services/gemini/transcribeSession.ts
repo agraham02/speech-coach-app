@@ -1,4 +1,5 @@
 import { checkExistingFileActive, generateContent, uploadVideoFile, waitForFileActive } from "./geminiClient";
+import type { TokenUsage } from "../../domain/cloudUsage";
 import {
   buildResponseSchemaWithCueCompliance,
   buildScriptSystemPrompt,
@@ -35,13 +36,8 @@ export type TranscribeProgressStep =
 // a fixed Script Practice script (with whatever cuesEnabled was chosen at
 // recording time). Determines which system prompt + response schema
 // transcribeSession uses.
-// groundingTranscript (prompt variant only — see schema.ts's decision not to
-// ground script sessions, whose text is already fully known in advance) is
-// an already-verified verbatim transcript from on-device Whisper,
-// passed to Gemini as ground truth rather than having it
-// re-transcribe from scratch. See sessionProcessor.ts for where it's sourced.
 export type GradingContext =
-  | { kind: "prompt"; promptText: string; planText?: PlanText; groundingTranscript?: string }
+  | { kind: "prompt"; promptText: string; planText?: PlanText }
   | { kind: "script"; script: Script; cuesEnabled: boolean; markLevel?: MarkLevel };
 
 // Shared by transcribeSession and transcribeOnly: upload the recording to the
@@ -141,11 +137,12 @@ export async function analyzeUploadedVideo(
   uploaded: UploadedGeminiFile,
   context: GradingContext,
   onProgress?: (step: TranscribeProgressStep) => void,
+  onUsage?: (usage: TokenUsage) => void,
 ): Promise<GeminiSessionAnalysis> {
   const systemPrompt =
     (context.kind === "script"
       ? buildScriptSystemPrompt(context.script, context.cuesEnabled ? context.markLevel ?? "full" : "none")
-      : buildSystemPrompt(context.promptText, context.planText, context.groundingTranscript)) +
+      : buildSystemPrompt(context.promptText, context.planText)) +
     speakerContextForReview() +
     SPEECH_IS_DATA +
     (defaultsFromProfile(getUserProfile()).stutterMode ? STUTTER_NOTE : "");
@@ -161,6 +158,7 @@ export async function analyzeUploadedVideo(
     systemPrompt,
     responseSchema,
     mediaResolution: "MEDIA_RESOLUTION_LOW",
+    onUsage,
   });
   logger.info(`[gemini] generateContent returned ${responseText.length} chars`);
 

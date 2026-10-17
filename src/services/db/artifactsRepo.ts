@@ -12,7 +12,8 @@ export type ArtifactKind =
   | "coach"
   | "progress"
   | "felt_observed"
-  | "session_score";
+  | "session_score"
+  | "cloud_usage";
 
 export async function putArtifact(sessionId: string, kind: ArtifactKind, value: unknown, version = 1): Promise<void> {
   const db = await getDatabase();
@@ -20,6 +21,22 @@ export async function putArtifact(sessionId: string, kind: ArtifactKind, value: 
     `INSERT OR REPLACE INTO session_artifacts (session_id, kind, version, json, created_at) VALUES (?, ?, ?, ?, ?)`,
     [sessionId, kind, version, JSON.stringify(value), new Date().toISOString()],
   );
+}
+
+// The stored JSON of one kind across every session (oldest first), for
+// totals like deep review usage.
+export async function listArtifactsOfKind<T>(kind: ArtifactKind): Promise<T[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{ json: string }>(`SELECT json FROM session_artifacts WHERE kind = ? ORDER BY created_at`, [kind]);
+  const out: T[] = [];
+  for (const row of rows) {
+    try {
+      out.push(JSON.parse(row.json) as T);
+    } catch {
+      // Skip a malformed row.
+    }
+  }
+  return out;
 }
 
 export async function getArtifact<T>(sessionId: string, kind: ArtifactKind): Promise<T | null> {
@@ -35,4 +52,21 @@ export async function getArtifact<T>(sessionId: string, kind: ArtifactKind): Pro
     logger.warn(`[db] artifact ${kind} for ${sessionId} is malformed — ${(error as Error).message}`);
     return null;
   }
+}
+
+export interface ArtifactInfo {
+  kind: ArtifactKind;
+  version: number;
+  bytes: number;
+  createdAt: string;
+}
+
+// What a session has stored, without loading the JSON (for the Dev tab).
+export async function listArtifacts(sessionId: string): Promise<ArtifactInfo[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{ kind: string; version: number; bytes: number; created_at: string }>(
+    `SELECT kind, version, LENGTH(json) AS bytes, created_at FROM session_artifacts WHERE session_id = ? ORDER BY kind`,
+    [sessionId],
+  );
+  return rows.map((r) => ({ kind: r.kind as ArtifactKind, version: r.version, bytes: r.bytes, createdAt: r.created_at }));
 }

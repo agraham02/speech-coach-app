@@ -3,8 +3,7 @@ import Pitchfinder from "pitchfinder";
 import { logger } from "../utils/logger";
 import { withTimeout } from "../utils/withTimeout";
 
-// 16kHz matches what react-native-executorch's Whisper transcribe() expects
-// too — decoding once at this rate lets the same waveform feed both the
+// 16kHz matches what Whisper expects too — decoding once at this rate lets the same waveform feed both the
 // on-device ASR call and this DSP pass, instead of decoding the video twice.
 export const ASR_SAMPLE_RATE = 16000;
 
@@ -62,6 +61,12 @@ const BUCKET_MS = 200;
 // recordings, not empirically tuned against real sessions yet.
 const SILENCE_RMS_THRESHOLD = 0.01;
 const DBFS_FLOOR = -60;
+// The range a speaking voice can sit in. YIN also finds a "pitch" in noise,
+// hiss and plosives (a take showed readings near 6,400 Hz and an average of
+// 4,859 Hz), and one of those would set the whole pitch range. Anything
+// outside this is treated as unvoiced.
+export const MIN_SPEECH_PITCH_HZ = 65;
+export const MAX_SPEECH_PITCH_HZ = 600;
 
 function rms(frame: Float32Array): number {
   let sumSquares = 0;
@@ -121,7 +126,7 @@ export function analyzePitchVolume(waveform: Float32Array, sampleRate: number): 
       const frameStart = Math.max(0, Math.min(center - Math.floor(FRAME_SIZE / 2), waveform.length - FRAME_SIZE));
       const frame = waveform.subarray(frameStart, frameStart + FRAME_SIZE);
       const pitch = frame.length >= FRAME_SIZE ? detectPitch(frame) : null;
-      pitchContourHz.push(pitch && pitch > 0 ? pitch : null);
+      pitchContourHz.push(pitch && pitch >= MIN_SPEECH_PITCH_HZ && pitch <= MAX_SPEECH_PITCH_HZ ? pitch : null);
     }
 
     const voicedPitches = pitchContourHz.filter((p): p is number => p !== null);

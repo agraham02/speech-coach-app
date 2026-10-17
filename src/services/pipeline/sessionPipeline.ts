@@ -13,6 +13,7 @@ import { coachStep } from "./steps/coachStep";
 import { putArtifact } from "../db/artifactsRepo";
 import { takePresenceTimeline } from "./presenceTimelineStore";
 import { clearDecodedAudio } from "./steps/decodedAudioCache";
+import { startEarlyUpload } from "./earlyUpload";
 import { runExclusive } from "./jobQueue";
 import { settleRepProgress } from "../sessions/repProgress";
 import { showGlobalToast } from "../../components/common/ToastProvider";
@@ -20,6 +21,8 @@ import { notifySessionComplete } from "../notifications/sessionCompleteNotifier"
 import { syncDailyReminder } from "../notifications/reminderScheduler";
 import { navigationRef } from "../../navigation/navigationRef";
 import { streakMilestoneReached } from "../../domain/streaks";
+import { sessionReadyText } from "../../domain/notificationCopy";
+import { getUserProfile } from "../prefs/prefsStore";
 import { getStreakState } from "../db/progressRepo";
 import { takeFreezeNotice } from "../streaks/freezeNotice";
 import { planTextToNullableFields } from "../../domain/planYourPoint";
@@ -135,6 +138,8 @@ export async function createSessionFromTake(take: NewTake): Promise<string> {
   };
   await seedSessionSteps(sessionId, initial);
   logger.info(`[pipeline] ${sessionId}: saved (${subjectToSessionType(subject)}, deep review=${take.wantsCloudReview})`);
+  // The video upload runs alongside the on-device steps instead of after them.
+  if (take.wantsCloudReview) startEarlyUpload(sessionId);
 
   runPendingSteps(sessionId).catch((error) =>
     logger.error(`[pipeline] ${sessionId}: run failed — ${(error as Error).message}`),
@@ -205,8 +210,9 @@ async function announceCompletion(sessionId: string, ranCloudReview: boolean): P
   syncDailyReminder().catch(() => undefined);
   const scores = ranCloudReview ? await getScoresBySessionId(sessionId) : null;
   const title = scores ? "Deep review ready" : "Session ready";
-  const body = scores ? `Overall ${scores.overallScore}/10 — tap to view.` : "Your analysis is ready — tap to view.";
-  notifySessionComplete(sessionId, title, body).catch(() => undefined);
+  // The OS notification is personal; the in-app toast above keeps its short form.
+  const ready = sessionReadyText(getUserProfile()?.name, scores ? scores.overallScore : null);
+  notifySessionComplete(sessionId, ready.title, ready.body).catch(() => undefined);
   if (!isViewingSession(sessionId)) {
     showGlobalToast(scores ? `${title} — overall ${scores.overallScore}/10` : title, "success", () => goToResult(sessionId));
   }

@@ -7,6 +7,8 @@ import { analysisToSessionScores, upsertScores } from "../../db/scoresRepo";
 import { getArtifact, putArtifact } from "../../db/artifactsRepo";
 import { currentProvider, hasConsent, modelFor, reviewBlockedReason, type ProviderId } from "../../cloud/providers";
 import { measuredReview } from "../../cloud/measuredReview";
+import { recordCloudUsage } from "../../cloud/usageStore";
+import type { TokenUsage } from "../../../domain/cloudUsage";
 import type { TextProviderId } from "../../cloud/textProviders";
 import type { PauseAnalysis } from "../../../domain/dsp/pauses";
 import type { PresenceMetrics } from "../../../domain/presenceMetrics";
@@ -17,6 +19,7 @@ import { resolveVideoUri, videoExists } from "../../storage/videoStorage";
 import { gradingContextFromSession } from "../../sessions/sessionSubject";
 import { emitStepEvent } from "../processingEvents";
 import { refreshSessionScore } from "../../sessions/sessionScoreService";
+import { earlyUploadSettled } from "../earlyUpload";
 import { StepError } from "../stepRunner";
 
 export interface CloudTranscriptArtifact {
@@ -27,6 +30,10 @@ export interface CloudTranscriptArtifact {
   // were all Gemini).
   provider?: ProviderId;
   model?: string;
+  // True when the model transcribed the audio itself. Gemini reviews made
+  // before that copied the phone's transcript, so their "verbatim" text says
+  // nothing about what the model heard.
+  heardAudio?: boolean;
 }
 
 // The "deep review": structure, delivery, presence and coaching scores from
@@ -64,10 +71,24 @@ export async function cloudReviewStep(sessionId: string): Promise<void> {
       getArtifact<PresenceMetrics>(sessionId, "presence"),
     ]);
     noteCloudCall(today);
+    const started = Date.now();
+    const seen: { usage?: TokenUsage } = {};
     const analysis = await measuredReview(
       { session, context, pauses, presence, stutterMode: defaultsFromProfile(getUserProfile()).stutterMode },
       provider.id as TextProviderId,
+      (usage) => {
+        seen.usage = usage;
+      },
     );
+    // Before the scores land, so the usage is there when the screen updates.
+    await recordCloudUsage(sessionId, {
+      provider: provider.id,
+      model: modelFor(provider.id),
+      input: provider.input,
+      elapsedMs: Date.now() - started,
+      videoBytes: null,
+      usage: seen.usage ?? null,
+    });
     await upsertScores(analysisToSessionScores(sessionId, analysis));
     await refreshSessionScore(sessionId);
     await putArtifact(sessionId, "cloud_transcript", {
@@ -85,14 +106,18 @@ export async function cloudReviewStep(sessionId: string): Promise<void> {
   if (!videoExists(videoUri)) throw new StepError("The video file is missing, so a deep review isn't possible.");
   if ((new File(videoUri).size ?? 0) > MAX_REVIEW_VIDEO_BYTES) throw new StepError("This video is too large to send for a deep review.");
 
-  // Ground Gemini on the device transcript so its quotes line up with it.
-  const hasDeviceTranscript = !!session.transcriptVerbatim && session.transcriptionSource !== "gemini";
-  const grounded =
-    context.kind === "prompt" && hasDeviceTranscript ? { ...context, groundingTranscript: session.transcriptVerbatim! } : context;
+  // Gemini is deliberately NOT given the phone's transcript. It used to be,
+  // as ground truth, and Gemini then copied it, so a transcript the phone had
+  // already stripped of ums came back as the AI's own "verbatim" one. Gemini
+  // hears the audio itself: its transcript, fillers included, is independent.
 
+  // An upload started when the take was saved (earlyUpload.ts): wait for it
+  // rather than start a second one, then use the file it stored.
+  await earlyUploadSettled(sessionId);
+  const latest = (await getSessionById(sessionId)) ?? session;
   const existingUpload =
-    session.geminiFileName && session.geminiFileUri && session.geminiFileUploadedAt
-      ? { name: session.geminiFileName, uri: session.geminiFileUri, uploadedAt: session.geminiFileUploadedAt }
+    latest.geminiFileName && latest.geminiFileUri && latest.geminiFileUploadedAt
+      ? { name: latest.geminiFileName, uri: latest.geminiFileUri, uploadedAt: latest.geminiFileUploadedAt }
       : null;
   noteCloudCall(today);
   const { uploaded, reused } = await resolveUploadForGrading(videoUri, existingUpload);
@@ -100,7 +125,19 @@ export async function cloudReviewStep(sessionId: string): Promise<void> {
     await updateSessionGeminiFile(sessionId, { name: uploaded.name, uri: uploaded.uri, uploadedAt: new Date().toISOString() });
   }
 
-  const analysis = await analyzeUploadedVideo(uploaded, grounded);
+  const reviewStarted = Date.now();
+  const seenUsage: { usage?: TokenUsage } = {};
+  const analysis = await analyzeUploadedVideo(uploaded, context, undefined, (usage) => {
+    seenUsage.usage = usage;
+  });
+  await recordCloudUsage(sessionId, {
+    provider: "gemini",
+    model: modelFor("gemini"),
+    input: "video",
+    elapsedMs: Date.now() - reviewStarted,
+    videoBytes: new File(videoUri).size ?? null,
+    usage: seenUsage.usage ?? null,
+  });
   await upsertScores(analysisToSessionScores(sessionId, analysis));
   await refreshSessionScore(sessionId);
   await putArtifact(sessionId, "cloud_transcript", {
@@ -109,6 +146,7 @@ export async function cloudReviewStep(sessionId: string): Promise<void> {
     durationSeconds: analysis.duration_seconds,
     provider: "gemini",
     model: modelFor("gemini"),
+    heardAudio: true,
   } satisfies CloudTranscriptArtifact);
 
   // No device transcript at all (on-device transcription failed): the deep

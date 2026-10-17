@@ -23,6 +23,9 @@ export interface LocalMeasurements {
   durationSeconds: number;
   wpmAvg: number | null;
   fillerRatePerMinute: number | null;
+  // The filler rate was counted in the AI coach's own transcript (it hears
+  // the audio, so it catches ums the phone's recognizer drops).
+  fillersFromAi?: boolean;
   pitchRangeHz: number | null;
   pauses: PauseAnalysis | null;
   presence: PresenceMetrics | null;
@@ -203,7 +206,7 @@ function fluencyScored(m: LocalMeasurements): Scored {
     const rate = m.fillerRatePerMinute;
     factors.push({
       label: "Filler words",
-      value: `${Math.round(rate * 10) / 10} a minute`,
+      value: `${Math.round(rate * 10) / 10} a minute${m.fillersFromAi ? " (counted by your AI coach)" : ""}`,
       score: round1(fillerScore(rate)),
       rule:
         rate <= 2

@@ -24,7 +24,8 @@ import { ComparisonCard } from "../components/result/ComparisonCard";
 import { ScoreBreakdownCard } from "../components/result/ScoreBreakdownCard";
 import { SCORE_BREAKDOWN_VERSION, type SessionScoreBreakdown } from "../domain/sessionScore";
 import { refreshSessionScore } from "../services/sessions/sessionScoreService";
-import { FeltObservedCard } from "../components/result/FeltObservedCard";
+import { FeltCard, ObservedCard, useFeltObserved } from "../components/result/FeltObservedCard";
+import { CloudUsageNote } from "../components/result/CloudUsageNote";
 import { getPromptComparison } from "../services/db/statsRepo";
 import type { CoachOutput } from "../domain/coach/ruleCoach";
 import { AnnotatedTranscript } from "../components/result/AnnotatedTranscript";
@@ -109,6 +110,8 @@ export function ResultScreen({ route, navigation }: Props) {
   const [cloudTranscript, setCloudTranscript] = useState<CloudTranscriptArtifact | null>(null);
   const [coach, setCoach] = useState<CoachOutput | null>(null);
   const [breakdown, setBreakdown] = useState<SessionScoreBreakdown | null>(null);
+  // Felt vs observed: the first question at the top, the second by the video.
+  const feltObserved = useFeltObserved(sessionId);
   const [comparison, setComparison] = useState<Awaited<ReturnType<typeof getPromptComparison>>>(null);
 
   // Reloaded whenever an analysis step finishes, so results fill in live.
@@ -274,6 +277,10 @@ export function ResultScreen({ route, navigation }: Props) {
   };
   const measuring = steps.length === 0 || (["transcribe", "audio_metrics", "presence", "coach"] as SessionStep[]).some(working);
   const reviewing = working("cloud_review");
+  // The total waits until every part is in: averaging only what has finished
+  // makes it jump (a lone voice score read 10, then settled at 9). A take that
+  // already has a review keeps its score while it is reviewed again.
+  const scoreSettled = !measuring && !(reviewing && !scores);
 
   return (
     <ScreenContainer style={styles.container}>
@@ -303,8 +310,10 @@ export function ResultScreen({ route, navigation }: Props) {
       {tab === "overview" ? (
         <TourScrollContext.Provider value={tourScroll}>
         <ScrollView {...scrollProps} style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {hasVideo ? <FeltCard state={feltObserved} /> : null}
+
           <TourTarget id="result.score">
-          {overall != null ? (
+          {overall != null && scoreSettled ? (
             <Reveal key="hero">
               <HeroCard
                 contentStyle={styles.scoreHeroContent}
@@ -357,7 +366,7 @@ export function ResultScreen({ route, navigation }: Props) {
           <TourTarget id="result.breakdown">
           {breakdown ? (
             <Reveal key="breakdown">
-              <ScoreBreakdownCard breakdown={breakdown} review={scores} />
+              <ScoreBreakdownCard breakdown={breakdown} review={scores} pending={!scoreSettled} />
             </Reveal>
           ) : measuring ? (
             <SkeletonCard key="breakdown-skeleton" lines={4} />
@@ -395,15 +404,16 @@ export function ResultScreen({ route, navigation }: Props) {
             </Card>
           ) : null}
 
-          {hasVideo ? <FeltObservedCard sessionId={sessionId} /> : null}
-
           {hasVideo ? (
-            <ThreePassPlayer
-              sessionId={sessionId}
-              videoUri={videoUri}
-              transcriptWords={session.transcriptWords}
-              transcriptText={session.transcriptClean}
-            />
+            <>
+              <ThreePassPlayer
+                sessionId={sessionId}
+                videoUri={videoUri}
+                transcriptWords={session.transcriptWords}
+                transcriptText={session.transcriptClean}
+              />
+              <ObservedCard state={feltObserved} />
+            </>
           ) : (
             <View style={styles.videoRemovedRow}>
               <Ionicons name="trash-outline" size={16} color={colors.textMuted} />
@@ -414,6 +424,8 @@ export function ResultScreen({ route, navigation }: Props) {
           <TourTarget id="result.steps">
             <AnalysisStepsCard steps={steps} onRun={handleRunStep} disabledReason={{ cloud_review: deepReviewBlocked }} />
           </TourTarget>
+
+          {scores ? <CloudUsageNote sessionId={sessionId} refreshKey={reviewing} /> : null}
 
           {!scores && reviewing ? <SkeletonCard key="coaching-skeleton" lines={4} /> : null}
           {scores ? (

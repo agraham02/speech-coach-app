@@ -16,7 +16,7 @@ import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 // category to see its ingredients — each measurement, the rule that scored
 // it (what took points away, what would earn them back), and the AI
 // coach's own sub-scores and notes.
-export function ScoreBreakdownCard({ breakdown, review }: { breakdown: SessionScoreBreakdown; review?: SessionScores | null }) {
+export function ScoreBreakdownCard({ breakdown, review, pending }: { breakdown: SessionScoreBreakdown; review?: SessionScores | null; pending?: boolean }) {
   const styles = useStyles();
   const [open, setOpen] = useState<string | null>(null);
   const both = breakdown.sources.length === 2;
@@ -25,7 +25,7 @@ export function ScoreBreakdownCard({ breakdown, review }: { breakdown: SessionSc
   return (
     <Card style={styles.card}>
       <View style={styles.header}>
-        <Text style={styles.label}>How this score is built</Text>
+        <Text style={styles.label}>{pending ? "Scored so far" : "How this score is built"}</Text>
         <Txt variant="caption1" tone="muted">
           Tap one to see why
         </Txt>
@@ -43,7 +43,9 @@ export function ScoreBreakdownCard({ breakdown, review }: { breakdown: SessionSc
         />
       ))}
       <Text style={styles.footnote}>
-        {both
+        {pending
+          ? "Still measuring the rest. The total score appears when every part is in."
+          : both
           ? `Blends what this phone measured with your AI coach's review${breakdown.cloudOverall != null ? ` (its own overall ${breakdown.cloudOverall}/10 counts for ${share}%)` : ""}.${breakdown.cloudSource === "video" ? " The coach watched the video, so it leads wherever it could see." : ""}`
           : breakdown.sources[0] === "cloud"
             ? "From your AI coach's review."

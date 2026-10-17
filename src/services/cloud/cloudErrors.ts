@@ -1,5 +1,6 @@
 import { GeminiApiError } from "../gemini/types";
 import { TimeoutError } from "../../utils/fetchWithTimeout";
+import { readRateLimit } from "../gemini/responseHandling";
 
 // A failed call to a deep-review provider (OpenAI, Claude, OpenRouter —
 // Gemini has its own GeminiApiError).
@@ -41,6 +42,9 @@ export function describeCloudError(error: unknown): string {
       return `${named} didn't accept your API key. Check it in Settings → Deep reviews.`;
     }
     if (status === 402) return `Your ${named} account is out of credit. Top it up, then retry.`;
+    if (status === 429 && readRateLimit(body).dailyQuota) {
+      return `This ${named} key has used up today's quota. It resets tomorrow, or switch to a paid key in Settings → Deep reviews.`;
+    }
     if (status === 429) return `${named} is rate-limiting this key (or it's out of quota). Wait a few minutes and retry.`;
     if (status !== undefined && status >= 500) return `${named}'s servers had a temporary problem. This usually works on retry.`;
     if (status === 404) return `${named} doesn't know that model${detail ? ` (${detail})` : ""}. Check the model in Settings → Deep reviews.`;
