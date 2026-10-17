@@ -13,6 +13,7 @@ import { PrimaryButton } from "../components/common/PrimaryButton";
 import { CountdownRing } from "../components/common/CountdownRing";
 import { EmptyState } from "../components/common/EmptyState";
 import { ScaleChips } from "../components/conversation/ScaleChips";
+import { ScaleSlider } from "../components/common/ScaleSlider";
 import { useLiveSpeech } from "../hooks/useLiveSpeech";
 import { fullText } from "../domain/speech/liveTranscript";
 import { DRILL_TITLES } from "../domain/drills/drillSpecs";
@@ -344,7 +345,7 @@ export function ConversationRunnerScreen({ route, navigation }: Props) {
             ) : null}
             <Card style={styles.card}>
               <Txt variant="headline">Right now, how much of your attention is on yourself?</Txt>
-              <ScaleChips value={selfFocusBefore} onChange={setSelfFocusBefore} lowLabel="On them" highLabel="On me" accessibilityLabel="Attention on yourself, 0 to 10" />
+              <ScaleSlider value={selfFocusBefore} onChange={setSelfFocusBefore} lowLabel="On them" highLabel="On me" accessibilityLabel="Attention on yourself, 0 to 10" />
               <Txt variant="caption1" tone="muted">
                 Optional — it's how you'll see your attention shift over time.
               </Txt>
@@ -409,7 +410,7 @@ export function ConversationRunnerScreen({ route, navigation }: Props) {
             ) : null}
             <Card style={styles.card}>
               <Txt variant="headline">And now — how much of your attention was on yourself?</Txt>
-              <ScaleChips value={selfFocusAfter} onChange={setSelfFocusAfter} lowLabel="On them" highLabel="On me" accessibilityLabel="Attention on yourself, 0 to 10" />
+              <ScaleSlider value={selfFocusAfter} onChange={setSelfFocusAfter} lowLabel="On them" highLabel="On me" accessibilityLabel="Attention on yourself, 0 to 10" />
             </Card>
           </>
         ) : null}

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { logger } from "../utils/logger";
 import { Skeleton, SkeletonCard, SkeletonLines, SkeletonRows } from "../components/common/Skeleton";
-import { GuideTip } from "../components/common/GuideTip";
+import { GuideTip, TourTarget } from "../components/common/GuideTip";
 import { Alert, Pressable, RefreshControl, ScrollView, SectionList, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -291,7 +291,11 @@ export function HistoryScreen() {
         </View>
       ) : null}
 
-      {hasAnySessions && !filtersActive ? <ProgressVideoStrip sessions={keepsakes} onOpen={openSession} /> : null}
+      {hasAnySessions && !filtersActive ? (
+        <TourTarget id={keepsakes.length ? "library.videos" : undefined}>
+          <ProgressVideoStrip sessions={keepsakes} onOpen={openSession} />
+        </TourTarget>
+      ) : null}
     </View>
   );
 

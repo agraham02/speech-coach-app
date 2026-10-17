@@ -25,6 +25,8 @@ import type { PracticeContext } from "../domain/practice";
 import type { ConversationDrillType, DrillType } from "../domain/drills/drillSpecs";
 import { HistoryScreen } from "../screens/HistoryScreen";
 import { TrendsScreen } from "../screens/TrendsScreen";
+import type { SkillId } from "../theme/tokens";
+import { SkillDetailScreen } from "../screens/SkillDetailScreen";
 import { DevScreen } from "../screens/DevScreen";
 import { SHOW_DEV_TOOLS } from "../config/devTools";
 import { RecordingScreen } from "../screens/RecordingScreen";
@@ -91,6 +93,8 @@ export type RootStackParamList = {
   // One section of Settings, or the list of them with no section.
   Settings: { section?: SettingsSection } | undefined;
   Progress: undefined;
+  // One skill's rating: what moves it, and its recent changes.
+  SkillDetail: { skill: SkillId };
   Phrasebook: undefined;
   ThreeThings: undefined;
   TalkBack: undefined;
@@ -368,6 +372,7 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
         <Stack.Screen name="Frameworks" component={TipsScreen} />
         <Stack.Screen name="Sources" component={SourcesScreen} />
         <Stack.Screen name="Trends" component={TrendsScreen} />
+        <Stack.Screen name="SkillDetail" component={SkillDetailScreen} />
         <Stack.Screen name="Drill" component={DrillRunnerScreen} />
         <Stack.Screen name="Guided" component={GuidedScreen} />
         <Stack.Screen name="Conversation" component={ConversationRunnerScreen} />

@@ -6,7 +6,7 @@ import type { RootStackParamList } from "../navigation";
 import { Screen } from "../components/common/Screen";
 import { Card } from "../components/common/Card";
 import { PrimaryButton } from "../components/common/PrimaryButton";
-import { RatingScale } from "../components/common/RatingScale";
+import { ScaleSlider } from "../components/common/ScaleSlider";
 import { SayItAloud } from "../components/common/SayItAloud";
 import { Txt } from "../components/common/Txt";
 import { showGlobalToast } from "../components/common/ToastProvider";
@@ -100,7 +100,7 @@ export function ThoughtChallengeScreen({ route }: Props) {
           <Txt variant="callout" tone="secondary">
             Right now, how true does it feel?
           </Txt>
-          <RatingScale value={before} onChange={setBefore} lowLabel="Not at all" highLabel="Completely" />
+          <ScaleSlider value={before} onChange={setBefore} min={1} max={5} lowLabel="Not at all" highLabel="Completely" accessibilityLabel="How true it feels, 1 to 5" />
           {history.length > 0 ? (
             <Txt variant="footnote" tone="muted">
               Before: {history.map((c) => `${c.beliefBefore}/5 on ${dayLabel(c.createdAt)}`).join(" · ")}
@@ -171,7 +171,7 @@ export function ThoughtChallengeScreen({ route }: Props) {
           <Txt variant="callout" tone="secondary">
             Now, how true does the original thought feel?
           </Txt>
-          <RatingScale value={after} onChange={setAfter} lowLabel="Not at all" highLabel="Completely" />
+          <ScaleSlider value={after} onChange={setAfter} min={1} max={5} lowLabel="Not at all" highLabel="Completely" accessibilityLabel="How true it feels now, 1 to 5" />
           {before != null ? (
             <Txt variant="footnote" tone="muted">
               You said {before}/5 at the start.

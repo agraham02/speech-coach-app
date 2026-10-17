@@ -2,6 +2,8 @@ import type { SkillId } from "../theme/tokens";
 import { SKILLS } from "./mastery";
 import { paceScore, fillerScore } from "./sessionScore";
 import type { Obstacle } from "./profile";
+import { REVIEW_SHARE } from "./repEvidence";
+import type { CloudSource } from "./sessionScore";
 
 // The onboarding skill check: four short pieces that together touch all
 // five skills, turned into a starting rating per skill (15-45 on the
@@ -33,11 +35,21 @@ export interface SkillCheckInput {
   hedgeCount?: number | null;
   strongEnding?: boolean | null;
   structured?: boolean | null;
+  // A deep review of the topic recording, 0-10 per skill it can judge (see
+  // domain/repEvidence.ts). It leads where it exists, by more when the
+  // reviewer watched the video.
+  review?: { cadence?: number | null; impromptu?: number | null; confidence?: number | null; source: CloudSource } | null;
   // Self-report from onboarding (blended in where measurement is thin)
   obstacles?: Obstacle[];
   // Stuttering: fillers and hesitations aren't measured against you.
   stutterMode?: boolean;
 }
+
+const REVIEWED: { skill: "cadence" | "impromptu" | "confidence"; what: string }[] = [
+  { skill: "cadence", what: "pace, pitch and pauses" },
+  { skill: "impromptu", what: "the shape and relevance of your answer" },
+  { skill: "confidence", what: "eye contact, expression and volume" },
+];
 
 export interface SkillResult {
   skill: SkillId;
@@ -139,6 +151,21 @@ export function evaluateSkillCheck(input: SkillCheckInput): SkillCheckResult {
   results.conversation.score = measured == null ? null : (measured + selfReported) / 2;
   if (input.askedBack) add("conversation", "good", "You asked something back — that's what keeps a conversation going.");
   if (input.replyLatencyMs != null && input.replyLatencyMs > 4000) add("conversation", "work", "The reply took a while to start — that gap is exactly what the conversation drills shrink.");
+
+  // --- the deep review leads where it judged something. Its line goes
+  // first, so it's the one shown when the skill makes the short lists.
+  if (input.review) {
+    const share = REVIEW_SHARE[input.review.source];
+    for (const { skill, what } of REVIEWED) {
+      const reviewed = input.review[skill];
+      if (reviewed == null || !Number.isFinite(reviewed)) continue;
+      const local = results[skill].score;
+      results[skill].score = local == null ? clamp10(reviewed) : local * (1 - share) + clamp10(reviewed) * share;
+      const shown = Math.round(reviewed * 10) / 10;
+      if (reviewed >= 7) results[skill].good.unshift(`Your AI coach scored ${what} ${shown} out of 10.`);
+      else if (reviewed <= 4.5) results[skill].work.unshift(`Your AI coach scored ${what} ${shown} out of 10 — the clearest place to start.`);
+    }
+  }
 
   for (const s of SKILLS) {
     const sc = results[s].score;

@@ -6,7 +6,7 @@ import type { RootStackParamList } from "../../navigation";
 import { Card } from "../common/Card";
 import { Txt } from "../common/Txt";
 import { PrimaryButton } from "../common/PrimaryButton";
-import { RatingScale } from "../common/RatingScale";
+import { ScaleSlider } from "../common/ScaleSlider";
 import { listConfidenceCheckins, listSkillChecks, saveConfidenceCheckin } from "../../services/db/skillChecksRepo";
 import { getSkillCheckPending, getUserProfile, setUserProfile } from "../../services/prefs/prefsStore";
 import { dateFromISODate, daysBetween, todayISODate } from "../../utils/dateUtils";
@@ -112,7 +112,7 @@ export function ProgressProfileCards() {
           <Txt variant="subhead" tone="secondary">
             How do you feel about speaking in front of people right now?
           </Txt>
-          <RatingScale value={rating} onChange={setRating} lowLabel="I avoid it" highLabel="I enjoy it" />
+          <ScaleSlider value={rating} onChange={setRating} min={1} max={5} lowLabel="I avoid it" highLabel="I enjoy it" accessibilityLabel="How you feel about speaking in front of people, 1 to 5" />
           {checkinDue.last ? (
             <Txt variant="footnote" tone="muted">
               Last time you said {checkinDue.last}.

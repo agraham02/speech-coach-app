@@ -6,7 +6,7 @@ import type { SessionStatus } from "../../domain/sessionTypes";
 import { logger } from "../../utils/logger";
 
 // Bump this and add a new numbered migration when the schema changes.
-export const LATEST_DB_VERSION = 27;
+export const LATEST_DB_VERSION = 28;
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(
@@ -732,6 +732,33 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
       CREATE INDEX IF NOT EXISTS idx_day_recalls_date ON day_recalls(date);
     `);
     currentVersion = await commitVersion(db, 27);
+  }
+
+  if (currentVersion < 28) {
+    // Every change to a skill's mastery rating, with what caused it — for
+    // the skill detail screen's "what moved this number". `score` is the
+    // 0-1 result, `expected` what the rating predicted at that difficulty;
+    // the gap between them is what moved it. Starts empty: changes from
+    // before this table can't be reconstructed.
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS skill_events (
+        id TEXT PRIMARY KEY NOT NULL,
+        skill TEXT NOT NULL,
+        at TEXT NOT NULL,
+        rating_before REAL NOT NULL,
+        rating_after REAL NOT NULL,
+        source TEXT NOT NULL,
+        label TEXT NOT NULL,
+        score REAL,
+        expected REAL,
+        level REAL,
+        session_id TEXT,
+        drill_type TEXT,
+        detail_json TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_skill_events_skill ON skill_events(skill, at);
+    `);
+    currentVersion = await commitVersion(db, 28);
   }
 }
 

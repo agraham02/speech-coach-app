@@ -14,6 +14,7 @@ import { putArtifact } from "../db/artifactsRepo";
 import { takePresenceTimeline } from "./presenceTimelineStore";
 import { clearDecodedAudio } from "./steps/decodedAudioCache";
 import { runExclusive } from "./jobQueue";
+import { settleRepProgress } from "../sessions/repProgress";
 import { showGlobalToast } from "../../components/common/ToastProvider";
 import { notifySessionComplete } from "../notifications/sessionCompleteNotifier";
 import { syncDailyReminder } from "../notifications/reminderScheduler";
@@ -164,6 +165,7 @@ export function runPendingSteps(sessionId: string): Promise<void> {
     }
     clearDecodedAudio();
     await refreshSessionStatus(sessionId);
+    await settleRepProgress(sessionId);
     await announceCompletion(sessionId, ranCloudReview);
   });
 }

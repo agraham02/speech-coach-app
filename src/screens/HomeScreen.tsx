@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { Skeleton, SkeletonCard, SkeletonLines, SkeletonRows } from "../components/common/Skeleton";
-import { GuideTip } from "../components/common/GuideTip";
+import { GuideTip, TourTarget } from "../components/common/GuideTip";
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -301,6 +301,7 @@ export function HomeScreen() {
       </View>
 
       <View style={styles.middle}>
+        <TourTarget id="practice.start">
         <HeroCard
           contentStyle={styles.promptCard}
           accent={colorForCategory(prompt.category, colors).fg}
@@ -351,6 +352,7 @@ export function HomeScreen() {
             </Text>
           </Pressable>
         </HeroCard>
+        </TourTarget>
 
         {alreadyPracticedToday ? (
           <Banner

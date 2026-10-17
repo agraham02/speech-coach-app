@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { GuideTip } from "../components/common/GuideTip";
+import { GuideTip, TourTarget } from "../components/common/GuideTip";
+import { MarkKey } from "../components/cadence/MarkKey";
 import { Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -25,6 +26,9 @@ import { SKILL_LABELS } from "../theme/tokens";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import { defaultsFromProfile } from "../domain/profile";
 import { getUserProfile } from "../services/prefs/prefsStore";
+
+// Drills that read marked text (the pause drill shows only pauses).
+const MARKED_DRILLS: string[] = ["marked_reading", "pause_reading", "move_it"];
 
 type Props = NativeStackScreenProps<RootStackParamList, "Lesson">;
 
@@ -90,9 +94,14 @@ export function LessonScreen({ route, navigation }: Props) {
   const teachOpen = showTeach ?? !collapseTeach;
 
   const firstOpen = lesson.steps.findIndex((_, i) => !done.has(i));
+  // A lesson that hands you marked lines shows how to read them first.
+  const markDrills = lesson.steps.filter((s) => s.kind === "drill" && MARKED_DRILLS.includes(s.drill));
+  const readsMarks = markDrills.length > 0;
+  const pausesOnly = markDrills.every((s) => s.kind === "drill" && s.drill === "pause_reading");
 
   return (
     <Screen eyebrow={`${SKILL_LABELS[lesson.skill]} · ${lesson.minutes} min`} title={lesson.title} onBack={() => navigation.goBack()}>
+      <TourTarget id="lesson.teach">
       <HeroCard accent={skill.fg} contentStyle={styles.teach}>
         <Badge label="Why it matters" fg={skill.fg} bg={skill.bg} dot />
         {!teachOpen ? (
@@ -124,6 +133,7 @@ export function LessonScreen({ route, navigation }: Props) {
           </PressableScale>
         ) : null}
       </HeroCard>
+      </TourTarget>
 
       {state?.done ? (
         <View style={styles.completed}>
@@ -134,6 +144,9 @@ export function LessonScreen({ route, navigation }: Props) {
         </View>
       ) : null}
 
+      {readsMarks ? <MarkKey kinds={pausesOnly ? ["pause", "long_pause"] : undefined} /> : null}
+
+      <TourTarget id="lesson.practice" style={styles.practice}>
       <SectionHeader title="Practice" />
       {lesson.steps.map((step, i) => {
         const isDone = done.has(i);
@@ -167,6 +180,7 @@ export function LessonScreen({ route, navigation }: Props) {
           </Card>
         );
       })}
+      </TourTarget>
       <GuideTip id="lesson" />
     </Screen>
   );
@@ -176,6 +190,7 @@ const NODE = 28;
 
 const useStyles = makeStyles((t) => ({
   teach: { gap: t.space.md - 4 },
+  practice: { gap: t.space.md + 4 },
   howRow: { flexDirection: "row", gap: t.space.md - 2, alignItems: "flex-start" },
   howNumber: { fontSize: 20, lineHeight: 24, width: 18 },
   flex: { flex: 1 },

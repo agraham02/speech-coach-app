@@ -6,7 +6,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { Screen } from "../components/common/Screen";
 import { HeroCard } from "../components/common/HeroCard";
-import { GuideTip } from "../components/common/GuideTip";
+import { GuideTip, TourTarget } from "../components/common/GuideTip";
 import { ListGroup, ListRow } from "../components/common/ListRow";
 import { PrimaryButton } from "../components/common/PrimaryButton";
 import { Txt } from "../components/common/Txt";
@@ -77,6 +77,7 @@ export function YouScreen() {
 
   return (
     <Screen tabRoot large title="You" eyebrow={name || undefined} contentStyle={styles.content}>
+      <TourTarget id="you.progress">
       <HeroCard accent={colors.warning} contentStyle={styles.hero}>
         <View style={styles.heroTop}>
           <View>
@@ -105,10 +106,12 @@ export function YouScreen() {
             </View>
           </View>
         </View>
-        <SkillRings mastery={mastery} />
+        <SkillRings mastery={mastery} onPressSkill={(s) => navigation.navigate("SkillDetail", { skill: s })} />
         <PrimaryButton label="See all progress" variant="secondary" size="md" iconRight="chevron-forward" onPress={() => navigation.navigate("Progress")} />
       </HeroCard>
+      </TourTarget>
 
+      <TourTarget id="you.innerVoice">
       <ListGroup title="Inner voice">
         <ListRow icon="play-back-outline" title="Rewind" subtitle={rewindLine} chevron onPress={() => navigation.navigate("Rewind")} />
         <ListRow icon="heart-outline" title="Three things" subtitle={threeThings} chevron onPress={() => navigation.navigate("ThreeThings")} />
@@ -120,6 +123,7 @@ export function YouScreen() {
           onPress={() => navigation.navigate("TalkBack")}
         />
       </ListGroup>
+      </TourTarget>
 
       <ListGroup>
         <ListRow

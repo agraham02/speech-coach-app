@@ -11,7 +11,19 @@ import { useToast } from "../common/ToastProvider";
 import { PROVIDER_ORDER, PROVIDERS, whatGetsSent, type ProviderId } from "../../services/cloud/providers";
 import { askCloudConsent } from "../../services/cloud/consent";
 import { checkProviderKey } from "../../services/cloud/textProviders";
-import { getCloudConsent, getCloudModel, getCloudProvider, getShareProfileWithReviews, getUserProfile, setCloudConsent, setCloudModel, setCloudProvider, setShareProfileWithReviews } from "../../services/prefs/prefsStore";
+import {
+  getCloudConsent,
+  getCloudModel,
+  getCloudProvider,
+  getCloudReviewDefault,
+  getShareProfileWithReviews,
+  getUserProfile,
+  setCloudConsent,
+  setCloudModel,
+  setCloudProvider,
+  setCloudReviewDefault,
+  setShareProfileWithReviews,
+} from "../../services/prefs/prefsStore";
 import { buildSpeakerContext } from "../../domain/reviewerContext";
 import { todayISODate } from "../../utils/dateUtils";
 import { SwitchRow } from "../common/ListRow";
@@ -31,6 +43,7 @@ export function DeepReviewSettings() {
   const [allowed, setAllowed] = useState(false);
   const [checking, setChecking] = useState(false);
   const [shareProfile, setShareProfile] = useState(getShareProfileWithReviews());
+  const [everyTake, setEveryTake] = useState(getCloudReviewDefault());
   // Exactly what would be added to a review's prompt, minus its framing.
   const contextPreview = buildSpeakerContext(getUserProfile(), todayISODate())
     .split("\n")
@@ -104,9 +117,25 @@ export function DeepReviewSettings() {
         Deep reviews — bring your own key
       </Txt>
       <Txt variant="subhead" tone="secondary" style={styles.intro}>
-        Tono is free and works fully on your phone. For an optional AI deep review of a take, connect your own key from one of these
-        providers — you pay them directly, usually a few cents a review.
+        Your phone measures pace, pauses, fillers and eye contact. A deep review adds the judgment calls — structure, tone, presence — and
+        Tono leans on it for your scores and your plan. Connect your own key from one of these providers; you pay them directly, usually a few
+        cents a review.
       </Txt>
+      <Card style={styles.section}>
+        <SwitchRow
+          title="Review every take"
+          subtitle={
+            allowed
+              ? "Each take you keep gets a deep review. You can still turn it off for one take on its save screen."
+              : `On once ${provider.company} is allowed below. Until then, everything stays on this phone.`
+          }
+          value={everyTake}
+          onValueChange={(on) => {
+            setEveryTake(on);
+            setCloudReviewDefault(on);
+          }}
+        />
+      </Card>
       <ChoiceList
         options={PROVIDER_ORDER.map((id) => ({ key: id, label: PROVIDERS[id].name, detail: PROVIDERS[id].blurb }))}
         value={providerId}

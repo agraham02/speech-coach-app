@@ -1,3 +1,4 @@
+import { GuideTip } from "../components/common/GuideTip";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
@@ -247,6 +248,7 @@ function GuidedRunner({
           </View>
         </View>
       )}
+      <GuideTip id="guided" />
     </ScreenContainer>
   );
 }

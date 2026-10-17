@@ -2,20 +2,25 @@ import { View } from "react-native";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 import { SKILL_LABELS, type SkillId } from "../../theme/tokens";
 import { SKILLS } from "../../domain/mastery";
+import { PressableScale } from "./PressableScale";
 import { ProgressRing } from "./ProgressRing";
 import { Txt } from "./Txt";
 
 // The skill-mastery rings shown on Today and Progress. `mastery` is 0-100
 // per skill; `focus` highlights today's focus skill. Five rings share one
 // row, so they're sized to fit a phone and labels shrink rather than wrap.
+// With `onPressSkill`, each ring opens that skill's detail: what the number
+// means and what moved it.
 export function SkillRings({
   mastery,
   focus,
   size = 54,
+  onPressSkill,
 }: {
   mastery: Record<SkillId, number>;
   focus?: SkillId | null;
   size?: number;
+  onPressSkill?: (skill: SkillId) => void;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -25,8 +30,9 @@ export function SkillRings({
         const value = Math.round(mastery[skill] ?? 0);
         const c = colors.skill[skill];
         const isFocus = focus === skill;
-        return (
-          <View key={skill} style={styles.item} accessibilityLabel={`${SKILL_LABELS[skill]} ${value} out of 100`}>
+        const label = `${SKILL_LABELS[skill]} ${value} out of 100`;
+        const ring = (
+          <>
             <ProgressRing size={size} strokeWidth={isFocus ? 5 : 4} progress={value / 100} color={c.fg} trackColor={c.bg}>
               <Txt variant="headline" tabular>
                 {value}
@@ -35,6 +41,22 @@ export function SkillRings({
             <Txt variant="caption1" tone={isFocus ? "primary" : "muted"} weight={isFocus ? "600" : "500"} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
               {SKILL_LABELS[skill]}
             </Txt>
+          </>
+        );
+        return onPressSkill ? (
+          <PressableScale
+            key={skill}
+            style={styles.item}
+            onPress={() => onPressSkill(skill)}
+            accessibilityRole="button"
+            accessibilityLabel={label}
+            accessibilityHint="Shows what this rating means and what moved it"
+          >
+            {ring}
+          </PressableScale>
+        ) : (
+          <View key={skill} style={styles.item} accessibilityLabel={label}>
+            {ring}
           </View>
         );
       })}

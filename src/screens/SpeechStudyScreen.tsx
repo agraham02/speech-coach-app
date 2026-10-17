@@ -10,6 +10,7 @@ import { ChipGroup } from "../components/common/Chip";
 import { PrimaryButton } from "../components/common/PrimaryButton";
 import { MarkedTextView } from "../components/cadence/MarkedTextView";
 import { MarkLegend } from "../components/cadence/MarkLegend";
+import { GuideTip, TourTarget } from "../components/common/GuideTip";
 import { getScriptById } from "../services/db/scriptsRepo";
 import { filterMarks, sliceMarked, type MarkKind, type MarkLevel } from "../domain/cadence/marks";
 import { getSpeech } from "../content/speeches";
@@ -59,7 +60,11 @@ export function SpeechStudyScreen({ route, navigation }: Props) {
     <ScreenContainer style={styles.container}>
       <Header eyebrow={`${speech.category} · about ${formatDuration(speech.targetDurationSeconds)}`} title={speech.title} onBack={() => navigation.goBack()} />
       <ChipGroup options={LEVELS} value={level} onChange={setLevel} />
-      {level !== "none" ? <MarkLegend marks={filterMarks(speech.marks, level)} hidden={hidden} onToggle={toggleHidden} /> : null}
+      {level !== "none" ? (
+        <TourTarget id="speech.legend">
+          <MarkLegend marks={filterMarks(speech.marks, level)} hidden={hidden} onToggle={toggleHidden} />
+        </TourTarget>
+      ) : null}
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Card style={styles.card}>
           {paragraphs.map((p, i) => (
@@ -78,6 +83,7 @@ export function SpeechStudyScreen({ route, navigation }: Props) {
           onPress={() => navigation.navigate("Recording", { kind: "script", script, cuesEnabled: level !== "none", markLevel: level })}
         />
       </View>
+      <GuideTip id="speech" />
     </ScreenContainer>
   );
 }

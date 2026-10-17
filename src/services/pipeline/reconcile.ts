@@ -4,6 +4,7 @@ import { deleteRecording, listSessionFiles } from "../storage/videoStorage";
 import { refreshSessionStatus } from "./stepRunner";
 import { runPendingSteps } from "./sessionPipeline";
 import { backfillSessionScores } from "../sessions/sessionScoreService";
+import { settleRepProgress } from "../sessions/repProgress";
 import { logger } from "../../utils/logger";
 
 // Steps resume automatically only for recent sessions and only a few times,
@@ -40,6 +41,10 @@ export async function reconcileOnLaunch(): Promise<void> {
       if (recent && steps.every((s) => s.attempts < MAX_AUTO_ATTEMPTS)) {
         logger.info(`[reconcile] resuming ${steps.map((s) => s.step).join(", ")} for ${sessionId}`);
         runPendingSteps(sessionId).catch(() => undefined);
+      } else {
+        // Left as it is until retried by hand — but the rep still counts
+        // toward skill mastery with whatever finished.
+        await settleRepProgress(sessionId, { abandoned: true });
       }
     }
     if (stale.length) logger.info(`[reconcile] marked ${stale.length} interrupted step(s)`);

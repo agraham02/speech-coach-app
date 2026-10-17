@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { GuideTip } from "../components/common/GuideTip";
+import { GuideTip, TourTarget } from "../components/common/GuideTip";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -302,7 +302,7 @@ export function RecordingScreen({ route, navigation }: Props) {
       {stage === "idle" && !isScript && <FramingGuideOverlay status={framingStatus} />}
 
       {stage === "recording" && !isScript && recordBlind && (
-        <RecordBlindOverlay promptText={subject.prompt.text} remainingSeconds={remainingRecordingSeconds} />
+        <RecordBlindOverlay promptText={subject.prompt.text} remainingSeconds={remainingRecordingSeconds} targetSeconds={targetDurationSeconds} />
       )}
 
       {/* Show or hide the preview mid-take. Above the blind overlay so it
@@ -349,7 +349,9 @@ export function RecordingScreen({ route, navigation }: Props) {
       {stage !== "warmup" && stage !== "prep" && (
         <View style={[styles.bottomBar, { paddingBottom: insets.bottom + spacing.lg }]}>
           {stage === "idle" && !isScript && (
-            <RecordBlindToggle value={recordBlind} onValueChange={handleToggleRecordBlind} />
+            <TourTarget id="recording.blind">
+              <RecordBlindToggle value={recordBlind} onValueChange={handleToggleRecordBlind} />
+            </TourTarget>
           )}
           {stage === "recording" && !isFinishing ? (
             <Pressable
@@ -363,7 +365,7 @@ export function RecordingScreen({ route, navigation }: Props) {
               <Text style={styles.restartText}>Restart</Text>
             </Pressable>
           ) : null}
-          <View style={styles.recordButtonGroup}>
+          <TourTarget id="recording.record" style={styles.recordButtonGroup}>
             {/* The ring only appears once recording starts (and blind mode isn't
                 hiding it), so it never reads as decoration on the idle button —
                 it's specifically the countdown, made visible. */}
@@ -391,10 +393,11 @@ export function RecordingScreen({ route, navigation }: Props) {
                       ? "Tap to stop"
                       : `${formatDuration(remainingRecordingSeconds)} left · tap to stop`}
             </Text>
-          </View>
+          </TourTarget>
         </View>
       )}
-      <GuideTip id="recording" />
+      {/* Once the camera is ready — not over the warm-up or the countdown. */}
+      {stage === "idle" ? <GuideTip id="recording" /> : null}
     </View>
   );
 }
