@@ -9,6 +9,14 @@ const CAMERA_PERMISSION =
     "Tono records video of your practice so you can watch yourself back and see how often you look at the camera. Videos stay on this iPhone unless you send one for an AI deep review.";
 const MICROPHONE_PERMISSION =
     "Tono records your voice while you practice to measure pace, pauses, filler words and pitch. Recordings stay on this iPhone unless you send one for an AI deep review.";
+// Apple also needs purpose strings for access that Tono never asks for: libraries
+// bundled in the app (VisionCamera, expo-video, expo-file-system) reference the
+// photo library and location APIs, and App Store Connect rejects a build
+// without them (ITMS-90683). They say plainly that the access is not used.
+const PHOTO_LIBRARY_PERMISSION =
+    "Tono does not read your photo library. Your practice videos are kept inside Tono, and nothing is saved to or taken from your Photos.";
+const LOCATION_PERMISSION =
+    "Tono does not use your location. The camera tools it is built with can tag photos with a location; Tono never turns that on.";
 const SPEECH_RECOGNITION_PERMISSION =
     "Tono uses speech recognition to follow along as you speak in drills, rehearsals and conversation practice, so it can keep your place, count your words and score reps. It runs on your iPhone when it can; otherwise Apple processes the audio.";
 
@@ -40,6 +48,8 @@ export default (): ExpoConfig => ({
         },
         infoPlist: {
             ITSAppUsesNonExemptEncryption: false,
+            NSPhotoLibraryUsageDescription: PHOTO_LIBRARY_PERMISSION,
+            NSLocationWhenInUseUsageDescription: LOCATION_PERMISSION,
         },
     },
     android: {
