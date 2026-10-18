@@ -6,7 +6,7 @@ import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useFonts } from "expo-font";
 import { AppNavigator } from "./src/navigation";
-import { isModelDownloaded, DEFAULT_ASR_MODEL, removeRetiredModels, subscribeModelReady } from "./src/services/asr/whisperModels";
+import { isModelDownloaded, DEFAULT_ASR_MODEL, tidyModelsFolder, subscribeModelReady } from "./src/services/asr/whisperModels";
 import { retryWaitingTakes } from "./src/services/pipeline/retryWaitingTakes";
 import { ToastProvider } from "./src/components/common/ToastProvider";
 import { GuideProvider } from "./src/components/common/GuideTip";
@@ -32,8 +32,8 @@ export default function App() {
     "InstrumentSans-Bold": require("./assets/fonts/InstrumentSans-Bold.ttf"),
   });
 
-  // Model files from finished experiments (CrisperWhisper) are deleted once.
-  useEffect(() => removeRetiredModels(), []);
+  // Old model files and abandoned partial downloads go (whisperModels.ts).
+  useEffect(() => tidyModelsFolder(), []);
 
   // Takes saved while the transcription model was missing are transcribed
   // when it arrives (and on launch, if it arrived while the app was closed).

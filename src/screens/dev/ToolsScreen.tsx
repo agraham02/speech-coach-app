@@ -16,6 +16,7 @@ import { GUIDES } from "../../content/guide";
 import { getCloudCallsToday, getGuideSeen, resetCloudCallsToday, resetGuide, unmarkGuideSeen } from "../../services/prefs/prefsStore";
 import { requestNotificationPermission } from "../../services/notifications/reminderScheduler";
 import { storageBreakdown, type StorageLine } from "../../services/dev/storageInfo";
+import { mediaBackupStatus } from "../../services/storage/mediaBackup";
 import { modelBackupStatus, reapplyBackupExclusion, type ModelBackupStatus } from "../../services/asr/whisperModels";
 import { formatBytes } from "../../domain/dev/jsonView";
 import { DAILY_REVIEW_LIMIT } from "../../services/cloud/inputGuards";
@@ -176,6 +177,9 @@ export function ToolsScreen({ navigation }: Props) {
       <ListGroup title="Storage">
         {storage.map((line) => (
           <ListRow key={line.label} title={line.label} value={formatBytes(line.bytes)} />
+        ))}
+        {mediaBackupStatus().map((m) => (
+          <ListRow key={m.folder} title={`${m.folder}/ kept out of backups`} value={m.excluded == null ? "?" : m.excluded ? "Yes" : "No"} />
         ))}
         <ListRow
           title="Models kept out of backups"

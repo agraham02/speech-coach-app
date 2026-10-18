@@ -1,18 +1,29 @@
 import { useState } from "react";
-import { ActivityIndicator, Alert, Modal, Share, View } from "react-native";
+import { ActivityIndicator, Alert, Modal, Platform, Share, View } from "react-native";
 import { CommonActions, useNavigation } from "@react-navigation/native";
-import { ListGroup, ListRow } from "../common/ListRow";
+import { ListGroup, ListRow, SwitchRow } from "../common/ListRow";
 import { Txt } from "../common/Txt";
 import { useToast } from "../common/ToastProvider";
 import { formatLogsForSharing } from "../../services/logs/logStore";
 import { resetApp } from "../../services/data/resetApp";
-import { exportPracticeData, formatBytes, getVideoStorageBytes } from "../../services/data/dataExport";
+import { exportPracticeData, formatBytes } from "../../services/data/dataExport";
+import { storageBreakdown, type StorageLine } from "../../services/dev/storageInfo";
+import { deleteTempMedia } from "../../services/storage/videoStorage";
+import { setMediaBackupEnabled } from "../../services/storage/mediaBackup";
 import { deleteOldVideos } from "../../services/data/videoKeepsakes";
-import { getAudioRetentionDays, getVideoRetentionDays, resetGuide, setAudioRetentionDays } from "../../services/prefs/prefsStore";
+import { getAudioRetentionDays, getMediaBackup, getVideoRetentionDays, resetGuide, setAudioRetentionDays } from "../../services/prefs/prefsStore";
 import { deleteOldRewindAudio } from "../../services/rewind/rewindCleanup";
 import { Card } from "../common/Card";
 import { SegmentedControl } from "../common/SegmentedControl";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
+
+const STORAGE_ICONS: Record<StorageLine["key"], "film-outline" | "mic-outline" | "hardware-chip-outline" | "server-outline" | "time-outline"> = {
+  videos: "film-outline",
+  rewinds: "mic-outline",
+  models: "hardware-chip-outline",
+  data: "server-outline",
+  temp: "time-outline",
+};
 
 const AUDIO_RETENTION = [
   { key: "30", label: "30 days" },
@@ -28,7 +39,9 @@ export function HelpDataSettings() {
   const { colors } = useTheme();
   const showToast = useToast();
   const navigation = useNavigation();
-  const [videoBytes, setVideoBytes] = useState(() => getVideoStorageBytes());
+  const [storage, setStorage] = useState<StorageLine[]>(() => storageBreakdown());
+  const [mediaBackup, setMediaBackup] = useState(getMediaBackup());
+  const bytesOf = (key: StorageLine["key"]) => storage.find((l) => l.key === key)?.bytes ?? 0;
   const [resetting, setResetting] = useState(false);
   const [audioDays, setAudioDays] = useState(getAudioRetentionDays());
 
@@ -41,8 +54,9 @@ export function HelpDataSettings() {
   }
 
   function handleDeleteOldVideos() {
+    const days = getVideoRetentionDays() || 30;
     Alert.alert(
-      "Clear videos older than 30 days?",
+      `Clear videos older than ${days} days?`,
       "The best and the toughest take from each month are kept (compressed), so you can see how far you've come — find them under Library → Progress videos. Transcripts, analysis and scores are always kept. This can't be undone.",
       [
         { text: "Cancel", style: "cancel" },
@@ -50,8 +64,8 @@ export function HelpDataSettings() {
           text: "Clear",
           style: "destructive",
           onPress: async () => {
-            const { deleted, kept } = await deleteOldVideos(getVideoRetentionDays() || 30);
-            setVideoBytes(getVideoStorageBytes());
+            const { deleted, kept } = await deleteOldVideos(days);
+            setStorage(storageBreakdown());
             Alert.alert("Done", `Removed ${deleted} video${deleted === 1 ? "" : "s"}. ${kept} progress video${kept === 1 ? "" : "s"} kept.`);
           },
         },
@@ -104,10 +118,42 @@ export function HelpDataSettings() {
         />
       </ListGroup>
 
-      <ListGroup title="Your data">
-        <ListRow icon="film-outline" title="Videos" value={formatBytes(videoBytes)} />
-        <ListRow icon="share-outline" title="Export practice data" chevron onPress={handleExport} />
+      <ListGroup title="Storage">
+        {storage.map((line) => (
+          <ListRow key={line.key} icon={STORAGE_ICONS[line.key]} title={line.label} value={formatBytes(line.bytes)} />
+        ))}
         <ListRow icon="trash-outline" title="Clear old videos" subtitle="Keeps the best and the toughest take from each month" destructive onPress={handleDeleteOldVideos} />
+        {bytesOf("temp") > 0 ? (
+          <ListRow
+            icon="sparkles-outline"
+            title="Clear temporary files"
+            subtitle="Leftovers from recording and sharing. Nothing you've saved."
+            onPress={() => {
+              deleteTempMedia();
+              setStorage(storageBreakdown());
+              showToast("Temporary files cleared.", "success");
+            }}
+          />
+        ) : null}
+        {Platform.OS === "ios" ? (
+          <SwitchRow
+            icon="cloud-upload-outline"
+            title="Back up videos and recordings"
+            subtitle="Include them in your iCloud backup. They can take a lot of space; your progress backs up either way."
+            value={mediaBackup}
+            onValueChange={(enabled) => {
+              setMediaBackup(enabled);
+              setMediaBackupEnabled(enabled);
+            }}
+          />
+        ) : null}
+      </ListGroup>
+      <Txt variant="footnote" tone="secondary" style={styles.note}>
+        The transcription model can be removed under Coaching & AI.
+      </Txt>
+
+      <ListGroup title="Your data">
+        <ListRow icon="share-outline" title="Export practice data" chevron onPress={handleExport} />
       </ListGroup>
       <Card style={styles.retention}>
         <View style={styles.retentionText}>

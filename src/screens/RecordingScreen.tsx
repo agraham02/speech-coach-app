@@ -40,6 +40,9 @@ import {
 } from "../domain/curriculum";
 import { getEffectiveCurriculumLevel } from "../services/db/curriculumRepo";
 import { persistRecording } from "../services/storage/videoStorage";
+import { freeDiskBytes } from "../services/storage/diskSpace";
+import { lowForRecording, recordingSpaceMessage } from "../domain/storage";
+import { showGlobalToast } from "../components/common/ToastProvider";
 import { logger } from "../utils/logger";
 import { StatusBar } from "expo-status-bar";
 import { stashPresenceTimeline } from "../services/pipeline/presenceTimelineStore";
@@ -216,6 +219,13 @@ export function RecordingScreen({ route, navigation }: Props) {
   // A speech's target is a guide, not a limit — reading with the marked
   // pauses runs long. Only a generous cap stops it on its own.
   const scriptCapSeconds = targetDurationSeconds * SCRIPT_SOFT_CAP;
+
+  // Low on space: a heads-up before the take, not a block (the recording
+  // may still fit).
+  useEffect(() => {
+    const free = freeDiskBytes();
+    if (free != null && lowForRecording(free)) showGlobalToast(recordingSpaceMessage(free), "error");
+  }, []);
 
   useEffect(() => {
     if (stage !== "recording") return;

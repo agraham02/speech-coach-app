@@ -12,7 +12,7 @@ import { Txt } from "../components/common/Txt";
 import { Waveform } from "../components/rewind/Waveform";
 import { cueForSeconds, MAX_REWIND_SECONDS, MIN_REWIND_SECONDS, type DayPart } from "../domain/rewind/stats";
 import { useRewindRecorder } from "../hooks/useRewindRecorder";
-import { processRewind } from "../services/rewind/rewindProcessor";
+import { discardRewindSegments, processRewind } from "../services/rewind/rewindProcessor";
 import { formatDuration } from "../utils/dateUtils";
 import { success, tap, tick } from "../utils/haptics";
 import { duration } from "../theme/motion";
@@ -96,7 +96,7 @@ export function RewindRecordScreen() {
   function leave() {
     if (finishing.current) return;
     if (stageRef.current !== "recording" || elapsed < 5) {
-      recorder.stop().catch(() => undefined);
+      recorder.stop().then((take) => discardRewindSegments(take.segments)).catch(() => undefined);
       navigation.goBack();
       return;
     }
@@ -107,7 +107,7 @@ export function RewindRecordScreen() {
         style: "destructive",
         onPress: () => {
           finishing.current = true;
-          recorder.stop().catch(() => undefined);
+          recorder.stop().then((take) => discardRewindSegments(take.segments)).catch(() => undefined);
           navigation.goBack();
         },
       },

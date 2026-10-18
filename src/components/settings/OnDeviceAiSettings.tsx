@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { View } from "react-native";
+import { Alert, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { IconButton } from "../common/IconButton";
 import { FaceCalibrationRows } from "./FaceCalibrationRows";
 import { ListGroup, ListRow } from "../common/ListRow";
-import { DEFAULT_ASR_MODEL, cancelDownload, formatModelSize, formatSpeed, getDownloadState, isModelDownloaded, modelInfo, pauseDownload, startDownload, subscribeDownloads } from "../../services/asr/whisperModels";
+import { DEFAULT_ASR_MODEL, cancelDownload, deleteModel, downloadedModelBytes, formatModelSize, formatSpeed, getDownloadState, isModelDownloaded, modelInfo, pauseDownload, startDownload, subscribeDownloads } from "../../services/asr/whisperModels";
+import { releaseWhisperContext } from "../../services/asr/whisperRn";
 import { Txt } from "../common/Txt";
 import { isAppleModelAvailable } from "../../services/onDeviceLlm/onDeviceCoach";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
@@ -49,7 +50,28 @@ function TranscriptionModelRow() {
   const dl = getDownloadState(DEFAULT_ASR_MODEL);
   const percent = Math.round((dl?.progress ?? 0) * 100);
 
-  if (have) return <StatusLine label="Transcription" value="Whisper large-v3-turbo" ok />;
+  if (have) {
+    const remove = () =>
+      Alert.alert("Remove the transcription model?", `This frees ${formatModelSize(downloadedModelBytes(DEFAULT_ASR_MODEL))}. Recordings can't be turned into text until you download it again.`, [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: async () => {
+            await releaseWhisperContext();
+            deleteModel(DEFAULT_ASR_MODEL);
+            redraw((n) => n + 1);
+          },
+        },
+      ]);
+    return (
+      <ListRow
+        title="Transcription"
+        subtitle={"Whisper large-v3-turbo · " + formatModelSize(downloadedModelBytes(DEFAULT_ASR_MODEL))}
+        right={<IconButton icon="trash-outline" variant="plain" size={36} color={colors.textMuted} accessibilityLabel="Remove the transcription model" onPress={remove} />}
+      />
+    );
+  }
   if (dl?.status === "downloading") {
     return (
       <ListRow

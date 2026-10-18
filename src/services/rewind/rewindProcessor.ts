@@ -74,16 +74,6 @@ export async function processRewind(take: RewindTake): Promise<string> {
         logger.warn(`[rewind] Whisper didn't finish, using what the recognizer heard — ${(error as Error).message}`);
       }
     }
-    // The recognizer's own audio files were only for this.
-    for (const uri of take.segments) {
-      try {
-        const file = new File(uri);
-        if (file.exists) file.delete();
-      } catch {
-        // Left for the temp-file cleanup.
-      }
-    }
-
     // 3. The counts, then the notes.
     await updateRewind(rewind.id, {
       transcript,
@@ -96,8 +86,23 @@ export async function processRewind(take: RewindTake): Promise<string> {
     logger.error(`[rewind] processing failed — ${(error as Error).message}`);
     await updateRewind(rewind.id, { transcript, transcriptSource: source, stats: rewindStats({ transcript, seconds, volume: take.volume }), status: "failed" }).catch(() => undefined);
   }
+  // The recognizer's own audio files were only for this, whether it worked or not.
+  discardRewindSegments(take.segments);
 
   // Tonight's nudge is no longer needed.
   syncRewindReminder({ askIfFirst: true }).catch(() => undefined);
   return rewind.id;
+}
+
+// Deletes the recognizer's WAV segments for a take: after processing, and
+// when a take is discarded.
+export function discardRewindSegments(segments: string[]): void {
+  for (const uri of segments) {
+    try {
+      const file = new File(uri);
+      if (file.exists) file.delete();
+    } catch {
+      // Left for the launch sweep of the cache.
+    }
+  }
 }

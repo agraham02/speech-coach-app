@@ -4,6 +4,8 @@ import type { DownloadPauseState } from "expo-file-system/legacy";
 import { getDevJson, setDevJson } from "../dev/devStore";
 import { excludeFromBackup, isExcludedFromBackup } from "../../../modules/backup-exclusion";
 import { logger } from "../../utils/logger";
+import { downloadSpaceMessage, shortfallForDownload } from "../../domain/storage";
+import { freeDiskBytes } from "../storage/diskSpace";
 
 // The GGML models whisper.rn can run, downloaded on demand into the app
 // documents folder (not the cache, which iOS may purge). A model is in place
@@ -11,21 +13,27 @@ import { logger } from "../../utils/logger";
 
 export type WhisperModelId = "turbo-q5";
 
-// Model files this app used to offer. Removed from the phone once, so a
-// finished experiment does not keep half a gigabyte.
-const RETIRED_MODEL_FILES = ["ggml-crisperwhisper-small-f16.bin", "ggml-crisperwhisper-turbo-f16.bin"];
-
-export function removeRetiredModels(): void {
+// On launch: anything in the models folder that isn't a current model goes
+// (files from finished experiments, models the app no longer offers), and so
+// does a half-finished download that nothing is going to resume. A paused
+// one keeps its .part; a download still running in an iOS background session
+// after a relaunch isn't reconnected, so its .part counts as abandoned.
+export function tidyModelsFolder(): void {
   try {
-    const dir = modelsDirectory();
-    for (const name of RETIRED_MODEL_FILES) {
-      for (const suffix of ["", ".part"]) {
-        const file = new File(dir, name + suffix);
-        if (file.exists) file.delete();
+    const keep = new Set(WHISPER_MODELS.map((m) => m.file));
+    const paused = getDevJson<PausedMap>(PAUSED_KEY, {});
+    const resumable = new Set(WHISPER_MODELS.filter((m) => paused[m.id] || tasks.has(m.id)).map((m) => m.file + ".part"));
+    for (const entry of modelsDirectory().list()) {
+      if (keep.has(entry.name) || resumable.has(entry.name)) continue;
+      try {
+        entry.delete();
+        logger.info("[models] removed " + entry.name);
+      } catch {
+        // In use: try again next launch.
       }
     }
   } catch {
-    // Nothing to clean up, or it is in use: try again next launch.
+    // Nothing to clean up.
   }
 }
 
@@ -192,8 +200,16 @@ export function subscribeModelReady(listener: (id: WhisperModelId) => void): () 
 // Starts a download, or resumes a paused one. Returns at once.
 export function startDownload(id: WhisperModelId): void {
   if (tasks.has(id) || isModelDownloaded(id)) return;
+  const part = partFile(id);
+  const shortfall = shortfallForDownload(freeDiskBytes(), modelInfo(id).bytes - (part.exists ? part.size ?? 0 : 0));
+  if (shortfall > 0) {
+    states.set(id, { status: "failed", progress: 0, bytesPerSecond: 0, error: downloadSpaceMessage(shortfall) });
+    emit();
+    return;
+  }
   runDownload(id).catch(() => undefined);
 }
+
 
 async function runDownload(id: WhisperModelId): Promise<void> {
   const info = modelInfo(id);
@@ -253,6 +269,14 @@ async function runDownload(id: WhisperModelId): Promise<void> {
         }
         continue;
       }
+      // Not resumable from here: drop the partial file rather than leave
+      // up to half a gigabyte nobody can see. Retry starts over.
+      setPaused(id, undefined);
+      try {
+        if (part.exists) part.delete();
+      } catch {
+        // Nothing to remove.
+      }
       states.set(id, { status: "failed", progress: 0, bytesPerSecond: 0, error: (error as Error).message });
       emit();
       return;
@@ -292,6 +316,7 @@ export function formatSpeed(bytesPerSecond: number): string {
   return (bytesPerSecond / 1_000_000).toFixed(1) + " MB/s";
 }
 
+// Callers release a loaded whisper context first (whisperRn.releaseWhisperContext).
 export function deleteModel(id: WhisperModelId): void {
   try {
     const file = modelFile(id);
@@ -299,6 +324,7 @@ export function deleteModel(id: WhisperModelId): void {
   } catch {
     // Already gone.
   }
+  emit();
 }
 
 export function formatModelSize(bytes: number): string {

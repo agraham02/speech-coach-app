@@ -8,6 +8,8 @@ import { deleteRecording, resolveVideoUri } from "../storage/videoStorage";
 import { planVideoCleanup, type VideoCandidate } from "../../domain/videoKeepsakes";
 import type { SessionType } from "../../domain/sessionTypes";
 import { logger } from "../../utils/logger";
+import { KEEPSAKE_MIN_FREE } from "../../domain/storage";
+import { freeDiskBytes } from "../storage/diskSpace";
 
 // Keepsakes are for rewatching, not for a deep review, so they're stored at
 // 720p and a modest bitrate — roughly 10 MB a minute instead of 60+.
@@ -79,6 +81,12 @@ async function compressExpiredKeepsakes(cutoffIso: string): Promise<void> {
     [cutoffIso],
   );
   for (const row of rows) {
+    // Re-encoding writes a second copy before the swap.
+    const free = freeDiskBytes();
+    if (free != null && free < KEEPSAKE_MIN_FREE) {
+      logger.info("[keepsake] low on space, compression waits for another day");
+      return;
+    }
     const uri = resolveVideoUri({ videoFile: row.video_file, videoPath: row.video_path });
     await compressInPlace(uri);
     await db.runAsync(`UPDATE sessions SET video_compressed_at = ? WHERE id = ?`, [new Date().toISOString(), row.id]);
@@ -92,7 +100,18 @@ async function compressInPlace(uri: string): Promise<void> {
   if (!original.exists) return;
   const before = original.size ?? 0;
   const resultUri = await Video.compress(uri, { compressionMethod: "manual", maxSize: KEEPSAKE_MAX_SIZE, bitrate: KEEPSAKE_BITRATE });
-  const compressed = new File(resultUri.startsWith("file://") ? resultUri : `file://${resultUri}`);
+  const compressedUri = resultUri.startsWith("file://") ? resultUri : `file://${resultUri}`;
+  try {
+    await swapIfSmaller(uri, original, before, new File(compressedUri));
+  } finally {
+    // Whatever happened, the compressor's copy doesn't stay behind. (A fresh
+    // handle on its old path: a File that was moved now points at the take.)
+    const leftover = new File(compressedUri);
+    if (leftover.uri !== new File(uri).uri && leftover.exists) leftover.delete();
+  }
+}
+
+async function swapIfSmaller(uri: string, original: File, before: number, compressed: File): Promise<void> {
   const after = compressed.exists ? (compressed.size ?? 0) : 0;
   if (after > 0 && after < before) {
     // Swap via a backup so a failure midway never loses the take. (A stray
@@ -124,7 +143,8 @@ export async function autoCleanupVideos(): Promise<void> {
   const days = getVideoRetentionDays();
   const today = todayISODate();
   if (!days || getLastAutoCleanup() === today) return;
-  setLastAutoCleanup(today);
   const { deleted } = await deleteOldVideos(days);
+  // Only once it worked: a failed run tries again next launch.
+  setLastAutoCleanup(today);
   if (deleted) logger.info(`[videos] auto-cleanup removed ${deleted} video(s) older than ${days} days`);
 }
