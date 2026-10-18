@@ -1,6 +1,6 @@
 import { concatWaveforms } from "../rewind/wav";
 import { countDetails, cueForSeconds, dayCoverage, partsCovered, rewindStats } from "../rewind/stats";
-import { barForVolume, emptyBars, MIN_BAR, pushBar, smoothBar } from "../rewind/waveform";
+import { BAR_MS, barForVolume, barX, followLevel, MIN_BAR, newWave, RING, stepWave } from "../rewind/waveform";
 import { acceptReview } from "../rewind/reviewPrompt";
 import { rewindReminderDates } from "../rewind/reminder";
 import { dayLabel, rewindCardVisible } from "../rewind/labels";
@@ -88,18 +88,49 @@ describe("waveform", () => {
   });
 
   it("rises quickly and falls slowly", () => {
-    const up = smoothBar(0.1, 0.9) - 0.1;
-    const down = 0.9 - smoothBar(0.9, 0.1);
+    const up = followLevel(0.1, 0.9, 50) - 0.1;
+    const down = 0.9 - followLevel(0.9, 0.1, 50);
     expect(up).toBeGreaterThan(down);
   });
 
-  it("keeps a fixed window with the newest bar last", () => {
-    let bars = emptyBars(4);
-    bars = pushBar(bars, 0.5, 4);
-    bars = pushBar(bars, 0.6, 4);
-    expect(bars).toHaveLength(4);
-    expect(bars.slice(-2)).toEqual([0.5, 0.6]);
-    expect(pushBar([0.2], 0.9, 3)).toEqual([MIN_BAR, 0.2, 0.9]);
+  it("gives the same level for the same time at any frame rate", () => {
+    let at60 = 0.1;
+    for (let i = 0; i < 12; i++) at60 = followLevel(at60, 0.8, 1000 / 60);
+    let at120 = 0.1;
+    for (let i = 0; i < 24; i++) at120 = followLevel(at120, 0.8, 1000 / 120);
+    expect(at60).toBeCloseTo(at120, 5);
+    expect(followLevel(0.1, 0.8, 200)).toBeCloseTo(at60, 5);
+  });
+
+  it("lays down bars on a fixed beat, however the frames fall", () => {
+    const even = newWave();
+    for (let i = 0; i < 100; i++) stepWave(even, 0.5, 14);
+    const uneven = newWave();
+    for (const dt of [5, 40, 8, 33, 12, 2, 60, 20, 4, 16]) stepWave(uneven, 0.5, dt);
+    // 1400 ms is 20 beats; 200 ms is 2.
+    expect(even.head).toBe(20);
+    expect(uneven.head).toBe(2);
+    expect(even.phase).toBeCloseTo(0, 5);
+    expect(uneven.phase).toBeCloseTo(200 - 2 * BAR_MS, 5);
+  });
+
+  it("puts the level at each beat into the newest bar", () => {
+    const wave = newWave();
+    for (let i = 0; i < 40; i++) stepWave(wave, 0.9, 16);
+    expect(wave.bars[wave.head]).toBeGreaterThan(0.5);
+    expect(wave.bars[(wave.head + 1) % RING]).toBe(MIN_BAR);
+  });
+
+  it("moves the row at a steady speed, with no jump when a bar is added", () => {
+    const width = 560;
+    const step = 10;
+    // Just before a beat, the bar of age 0 sits where, just after it, the bar of age 1 does.
+    const before = barX(0, BAR_MS - 0.001, width, step);
+    const after = barX(1, 0, width, step);
+    expect(before).toBeCloseTo(after, 2);
+    // A new bar starts off the right edge, and the row moves left.
+    expect(barX(0, 0, width, step)).toBeGreaterThan(width);
+    expect(barX(0, 35, width, step)).toBeLessThan(barX(0, 0, width, step));
   });
 });
 
