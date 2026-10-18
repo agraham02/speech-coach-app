@@ -45,9 +45,9 @@ export function EventsScreen({ navigation }: Props) {
     return `${formatEventDate(e.date)} · ${told}`;
   }
 
+  // Ahead (or today): change it. Behind: say how it went.
   function open(e: SpeakingEvent) {
-    const phase = eventPhase(e, today);
-    if (phase === "upcoming") navigation.navigate("EventEdit", { eventId: e.id });
+    if (e.date >= today) navigation.navigate("EventEdit", { eventId: e.id });
     else navigation.navigate("EventCheckIn", { eventId: e.id, phase: "after" });
   }
 

@@ -81,8 +81,9 @@ export function ToolsScreen({ navigation }: Props) {
 
   // EAS Update by hand: check, download, restart into it. Off in
   // development builds, which always load JS from Metro.
+  const updatesLive = Updates.isEnabled && !__DEV__;
   async function checkForUpdate() {
-    if (!Updates.isEnabled || checking) return;
+    if (!updatesLive || checking) return;
     setChecking(true);
     try {
       const check = await Updates.checkForUpdateAsync();
@@ -104,8 +105,11 @@ export function ToolsScreen({ navigation }: Props) {
       <ListGroup title="Over-the-air updates">
         <ListRow title="Channel" value={Updates.channel ?? "none"} />
         <ListRow title="Runtime" subtitle={Updates.runtimeVersion ?? "unknown"} />
-        <ListRow title="Running" subtitle={!Updates.isEnabled ? "Updates are off in development builds" : Updates.isEmbeddedLaunch ? "The JS built into this binary" : `Update ${Updates.updateId ?? "?"}`} />
-        <ListRow title={checking ? "Checking…" : "Check for an update"} subtitle="Downloads it and restarts right away" onPress={checkForUpdate} chevron />
+        <ListRow
+          title="Running"
+          subtitle={!updatesLive ? "A development build: JS comes from Metro, not from updates" : Updates.isEmbeddedLaunch ? "The JS built into this binary" : `Update ${Updates.updateId ?? "unknown"}`}
+        />
+        {updatesLive ? <ListRow title={checking ? "Checking…" : "Check for an update"} subtitle="Downloads it and restarts right away" onPress={checkForUpdate} chevron /> : null}
       </ListGroup>
 
       <ListGroup title="Tours">

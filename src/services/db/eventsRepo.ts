@@ -109,7 +109,12 @@ async function importLegacyEvent(): Promise<void> {
   const profile = getUserProfile();
   const legacy = profile?.event;
   if (!profile || legacy === undefined) return;
-  if (legacy) {
+  // Cleared before the first await: syncEvents runs from more than one place
+  // at launch, and a second run must not see the event and import it again.
+  const { event: _legacy, ...rest } = profile;
+  setUserProfile(rest);
+  if (!legacy) return;
+  try {
     const db = await getDatabase();
     await db.runAsync(`INSERT INTO speaking_events (id, kind, title, event_date, created_at) VALUES (?, ?, ?, ?, ?)`, [
       generateId(),
@@ -119,9 +124,12 @@ async function importLegacyEvent(): Promise<void> {
       new Date().toISOString(),
     ]);
     logger.info("[events] imported the onboarding event");
+  } catch (error) {
+    // Put it back so the next launch tries again.
+    const current = getUserProfile();
+    if (current) setUserProfile({ ...current, event: legacy });
+    throw error;
   }
-  const { event: _legacy, ...rest } = profile;
-  setUserProfile(rest);
 }
 
 // Refreshes what depends on the event list: the "next event" mirror (so a
