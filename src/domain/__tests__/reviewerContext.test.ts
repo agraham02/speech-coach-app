@@ -18,10 +18,10 @@ describe("what a deep review is told about the speaker", () => {
   });
 
   it("mentions what's coming up, with how long to go", () => {
-    const text = buildSpeakerContext(profile({ event: { kind: "interview", date: "2026-10-26", note: "Acme" } }), "2026-10-12");
+    const text = buildSpeakerContext(profile(), "2026-10-12", { id: "e1", kind: "interview", date: "2026-10-26", title: "Acme" });
     expect(text).toContain("Coming up in about 14 days: a job interview (“Acme”)");
     // Past events aren't mentioned.
-    expect(buildSpeakerContext(profile({ event: { kind: "talk", date: "2026-10-01" } }), "2026-10-12")).toBe("");
+    expect(buildSpeakerContext(profile(), "2026-10-12", { id: "e2", kind: "talk", date: "2026-10-01", title: null })).toBe("");
   });
 
   it("includes training, comfort, English and a note about their voice", () => {

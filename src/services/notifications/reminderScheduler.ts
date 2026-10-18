@@ -2,7 +2,7 @@ import * as Notifications from "expo-notifications";
 import { reminderHours } from "../../domain/reminderSettings";
 import { reminderDates } from "../../domain/dailyGoal";
 import { daysUntil, reminderText } from "../../domain/notificationCopy";
-import { getDailySessionGoal, getPracticeAnchor, getReminderSettings, getUserProfile } from "../prefs/prefsStore";
+import { getDailySessionGoal, getNextEvent, getPracticeAnchor, getReminderSettings, getUserProfile } from "../prefs/prefsStore";
 import { getSessionsDoneToday, getStreakState } from "../db/progressRepo";
 import { logger } from "../../utils/logger";
 
@@ -39,7 +39,8 @@ export async function syncDailyReminder(): Promise<void> {
   const anchor = getPracticeAnchor();
   const profile = getUserProfile();
   const streak = await getStreakState().then((s) => s.currentStreak).catch(() => 0);
-  const eventDays = profile?.event ? daysUntil(profile.event.date, new Date()) : NaN;
+  const nextEvent = getNextEvent();
+  const eventDays = nextEvent ? daysUntil(nextEvent.date, new Date()) : NaN;
 
   for (const [i, date] of dates.entries()) {
     const today = isToday(date);
@@ -52,7 +53,7 @@ export async function syncDailyReminder(): Promise<void> {
       streak: today || doneToday > 0 ? streak : 0,
       atRiskToday: today && doneToday === 0,
       when: date,
-      event: profile?.event && Number.isFinite(eventDays) ? { daysLeft: daysUntil(profile.event.date, date), kind: profile.event.kind } : null,
+      event: nextEvent && Number.isFinite(eventDays) ? { daysLeft: daysUntil(nextEvent.date, date), kind: nextEvent.kind } : null,
     });
     await Notifications.scheduleNotificationAsync({
       identifier: `${REMINDER_IDENTIFIER}-${i}`,

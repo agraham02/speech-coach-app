@@ -34,7 +34,7 @@ import {
   VIDEO_OPTIONS,
   type Option,
 } from "../content/onboarding";
-import { defaultsFromProfile, EMPTY_PROFILE, type UserProfile } from "../domain/profile";
+import { defaultsFromProfile, EMPTY_PROFILE, type EventKind, type UserProfile } from "../domain/profile";
 import { MAX_CUSTOM_THOUGHTS, PRESET_THOUGHTS } from "../domain/innerVoice/thoughts";
 import { syncOnboardingThoughts } from "../services/db/selfTalkRepo";
 import { defaultExtraHours, sessionHours, type DailyGoal } from "../domain/dailyGoal";
@@ -65,6 +65,9 @@ import { checkProviderKey } from "../services/cloud/textProviders";
 import { currentProvider, hasConsent, hasProviderKey, PROVIDERS } from "../services/cloud/providers";
 import { setProviderKey } from "../services/secrets/secretsStore";
 import { isoDateFromDate, todayISODate } from "../utils/dateUtils";
+import { DatePicker, formatEventDate } from "../components/common/DatePicker";
+import { createEvent, deleteEvent, listEvents, updateEvent } from "../services/db/eventsRepo";
+import { upcomingEvent } from "../domain/events";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Onboarding">;
@@ -79,7 +82,11 @@ export function OnboardingScreen({ route, navigation }: Props) {
   const mode = route.params?.mode ?? "full";
   const styles = useStyles();
   const { colors } = useTheme();
-  const [profile, setProfile] = useState<UserProfile>(() => getUserProfile() ?? EMPTY_PROFILE(todayISODate()));
+  // Without the legacy event field: events live in their own table now.
+  const [profile, setProfile] = useState<UserProfile>(() => {
+    const { event: _legacy, ...stored } = getUserProfile() ?? EMPTY_PROFILE(todayISODate());
+    return stored;
+  });
   const [step, setStep] = useState(() => (profile.onboardingStep != null && mode === "full" ? profile.onboardingStep : -1));
   const reminder = getReminderSettings();
   const [goal, setGoal] = useState<DailyGoal>(getDailySessionGoal());
@@ -95,10 +102,30 @@ export function OnboardingScreen({ route, navigation }: Props) {
   // Already set up (profile mode, or a key added before onboarding).
   const [connected, setConnected] = useState<string | null>(null);
   const [retention, setRetention] = useState<string | null>(null);
-  const [eventKind, setEventKind] = useState(profile.event?.kind ?? null);
-  const [eventWhen, setEventWhen] = useState<number | null>(null);
+  // The event question: a kind, a day (a quick chip or one picked from the
+  // calendar) and an optional name. Editing the next event when there is one.
+  const [eventKind, setEventKind] = useState<EventKind | null>(null);
+  const [eventDate, setEventDate] = useState<string | null>(null);
+  const [eventWhen, setEventWhen] = useState<number | "picked" | null>(null);
+  const [eventNote, setEventNote] = useState("");
+  const [eventId, setEventId] = useState<string | null>(null);
+  const [pickingDate, setPickingDate] = useState(false);
   const [busy, setBusy] = useState(false);
   const [customThought, setCustomThought] = useState("");
+
+  useEffect(() => {
+    listEvents()
+      .then((events) => {
+        const next = upcomingEvent(events, todayISODate());
+        if (!next) return;
+        setEventId(next.id);
+        setEventKind(next.kind);
+        setEventDate(next.date);
+        setEventWhen("picked");
+        setEventNote(next.title ?? "");
+      })
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     const provider = currentProvider();
@@ -145,6 +172,9 @@ export function OnboardingScreen({ route, navigation }: Props) {
         return transcriptionModel.status !== "missing";
       case "cloud":
         return !!connected || cleanApiKey(cloudKey).length > 0;
+      // Optional, but a kind needs a day before it can count.
+      case "event":
+        return !eventKind || !!eventDate;
       default:
         return true;
     }
@@ -185,12 +215,17 @@ export function OnboardingScreen({ route, navigation }: Props) {
         return true;
       }
       case "event":
-        if (eventKind && eventWhen) {
-          const date = new Date();
-          date.setDate(date.getDate() + eventWhen);
-          update({ event: { kind: eventKind, date: isoDateFromDate(date), note: profile.event?.note } });
-        } else if (!eventKind) {
-          update({ event: null });
+        try {
+          if (eventKind && eventDate) {
+            const input = { kind: eventKind, title: eventNote.trim() || null, date: eventDate };
+            if (eventId) await updateEvent(eventId, input);
+            else setEventId(await createEvent(input));
+          } else if (!eventKind && eventId) {
+            await deleteEvent(eventId);
+            setEventId(null);
+          }
+        } catch {
+          // Never blocks onboarding: the event can be added again from Today.
         }
         return true;
       case "goal":
@@ -315,12 +350,33 @@ export function OnboardingScreen({ route, navigation }: Props) {
                 </Txt>
                 <View style={styles.chips}>
                   {EVENT_WHEN.map((w) => (
-                    <Chip key={w.days} label={w.label} selected={eventWhen === w.days} onPress={() => setEventWhen(w.days)} />
+                    <Chip
+                      key={w.days}
+                      label={w.label}
+                      selected={eventWhen === w.days}
+                      onPress={() => {
+                        const date = new Date();
+                        date.setDate(date.getDate() + w.days);
+                        setEventWhen(w.days);
+                        setEventDate(isoDateFromDate(date));
+                      }}
+                    />
                   ))}
+                  <Chip label={eventWhen === "picked" && eventDate ? formatEventDate(eventDate) : "Pick a date"} selected={eventWhen === "picked"} onPress={() => setPickingDate(true)} />
                 </View>
+                <DatePicker
+                  visible={pickingDate}
+                  value={eventDate}
+                  title="When is it?"
+                  onPick={(date) => {
+                    setEventDate(date);
+                    setEventWhen("picked");
+                  }}
+                  onClose={() => setPickingDate(false)}
+                />
                 <TextInput maxLength={60}
-                  value={profile.event?.note ?? ""}
-                  onChangeText={(note) => update({ event: { kind: eventKind, date: profile.event?.date ?? todayISODate(), note } })}
+                  value={eventNote}
+                  onChangeText={setEventNote}
                   placeholder="What is it? (optional)"
                   placeholderTextColor={colors.textMuted}
                   style={styles.input}

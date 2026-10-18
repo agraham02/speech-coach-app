@@ -33,8 +33,7 @@ import {
 } from "../services/db/progressRepo";
 import { getDailySessionGoal, getPlanMinutes, getPracticeAnchor, getReminderSettings, getUserProfile, setPlanMinutes } from "../services/prefs/prefsStore";
 import { formatReminderHour, reminderHours } from "../domain/reminderSettings";
-import { daysUntilEvent, defaultsFromProfile, type EventKind } from "../domain/profile";
-import { todayISODate } from "../utils/dateUtils";
+import { defaultsFromProfile } from "../domain/profile";
 import { takeFreezeNotice } from "../services/streaks/freezeNotice";
 import { showGlobalToast } from "../components/common/ToastProvider";
 import { SKILLS } from "../domain/mastery";
@@ -43,15 +42,7 @@ import { SKILL_LABELS, type SkillId } from "../theme/tokens";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import { success } from "../utils/haptics";
 import { TranscriptionBanner } from "../components/common/TranscriptionBanner";
-
-const EVENT_LABELS: Record<EventKind, string> = {
-  interview: "interview",
-  talk: "talk",
-  toast: "toast",
-  pitch: "pitch",
-  date: "date",
-  other: "big day",
-};
+import { EventTodayCard } from "../components/events/EventTodayCard";
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -79,7 +70,6 @@ export function TodayScreen() {
   const anchor = getPracticeAnchor();
   const profile = getUserProfile();
   const defaults = defaultsFromProfile(profile);
-  const eventDays = daysUntilEvent(profile, todayISODate());
 
   const load = useCallback(
     (m = minutes) => {
@@ -159,18 +149,6 @@ export function TodayScreen() {
               </Txt>
             </View>
           ) : null}
-          {eventDays != null && profile?.event ? (
-            <View style={styles.pill}>
-              <Ionicons name="calendar-clear-outline" size={14} color={colors.textSecondary} />
-              {/* One line: Android otherwise measures it as one line but wraps
-                  the last word onto a hidden second one. */}
-              <Txt variant="footnote" weight="600" numberOfLines={1}>
-                {eventDays === 0
-                  ? `Your ${profile.event.note?.trim() || EVENT_LABELS[profile.event.kind]} is today`
-                  : `${eventDays} day${eventDays === 1 ? "" : "s"} to your ${profile.event.note?.trim() || EVENT_LABELS[profile.event.kind]}`}
-              </Txt>
-            </View>
-          ) : null}
         </View>
         {anchor && doneToday === 0 ? (
           <Txt variant="footnote" tone="muted">
@@ -178,6 +156,8 @@ export function TodayScreen() {
           </Txt>
         ) : null}
       </View>
+
+      <EventTodayCard />
 
       {!plan ? (
         <Card style={styles.heroSkeleton}>
@@ -286,6 +266,13 @@ export function TodayScreen() {
           subtitle="A prompt, free recording, Mark it up, drills"
           chevron
           onPress={() => navigation.navigate("Practice")}
+        />
+        <ListRow
+          icon="calendar-clear-outline"
+          title="Your events"
+          subtitle="Something coming up? Add it, and check in before and after"
+          chevron
+          onPress={() => navigation.navigate("Events")}
         />
       </ListGroup>
       <GuideTip id="today" />

@@ -6,7 +6,7 @@ import type { SessionStatus } from "../../domain/sessionTypes";
 import { logger } from "../../utils/logger";
 
 // Bump this and add a new numbered migration when the schema changes.
-export const LATEST_DB_VERSION = 28;
+export const LATEST_DB_VERSION = 29;
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(
@@ -759,6 +759,26 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
       CREATE INDEX IF NOT EXISTS idx_skill_events_skill ON skill_events(skill, at);
     `);
     currentVersion = await commitVersion(db, 28);
+  }
+
+  if (currentVersion < 29) {
+    // Things you're speaking at (domain/events.ts), several at a time, each
+    // with a check-in before and after. Replaces the single event onboarding
+    // kept in the profile; eventsRepo imports that one on launch.
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS speaking_events (
+        id TEXT PRIMARY KEY NOT NULL,
+        kind TEXT NOT NULL,
+        title TEXT,
+        event_date TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        before_json TEXT,
+        after_json TEXT,
+        deleted_at TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_speaking_events_date ON speaking_events(event_date);
+    `);
+    currentVersion = await commitVersion(db, 29);
   }
 }
 

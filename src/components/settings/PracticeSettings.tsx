@@ -19,6 +19,13 @@ export function PracticeSettings() {
         chevron
         onPress={() => navigation.navigate("Onboarding", { mode: "profile" })}
       />
+      <ListRow
+        icon="calendar-clear-outline"
+        title="Your events"
+        subtitle="Interviews, talks and toasts coming up, with a check-in before and after"
+        chevron
+        onPress={() => navigation.navigate("Events")}
+      />
       <ListRow icon="speedometer-outline" title="Level & difficulty" subtitle="See your impromptu level, or set the level Practice uses" chevron onPress={() => navigation.navigate("Curriculum")} />
       <SwitchRow
         icon="git-branch-outline"

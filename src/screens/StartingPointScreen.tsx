@@ -22,7 +22,7 @@ import type { CloudTranscriptArtifact } from "../services/pipeline/steps/cloudRe
 import type { SessionScores } from "../domain/sessionTypes";
 import { getLessonStates, getSkillStates, seedSkillRatings } from "../services/db/progressRepo";
 import { completeOnboarding, resetToTabs } from "../services/onboarding/onboarding";
-import { getUserProfile, setUserProfile } from "../services/prefs/prefsStore";
+import { getNextEvent, getUserProfile, setUserProfile } from "../services/prefs/prefsStore";
 import { evaluateSkillCheck, feltBelowObserved, type SkillCheckInput, type SkillCheckResult } from "../domain/skillCheck";
 import { defaultsFromProfile, priorityFor } from "../domain/profile";
 import { previewPlans, type DailyPlan } from "../domain/dailyPlan";
@@ -151,7 +151,7 @@ export function StartingPointScreen({ route, navigation }: Props) {
           skills: Object.fromEntries(SKILLS.map((k) => [k, { rating: skills[k].rating, lastPracticedAt: skills[k].lastPracticedAt }])) as Record<SkillId, { rating: number; lastPracticedAt: string | null }>,
           recentFocus: [],
           lessons: Object.fromEntries(Object.entries(lessons).map(([id, l]) => [id, { done: l.done, nextReviewAt: l.nextReviewAt }])),
-          priority: priorityFor(getUserProfile(), todayISODate()),
+          priority: priorityFor(getUserProfile(), todayISODate(), getNextEvent()),
         },
         7,
       ),

@@ -17,6 +17,7 @@ import {
   getCloudProvider,
   getCloudReviewDefault,
   getShareProfileWithReviews,
+  getNextEvent,
   getUserProfile,
   setCloudConsent,
   setCloudModel,
@@ -46,7 +47,7 @@ export function DeepReviewSettings() {
   const [shareProfile, setShareProfile] = useState(getShareProfileWithReviews());
   const [everyTake, setEveryTake] = useState(getCloudReviewDefault());
   // Exactly what would be added to a review's prompt, minus its framing.
-  const contextPreview = buildSpeakerContext(getUserProfile(), todayISODate())
+  const contextPreview = buildSpeakerContext(getUserProfile(), todayISODate(), getNextEvent())
     .split("\n")
     .filter((line) => line.startsWith("- "))
     .map((line) => line.slice(2))
