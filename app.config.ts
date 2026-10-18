@@ -65,6 +65,15 @@ export default (): ExpoConfig => ({
     web: {
         favicon: "./assets/favicon.png",
     },
+    // Over-the-air updates (EAS Update). JS and content changes ship with
+    // `eas update --channel <profile's channel>` and apply on the next cold
+    // start. The fingerprint is a hash of everything native, so a build only
+    // ever receives updates made from the same native code; anything native
+    // (a new native module, a plugin, icons, permissions) needs a new build.
+    runtimeVersion: { policy: "fingerprint" },
+    updates: {
+        url: "https://u.expo.dev/c1cc07c1-f38e-4358-a7b5-e28a6caae79e",
+    },
     extra: {
         eas: {
             // Not a secret — this is the public project identifier EAS

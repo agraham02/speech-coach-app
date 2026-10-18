@@ -8,22 +8,26 @@
       "distribution": "internal",
       "ios": {
         "resourceClass": "m-medium"
-      }
+      },
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_DEV_TOOLS": "1"
-      }
+      },
+      "channel": "preview"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "channel": "production"
     },
     "testflight": {
       "extends": "production",
       "env": {
         "EXPO_PUBLIC_DEV_TOOLS": "1"
-      }
+      },
+      "channel": "testflight"
     }
   },
   "submit": {

@@ -23,6 +23,7 @@ import { EventsScreen } from "../screens/EventsScreen";
 import { EventEditScreen } from "../screens/EventEditScreen";
 import { EventCheckInScreen } from "../screens/EventCheckInScreen";
 import { syncEvents } from "../services/db/eventsRepo";
+import { syncBuiltInTopics } from "../services/db/promptsRepo";
 import { ConversationLogScreen } from "../screens/ConversationLogScreen";
 import { AsrLabScreen } from "../screens/dev/AsrLabScreen";
 import { LogsScreen } from "../screens/dev/LogsScreen";
@@ -353,6 +354,7 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
   // abandoned video files (see pipeline/reconcile.ts).
   useEffect(() => {
     removeObsoletePrefs();
+    syncBuiltInTopics().catch((err) => logger.error(`[prompts] topic sync failed — ${(err as Error).message}`));
     deleteRemovedSecrets().catch(() => undefined);
     reconcileOnLaunch();
     autoCleanupVideos().catch((err) => logger.error(`[videos] auto-cleanup failed — ${(err as Error).message}`));

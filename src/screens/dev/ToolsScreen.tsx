@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { Alert, Modal, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import * as Notifications from "expo-notifications";
+import * as Updates from "expo-updates";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation";
 import { Screen } from "../../components/common/Screen";
@@ -50,6 +51,7 @@ export function ToolsScreen({ navigation }: Props) {
   const [storage, setStorage] = useState<StorageLine[]>([]);
   const [backup, setBackup] = useState<ModelBackupStatus | null>(null);
   const [intro, setIntro] = useState(false);
+  const [checking, setChecking] = useState(false);
 
   const refresh = useCallback(() => {
     setSeen(getGuideSeen());
@@ -76,8 +78,35 @@ export function ToolsScreen({ navigation }: Props) {
     refresh();
   }
 
+  // EAS Update by hand: check, download, restart into it. Off in
+  // development builds, which always load JS from Metro.
+  async function checkForUpdate() {
+    if (!Updates.isEnabled || checking) return;
+    setChecking(true);
+    try {
+      const check = await Updates.checkForUpdateAsync();
+      if (!check.isAvailable) {
+        showToast("Already on the latest update.", "success");
+        return;
+      }
+      await Updates.fetchUpdateAsync();
+      await Updates.reloadAsync();
+    } catch (error) {
+      showToast(`Update check failed: ${(error as Error).message}`, "error");
+    } finally {
+      setChecking(false);
+    }
+  }
+
   return (
     <Screen title="App tools" eyebrow="Dev" onBack={navigation.goBack}>
+      <ListGroup title="Over-the-air updates">
+        <ListRow title="Channel" value={Updates.channel ?? "none"} />
+        <ListRow title="Runtime" subtitle={Updates.runtimeVersion ?? "unknown"} />
+        <ListRow title="Running" subtitle={!Updates.isEnabled ? "Updates are off in development builds" : Updates.isEmbeddedLaunch ? "The JS built into this binary" : `Update ${Updates.updateId ?? "?"}`} />
+        <ListRow title={checking ? "Checking…" : "Check for an update"} subtitle="Downloads it and restarts right away" onPress={checkForUpdate} chevron />
+      </ListGroup>
+
       <ListGroup title="Tours">
         {GUIDE_IDS.map((id) => {
           const done = seen.includes(id);
