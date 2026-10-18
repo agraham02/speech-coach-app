@@ -4,8 +4,9 @@ rendering) and Pillow.
 
     python assets/brand/render.py [path-to-chrome]
 
-The mark: a spoken phrase that rises, falls and lands — then a full stop.
-The red dot is both the stop and the record light.
+The mark: a waveform of a spoken phrase that rises, falls and lands, and
+the red dot as its last beat: a full stop on the same baseline, one bar-gap
+after the last bar. The dot is both the stop and the record light.
 """
 
 import os
@@ -26,16 +27,25 @@ INK_STROKE = "#181714"
 RED = "#FF453A"  # colors.record
 
 # The mark on a 1024 canvas, centered on (512, 500) — a little above the
-# middle, where the eye puts the center.
-PHRASE = "M214 581 C 270 581, 300 411, 390 411 C 500 411, 540 581, 654 581"
-MARK_BOX = (172, 369, 680, 262)  # x, y, w, h of the stroke and dot
+# middle, where the eye puts the center. Seven rounded bars and the stop,
+# all standing on one baseline. Kept in step with BrandMark in
+# src/components/onboarding/WelcomeIntro.tsx.
+BASELINE = 631
+BAR_WIDTH = 52
+BAR_GAP = 26
+BAR_HEIGHTS = [96, 184, 262, 196, 150, 170, 124]
+STOP_RADIUS = 39  # a bar-sized stop: the last beat
+FIRST_BAR_X = 200
+STOP_CX = FIRST_BAR_X + len(BAR_HEIGHTS) * (BAR_WIDTH + BAR_GAP) + STOP_RADIUS  # 785
+MARK_BOX = (200, 369, 624, 262)  # x, y, w, h of the bars and the stop
 
 
-def mark(stroke, dot=RED):
-    return (
-        f'<path d="{PHRASE}" fill="none" stroke="{stroke}" stroke-width="84" stroke-linecap="round"/>'
-        f'<circle cx="802" cy="581" r="50" fill="{dot}"/>'
+def mark(fill, dot=RED):
+    bars = "".join(
+        f'<rect x="{FIRST_BAR_X + i * (BAR_WIDTH + BAR_GAP)}" y="{BASELINE - h}" width="{BAR_WIDTH}" height="{h}" rx="{BAR_WIDTH // 2}" fill="{fill}"/>'
+        for i, h in enumerate(BAR_HEIGHTS)
     )
+    return bars + f'<circle cx="{STOP_CX}" cy="{BASELINE - STOP_RADIUS}" r="{STOP_RADIUS}" fill="{dot}"/>'
 
 
 INK_GRADIENT = (
@@ -65,8 +75,8 @@ MASTERS = {
 OUTPUTS = [
     ("icon.png", MASTERS["icon.svg"], 1024, 1024, False),
     ("favicon.png", MASTERS["icon.svg"], 1024, 1024, False),
-    ("splash-icon.png", MASTERS["mark-light.svg"], 1360, 524, True),
-    ("splash-icon-dark.png", MASTERS["mark-dark.svg"], 1360, 524, True),
+    ("splash-icon.png", MASTERS["mark-light.svg"], MARK_BOX[2] * 2, MARK_BOX[3] * 2, True),
+    ("splash-icon-dark.png", MASTERS["mark-dark.svg"], MARK_BOX[2] * 2, MARK_BOX[3] * 2, True),
     ("android-icon-background.png", svg(INK_GRADIENT + '<rect width="1024" height="1024" fill="url(#bg)"/>'), 1024, 1024, False),
     ("android-icon-foreground.png", svg(adaptive(mark(WARM_WHITE))), 1024, 1024, True),
     ("android-icon-monochrome.png", svg(adaptive(mark("#FFFFFF", "#FFFFFF"))), 1024, 1024, True),
