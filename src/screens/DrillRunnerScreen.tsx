@@ -27,7 +27,8 @@ import { countReached, MAX_COUNT_RATE } from "../domain/drills/breathCount";
 import { CHAIN_SEEDS } from "../content/drillContent";
 import { defaultsFromProfile } from "../domain/profile";
 import { getUserProfile } from "../services/prefs/prefsStore";
-import { getDrillLevel, recordDrillOutcome } from "../services/db/progressRepo";
+import { getDrillLevel, recordDrillOutcome, type ProgressChange } from "../services/db/progressRepo";
+import { DrillProgressLine } from "../components/celebrate/DrillProgressLine";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { showGlobalToast } from "../components/common/ToastProvider";
 import { logger } from "../utils/logger";
@@ -55,6 +56,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
   const [elapsedMs, setElapsedMs] = useState(0);
   const [prepLeft, setPrepLeft] = useState(0);
   const [result, setResult] = useState<{ outcome: DrillOutcome; details: DrillDetails } | null>(null);
+  const [change, setChange] = useState<ProgressChange | null>(null);
   const startedAtRef = useRef(0);
   const finishingRef = useRef(false);
   const seedRef = useRef(Math.floor(Math.random() * 100_000));
@@ -215,7 +217,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         ignoreSlips: profileDefaults.stutterMode,
         relaxedAccuracy: profileDefaults.relaxAccuracy,
       });
-      const change = await recordDrillOutcome({
+      const moved = await recordDrillOutcome({
         drillType: setup.type,
         outcome: evaluated.outcome,
         level: setup.level,
@@ -225,7 +227,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         wpm: evaluated.details.wpm ?? null,
         metrics: evaluated.details,
       });
-      if (change.leveledUp) showGlobalToast(`Level up — ${DRILL_TITLES[setup.type].toLowerCase()} gets harder now.`, "success");
+      setChange(moved);
       setResult(evaluated);
     } catch (error) {
       logger.error(`[drill] ${setup.type} failed to score — ${(error as Error).message}`);
@@ -281,6 +283,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         ) : null}
 
         {stage === "result" && result ? ResultCard({ setup, result }) : null}
+        {stage === "result" && result && change ? <DrillProgressLine change={change} drillTitle={DRILL_TITLES[setup.type]} /> : null}
         {stage === "result" && !result ? (
           <Card style={styles.card}>
             <Txt variant="headline">Didn't catch anything.</Txt>

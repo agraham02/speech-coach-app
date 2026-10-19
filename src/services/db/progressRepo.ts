@@ -22,6 +22,7 @@ import {
 } from "../../domain/mastery";
 import type { SkillEvidence } from "../../domain/repEvidence";
 import { earnedStage, placementStage, speakerLevel, type Stage } from "../../domain/levels";
+import { emitStageEarned } from "../progress/progressEvents";
 import { buildDailyPlan, PLAN_VERSION, type DailyPlan, type PlanMinutes } from "../../domain/dailyPlan";
 import { getLesson } from "../../content/lessons";
 import { summarizeAttempt, type AttemptSummary } from "../../domain/conversation/attemptMetrics";
@@ -292,6 +293,11 @@ export async function recordDrillOutcome(args: {
     level: args.level,
     drillType: args.drillType,
   });
+  const speakerLevelBefore = speakerLevelOf(skills);
+  const speakerLevelAfter = speakerLevelOf({ ...skills, [skill]: updated });
+  if (updated.stage > before.stage) {
+    emitStageEarned({ skill, stage: updated.stage, speakerLevel: speakerLevelAfter > speakerLevelBefore ? speakerLevelAfter : null });
+  }
   return {
     skill,
     ratingBefore: before.rating,
@@ -302,8 +308,8 @@ export async function recordDrillOutcome(args: {
     stageBefore: before.stage,
     stageAfter: updated.stage,
     stagedUp: updated.stage > before.stage,
-    speakerLevelBefore: speakerLevelOf(skills),
-    speakerLevelAfter: speakerLevelOf({ ...skills, [skill]: updated }),
+    speakerLevelBefore,
+    speakerLevelAfter,
   };
 }
 

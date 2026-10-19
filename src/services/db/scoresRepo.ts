@@ -148,3 +148,24 @@ export async function getPreviousOverallScore(recordedAt: string): Promise<numbe
   );
   return row ? row.overall_score : null;
 }
+
+// Overall scores of the takes before this one, most recent first, and the
+// best of them all — what a take's progress moment measures against.
+export async function getScoreHistoryBefore(recordedAt: string, limit = 5): Promise<{ previous: number[]; best: number | null }> {
+  const db = await getDatabase();
+  const where = `s.status = 'done' AND s.deleted_at IS NULL AND s.recorded_at < ? AND COALESCE(s.session_score, sc.overall_score) IS NOT NULL`;
+  const [rows, best] = await Promise.all([
+    db.getAllAsync<{ overall_score: number }>(
+      `SELECT COALESCE(s.session_score, sc.overall_score) AS overall_score
+       FROM sessions s LEFT JOIN scores sc ON sc.session_id = s.id
+       WHERE ${where} ORDER BY s.recorded_at DESC LIMIT ?`,
+      [recordedAt, limit],
+    ),
+    db.getFirstAsync<{ best: number | null }>(
+      `SELECT MAX(COALESCE(s.session_score, sc.overall_score)) AS best
+       FROM sessions s LEFT JOIN scores sc ON sc.session_id = s.id WHERE ${where}`,
+      [recordedAt],
+    ),
+  ]);
+  return { previous: rows.map((r) => r.overall_score), best: best?.best ?? null };
+}

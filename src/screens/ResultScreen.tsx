@@ -45,6 +45,8 @@ import { setVideoKeepsake } from "../services/data/videoKeepsakes";
 import { getArtifact } from "../services/db/artifactsRepo";
 import { describeSessionSubject, subjectFromSession, type SessionSubjectSummary } from "../services/sessions/sessionSubject";
 import { useSessionSteps } from "../hooks/useSessionSteps";
+import { useProgressMoment } from "../hooks/useProgressMoment";
+import { ProgressPending, ProgressReveal } from "../components/celebrate/ProgressReveal";
 import { FeelingResultView } from "../components/feelings/FeelingResultView";
 import type { CloudTranscriptArtifact } from "../services/pipeline/steps/cloudReviewStep";
 import type { SessionStep } from "../domain/sessionSteps";
@@ -140,6 +142,9 @@ export function ResultScreen({ route, navigation }: Props) {
 
   const { steps } = useSessionSteps(sessionId, loadAll);
   const { tourScroll, scrollProps } = useTourScroll();
+  // Impromptu takes move your skills; their Result plays what moved.
+  const movesSkills = session?.sessionType === "spontaneous" || session?.sessionType === "concise";
+  const { moment, animate } = useProgressMoment(sessionId, movesSkills);
 
   if (!session) {
     return (
@@ -331,7 +336,7 @@ export function ResultScreen({ route, navigation }: Props) {
                     {scores.archetypeDetected}
                   </Text>
                 ) : null}
-                <ScoreDelta current={overall} previous={previousOverallScore} />
+                {movesSkills ? null : <ScoreDelta current={overall} previous={previousOverallScore} />}
                 {scores ? <Text style={styles.scoreHeroFit}>{scores.archetypeFitForTopic}</Text> : null}
                 {reviewing ? (
                   <View style={styles.reviewingRow}>
@@ -362,6 +367,14 @@ export function ResultScreen({ route, navigation }: Props) {
             </Reveal>
           )}
           </TourTarget>
+
+          {movesSkills ? (
+            moment ? (
+              <ProgressReveal beats={moment.beats} animate={animate} />
+            ) : measuring || reviewing ? (
+              <ProgressPending reviewing={reviewing} />
+            ) : null
+          ) : null}
 
           <TourTarget id="result.breakdown">
           {breakdown ? (

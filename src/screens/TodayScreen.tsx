@@ -47,6 +47,7 @@ import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import { success } from "../utils/haptics";
 import { TranscriptionBanner } from "../components/common/TranscriptionBanner";
 import { EventTodayCard } from "../components/events/EventTodayCard";
+import { NewProgressCard } from "../components/celebrate/NewProgressCard";
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -177,6 +178,7 @@ export function TodayScreen() {
         ) : null}
       </View>
 
+      <NewProgressCard />
       <EventTodayCard />
 
       {!plan ? (

@@ -1,4 +1,4 @@
-import { getArtifact, putArtifact } from "../db/artifactsRepo";
+import { getArtifact } from "../db/artifactsRepo";
 import { getSessionById } from "../db/sessionsRepo";
 import { getScoresBySessionId } from "../db/scoresRepo";
 import { getSessionSteps } from "../db/stepsRepo";
@@ -11,6 +11,11 @@ import type { CloudTranscriptArtifact } from "../pipeline/steps/cloudReviewStep"
 import { cloudSourceOf } from "./sessionScoreService";
 import { describeSessionSubject } from "./sessionSubject";
 import { logger } from "../../utils/logger";
+import { saveProgress } from "../progress/progressMoments";
+import { emitProgressSettled, isWatchingProgress } from "../progress/progressEvents";
+import { stageName } from "../../domain/levels";
+import { SKILL_LABELS } from "../../theme/tokens";
+import { navigationRef } from "../../navigation/navigationRef";
 
 // Moves skill mastery for an impromptu rep — once per session, after its
 // analysis has settled. It used to run as soon as the phone's coach
@@ -47,9 +52,17 @@ export async function settleRepProgress(sessionId: string, options: { abandoned?
       local,
       cloud: reviewed,
     });
-    await putArtifact(sessionId, "progress", changes);
-    if (changes.some((c) => c.leveledUp)) {
-      showGlobalToast("Level up — your impromptu reps just got a little harder.", "success");
+    await saveProgress(sessionId, { changes, settledAt: new Date().toISOString(), seenAt: null });
+    // The Result screen for this take plays the moment itself; anywhere
+    // else, a stage earned is worth a tap-through toast, and Today keeps
+    // the rest waiting in its "new progress" card.
+    const watched = isWatchingProgress(sessionId);
+    emitProgressSettled(sessionId);
+    const staged = changes.find((c) => c.stagedUp && c.stageAfter);
+    if (!watched && staged) {
+      showGlobalToast(`${SKILL_LABELS[staged.skill]} reached ${stageName(staged.stageAfter!)}. Tap to see it.`, "success", () => {
+        if (navigationRef.isReady()) navigationRef.navigate("Result", { sessionId });
+      });
     }
   } catch (error) {
     logger.error(`[progress] ${sessionId}: couldn't record the rep — ${(error as Error).message}`);
