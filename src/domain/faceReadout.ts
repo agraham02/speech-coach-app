@@ -193,11 +193,10 @@ export interface TryState {
   buffers: Partial<Record<PeakKey, number[]>>;
   peaks: TryPeaks;
   outSince: number | null;
-  wasOut: boolean;
 }
 
 export function newTryState(): TryState {
-  return { done: [], holdSince: {}, buffers: {}, peaks: {}, outSince: null, wasOut: false };
+  return { done: [], holdSince: {}, buffers: {}, peaks: {}, outSince: null };
 }
 
 function median(values: number[]): number {
@@ -217,7 +216,6 @@ export function feedTries(prev: TryState, reading: FaceReading | null, center: F
     buffers: { ...prev.buffers },
     peaks: { ...prev.peaks },
     outSince: prev.outSince,
-    wasOut: prev.wasOut,
   };
   const newlyDone: TryId[] = [];
   const finish = (id: TryId) => {
@@ -228,16 +226,13 @@ export function feedTries(prev: TryState, reading: FaceReading | null, center: F
 
   if (!reading || !reading.sample.present) {
     state.outSince = state.outSince ?? tMs;
-    if (tMs - state.outSince >= OUT_MS) state.wasOut = true;
+    // Ticks as soon as the face has been gone long enough, not when it comes back.
+    if (tMs - state.outSince >= OUT_MS) finish("out");
     state.holdSince = {};
     state.buffers = {};
     return { state, newlyDone };
   }
   state.outSince = null;
-  if (state.wasOut) {
-    state.wasOut = false;
-    finish("out");
-  }
 
   const m = measure(reading, center);
   const eyesOpen = m.eyesOpen >= limits.eyesOpenAtLeast;
