@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { GuideTip, TourTarget } from "../components/common/GuideTip";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -20,6 +20,7 @@ import { WarmUpOverlay } from "../components/recording/WarmUpOverlay";
 import { useCameraPermissions } from "../hooks/useCameraPermissions";
 import { useCountdownTimer } from "../hooks/useCountdownTimer";
 import { useFaceDetection } from "../hooks/useFaceDetection";
+import { guideOval, type Size } from "../domain/faceGuide";
 import { useHapticFaceWarning } from "../hooks/useHapticFaceWarning";
 import { useRecordingTimer } from "../hooks/useRecordingTimer";
 import {
@@ -66,7 +67,10 @@ export function RecordingScreen({ route, navigation }: Props) {
   const cameraRef = useRef<VisionCamera>(null);
   const { hasAllPermissions, hasCameraPermission, hasMicrophonePermission, requestCameraPermission, requestMicrophonePermission } =
     useCameraPermissions();
-  const { faceDetected, framingStatus, onFaceFrame, startTimeline, stopTimeline } = useFaceDetection();
+  // The oval is drawn on, and the face judged against, the preview's real size.
+  const [view, setView] = useState<Size | null>(null);
+  const guide = useMemo(() => (view ? { view, oval: guideOval(view) } : null), [view]);
+  const { faceDetected, framingStatus, guideHint, onFaceFrame, startTimeline, stopTimeline } = useFaceDetection({ guide });
   const { elapsedSeconds, start, stop } = useRecordingTimer();
   const [recordBlind, setRecordBlind] = useState(!isScript && getRecordBlindPref());
   const [isFinishing, setIsFinishing] = useState(false);
@@ -263,7 +267,13 @@ export function RecordingScreen({ route, navigation }: Props) {
   }
 
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      onLayout={(e) => {
+        const { width, height } = e.nativeEvent.layout;
+        setView((v) => (v && v.width === width && v.height === height ? v : { width, height }));
+      }}
+    >
       {/* Camera is always dark, so keep the status bar light. */}
       <StatusBar style="light" />
       <CameraPreview
@@ -309,7 +319,7 @@ export function RecordingScreen({ route, navigation }: Props) {
         </View>
       )}
 
-      {stage === "idle" && !isScript && <FramingGuideOverlay status={framingStatus} />}
+      {stage === "idle" && !isScript && <FramingGuideOverlay status={framingStatus} oval={guide?.oval ?? null} hint={guideHint} />}
 
       {stage === "recording" && !isScript && recordBlind && (
         <RecordBlindOverlay promptText={subject.prompt.text} remainingSeconds={remainingRecordingSeconds} targetSeconds={targetDurationSeconds} />
