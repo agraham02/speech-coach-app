@@ -9,6 +9,7 @@ import { GoalReminderSettings } from "../components/settings/GoalReminderSetting
 import { HelpDataSettings } from "../components/settings/HelpDataSettings";
 import { LegalLinks } from "../components/settings/LegalLinks";
 import { OnDeviceAiSettings } from "../components/settings/OnDeviceAiSettings";
+import { PermissionSettings } from "../components/settings/PermissionSettings";
 import { PracticeSettings } from "../components/settings/PracticeSettings";
 import { SETTINGS_SECTIONS, type SettingsSection } from "../components/settings/sections";
 import { makeStyles } from "../theme/ThemeProvider";
@@ -20,6 +21,7 @@ const SECTION_BODY: Record<SettingsSection, () => React.JSX.Element> = {
   goal: GoalReminderSettings,
   ai: OnDeviceAiSettings,
   deepReviews: DeepReviewSettings,
+  permissions: PermissionSettings,
   help: HelpDataSettings,
 };
 

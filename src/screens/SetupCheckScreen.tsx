@@ -11,7 +11,9 @@ import { PrimaryButton } from "../components/common/PrimaryButton";
 import { FaceCheck } from "../components/setup/FaceCheck";
 import { LevelBars, levelOf } from "../components/setup/LevelBars";
 import { LiveWords } from "../components/setup/LiveWords";
+import { PermissionRows } from "../components/settings/PermissionRows";
 import { useCameraPermissions } from "../hooks/useCameraPermissions";
+import { usePermissions } from "../hooks/usePermissions";
 import { useLiveSpeech } from "../hooks/useLiveSpeech";
 import { defaultsFromProfile } from "../domain/profile";
 import { getUserProfile } from "../services/prefs/prefsStore";
@@ -35,7 +37,10 @@ export function SetupCheckScreen({ navigation }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
   const audioFirst = defaultsFromProfile(getUserProfile()).audioFirst;
-  const perms = useCameraPermissions();
+  const perms = useCameraPermissions({ autoRequest: false });
+  const permissions = usePermissions();
+  const stillAskable = permissions.lines?.some((l) => l.state === "ask") ?? false;
+  const cameraOrMicOff = perms.cameraBlocked || perms.microphoneBlocked;
   const speech = useLiveSpeech();
   const [step, setStep] = useState<Step>("permissions");
   const [heardWords, setHeardWords] = useState(false);
@@ -140,12 +145,13 @@ export function SetupCheckScreen({ navigation }: Props) {
           <Card style={styles.card}>
             <Ionicons name="videocam-outline" size={28} color={colors.accent} />
             <Txt variant="callout">
-              Recordings stay on this phone. The camera is for eye contact and expression; the mic is for everything else.
+              Recordings stay on this phone. The camera is for eye contact and expression; the mic is for everything else. Notifications are for your practice reminders, and you can turn any of these off or on later in Settings.
             </Txt>
           </Card>
-          {perms.hasAllPermissions ? (
-            <Txt variant="subhead" tone="success">
-              Both are on.
+          {permissions.lines ? <PermissionRows lines={permissions.lines} onPress={permissions.act} /> : null}
+          {cameraOrMicOff ? (
+            <Txt variant="footnote" tone="warning">
+              Recording needs the camera and mic. Tap a row that says Off to turn it on in your phone's Settings, or carry on and do it later.
             </Txt>
           ) : null}
         </View>
@@ -214,13 +220,10 @@ export function SetupCheckScreen({ navigation }: Props) {
       ) : null}
 
       {step === "permissions" ? (
-        perms.hasAllPermissions ? (
-          <PrimaryButton label="Next" onPress={() => setStep(audioFirst ? "mic" : "camera")} />
+        stillAskable ? (
+          <PrimaryButton label="Allow access" onPress={permissions.askAll} />
         ) : (
-          <PrimaryButton
-            label={perms.hasCameraPermission ? "Allow microphone" : "Allow camera"}
-            onPress={perms.hasCameraPermission ? perms.requestMicrophonePermission : perms.requestCameraPermission}
-          />
+          <PrimaryButton label="Next" onPress={() => setStep(audioFirst || !perms.hasCameraPermission ? "mic" : "camera")} />
         )
       ) : null}
       {step === "mic" ? (

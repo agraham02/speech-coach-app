@@ -70,8 +70,7 @@ export function RecordingScreen({ route, navigation }: Props) {
   const prepText = isScript ? `Reading: ${subject.script.title}` : subject.prompt.text;
   const insets = useSafeAreaInsets();
   const cameraRef = useRef<VisionCamera>(null);
-  const { hasAllPermissions, hasCameraPermission, hasMicrophonePermission, requestCameraPermission, requestMicrophonePermission } =
-    useCameraPermissions();
+  const { hasAllPermissions, hasCameraPermission, cameraBlocked, microphoneBlocked, requestCameraPermission, requestMicrophonePermission } = useCameraPermissions();
   // The oval is drawn on, and the face judged against, the preview's real size.
   const [view, setView] = useState<Size | null>(null);
   const guide = useMemo(() => (view ? { view, oval: guideOval(view) } : null), [view]);
@@ -336,11 +335,13 @@ export function RecordingScreen({ route, navigation }: Props) {
           <Ionicons name="videocam-outline" size={48} color={colors.accent} />
           <Text style={styles.permissionTitle}>Camera & microphone access</Text>
           <Text style={styles.permissionText}>
-            Tono needs both to record your practice sessions. Nothing is uploaded until you finish recording.
+            {cameraBlocked || microphoneBlocked
+              ? `${cameraBlocked && microphoneBlocked ? "The camera and microphone are" : cameraBlocked ? "The camera is" : "The microphone is"} turned off for Tono. Turn ${cameraBlocked && microphoneBlocked ? "them" : "it"} on in your phone's Settings to record.`
+              : "Tono needs both to record your practice sessions. Nothing is uploaded until you finish recording."}
           </Text>
         </View>
         <PrimaryButton
-          label={hasCameraPermission ? "Grant Microphone Access" : "Grant Camera Access"}
+          label={(hasCameraPermission ? microphoneBlocked : cameraBlocked) ? "Open Settings" : hasCameraPermission ? "Grant Microphone Access" : "Grant Camera Access"}
           onPress={hasCameraPermission ? requestMicrophonePermission : requestCameraPermission}
         />
       </View>
