@@ -13,6 +13,7 @@ import type { UserProfile } from "../../domain/profile";
 import { DEFAULT_RUN, type RunState } from "../../domain/innerVoice/run";
 import type { ProviderId } from "../cloud/providers";
 import { parseCalibration, type FaceCalibration } from "../../domain/faceCalibration";
+import type { UpcomingEvent } from "../../domain/events";
 
 const storage = createMMKV({ id: "speech-coach-prefs" });
 
@@ -51,6 +52,8 @@ const KEYS = {
   scoreVersion: "scoreVersion",
   gazeYFixed: "gazeYFixed",
   faceCalibration: "faceCalibration",
+  nextEvent: "nextEvent",
+  mediaBackup: "mediaBackup",
 } as const;
 
 // The session-score rules every stored score was last computed with (see
@@ -513,4 +516,27 @@ export function setFaceCalibration(value: FaceCalibration): void {
 
 export function clearFaceCalibration(): void {
   storage.remove(KEYS.faceCalibration);
+}
+
+// The soonest event still ahead (domain/events.ts), mirrored from the
+// speaking_events table by eventsRepo.syncEvents for the readers that can't
+// wait on the database: the daily plan's lean, rep prompts, reminder copy,
+// the deep review's note about the speaker.
+export function getNextEvent(): UpcomingEvent | null {
+  return readJson<UpcomingEvent | null>(KEYS.nextEvent, null);
+}
+
+export function setNextEvent(event: UpcomingEvent | null): void {
+  if (event) storage.set(KEYS.nextEvent, JSON.stringify(event));
+  else storage.remove(KEYS.nextEvent);
+}
+
+// iOS: whether videos and Rewind recordings go into the iCloud backup. Off
+// by default: they can be gigabytes. Progress (the database) backs up either way.
+export function getMediaBackup(): boolean {
+  return storage.getBoolean(KEYS.mediaBackup) ?? false;
+}
+
+export function setMediaBackup(value: boolean): void {
+  storage.set(KEYS.mediaBackup, value);
 }

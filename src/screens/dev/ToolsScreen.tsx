@@ -1,7 +1,8 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Alert, Modal, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import * as Notifications from "expo-notifications";
+import * as Updates from "expo-updates";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation";
 import { Screen } from "../../components/common/Screen";
@@ -11,15 +12,20 @@ import { Txt } from "../../components/common/Txt";
 import { useToast } from "../../components/common/ToastProvider";
 import { Mono } from "../../components/dev/Mono";
 import { WelcomeIntro } from "../../components/onboarding/WelcomeIntro";
+import { Waveform } from "../../components/rewind/Waveform";
+import { Chip } from "../../components/common/Chip";
+import { PrimaryButton } from "../../components/common/PrimaryButton";
+import { CADENCES, syntheticVolume } from "../../services/dev/syntheticVolume";
 import { GUIDES } from "../../content/guide";
 import { getCloudCallsToday, getGuideSeen, resetCloudCallsToday, resetGuide, unmarkGuideSeen } from "../../services/prefs/prefsStore";
 import { requestNotificationPermission } from "../../services/notifications/reminderScheduler";
 import { storageBreakdown, type StorageLine } from "../../services/dev/storageInfo";
+import { mediaBackupStatus } from "../../services/storage/mediaBackup";
 import { modelBackupStatus, reapplyBackupExclusion, type ModelBackupStatus } from "../../services/asr/whisperModels";
 import { formatBytes } from "../../domain/dev/jsonView";
 import { DAILY_REVIEW_LIMIT } from "../../services/cloud/inputGuards";
 import { todayISODate } from "../../utils/dateUtils";
-import { makeStyles } from "../../theme/ThemeProvider";
+import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "DevTools">;
 
@@ -43,6 +49,7 @@ function describeTrigger(trigger: Notifications.NotificationTrigger | null): str
 // schedule: tours, the welcome intro, reminders, the review limit, storage.
 export function ToolsScreen({ navigation }: Props) {
   const styles = useStyles();
+  const { colors } = useTheme();
   const showToast = useToast();
   const [seen, setSeen] = useState<string[]>(getGuideSeen());
   const [calls, setCalls] = useState(() => getCloudCallsToday(todayISODate()));
@@ -50,6 +57,10 @@ export function ToolsScreen({ navigation }: Props) {
   const [storage, setStorage] = useState<StorageLine[]>([]);
   const [backup, setBackup] = useState<ModelBackupStatus | null>(null);
   const [intro, setIntro] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [waveOpen, setWaveOpen] = useState(false);
+  const [cadenceIndex, setCadenceIndex] = useState(2);
+  const subscribeSynthetic = useMemo(() => syntheticVolume(CADENCES[cadenceIndex]), [cadenceIndex]);
 
   const refresh = useCallback(() => {
     setSeen(getGuideSeen());
@@ -76,8 +87,39 @@ export function ToolsScreen({ navigation }: Props) {
     refresh();
   }
 
+  // EAS Update by hand: check, download, restart into it. Off in
+  // development builds, which always load JS from Metro.
+  const updatesLive = Updates.isEnabled && !__DEV__;
+  async function checkForUpdate() {
+    if (!updatesLive || checking) return;
+    setChecking(true);
+    try {
+      const check = await Updates.checkForUpdateAsync();
+      if (!check.isAvailable) {
+        showToast("Already on the latest update.", "success");
+        return;
+      }
+      await Updates.fetchUpdateAsync();
+      await Updates.reloadAsync();
+    } catch (error) {
+      showToast(`Update check failed: ${(error as Error).message}`, "error");
+    } finally {
+      setChecking(false);
+    }
+  }
+
   return (
     <Screen title="App tools" eyebrow="Dev" onBack={navigation.goBack}>
+      <ListGroup title="Over-the-air updates">
+        <ListRow title="Channel" value={Updates.channel ?? "none"} />
+        <ListRow title="Runtime" subtitle={Updates.runtimeVersion ?? "unknown"} />
+        <ListRow
+          title="Running"
+          subtitle={!updatesLive ? "A development build: JS comes from Metro, not from updates" : Updates.isEmbeddedLaunch ? "The JS built into this binary" : `Update ${Updates.updateId ?? "unknown"}`}
+        />
+        {updatesLive ? <ListRow title={checking ? "Checking…" : "Check for an update"} subtitle="Downloads it and restarts right away" onPress={checkForUpdate} chevron /> : null}
+      </ListGroup>
+
       <ListGroup title="Tours">
         {GUIDE_IDS.map((id) => {
           const done = seen.includes(id);
@@ -110,7 +152,8 @@ export function ToolsScreen({ navigation }: Props) {
         />
       </ListGroup>
 
-      <ListGroup title="Onboarding">
+      <ListGroup title="Previews">
+        <ListRow icon="pulse-outline" title="Preview the live waveform" subtitle="Simulated speech at different reading rates" chevron onPress={() => setWaveOpen(true)} />
         <ListRow icon="play-outline" title="Preview the welcome intro" subtitle="Plays it over this screen; nothing is saved" chevron onPress={() => setIntro(true)} />
       </ListGroup>
 
@@ -148,6 +191,9 @@ export function ToolsScreen({ navigation }: Props) {
         {storage.map((line) => (
           <ListRow key={line.label} title={line.label} value={formatBytes(line.bytes)} />
         ))}
+        {mediaBackupStatus().map((m) => (
+          <ListRow key={m.folder} title={`${m.folder}/ kept out of backups`} value={m.excluded == null ? "?" : m.excluded ? "Yes" : "No"} />
+        ))}
         <ListRow
           title="Models kept out of backups"
           subtitle={
@@ -162,6 +208,22 @@ export function ToolsScreen({ navigation }: Props) {
         />
       </ListGroup>
 
+      <Modal visible={waveOpen} animationType="fade" onRequestClose={() => setWaveOpen(false)}>
+        <View style={styles.wavePreview}>
+          <Txt variant="title3">Live waveform</Txt>
+          <Txt variant="footnote" tone="secondary">
+            Simulated speech. The real thing gets readings about every 100 ms on an iPhone, and unevenly. The motion should stay smooth in all three.
+          </Txt>
+          <View style={styles.waveChips}>
+            {CADENCES.map((c, i) => (
+              <Chip key={c.label} label={c.label} selected={i === cadenceIndex} onPress={() => setCadenceIndex(i)} />
+            ))}
+          </View>
+          <Waveform height={220} color={colors.skill.conversation.fg} subscribe={subscribeSynthetic} live={waveOpen} />
+          <PrimaryButton label="Close" variant="secondary" onPress={() => setWaveOpen(false)} />
+        </View>
+      </Modal>
+
       <Modal visible={intro} animationType="fade" onRequestClose={() => setIntro(false)}>
         <WelcomeIntro onDone={() => setIntro(false)} />
       </Modal>
@@ -170,6 +232,8 @@ export function ToolsScreen({ navigation }: Props) {
 }
 
 const useStyles = makeStyles((t) => ({
+  wavePreview: { flex: 1, backgroundColor: t.colors.background, padding: t.layout.gutter, paddingTop: 80, gap: t.space.lg },
+  waveChips: { flexDirection: "row", flexWrap: "wrap", gap: t.space.sm },
   block: { gap: t.space.sm },
   line: { gap: 2 },
 }));

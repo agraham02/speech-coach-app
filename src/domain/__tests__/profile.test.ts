@@ -16,11 +16,13 @@ describe("profile personalization", () => {
   });
 
   it("holds the event's skills until the event", () => {
-    const p = profile({ event: { date: "2026-12-01", kind: "interview" } });
-    expect(priorityFor(p, "2026-11-25").impromptu).toBe(0.2);
-    expect(priorityFor(p, "2026-12-02").impromptu ?? 0).toBe(0);
-    expect(promptContexts(p, "2026-11-25")).toEqual(["interviews"]);
-    expect(promptContexts({ ...p, contexts: ["meetings"] }, "2026-10-12")).toEqual(["meetings"]);
+    const p = profile();
+    const event = { id: "e1", kind: "interview" as const, date: "2026-12-01", title: null };
+    expect(priorityFor(p, "2026-11-25", event).impromptu).toBe(0.2);
+    expect(priorityFor(p, "2026-12-02", event).impromptu ?? 0).toBe(0);
+    expect(priorityFor(null, "2026-11-25", event).impromptu).toBe(0.2);
+    expect(promptContexts(p, "2026-11-25", event)).toEqual(["interviews"]);
+    expect(promptContexts({ ...p, contexts: ["meetings"] }, "2026-10-12", event)).toEqual(["meetings"]);
   });
 
   it("turns answers into defaults", () => {

@@ -13,7 +13,7 @@ import type { LineCategory } from "../../content/lines";
 import { CONTEXT_LABELS, CONTEXT_PROMPTS } from "../../data/contextPrompts";
 import { daysUntilEvent, promptContexts } from "../../domain/profile";
 import { makeAdhocPrompt } from "../../domain/sessionTypes";
-import { getUserProfile } from "../prefs/prefsStore";
+import { getNextEvent, getUserProfile } from "../prefs/prefsStore";
 import { todayISODate } from "../../utils/dateUtils";
 
 type Nav = NavigationProp<RootStackParamList>;
@@ -65,8 +65,9 @@ export async function launchStep(navigation: Nav, step: LessonStep, practice: Pr
       // keeps to prompts its structure fits until the event is near.
       const profile = getUserProfile();
       const today = todayISODate();
-      const contexts = promptContexts(profile, today);
-      const daysToEvent = daysUntilEvent(profile, today);
+      const event = getNextEvent();
+      const contexts = promptContexts(profile, today, event);
+      const daysToEvent = daysUntilEvent(event, today);
       const nearEvent = daysToEvent != null && daysToEvent <= 14;
       const useContext = contexts.length > 0 && (nearEvent || (!categories && Math.random() < 0.5));
       const prompt = useContext

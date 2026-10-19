@@ -34,6 +34,18 @@ export function excludeFromBackup(path: string): boolean | null {
   }
 }
 
+// Sets or clears the flag (the media folders follow a Settings switch).
+// Same results as excludeFromBackup.
+export function setExcludedFromBackup(path: string, excluded: boolean): boolean | null {
+  const module = native();
+  if (!module) return null;
+  try {
+    return module.setExcluded(path, excluded);
+  } catch {
+    return false;
+  }
+}
+
 // What the system reports for the path: true, false, or null if unknown.
 export function isExcludedFromBackup(path: string): boolean | null {
   const module = native();

@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { isFace, type FaceLandmarkerOutput } from "vision-camera-face-landmarker";
 import { isWellFramed } from "../domain/faceFraming";
+import { readGuide, type FramingStatus, type GuideGeometry } from "../domain/faceGuide";
 import { orientFace } from "../domain/faceOrientation";
 import { eyeClosure, sampleFromFace } from "../domain/faceSignals";
 import { feedBlink, loseFace, newBlinkState } from "../domain/blinkCounter";
@@ -8,15 +9,26 @@ import type { PresenceSample } from "../domain/presenceMetrics";
 import { INVERT_GAZE_Y } from "../services/face/faceAxes";
 import { logger } from "../utils/logger";
 
-export type FramingStatus = "none" | "off_center" | "good";
+export type { FramingStatus };
+
+interface Options {
+  // The oval on the preview and the view it's measured in. With it, "good" means
+  // the face is really inside the oval; without it, anywhere in the wide zone
+  // (domain/faceFraming.ts).
+  guide?: GuideGeometry | null;
+}
 
 const SAMPLE_INTERVAL_MS = 200;
 
 // Turns face-landmarker frames into framing state for the recording UI, and
 // a presence timeline (on-device "video analysis") while a take records.
-export function useFaceDetection() {
+export function useFaceDetection({ guide = null }: Options = {}) {
   const [faceDetected, setFaceDetected] = useState(false);
   const [framingStatus, setFramingStatus] = useState<FramingStatus>("none");
+  const [guideHint, setGuideHint] = useState<string | null>(null);
+  const guideRef = useRef(guide);
+  guideRef.current = guide;
+  const framingRef = useRef<FramingStatus>("none");
   const lastSeenAtRef = useRef(0);
   // Sampled ~5x/second while a take is recording. Kept in a ref — no
   // re-render per sample.
@@ -65,7 +77,9 @@ export function useFaceDetection() {
       if (sampleDue) timeline.push({ tMs, present: false, yaw: 0, pitch: 0, smile: 0, eyesOpen: 0, framed: false, blinks: newBlinks() });
       if (now - lastSeenAtRef.current > 500) {
         setFaceDetected(false);
+        framingRef.current = "none";
         setFramingStatus("none");
+        setGuideHint(null);
       }
       return;
     }
@@ -74,11 +88,16 @@ export function useFaceDetection() {
     setFaceDetected(true);
     // Upright, as the preview shows it: the plugin reports the sideways buffer.
     const face = orientFace(output);
+    // The take's presence samples keep the wide zone; only what the oval
+    // tells you uses the stricter check.
     const wellFramed = isWellFramed(face.bounds);
-    setFramingStatus(wellFramed ? "good" : "off_center");
+    const read = guideRef.current ? readGuide(face, guideRef.current, framingRef.current) : null;
+    framingRef.current = read ? read.status : wellFramed ? "good" : "off_center";
+    setFramingStatus(framingRef.current);
+    setGuideHint(read?.hint ?? null);
     if (timeline) blinkRef.current = feedBlink(blinkRef.current, eyeClosure(face), now);
     if (sampleDue) timeline.push({ ...sampleFromFace(face, tMs, wellFramed, { invertGazeY: INVERT_GAZE_Y }), blinks: newBlinks() });
   }, []);
 
-  return { faceDetected, framingStatus, onFaceFrame, startTimeline, stopTimeline };
+  return { faceDetected, framingStatus, guideHint, onFaceFrame, startTimeline, stopTimeline };
 }

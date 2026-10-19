@@ -1,5 +1,6 @@
 import { CONTEXT_OPTIONS, EXPERIENCE_OPTIONS, OBSTACLE_OPTIONS } from "../content/onboarding";
 import { daysUntilEvent, type UserProfile } from "./profile";
+import type { UpcomingEvent } from "./events";
 
 // What a deep review is told about the speaker, from what they answered in
 // onboarding — so its feedback can speak to what they're actually working on
@@ -37,7 +38,7 @@ const TRAINING: Record<string, string> = {
   lots: "a lot",
 };
 
-export function buildSpeakerContext(profile: UserProfile | null, today: string): string {
+export function buildSpeakerContext(profile: UserProfile | null, today: string, event: UpcomingEvent | null = null): string {
   if (!profile) return "";
   const lines: string[] = [];
 
@@ -45,10 +46,10 @@ export function buildSpeakerContext(profile: UserProfile | null, today: string):
   if (profile.obstacles.length) {
     lines.push(`- What they say gets in their way: ${profile.obstacles.map((o) => labelOf(OBSTACLE_OPTIONS, o)).join("; ")}.`);
   }
-  const days = daysUntilEvent(profile, today);
-  if (profile.event && days != null) {
-    const note = profile.event.note ? clean(profile.event.note) : "";
-    lines.push(`- Coming up in about ${days} ${days === 1 ? "day" : "days"}: ${EVENT_NAMES[profile.event.kind] ?? "an event"}${note ? ` (“${note}”)` : ""}.`);
+  const days = daysUntilEvent(event, today);
+  if (event && days != null) {
+    const note = event.title ? clean(event.title) : "";
+    lines.push(`- Coming up in about ${days} ${days === 1 ? "day" : "days"}: ${EVENT_NAMES[event.kind] ?? "an event"}${note ? ` (“${note}”)` : ""}.`);
   }
   if (profile.experience) lines.push(`- Speaking training so far: ${TRAINING[profile.experience] ?? profile.experience}.`);
   if (profile.speakingComfort != null) lines.push(`- How comfortable they feel speaking in front of people: ${profile.speakingComfort} out of 5.`);

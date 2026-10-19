@@ -1,4 +1,5 @@
 import { Directory, File, Paths } from "expo-file-system";
+import { flagMediaFolder } from "./mediaBackup";
 
 const SESSIONS_DIR_NAME = "sessions";
 
@@ -6,6 +7,7 @@ function getSessionsDirectory(): Directory {
   const dir = new Directory(Paths.document, SESSIONS_DIR_NAME);
   if (!dir.exists) {
     dir.create({ intermediates: true, idempotent: true });
+    flagMediaFolder(dir);
   }
   return dir;
 }
@@ -73,21 +75,33 @@ export function deleteAllRecordings(): void {
   if (dir.exists) dir.delete();
 }
 
-// Temporary media the app leaves in the cache: the speech recognizer's WAV
-// takes, the camera's unsaved recordings, empty PCM scratch files, exported
-// database copies. The OS clears caches eventually; Reset app does it now.
-const TEMP_MEDIA = /^(recording_.*\.wav|mrousavy.*\.(mp4|mov)|temp_.*\.pcm|(tono|speech-coach)-.*\.db|asr-lab\.wav)$/;
+// Temporary files the app leaves in the cache: the speech recognizer's WAV
+// takes and PCM scratch files, the camera's unsaved recordings, the video
+// compressor's output, exported database copies and shared JSON. Saved
+// videos and Rewind audio never live here (they're moved to Documents), so
+// any of these is safe to delete once nothing is still writing it.
+const TEMP_MEDIA = /^(.*\.(wav|pcm|mp4|mov)|(tono|speech-coach)-.*\.(db|json))$/i;
 
-export function deleteTempMedia(): number {
+export function tempMediaBytes(): number {
+  let bytes = 0;
+  for (const entry of Paths.cache.list()) if (entry instanceof File && TEMP_MEDIA.test(entry.name)) bytes += entry.size ?? 0;
+  return bytes;
+}
+
+// Deletes those files when older than `minAgeMs`: a day on launch, so a take
+// still on screen is never touched; 0 for Reset and "Clear temporary files".
+export function deleteTempMedia(minAgeMs = 0): number {
+  const now = Date.now();
   let deleted = 0;
   for (const entry of Paths.cache.list()) {
-    if (entry instanceof File && TEMP_MEDIA.test(entry.name)) {
-      try {
-        entry.delete();
-        deleted++;
-      } catch {
-        // Still in use (a recording in progress) — leave it.
-      }
+    if (!(entry instanceof File) || !TEMP_MEDIA.test(entry.name)) continue;
+    const modified = entry.modificationTime ?? null;
+    if (minAgeMs > 0 && modified != null && now - modified < minAgeMs) continue;
+    try {
+      entry.delete();
+      deleted++;
+    } catch {
+      // Still in use (a recording in progress) — leave it.
     }
   }
   return deleted;

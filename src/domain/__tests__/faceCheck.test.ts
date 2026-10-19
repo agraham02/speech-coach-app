@@ -3,6 +3,7 @@ import { buildCalibration, calibratedThresholds, normalizeSample, normalizeTimel
 import {
   feedTries,
   newTryState,
+  OUT_MS,
   readFace,
   ReadoutSmoother,
   summarizeCenter,
@@ -163,11 +164,20 @@ describe("feedTries", () => {
     expect(brows.state.peaks.brows).toBeCloseTo(0.55);
   });
 
-  it("ticks stepping out of frame once the face is back", () => {
-    const gone = Array.from({ length: 10 }, (_, i) => ({ t: i * 100, r: null }));
-    expect(run(gone).ticked).toEqual([]);
-    const back = run([...gone, { t: 1000, r: reading(1000) }]);
-    expect(back.ticked).toEqual(["out"]);
+  it("ticks stepping out of frame as soon as the face has been gone long enough", () => {
+    const gone = (ms: number) => Array.from({ length: ms / 100 + 1 }, (_, i) => ({ t: i * 100, r: null }));
+    // Gone for less than the threshold: nothing yet.
+    expect(run(gone(OUT_MS - 100)).ticked).toEqual([]);
+    // Gone for the threshold: ticked, with the face still out of frame.
+    expect(run(gone(OUT_MS)).ticked).toEqual(["out"]);
+  });
+
+  it("ticks stepping out only once, and a flicker of lost face does not count", () => {
+    const gone = Array.from({ length: 12 }, (_, i) => ({ t: i * 100, r: null }));
+    const longGone = run([...gone, { t: 1200, r: reading(1200) }, { t: 1300, r: null }]);
+    expect(longGone.ticked).toEqual(["out"]);
+    const flicker = run([{ t: 0, r: null }, { t: 100, r: null }, { t: 200, r: reading(200) }, { t: 300, r: null }, { t: 400, r: null }, { t: 500, r: reading(500) }]);
+    expect(flicker.ticked).toEqual([]);
   });
 
   it("ignores a gaze reading while the eyes are shut", () => {

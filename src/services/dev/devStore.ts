@@ -22,6 +22,15 @@ export function setDevJson(key: string, value: unknown): void {
   }
 }
 
+// Everything here, gone (Reset app).
+export function clearDevStore(): void {
+  try {
+    storage.clearAll();
+  } catch {
+    // ignore
+  }
+}
+
 export function removeDevKey(key: string): void {
   try {
     storage.remove(key);

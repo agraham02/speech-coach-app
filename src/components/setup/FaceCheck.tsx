@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Platform, ScrollView, View, useWindowDimensions } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Platform, Pressable, ScrollView, View, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { Camera as VisionCamera } from "react-native-vision-camera";
 import { Card } from "../common/Card";
@@ -10,6 +10,7 @@ import { CameraPreview } from "../recording/CameraPreview";
 import { FramingGuideOverlay } from "../recording/FramingGuideOverlay";
 import { useFaceReadout } from "../../hooks/useFaceReadout";
 import { buildCalibration } from "../../domain/faceCalibration";
+import { guideOval, type Size } from "../../domain/faceGuide";
 import {
   EYES_LABEL,
   FACE_LABEL,
@@ -21,6 +22,7 @@ import {
   summarizeCenter,
   type FaceCenter,
   type FaceReading,
+  type TryId,
   type TryState,
 } from "../../domain/faceReadout";
 import { setFaceCalibration } from "../../services/prefs/prefsStore";
@@ -33,6 +35,14 @@ type Phase = "frame" | "center" | "try";
 // About two seconds of a well-placed face before moving on.
 const GOOD_TICKS = 4;
 const CENTER_MS = 2500;
+// How long "Got it" stays on screen before the next thing to try.
+const FLASH_MS = 900;
+
+// A line under a thing to try, where the label alone could be misread.
+const TRY_HINT: Partial<Record<TryId, string>> = {
+  left: "Left and right are yours, as you face the phone.",
+  right: "Left and right are yours, as you face the phone.",
+};
 
 interface FaceCheckProps {
   // Called when the person finishes or skips. `saved` is true when a
@@ -43,8 +53,9 @@ interface FaceCheckProps {
 // The face half of setup: find your frame, look at the lens so Tono learns
 // where "eye contact" is for you, then try things and watch Tono see them.
 // No landmark overlay: the point is the words (eyes on the screen, off to
-// your left, chin up, smiling…). What it learns calibrates the presence
-// scoring (domain/faceCalibration.ts).
+// your left, chin up, smiling…). The things to try come one at a time, on the
+// preview itself, so the camera never has to scroll out of view. What it
+// learns calibrates the presence scoring (domain/faceCalibration.ts).
 export function FaceCheck({ onDone }: FaceCheckProps) {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -56,6 +67,11 @@ export function FaceCheck({ onDone }: FaceCheckProps) {
   const [centerFailed, setCenterFailed] = useState(false);
   const [center, setCenter] = useState<FaceCenter>(ZERO_CENTER);
   const [tries, setTries] = useState<TryState>(newTryState);
+  const [skipped, setSkipped] = useState<TryId[]>([]);
+  const [flash, setFlash] = useState<string | null>(null);
+  // The oval is drawn on, and the face judged against, the real size of the preview.
+  const [view, setView] = useState<Size | null>(null);
+  const guide = useMemo(() => (view ? { view, oval: guideOval(view) } : null), [view]);
 
   const phaseRef = useRef<Phase>("frame");
   phaseRef.current = phase;
@@ -71,11 +87,12 @@ export function FaceCheck({ onDone }: FaceCheckProps) {
       triesRef.current = out.state;
       if (out.newlyDone.length) {
         setTries(out.state);
+        setFlash(TRIES.find((t) => t.id === out.newlyDone[0])?.label ?? null);
         tap();
       }
     }
   }, []);
-  const { readout, framingStatus, onFaceFrame } = useFaceReadout({ onReading, center });
+  const { readout, framingStatus, guideHint, onFaceFrame } = useFaceReadout({ onReading, center, guide });
   const framingRef = useRef(framingStatus);
   framingRef.current = framingStatus;
 
@@ -118,6 +135,19 @@ export function FaceCheck({ onDone }: FaceCheckProps) {
     if (allDone) success();
   }, [allDone]);
 
+  useEffect(() => {
+    if (!flash) return;
+    const t = setTimeout(() => setFlash(null), FLASH_MS);
+    return () => clearTimeout(t);
+  }, [flash]);
+
+  // One at a time, in order. Anything done out of turn is ticked and passed
+  // over; a skipped one goes to the back of the line.
+  const pending = TRIES.filter((t) => !tries.done.includes(t.id));
+  const ordered = [...pending.filter((t) => !skipped.includes(t.id)), ...skipped.map((id) => pending.find((t) => t.id === id)).filter((t): t is (typeof TRIES)[number] => !!t)];
+  const current = ordered[0] ?? null;
+  const canSkip = pending.length > 1;
+
   function retryCenter() {
     captureRef.current = [];
     setCenterFailed(false);
@@ -139,9 +169,15 @@ export function FaceCheck({ onDone }: FaceCheckProps) {
 
   return (
     <View style={styles.root}>
-      <View style={[styles.cameraWrap, trying ? { height: Math.min(230, height * 0.28) } : styles.cameraFill]}>
+      <View
+        style={[styles.cameraWrap, trying ? { height: Math.min(340, height * 0.4) } : styles.cameraFill]}
+        onLayout={(e) => {
+          const { width, height: h } = e.nativeEvent.layout;
+          setView((v) => (v && v.width === width && v.height === h ? v : { width, height: h }));
+        }}
+      >
         <CameraPreview cameraRef={cameraRef} isActive onFaceFrame={onFaceFrame} audio={false} />
-        {phase === "frame" ? <FramingGuideOverlay status={framingStatus} /> : null}
+        {phase === "frame" ? <FramingGuideOverlay status={framingStatus} oval={guide?.oval ?? null} hint={guideHint} /> : null}
         {phase === "center" ? (
           <View style={styles.centerOverlay} pointerEvents="none">
             {centerFailed ? null : (
@@ -150,6 +186,45 @@ export function FaceCheck({ onDone }: FaceCheckProps) {
               </CountdownRing>
             )}
           </View>
+        ) : null}
+        {trying ? (
+          <>
+            <View style={styles.progress} accessibilityLabel={`${tries.done.length} of ${TRIES.length} tried`} pointerEvents="none">
+              {TRIES.map((t) => (
+                <View key={t.id} style={[styles.progressDot, tries.done.includes(t.id) ? { backgroundColor: colors.success } : null, t.id === current?.id && !flash ? styles.progressCurrent : null]} />
+              ))}
+            </View>
+            <View style={styles.prompt}>
+              {allDone || flash ? (
+                <View style={styles.promptRow}>
+                  <Ionicons name="checkmark-circle" size={22} color={colors.success} />
+                  <Txt variant="title3" color="white">
+                    {allDone ? `All ${TRIES.length} done` : flash}
+                  </Txt>
+                </View>
+              ) : current ? (
+                <>
+                  <View style={styles.promptText}>
+                    <Txt variant="title3" color="white">
+                      {current.label}
+                    </Txt>
+                    {TRY_HINT[current.id] ? (
+                      <Txt variant="footnote" color="white" style={styles.promptHint}>
+                        {TRY_HINT[current.id]}
+                      </Txt>
+                    ) : null}
+                  </View>
+                  {canSkip ? (
+                    <Pressable onPress={() => setSkipped((s) => [...s.filter((id) => id !== current.id), current.id])} hitSlop={10} style={styles.skip} accessibilityRole="button" accessibilityLabel={`Skip ${current.label}`}>
+                      <Txt variant="footnote" color="white" weight="600">
+                        Skip
+                      </Txt>
+                    </Pressable>
+                  ) : null}
+                </>
+              ) : null}
+            </View>
+          </>
         ) : null}
         {!trying ? (
           <View style={styles.note}>
@@ -181,25 +256,6 @@ export function FaceCheck({ onDone }: FaceCheckProps) {
             <Row label="Smile" value={faceHere ? (readout.smiling ? "Smiling" : "Neutral") : "—"} on={readout.smiling} />
             <Row label="Brows" value={faceHere ? (readout.brows ? "Raised" : "Relaxed") : "—"} on={readout.brows} />
           </Card>
-
-          <View style={styles.tries}>
-            <Txt variant="footnote" tone="secondary">
-              Try each one and watch it tick off. Left and right are yours, as you face the phone.
-            </Txt>
-            <View style={styles.chips}>
-              {TRIES.map((t) => {
-                const done = tries.done.includes(t.id);
-                return (
-                  <View key={t.id} style={[styles.chip, done ? { backgroundColor: colors.successMuted } : null]}>
-                    <Ionicons name={done ? "checkmark-circle" : "ellipse-outline"} size={16} color={done ? colors.success : colors.textMuted} />
-                    <Txt variant="footnote" tone={done ? "primary" : "secondary"} weight={done ? "600" : "400"}>
-                      {t.label}
-                    </Txt>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
         </ScrollView>
       ) : null}
 
@@ -247,9 +303,14 @@ const useStyles = makeStyles((t) => ({
   readRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", minHeight: 30 },
   readValue: { flexDirection: "row", alignItems: "center", gap: t.space.sm },
   dot: { width: 8, height: 8, borderRadius: 4 },
-  tries: { gap: t.space.sm },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: t.space.sm },
-  chip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: t.space.md, paddingVertical: 8, borderRadius: t.radius.pill, backgroundColor: t.colors.surfaceRaised },
+  prompt: { position: "absolute", left: t.space.sm, right: t.space.sm, bottom: t.space.sm, minHeight: 52, paddingVertical: t.space.sm, paddingHorizontal: t.space.md, borderRadius: t.radius.md, backgroundColor: "rgba(0,0,0,0.6)", flexDirection: "row", alignItems: "center", gap: t.space.md },
+  promptRow: { flexDirection: "row", alignItems: "center", gap: t.space.sm },
+  promptText: { flex: 1 },
+  promptHint: { opacity: 0.8 },
+  progress: { position: "absolute", top: t.space.sm, alignSelf: "center", flexDirection: "row", gap: 6, paddingHorizontal: 10, paddingVertical: 7, borderRadius: t.radius.pill, backgroundColor: "rgba(0,0,0,0.45)" },
+  progressDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.3)" },
+  progressCurrent: { backgroundColor: "white" },
+  skip: { minHeight: 36, minWidth: 44, justifyContent: "center", alignItems: "center", paddingHorizontal: t.space.sm, borderRadius: t.radius.pill, backgroundColor: "rgba(255,255,255,0.16)" },
   row: { flexDirection: "row", gap: t.space.sm },
   flex: { flex: 1 },
 }));

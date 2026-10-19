@@ -1,6 +1,10 @@
 import { getStepsWithStatus, setStepStatus } from "../db/stepsRepo";
 import { getReferencedVideoFiles, getSessionById } from "../db/sessionsRepo";
-import { deleteRecording, listSessionFiles } from "../storage/videoStorage";
+import { deleteRecording, deleteTempMedia, listSessionFiles } from "../storage/videoStorage";
+import { getReferencedRewindFiles } from "../db/rewindRepo";
+import { deleteRewindAudio, listRewindFiles } from "../rewind/rewindStorage";
+import { applyMediaBackup } from "../storage/mediaBackup";
+import { purgeDeletedData } from "../data/dataPurge";
 import { refreshSessionStatus } from "./stepRunner";
 import { runPendingSteps } from "./sessionPipeline";
 import { backfillSessionScores } from "../sessions/sessionScoreService";
@@ -15,6 +19,8 @@ const MAX_AUTO_ATTEMPTS = 3;
 // Previews younger than this may belong to a take still on the Preview
 // screen, so they're never treated as orphans.
 const ORPHAN_MIN_AGE_MS = 60 * 60 * 1000;
+// Temporary files in the cache older than this are no longer in use.
+const TEMP_MIN_AGE_MS = 24 * 60 * 60 * 1000;
 
 let reconciled = false;
 
@@ -51,6 +57,11 @@ export async function reconcileOnLaunch(): Promise<void> {
     if (stale.length) logger.info(`[reconcile] marked ${stale.length} interrupted step(s)`);
 
     await cleanUpOrphanedVideos();
+    await cleanUpOrphanedRewindAudio();
+    const temp = deleteTempMedia(TEMP_MIN_AGE_MS);
+    if (temp) logger.info(`[reconcile] removed ${temp} temporary file(s) from the cache`);
+    applyMediaBackup();
+    await purgeDeletedData();
     await repairStoredGazeY();
     await backfillSessionScores();
   } catch (error) {
@@ -72,4 +83,19 @@ async function cleanUpOrphanedVideos(): Promise<void> {
     removed += 1;
   }
   if (removed) logger.info(`[reconcile] removed ${removed} orphaned video file(s)`);
+}
+
+// The same for Rewind audio: takes deleted or never saved.
+async function cleanUpOrphanedRewindAudio(): Promise<void> {
+  const referenced = await getReferencedRewindFiles();
+  const now = Date.now();
+  let removed = 0;
+  for (const file of listRewindFiles()) {
+    if (referenced.has(file.name)) continue;
+    const ageMs = file.modifiedMs != null ? now - file.modifiedMs : Infinity;
+    if (ageMs < ORPHAN_MIN_AGE_MS) continue;
+    deleteRewindAudio(file.name);
+    removed += 1;
+  }
+  if (removed) logger.info(`[reconcile] removed ${removed} orphaned Rewind recording(s)`);
 }

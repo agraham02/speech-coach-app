@@ -141,9 +141,22 @@ export async function listRewindAudioBefore(cutoffIso: string): Promise<{ id: st
   return rows.map((r) => ({ id: r.id, audioFile: r.audio_file }));
 }
 
+// Everything a take holds of what you said.
+const CONTENT_COLUMNS = ["transcript", "stats_json", "review_json"];
+
+// What you said goes as soon as you delete it: the transcript, the review
+// and the counts are cleared now, and the row itself is purged later
+// (dataPurge.ts). The audio file is deleted by the caller.
 export async function deleteRewind(id: string): Promise<void> {
   const db = await getDatabase();
-  await db.runAsync(`UPDATE day_recalls SET deleted_at = ? WHERE id = ?`, [new Date().toISOString(), id]);
+  await db.runAsync(`UPDATE day_recalls SET deleted_at = ?, ${CONTENT_COLUMNS.map((c) => `${c} = NULL`).join(", ")} WHERE id = ?`, [new Date().toISOString(), id]);
+}
+
+// The audio files live Rewinds still point at (for the orphan sweep).
+export async function getReferencedRewindFiles(): Promise<Set<string>> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{ audio_file: string }>(`SELECT audio_file FROM day_recalls WHERE audio_file IS NOT NULL AND deleted_at IS NULL`);
+  return new Set(rows.map((r) => r.audio_file));
 }
 
 // The local days a Rewind was told, for the streak. (A take that failed to

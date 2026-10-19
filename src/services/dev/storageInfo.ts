@@ -1,8 +1,9 @@
 import { Directory, File, Paths } from "expo-file-system";
 import { getVideoStorageBytes } from "../data/dataExport";
-import { WHISPER_MODELS, downloadedModelBytes } from "../asr/whisperModels";
+import { tempMediaBytes } from "../storage/videoStorage";
 
 export interface StorageLine {
+  key: "videos" | "rewinds" | "models" | "data" | "temp";
   label: string;
   bytes: number;
 }
@@ -26,14 +27,16 @@ function directoryBytes(name: string): number {
   }
 }
 
-// Where the app space goes, biggest first.
+// Where the app's space goes, biggest first (Settings → Storage, Dev tab).
+// The models folder counts a paused download's partial file too.
 export function storageBreakdown(): StorageLine[] {
-  const database = fileBytes("SQLite", "speech_coach.db") + fileBytes("SQLite", "speech_coach.db-wal");
-  const models = WHISPER_MODELS.reduce((sum, m) => sum + downloadedModelBytes(m.id), 0);
-  return [
-    { label: "Videos", bytes: getVideoStorageBytes() },
-    { label: "Rewind audio", bytes: directoryBytes("rewinds") },
-    { label: "Whisper models", bytes: models },
-    { label: "Database", bytes: database },
-  ].sort((a, b) => b.bytes - a.bytes);
+  const database = ["speech_coach.db", "speech_coach.db-wal", "speech_coach.db-shm"].reduce((sum, name) => sum + fileBytes("SQLite", name), 0);
+  const lines: StorageLine[] = [
+    { key: "videos", label: "Videos", bytes: getVideoStorageBytes() },
+    { key: "rewinds", label: "Rewind recordings", bytes: directoryBytes("rewinds") },
+    { key: "models", label: "Transcription model", bytes: directoryBytes("models") },
+    { key: "data", label: "Practice data", bytes: database },
+    { key: "temp", label: "Temporary files", bytes: tempMediaBytes() },
+  ];
+  return lines.sort((a, b) => b.bytes - a.bytes);
 }

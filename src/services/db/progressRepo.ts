@@ -6,7 +6,7 @@ import { generateId } from "../../utils/generateId";
 import { isoDateFromDate, todayISODate } from "../../utils/dateUtils";
 import { buildTopUpPlan } from "../../domain/dailyGoal";
 import { priorityFor } from "../../domain/profile";
-import { getReminderSettings, getUserProfile } from "../prefs/prefsStore";
+import { getNextEvent, getReminderSettings, getUserProfile } from "../prefs/prefsStore";
 import { computeStreakState, type StreakState } from "../../domain/streaks";
 import type { SkillId } from "../../theme/tokens";
 import { DRILL_SKILL, DRILL_TITLES, type DrillOutcome, type DrillType } from "../../domain/drills/drillSpecs";
@@ -405,7 +405,7 @@ export async function getTodaysPlan(minutes: PlanMinutes, regenerate = false): P
     >,
     recentFocus: recent.map((r) => (JSON.parse(r.plan_json) as DailyPlan).focusSkill),
     lessons: Object.fromEntries(Object.entries(lessons).map(([id, l]) => [id, { done: l.done, nextReviewAt: l.nextReviewAt }])),
-    priority: priorityFor(getUserProfile(), date),
+    priority: priorityFor(getUserProfile(), date, getNextEvent()),
   });
   await db.runAsync(
     `INSERT OR REPLACE INTO daily_plans (date, plan_json, completed_steps_json, completed_at) VALUES (?, ?, '[]', NULL)`,

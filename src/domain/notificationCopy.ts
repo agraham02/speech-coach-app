@@ -125,6 +125,18 @@ export function rewindReminderText(name: string | null | undefined, when: Date):
   return { title: who ? `Evening, ${who}` : "Tono", body: pick(pool, when) };
 }
 
+// The morning of an event, until the before check-in is done.
+export function eventDayOfText(name: string | null | undefined, kind: EventKind): NotificationText {
+  const who = firstName(name);
+  return { title: who ? `Today's the day, ${who}` : "Today's the day", body: `Your ${EVENT_NOUN[kind]} is today. A minute to check in before it?` };
+}
+
+// The day after, until the after check-in is done.
+export function eventAfterText(name: string | null | undefined, kind: EventKind): NotificationText {
+  const who = firstName(name);
+  return { title: who ? `${who}, how did it go?` : "How did it go?", body: `Your ${EVENT_NOUN[kind]} was yesterday. Two minutes to say how it actually felt.` };
+}
+
 // A finished review or analysis, when the app was in the background.
 export function sessionReadyText(name: string | null | undefined, overall: number | null): NotificationText {
   const who = firstName(name);

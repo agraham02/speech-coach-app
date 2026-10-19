@@ -3,7 +3,9 @@ import { ScrollView, useWindowDimensions, View, type NativeScrollEvent, type Nat
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, {
+  Easing,
   FadeIn,
+  type SharedValue,
   FadeInDown,
   useAnimatedProps,
   useAnimatedStyle,
@@ -12,7 +14,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import Svg, { Circle, Path } from "react-native-svg";
+import Svg, { Circle, Rect } from "react-native-svg";
 import { Aura } from "../common/Aura";
 import { PrimaryButton } from "../common/PrimaryButton";
 import { PressableScale } from "../common/PressableScale";
@@ -172,39 +174,58 @@ function Dot({ active }: { active: boolean }) {
 
 // --- The pictures ------------------------------------------------------------
 
-const AnimatedPath = Animated.createAnimatedComponent(Path);
+const AnimatedRect = Animated.createAnimatedComponent(Rect);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-// Longer than the curve, so a dash this long covers all of it.
-const CURVE_LENGTH = 720;
 
-// The Tono mark: a phrase that rises, falls and lands — then the full stop.
+// The Tono mark, the same geometry as assets/brand/render.py: a waveform of
+// a phrase that rises, falls and lands, and the red stop as its last beat,
+// all on one baseline.
+const BASELINE = 631;
+const BAR_WIDTH = 52;
+const BAR_STEP = 78;
+const BAR_HEIGHTS = [96, 184, 262, 196, 150, 170, 124];
+const FIRST_BAR_X = 200;
+const STOP_RADIUS = 39;
+const STOP_CX = FIRST_BAR_X + BAR_HEIGHTS.length * BAR_STEP + STOP_RADIUS;
+// The bars rise one beat apart; the stop lands on the next beat.
+const BEAT_MS = 70;
+const FIRST_BEAT_MS = 150;
+const RISE_MS = 420;
+const TOTAL_MS = FIRST_BEAT_MS + BAR_HEIGHTS.length * BEAT_MS + RISE_MS;
+
 function BrandMark({ play }: { play: boolean }) {
   const { colors } = useTheme();
-  const drawn = useSharedValue(0);
+  const clock = useSharedValue(0);
   const dot = useSharedValue(0);
   useEffect(() => {
     if (!play) return;
-    drawn.value = 0;
+    clock.value = 0;
     dot.value = 0;
-    drawn.value = withDelay(150, withTiming(1, { duration: 1100, easing: easeOut }));
-    dot.value = withDelay(1150, withSpring(1, { damping: 9, stiffness: 220, mass: 0.7 }));
-  }, [play, drawn, dot]);
-  const curve = useAnimatedProps(() => ({ strokeDashoffset: CURVE_LENGTH * (1 - drawn.value) }));
-  const stop = useAnimatedProps(() => ({ r: 50 * dot.value }));
+    clock.value = withTiming(TOTAL_MS, { duration: TOTAL_MS, easing: Easing.linear });
+    dot.value = withDelay(FIRST_BEAT_MS + BAR_HEIGHTS.length * BEAT_MS, withSpring(1, { damping: 9, stiffness: 220, mass: 0.7 }));
+  }, [play, clock, dot]);
+  const stop = useAnimatedProps(() => ({ r: STOP_RADIUS * dot.value }));
   return (
-    <Svg width={220} height={86} viewBox="172 369 680 262" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <AnimatedPath
-        d="M214 581 C 270 581, 300 411, 390 411 C 500 411, 540 581, 654 581"
-        fill="none"
-        stroke={colors.textPrimary}
-        strokeWidth={84}
-        strokeLinecap="round"
-        strokeDasharray={[CURVE_LENGTH, CURVE_LENGTH]}
-        animatedProps={curve}
-      />
-      <AnimatedCircle cx={802} cy={581} fill={colors.record} animatedProps={stop} />
+    // The mark's box (200 369 624 262) with room around it for the overshoot.
+    <Svg width={210} height={100} viewBox="180 336 664 316" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      {BAR_HEIGHTS.map((h, i) => (
+        <BeatBar key={i} index={i} height={h} clock={clock} color={colors.textPrimary} />
+      ))}
+      <AnimatedCircle cx={STOP_CX} cy={BASELINE - STOP_RADIUS} fill={colors.record} animatedProps={stop} />
     </Svg>
   );
+}
+
+// One bar, rising from the baseline with a small overshoot on its beat.
+function BeatBar({ index, height, clock, color }: { index: number; height: number; clock: SharedValue<number>; color: string }) {
+  const props = useAnimatedProps(() => {
+    const x = Math.min(1, Math.max(0, (clock.value - FIRST_BEAT_MS - index * BEAT_MS) / RISE_MS)) - 1;
+    // easeOutBack
+    const rise = 1 + 2.2 * x * x * x + 1.2 * x * x;
+    const h = Math.max(0, height * rise);
+    return { y: BASELINE - h, height: h };
+  });
+  return <AnimatedRect x={FIRST_BAR_X + index * BAR_STEP} width={BAR_WIDTH} rx={BAR_WIDTH / 2} fill={color} animatedProps={props} />;
 }
 
 const PLAN = [

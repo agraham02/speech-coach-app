@@ -67,7 +67,7 @@ export const QUESTIONS: Question[] = [
     title: "Is anything coming up?",
     subtitle: "An interview, a talk, a toast — something with a date.",
     optional: true,
-    changes: "Your plan builds toward it, prompts shift toward it in the last two weeks, and Today counts down.",
+    changes: "Your plan builds toward it, prompts shift toward it in the last two weeks, and Today counts down. You can add more events later.",
   },
   {
     id: "comfort",
@@ -188,6 +188,7 @@ export const EVENT_OPTIONS: Option<EventKind>[] = [
 ];
 
 export const EVENT_WHEN: { label: string; days: number }[] = [
+  { label: "Tomorrow", days: 1 },
   { label: "This week", days: 5 },
   { label: "In 2 weeks", days: 14 },
   { label: "In a month", days: 30 },

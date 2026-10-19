@@ -19,6 +19,11 @@ import { SummaryRunnerScreen } from "../screens/SummaryRunnerScreen";
 import { FaceCheckScreen } from "../screens/FaceCheckScreen";
 import { PrimeScreen } from "../screens/PrimeScreen";
 import { DebriefScreen } from "../screens/DebriefScreen";
+import { EventsScreen } from "../screens/EventsScreen";
+import { EventEditScreen } from "../screens/EventEditScreen";
+import { EventCheckInScreen } from "../screens/EventCheckInScreen";
+import { syncEvents } from "../services/db/eventsRepo";
+import { syncBuiltInTopics } from "../services/db/promptsRepo";
 import { ConversationLogScreen } from "../screens/ConversationLogScreen";
 import { AsrLabScreen } from "../screens/dev/AsrLabScreen";
 import { LogsScreen } from "../screens/dev/LogsScreen";
@@ -141,6 +146,9 @@ export type RootStackParamList = {
   FaceCheck: undefined;
   Prime: undefined;
   Debrief: { eventId?: string } | undefined;
+  Events: undefined;
+  EventEdit: { eventId?: string } | undefined;
+  EventCheckIn: { eventId: string; phase: "before" | "after" };
   ConversationLog: undefined;
   Lesson: { lessonId: string };
   // slot 1-2: a daily-goal top-up instead of the main plan.
@@ -332,6 +340,8 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
         navigationRef.navigate("Result", { sessionId: data.sessionId });
       } else if (data?.route === "Rewind" && navigationRef.isReady()) {
         navigationRef.navigate("Rewind");
+      } else if (data?.route === "EventCheckIn" && typeof data.eventId === "string" && navigationRef.isReady()) {
+        navigationRef.navigate("EventCheckIn", { eventId: data.eventId, phase: data.phase === "before" ? "before" : "after" });
       }
     });
     return () => subscription.remove();
@@ -344,6 +354,7 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
   // abandoned video files (see pipeline/reconcile.ts).
   useEffect(() => {
     removeObsoletePrefs();
+    syncBuiltInTopics().catch((err) => logger.error(`[prompts] topic sync failed — ${(err as Error).message}`));
     deleteRemovedSecrets().catch(() => undefined);
     reconcileOnLaunch();
     autoCleanupVideos().catch((err) => logger.error(`[videos] auto-cleanup failed — ${(err as Error).message}`));
@@ -351,18 +362,26 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
   }, []);
 
   useEffect(() => {
-    syncDailyReminder().catch((err) => logger.error(`[reminders] launch resync failed — ${(err as Error).message}`));
+    // Events first: the daily reminder's copy reads the next event they mirror.
+    syncEvents()
+      .catch((err) => logger.error(`[events] launch resync failed — ${(err as Error).message}`))
+      .then(() => syncDailyReminder())
+      .catch((err) => logger.error(`[reminders] launch resync failed — ${(err as Error).message}`));
     syncRewindReminder().catch((err) => logger.error(`[rewind] launch resync failed — ${(err as Error).message}`));
   }, []);
 
-  // If tapping the evening nudge is what launched the app, the listener above
-  // wasn't there yet: open Rewind once the navigator is ready.
+  // If tapping a nudge (Rewind, an event check-in) is what launched the app,
+  // the listener above wasn't there yet: open it once the navigator is ready.
   function openFromLaunchNotification() {
     onReady?.();
     const last = Notifications.getLastNotificationResponse();
-    if (last?.notification.request.content.data?.route === "Rewind") {
+    const data = last?.notification.request.content.data;
+    if (data?.route === "Rewind") {
       Notifications.clearLastNotificationResponse();
       navigationRef.navigate("Rewind");
+    } else if (data?.route === "EventCheckIn" && typeof data.eventId === "string") {
+      Notifications.clearLastNotificationResponse();
+      navigationRef.navigate("EventCheckIn", { eventId: data.eventId, phase: data.phase === "before" ? "before" : "after" });
     }
   }
 
@@ -408,6 +427,9 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
         <Stack.Screen name="FaceCheck" component={FaceCheckScreen} />
         <Stack.Screen name="Prime" component={PrimeScreen} options={{ presentation: "modal" }} />
         <Stack.Screen name="Debrief" component={DebriefScreen} options={{ presentation: "modal" }} />
+        <Stack.Screen name="Events" component={EventsScreen} />
+        <Stack.Screen name="EventEdit" component={EventEditScreen} options={{ presentation: "modal" }} />
+        <Stack.Screen name="EventCheckIn" component={EventCheckInScreen} options={{ presentation: "modal" }} />
         <Stack.Screen name="ConversationLog" component={ConversationLogScreen} />
         <Stack.Screen name="Lesson" component={LessonScreen} />
         <Stack.Screen name="DailySession" component={DailySessionScreen} />

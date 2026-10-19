@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { StyleSheet, View, type LayoutChangeEvent } from "react-native";
-import Svg, { Path } from "react-native-svg";
-import Animated, { Easing, ReduceMotion, useAnimatedProps, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import { BAR_COUNT, barForVolume, emptyBars, pushBar, smoothBar } from "../../domain/rewind/waveform";
-
-const AnimatedPath = Animated.createAnimatedComponent(Path);
+import { Canvas, LinearGradient, Path, Skia, vec } from "@shopify/react-native-skia";
+import { useDerivedValue, useFrameCallback, useSharedValue } from "react-native-reanimated";
+import { BAR_COUNT, MIN_BAR, RING, STALE_MS, barForVolume, barX, newWave, stepWave, type WaveState } from "../../domain/rewind/waveform";
+import { withAlpha } from "../../utils/color";
 
 interface WaveformProps {
   height: number;
@@ -13,62 +12,78 @@ interface WaveformProps {
   // (LiveSpeechSession.onVolume). Not listening while `live` is false.
   subscribe: (listener: (value: number) => void) => () => void;
   live: boolean;
-  // Roughly how often readings arrive, so each new bar slides in over that long.
-  sampleMs?: number;
 }
 
-// A big live waveform for a take: mirrored bars that scroll to the left as you
-// speak, loud at the right edge. It runs off the UI thread — readings go into
-// a shared array and the path is built there — so drawing twenty bars a
-// second never touches React.
-export function Waveform({ height, color, subscribe, live, sampleMs = 50 }: WaveformProps) {
+// A big live waveform for a take: mirrored bars that scroll left at a steady
+// speed as you speak, loud at the right edge, fading out on the left.
+//
+// It draws every display frame from its own clock (domain/rewind/waveform.ts),
+// not when a volume reading arrives. An iPhone delivers readings about every
+// 100 ms and unevenly; tying the motion to them made it move, stop, and move.
+// Readings only set the level to aim for. The bars are one Skia path built on
+// the UI thread, so nothing here touches React or the JS thread.
+function WaveformView({ height, color, subscribe, live }: WaveformProps) {
   const [width, setWidth] = useState(0);
-  const bars = useSharedValue<number[]>(emptyBars());
-  const slide = useSharedValue(0);
-  const last = useRef(0);
-  const window = useRef<number[]>(emptyBars());
+  const target = useSharedValue(MIN_BAR);
+  const lastReadingAt = useSharedValue(0);
+  const wave = useSharedValue<WaveState>(newWave());
   const step = width / BAR_COUNT;
 
   useEffect(() => {
-    if (!live || step <= 0) return;
+    if (!live) return;
     return subscribe((value) => {
-      last.current = smoothBar(last.current, barForVolume(value));
-      window.current = pushBar(window.current, last.current);
-      bars.value = window.current;
-      // The row starts one step to the right and glides into place, so it
-      // scrolls smoothly instead of jumping a bar at a time.
-      slide.value = step;
-      slide.value = withTiming(0, { duration: sampleMs, easing: Easing.linear, reduceMotion: ReduceMotion.Never });
+      target.value = barForVolume(value);
+      lastReadingAt.value = Date.now();
     });
-  }, [live, subscribe, step, sampleMs, bars, slide]);
+  }, [live, subscribe, target, lastReadingAt]);
 
-  const animatedProps = useAnimatedProps(() => {
+  const frame = useFrameCallback((info) => {
+    "worklet";
+    // A long gap (the app was away) must not replay as a burst of bars.
+    const dt = Math.min(info.timeSincePreviousFrame ?? 16, 100);
+    const aim = Date.now() - lastReadingAt.value > STALE_MS ? MIN_BAR : target.value;
+    wave.modify((w) => {
+      "worklet";
+      stepWave(w, aim, dt);
+      return w;
+    });
+  }, false);
+
+  useEffect(() => {
+    frame.setActive(live);
+  }, [frame, live]);
+
+  const path = useDerivedValue(() => {
+    const p = Skia.Path.Make();
+    if (step <= 0) return p;
+    const w = wave.value;
     const cy = height / 2;
     const max = height * 0.92;
-    const s = step;
-    let d = "";
-    for (let i = 0; i < bars.value.length; i++) {
-      const x = i * s + s / 2;
-      const half = (bars.value[i] * max) / 2;
-      d += `M${x.toFixed(1)} ${(cy - half).toFixed(1)}L${x.toFixed(1)} ${(cy + half).toFixed(1)}`;
+    for (let age = 0; age < RING; age++) {
+      const x = barX(age, w.phase, width, step);
+      if (x < -step || x > width + step) continue;
+      const half = (w.bars[(w.head - age + RING) % RING] * max) / 2;
+      p.moveTo(x, cy - half);
+      p.lineTo(x, cy + half);
     }
-    return { d };
-  });
-
-  const glide = useAnimatedStyle(() => ({ transform: [{ translateX: slide.value }] }));
+    return p;
+  }, [width, height, step]);
 
   return (
-    <View style={[styles.wrap, { height }]} onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}>
+    <View style={[styles.wrap, { height }]} onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)} pointerEvents="none">
       {width > 0 ? (
-        <Animated.View style={[StyleSheet.absoluteFill, glide]}>
-          <Svg width={width} height={height}>
-            <AnimatedPath animatedProps={animatedProps} stroke={color} strokeWidth={Math.max(2, step * 0.5)} strokeLinecap="round" fill="none" />
-          </Svg>
-        </Animated.View>
+        <Canvas style={{ width, height }}>
+          <Path path={path} style="stroke" strokeWidth={Math.max(2, step * 0.5)} strokeCap="round">
+            {/* Older sound fades out toward the left edge. */}
+            <LinearGradient start={vec(0, 0)} end={vec(width, 0)} colors={[withAlpha(color, 0), color, color]} positions={[0, 0.3, 1]} />
+          </Path>
+        </Canvas>
       ) : null}
     </View>
   );
 }
+
+export const Waveform = memo(WaveformView);
 
 const styles = StyleSheet.create({
   wrap: { width: "100%", overflow: "hidden" },
