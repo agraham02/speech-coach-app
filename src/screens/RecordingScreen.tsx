@@ -12,6 +12,7 @@ import { CameraPreview } from "../components/recording/CameraPreview";
 import { FramingGuideOverlay } from "../components/recording/FramingGuideOverlay";
 import { PrepOverlay } from "../components/recording/PrepOverlay";
 import { PromptBanner } from "../components/recording/PromptBanner";
+import { taskLabel, taskOf } from "../domain/promptTask";
 import { RecordBlindOverlay } from "../components/recording/RecordBlindOverlay";
 import { RecordBlindToggle } from "../components/recording/RecordBlindToggle";
 import { RecordButton } from "../components/recording/RecordButton";
@@ -314,7 +315,7 @@ export function RecordingScreen({ route, navigation }: Props) {
             <Ionicons name="close" size={22} color={colors.textPrimary} />
           </Pressable>
           <View style={styles.promptBannerSlot}>
-            <PromptBanner text={subject.prompt.text} />
+            <PromptBanner text={subject.prompt.text} task={taskLabel(taskOf(subject.prompt))} />
           </View>
         </View>
       )}

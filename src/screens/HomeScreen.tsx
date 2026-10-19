@@ -51,6 +51,7 @@ import {
 } from "../services/prefs/prefsStore";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
 import type { Prompt } from "../domain/sessionTypes";
+import { taskLabel, taskOf } from "../domain/promptTask";
 import { fontDisplay, radii, spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
@@ -195,7 +196,7 @@ export function HomeScreen() {
   function rerollPrompt() {
     setPrompt((current) => {
       const excludeIds = current ? [...recentPromptIds, current.id] : recentPromptIds;
-      return pickRandomPrompt(allPrompts, excludeIds);
+      return pickRandomPrompt(allPrompts, excludeIds, current?.category);
     });
   }
 
@@ -308,7 +309,10 @@ export function HomeScreen() {
           accentSecondary={colors.violet}
         >
           <View style={styles.promptCardHeader}>
-            <Badge label={prompt.category} {...colorForCategory(prompt.category, colors)} />
+            <View style={styles.promptBadges}>
+              <Badge label={prompt.category} {...colorForCategory(prompt.category, colors)} />
+              {taskLabel(taskOf(prompt)) ? <Badge label={taskLabel(taskOf(prompt))!} /> : null}
+            </View>
             <View style={styles.promptCardHeaderRight}>
               {/* Small tappable chip — opens the practice difficulty
                   and its manual pin. Reflects the tier that's already
@@ -419,6 +423,7 @@ const useStyles = makeStyles(({ colors }) => ({
   settingsButton: { padding: spacing.xs },
   promptCardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   promptCardHeaderRight: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  promptBadges: { flexDirection: "row", alignItems: "center", gap: spacing.xs + 2, flexShrink: 1, flexWrap: "wrap" },
   levelChip: {
     paddingHorizontal: spacing.sm + 4,
     paddingVertical: 6,

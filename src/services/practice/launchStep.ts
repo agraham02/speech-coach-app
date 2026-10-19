@@ -10,7 +10,7 @@ import { getRecentlyUsedPromptIds } from "../db/sessionsRepo";
 import { pickRandomPrompt } from "../../domain/pickTodaysPrompt";
 import { isFreeRecordPrompt } from "../../data/topics";
 import type { LineCategory } from "../../content/lines";
-import { CONTEXT_LABELS, CONTEXT_PROMPTS } from "../../data/contextPrompts";
+import { randomContextPrompt } from "../../data/contextPrompts";
 import { daysUntilEvent, promptContexts } from "../../domain/profile";
 import { makeAdhocPrompt } from "../../domain/sessionTypes";
 import { getNextEvent, getUserProfile } from "../prefs/prefsStore";
@@ -56,7 +56,7 @@ export async function launchStep(navigation: Nav, step: LessonStep, practice: Pr
       // A structure rep gets a prompt that structure can answer (PREP needs
       // a side to take, STAR a "tell me about a time"), then the level's
       // tier within that.
-      const categories = step.framework && step.framework !== "None" ? FRAMEWORK_PROMPT_CATEGORIES[step.framework] : null;
+      const categories = step.promptCategories ?? (step.framework && step.framework !== "None" ? FRAMEWORK_PROMPT_CATEGORIES[step.framework] : null);
       const fitting = categories ? all.filter((p) => categories.includes(p.category)) : all;
       const eligible = fitting.length >= 5 ? fitting : all;
       const tiered = eligible.filter((p) => p.difficultyTier === params.tier);
@@ -72,11 +72,9 @@ export async function launchStep(navigation: Nav, step: LessonStep, practice: Pr
       const useContext = contexts.length > 0 && (nearEvent || (!categories && Math.random() < 0.5));
       const prompt = useContext
         ? (() => {
-            const context = contexts[Math.floor(Math.random() * contexts.length)];
-            const list = CONTEXT_PROMPTS[context];
-            return makeAdhocPrompt(list[Math.floor(Math.random() * list.length)], CONTEXT_LABELS[context]);
+            return randomContextPrompt(contexts[Math.floor(Math.random() * contexts.length)]);
           })()
-        : pickRandomPrompt(tiered.length >= 5 ? tiered : eligible, recent);
+        : pickRandomPrompt(tiered.length >= 5 ? tiered : eligible, recent, all.find((p) => p.id === recent[0])?.category);
       navigation.navigate("Recording", {
         kind: "prompt",
         prompt,

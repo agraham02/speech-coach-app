@@ -54,6 +54,7 @@ import { logger } from "../utils/logger";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { colorForCategory } from "../domain/categoryColor";
 import { makeAdhocPrompt, type Prompt, type Session, type SessionScores } from "../domain/sessionTypes";
+import { taskLabel, taskOf } from "../domain/promptTask";
 import { formatDuration } from "../utils/dateUtils";
 import { fontDisplay, radii, spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
@@ -402,7 +403,10 @@ export function ResultScreen({ route, navigation }: Props) {
 
           {prompt ? (
             <Card style={styles.promptCard}>
-              <Badge label={prompt.category} {...colorForCategory(prompt.category, colors)} />
+              <View style={styles.promptBadges}>
+                <Badge label={prompt.category} {...colorForCategory(prompt.category, colors)} />
+                {taskLabel(taskOf(prompt)) ? <Badge label={taskLabel(taskOf(prompt))!} /> : null}
+              </View>
               <Text style={styles.promptText}>{prompt.text}</Text>
             </Card>
           ) : null}
@@ -605,6 +609,7 @@ const useStyles = makeStyles(({ colors }) => ({
   deltaText: { fontSize: typography.caption, ...font("600") },
   deltaNeutral: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
   promptCard: { gap: spacing.sm },
+  promptBadges: { flexDirection: "row", gap: spacing.xs + 2, flexWrap: "wrap" },
   promptText: { fontFamily: fontDisplay.spoken, color: colors.textPrimary, fontSize: 19, lineHeight: 26, letterSpacing: -0.2 },
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   sectionLabel: { color: colors.textSecondary, fontSize: 13, ...font("600") },

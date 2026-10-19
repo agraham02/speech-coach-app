@@ -51,7 +51,7 @@ export const CONTEXT_UNITS: Record<SpeakingContext, string[]> = {
   social: ["conv_attention", "conv_edges", "conv_wit"],
   everyday: ["conv_moves", "conv_attention"],
   camera: ["con_presence", "cad_melody"],
-  leading: ["con_authority", "conv_straight"],
+  leading: ["con_authority", "conv_straight", "imp_structure"],
   school: ["imp_structure", "cad_pause"],
 };
 

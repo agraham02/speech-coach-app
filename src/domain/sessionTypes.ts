@@ -3,6 +3,7 @@ import type { MarkLevel, Script } from "./scriptTypes";
 import type { PlanText } from "./planYourPoint";
 import type { PracticeContext } from "./practice";
 import type { EmotionId } from "./feelings";
+import type { PromptTask } from "./promptTask";
 
 export type DifficultyTier = "easy" | "medium" | "hard";
 
@@ -13,6 +14,9 @@ export interface Prompt {
   // null only for FREE_RECORD_PROMPT — it isn't a selectable curriculum item,
   // so there's nothing meaningful to tag a difficulty on.
   difficultyTier: DifficultyTier | null;
+  // What the prompt asks you to do, when it isn't what its category implies
+  // ("Closing only"). See domain/promptTask.ts.
+  task?: PromptTask;
 }
 
 // One completed Tongue-Twister Drill attempt (Phase 3) — deliberately not a
@@ -200,6 +204,8 @@ export interface SessionSubjectExtras {
   // the prompt library — follow-up questions, generated drill prompts.
   promptText?: string;
   promptCategory?: string;
+  // The task, for any prompt that names its own (context prompts).
+  promptTask?: PromptTask;
   // Feeling of the Week.
   feelingEmotion?: EmotionId;
   feelingAngle?: number;
@@ -207,8 +213,8 @@ export interface SessionSubjectExtras {
 
 export const ADHOC_PROMPT_PREFIX = "adhoc_";
 
-export function makeAdhocPrompt(text: string, category: string): Prompt {
-  return { id: `${ADHOC_PROMPT_PREFIX}${Date.now().toString(36)}`, category, text, difficultyTier: null };
+export function makeAdhocPrompt(text: string, category: string, task?: PromptTask): Prompt {
+  return { id: `${ADHOC_PROMPT_PREFIX}${Date.now().toString(36)}`, category, text, difficultyTier: null, ...(task ? { task } : {}) };
 }
 
 export type StructureUsed = "what/why/how" | "story arc" | "none detected" | "other";
