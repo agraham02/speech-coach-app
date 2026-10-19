@@ -48,6 +48,7 @@ import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import { success } from "../utils/haptics";
 import { TranscriptionBanner } from "../components/common/TranscriptionBanner";
 import { EventTodayCard } from "../components/events/EventTodayCard";
+import { FeedbackPrompt } from "../components/feedback/FeedbackPrompt";
 import { NewProgressCard } from "../components/celebrate/NewProgressCard";
 import { PathNowCard } from "../components/path/PathNowCard";
 import { PathChangeNotice } from "../components/path/PathChangeNotice";
@@ -194,6 +195,7 @@ export function TodayScreen() {
       <NewProgressCard />
       <PathChangeNotice refreshKey={pathView} />
       <EventTodayCard />
+      <FeedbackPrompt />
 
       {!plan ? (
         <Card style={styles.heroSkeleton}>

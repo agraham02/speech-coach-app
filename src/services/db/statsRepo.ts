@@ -180,3 +180,16 @@ export async function getWeeklySummaries(): Promise<{ thisWeek: WeekSummary; las
   const [thisWeek, lastWeek] = await Promise.all([summarizeWeek(0), summarizeWeek(1)]);
   return { thisWeek, lastWeek };
 }
+
+// How much they've used the app, for deciding when to ask for feedback
+// (domain/feedbackPrompt.ts). Days are counted loosely; it's only a threshold.
+export async function getUsageTotals(): Promise<{ reps: number; days: number }> {
+  const db = await getDatabase();
+  const reps = await db.getFirstAsync<{ n: number; days: number }>(
+    `SELECT COUNT(*) AS n, COUNT(DISTINCT substr(recorded_at, 1, 10)) AS days FROM sessions WHERE status = 'done' AND deleted_at IS NULL`,
+  );
+  const drills = await db.getFirstAsync<{ n: number; days: number }>(
+    `SELECT COUNT(*) AS n, COUNT(DISTINCT substr(started_at, 1, 10)) AS days FROM drill_attempts`,
+  );
+  return { reps: (reps?.n ?? 0) + (drills?.n ?? 0), days: Math.max(reps?.days ?? 0, drills?.days ?? 0) };
+}
