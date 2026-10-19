@@ -201,6 +201,24 @@ export async function getSkillEvents(skill: SkillId, limit = 40): Promise<SkillE
   });
 }
 
+// How each skill's rating moved since a moment (practice only, not the
+// skill check's placement): where it started and where it is now.
+export async function getSkillMovesSince(sinceIso: string): Promise<{ skill: SkillId; from: number; to: number }[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{ skill: string; rating_before: number; rating_after: number }>(
+    `SELECT skill, rating_before, rating_after FROM skill_events WHERE at >= ? AND source != 'seed' ORDER BY at ASC`,
+    [sinceIso],
+  );
+  const moves = new Map<SkillId, { skill: SkillId; from: number; to: number }>();
+  for (const r of rows) {
+    const skill = r.skill as SkillId;
+    const m = moves.get(skill);
+    if (m) m.to = r.rating_after;
+    else moves.set(skill, { skill, from: r.rating_before, to: r.rating_after });
+  }
+  return [...moves.values()];
+}
+
 export async function getDrillLevel(type: DrillType): Promise<number> {
   const db = await getDatabase();
   const row = await db.getFirstAsync<{ level: number }>(`SELECT level FROM drill_difficulty WHERE drill_type = ?`, [type]);

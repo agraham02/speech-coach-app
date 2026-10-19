@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { logger } from "../utils/logger";
 import { Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,6 +23,8 @@ import { subscribePracticeSteps } from "../services/practice/practiceEvents";
 import { showGlobalToast } from "../components/common/ToastProvider";
 import { getLesson } from "../content/lessons";
 import { onLessonCompleted } from "../services/path/pathService";
+import { SessionRecap } from "../components/celebrate/SessionRecap";
+import { success } from "../utils/haptics";
 import { isoDateFromDate, todayISODate } from "../utils/dateUtils";
 import type { PlanStep } from "../domain/dailyPlan";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
@@ -44,6 +46,15 @@ export function DailySessionScreen({ route, navigation }: Props) {
 
   useFocusEffect(load);
   useEffect(() => subscribePracticeSteps(() => load()), [load]);
+
+  // Finishing the session, while you're here, gets a haptic with its card.
+  const wasDone = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (!stored) return;
+    const isDone = !!stored.completedAt;
+    if (wasDone.current === false && isDone) success();
+    wasDone.current = isDone;
+  }, [stored]);
 
   if (!stored) return <ScreenContainer />;
   const { plan } = stored;
@@ -114,6 +125,7 @@ export function DailySessionScreen({ route, navigation }: Props) {
           <Txt variant="callout" tone="secondary" align="center">
             {slot ? "Spread-out sessions stick better than one long one." : "Short daily reps beat occasional long ones. See you tomorrow."}
           </Txt>
+          <SessionRecap />
           <PrimaryButton label="Back to Today" onPress={() => navigation.goBack()} style={styles.doneButton} />
         </HeroCard>
       ) : null}
