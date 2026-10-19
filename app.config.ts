@@ -66,11 +66,17 @@ export default (): ExpoConfig => ({
         favicon: "./assets/favicon.png",
     },
     // Over-the-air updates (EAS Update). JS and content changes ship with
-    // `eas update --channel <profile's channel>` and apply on the next cold
-    // start. The fingerprint is a hash of everything native, so a build only
-    // ever receives updates made from the same native code; anything native
-    // (a new native module, a plugin, icons, permissions) needs a new build.
-    runtimeVersion: { policy: "fingerprint" },
+    // `npm run update:production` / `update:testflight` and apply on the next
+    // cold start. An update only reaches builds with the same runtime version,
+    // which is `version` above. The "fingerprint" policy (a hash of the native
+    // code) would do that automatically, but computing it on Windows never
+    // matched EAS Build's and failed the build, so it's done by hand:
+    //
+    //   BUMP `version` BEFORE BUILDING whenever native code changes: a new or
+    //   upgraded native module, a config plugin, permissions, icons or splash,
+    //   an SDK upgrade. Otherwise an update made after the change can reach an
+    //   older build that lacks the native part it needs.
+    runtimeVersion: { policy: "appVersion" },
     updates: {
         url: "https://u.expo.dev/c1cc07c1-f38e-4358-a7b5-e28a6caae79e",
     },
