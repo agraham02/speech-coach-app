@@ -2,7 +2,7 @@ import * as Notifications from "expo-notifications";
 import { reminderHours } from "../../domain/reminderSettings";
 import { reminderDates } from "../../domain/dailyGoal";
 import { daysUntil, reminderText } from "../../domain/notificationCopy";
-import { getDailySessionGoal, getNextEvent, getPracticeAnchor, getReminderSettings, getUserProfile } from "../prefs/prefsStore";
+import { getDailySessionGoal, getNextEvent, getPracticeAnchor, getPracticeAnchorHour, getReminderSettings, getUserProfile } from "../prefs/prefsStore";
 import { getSessionsDoneToday, getStreakState } from "../db/progressRepo";
 import { logger } from "../../utils/logger";
 
@@ -50,6 +50,7 @@ export async function syncDailyReminder(): Promise<void> {
       name: profile?.name,
       slot,
       anchor,
+      anchorHour: getPracticeAnchorHour(),
       streak: today || doneToday > 0 ? streak : 0,
       atRiskToday: today && doneToday === 0,
       when: date,

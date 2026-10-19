@@ -22,10 +22,10 @@ import {
   type WordStatus,
 } from "../domain/speech/speechAlignment";
 import { insertDrillCompletion } from "../services/db/drillsRepo";
-import { getDrillLevel, recordDrillOutcome } from "../services/db/progressRepo";
+import { getDrillLevel, recordDrillOutcome, type ProgressChange } from "../services/db/progressRepo";
+import { DrillProgressLine } from "../components/celebrate/DrillProgressLine";
 import { paramsFor, scoreAccuracy, type DrillOutcome } from "../domain/drills/drillSpecs";
 import { completePracticeStep } from "../services/practice/practiceEvents";
-import { showGlobalToast } from "../components/common/ToastProvider";
 import { useLiveSpeech } from "../hooks/useLiveSpeech";
 import { useRecordingTimer } from "../hooks/useRecordingTimer";
 import { logger } from "../utils/logger";
@@ -74,6 +74,7 @@ export function DrillSessionScreen({ route, navigation }: Props) {
   }, []);
   const [stage, setStage] = useState<Stage>("idle");
   const [result, setResult] = useState<AttemptResult | null>(null);
+  const [change, setChange] = useState<ProgressChange | null>(null);
   const speech = useLiveSpeech();
   const timer = useRecordingTimer();
   const finishingRef = useRef(false);
@@ -205,7 +206,7 @@ export function DrillSessionScreen({ route, navigation }: Props) {
       });
       setLevel(change.levelAfter);
       setLastOutcome(outcome);
-      if (change.leveledUp) showGlobalToast("Level up — twisters get a little harder now.", "success");
+      setChange(change);
       setResult({ kind: "live", score, statuses: statusesFromAlignment(target, ops) });
     } catch (error) {
       logger.error(`[drill] finishing attempt failed — ${(error as Error).message}`);
@@ -255,7 +256,10 @@ export function DrillSessionScreen({ route, navigation }: Props) {
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {stage === "result" && result?.kind === "live" ? (
-          <ResultView twister={twister} target={target} wordsPerRep={wordsPerRep} result={result} />
+          <>
+            <ResultView twister={twister} target={target} wordsPerRep={wordsPerRep} result={result} />
+            {change ? <DrillProgressLine change={change} drillTitle="Twisters" /> : null}
+          </>
         ) : (
           <Card style={styles.targetCard}>
             <Text style={styles.targetText} accessibilityLabel={twister.text}>

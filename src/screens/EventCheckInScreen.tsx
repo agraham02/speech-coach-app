@@ -13,7 +13,7 @@ import { showGlobalToast } from "../components/common/ToastProvider";
 import { eventName, nervesSummary, type SpeakingEvent } from "../domain/events";
 import { EVENT_CONTEXT } from "../domain/profile";
 import { makeAdhocPrompt } from "../domain/sessionTypes";
-import { CONTEXT_LABELS, CONTEXT_PROMPTS } from "../data/contextPrompts";
+import { randomContextPrompt } from "../data/contextPrompts";
 import { getEvent, saveAfterCheckIn, saveBeforeCheckIn } from "../services/db/eventsRepo";
 import { logger } from "../utils/logger";
 import { makeStyles } from "../theme/ThemeProvider";
@@ -82,9 +82,7 @@ export function EventCheckInScreen({ route, navigation }: Props) {
     if (nerves != null || focus.trim()) {
       if (!(await save())) return;
     }
-    const context = EVENT_CONTEXT[event.kind];
-    const list = CONTEXT_PROMPTS[context];
-    const prompt = makeAdhocPrompt(list[Math.floor(Math.random() * list.length)], CONTEXT_LABELS[context]);
+    const prompt = randomContextPrompt(EVENT_CONTEXT[event.kind]);
     navigation.replace("Recording", { kind: "prompt", prompt });
   }
 

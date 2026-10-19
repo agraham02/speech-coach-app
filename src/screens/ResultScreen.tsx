@@ -45,6 +45,8 @@ import { setVideoKeepsake } from "../services/data/videoKeepsakes";
 import { getArtifact } from "../services/db/artifactsRepo";
 import { describeSessionSubject, subjectFromSession, type SessionSubjectSummary } from "../services/sessions/sessionSubject";
 import { useSessionSteps } from "../hooks/useSessionSteps";
+import { useProgressMoment } from "../hooks/useProgressMoment";
+import { ProgressPending, ProgressReveal } from "../components/celebrate/ProgressReveal";
 import { FeelingResultView } from "../components/feelings/FeelingResultView";
 import type { CloudTranscriptArtifact } from "../services/pipeline/steps/cloudReviewStep";
 import type { SessionStep } from "../domain/sessionSteps";
@@ -52,6 +54,7 @@ import { logger } from "../utils/logger";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { colorForCategory } from "../domain/categoryColor";
 import { makeAdhocPrompt, type Prompt, type Session, type SessionScores } from "../domain/sessionTypes";
+import { taskLabel, taskOf } from "../domain/promptTask";
 import { formatDuration } from "../utils/dateUtils";
 import { fontDisplay, radii, spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
@@ -140,6 +143,9 @@ export function ResultScreen({ route, navigation }: Props) {
 
   const { steps } = useSessionSteps(sessionId, loadAll);
   const { tourScroll, scrollProps } = useTourScroll();
+  // Impromptu takes move your skills; their Result plays what moved.
+  const movesSkills = session?.sessionType === "spontaneous" || session?.sessionType === "concise";
+  const { moment, animate } = useProgressMoment(sessionId, movesSkills);
 
   if (!session) {
     return (
@@ -331,7 +337,7 @@ export function ResultScreen({ route, navigation }: Props) {
                     {scores.archetypeDetected}
                   </Text>
                 ) : null}
-                <ScoreDelta current={overall} previous={previousOverallScore} />
+                {movesSkills ? null : <ScoreDelta current={overall} previous={previousOverallScore} />}
                 {scores ? <Text style={styles.scoreHeroFit}>{scores.archetypeFitForTopic}</Text> : null}
                 {reviewing ? (
                   <View style={styles.reviewingRow}>
@@ -363,6 +369,14 @@ export function ResultScreen({ route, navigation }: Props) {
           )}
           </TourTarget>
 
+          {movesSkills ? (
+            moment ? (
+              <ProgressReveal beats={moment.beats} animate={animate} />
+            ) : measuring || reviewing ? (
+              <ProgressPending reviewing={reviewing} />
+            ) : null
+          ) : null}
+
           <TourTarget id="result.breakdown">
           {breakdown ? (
             <Reveal key="breakdown">
@@ -389,7 +403,10 @@ export function ResultScreen({ route, navigation }: Props) {
 
           {prompt ? (
             <Card style={styles.promptCard}>
-              <Badge label={prompt.category} {...colorForCategory(prompt.category, colors)} />
+              <View style={styles.promptBadges}>
+                <Badge label={prompt.category} {...colorForCategory(prompt.category, colors)} />
+                {taskLabel(taskOf(prompt)) ? <Badge label={taskLabel(taskOf(prompt))!} /> : null}
+              </View>
               <Text style={styles.promptText}>{prompt.text}</Text>
             </Card>
           ) : null}
@@ -592,6 +609,7 @@ const useStyles = makeStyles(({ colors }) => ({
   deltaText: { fontSize: typography.caption, ...font("600") },
   deltaNeutral: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
   promptCard: { gap: spacing.sm },
+  promptBadges: { flexDirection: "row", gap: spacing.xs + 2, flexWrap: "wrap" },
   promptText: { fontFamily: fontDisplay.spoken, color: colors.textPrimary, fontSize: 19, lineHeight: 26, letterSpacing: -0.2 },
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   sectionLabel: { color: colors.textSecondary, fontSize: 13, ...font("600") },

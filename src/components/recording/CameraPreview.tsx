@@ -1,5 +1,5 @@
-import { useEffect, useMemo, type RefObject } from "react";
-import { Platform, StyleSheet } from "react-native";
+import { useEffect, useMemo, useState, type RefObject } from "react";
+import { AppState, Platform, StyleSheet } from "react-native";
 import { Camera, useCameraDevice, useFrameProcessor, type Camera as VisionCamera, type Frame } from "react-native-vision-camera";
 import { Worklets, useSharedValue } from "react-native-worklets-core";
 import { detectFaceLandmarks, useFaceLandmarkerPlugin, type FaceLandmarkerOutput } from "vision-camera-face-landmarker";
@@ -26,6 +26,25 @@ const MIN_INTERVAL_MS = 100;
 
 export function CameraPreview({ cameraRef, isActive, onFaceFrame, audio = true, orientation }: CameraPreviewProps) {
   const device = useCameraDevice("front");
+  // The camera belongs to the app only while it's in front. Left running
+  // through a trip to the browser (research), Android restricts it, and it
+  // won't recover on its own when you come back — so it's released on the
+  // way out and reopened on the way in.
+  const [appActive, setAppActive] = useState(AppState.currentState === "active");
+  useEffect(() => {
+    let reopen: ReturnType<typeof setTimeout> | undefined;
+    const sub = AppState.addEventListener("change", (state) => {
+      if (reopen) clearTimeout(reopen);
+      // A beat after coming back: opened the instant the app is active, the
+      // system can still refuse the camera ("camera is restricted").
+      if (state === "active") reopen = setTimeout(() => setAppActive(true), 400);
+      else setAppActive(false);
+    });
+    return () => {
+      if (reopen) clearTimeout(reopen);
+      sub.remove();
+    };
+  }, []);
   const plugin = useFaceLandmarkerPlugin();
   const busy = useSharedValue(false);
   const lastRunAt = useSharedValue(0);
@@ -78,7 +97,7 @@ export function CameraPreview({ cameraRef, isActive, onFaceFrame, audio = true, 
       ref={cameraRef}
       style={StyleSheet.absoluteFill}
       device={device}
-      isActive={isActive}
+      isActive={isActive && appActive}
       video={true}
       audio={audio}
       // MediaPipe on iOS only accepts BGRA buffers ("rgb" here); Android

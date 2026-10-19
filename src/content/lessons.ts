@@ -2,10 +2,10 @@ import type { SkillId } from "../theme/tokens";
 import type { DrillType } from "../domain/drills/drillSpecs";
 import type { FrameworkId } from "../domain/coach/structureHeuristics";
 
-// The curriculum: 4 skill tracks -> units -> lessons. A lesson is a short
+// The curriculum: 5 skill tracks -> units -> lessons. A lesson is a short
 // teach card, a couple of drills, and usually one impromptu "apply" rep
-// that puts the skill to work. All lessons are open; the daily plan and a
-// "Next up" marker recommend the order.
+// that puts the skill to work. All lessons are open; your path
+// (domain/path.ts) orders the units for you, and the daily plan follows it.
 
 export interface TeachCard {
   why: string; // <= ~60 words
@@ -18,8 +18,10 @@ export type LessonStep =
   | { kind: "drill"; drill: Exclude<DrillType, "rep" | "guided" | "warmup">; contentId?: string }
   | { kind: "guided"; guidedId: string }
   // `prepSeconds` overrides the level's prep window — 0 for a rep that is
-  // meant to be a surprise.
-  | { kind: "rep"; framework?: FrameworkId; focus: string; seconds?: number; prepSeconds?: number };
+  // meant to be a surprise. `promptCategories` names the kinds of prompt the
+  // rep draws from ("One word", "Debate"); without it, a structure rep takes
+  // the prompts its framework fits.
+  | { kind: "rep"; framework?: FrameworkId; focus: string; seconds?: number; prepSeconds?: number; promptCategories?: string[] };
 
 export interface Lesson {
   id: string;
@@ -31,36 +33,42 @@ export interface Lesson {
   steps: LessonStep[];
 }
 
+// Where a unit sits in the path (domain/path.ts): 1 the foundations,
+// 2 the core, 3 the advanced. A tier-3 unit waits until every foundation is
+// done or shown; tiers 1 and 2 can mix when a goal calls for it.
+export type UnitTier = 1 | 2 | 3;
+
 export interface Unit {
   id: string;
   skill: SkillId;
+  tier: UnitTier;
   title: string;
   summary: string;
 }
 
 export const UNITS: Unit[] = [
-  { id: "art_wake", skill: "articulation", title: "Wake the articulators", summary: "Lips, tongue and jaw doing their job — and finishing every word." },
-  { id: "art_sounds", skill: "articulation", title: "Tricky sounds", summary: "The pairs people blur most: s/sh, r/l and th." },
-  { id: "art_speed", skill: "articulation", title: "Speed with clarity", summary: "Stay crisp as the pace goes up." },
-  { id: "cad_pace", skill: "cadence", title: "Find your pace", summary: "A speed people can follow — and the control to change it." },
-  { id: "cad_pause", skill: "cadence", title: "The power of the pause", summary: "Silence as a tool, not a gap to fill." },
-  { id: "cad_pitch", skill: "cadence", title: "Pitch", summary: "Where your voice goes at the end of a phrase — and using all of it." },
-  { id: "cad_rhythm", skill: "cadence", title: "Rhythm", summary: "Short and long, fast and slow — the beat that keeps people listening." },
-  { id: "cad_melody", skill: "cadence", title: "Emphasis", summary: "Stress the word that carries the meaning." },
-  { id: "cad_score", skill: "cadence", title: "Put it together", summary: "Mark a line yourself — pause, pace, pitch, rhythm, stress — then say it." },
-  { id: "imp_start", skill: "impromptu", title: "Just start talking", summary: "Faster word retrieval and fewer stalls — the mind-mouth link." },
-  { id: "imp_short", skill: "impromptu", title: "Say it short", summary: "Find the point, then say only that — summaries, rolling recaps and plain explanations." },
-  { id: "imp_structure", skill: "impromptu", title: "Structure on the fly", summary: "Frameworks that organize an answer as you give it." },
-  { id: "imp_feet", skill: "impromptu", title: "Think on your feet", summary: "Stories out of nowhere, and points you find as you go." },
-  { id: "con_nerves", skill: "confidence", title: "Work with the nerves", summary: "Settle your body with a long out-breath, then turn what's left into energy." },
-  { id: "con_breath", skill: "confidence", title: "Breath support", summary: "Breath that steadies your pace, carries your volume and keeps your voice even." },
-  { id: "con_authority", skill: "confidence", title: "Voice of authority", summary: "Volume, statements, and endings that land." },
-  { id: "con_presence", skill: "confidence", title: "Eye contact and face", summary: "Talk to a person, not a phone." },
-  { id: "conv_attention", skill: "conversation", title: "Outward attention", summary: "Spend your attention on them, not on watching yourself." },
-  { id: "conv_moves", skill: "conversation", title: "Moves", summary: "Small, reliable replies — so you're never stuck for something to say." },
-  { id: "conv_edges", skill: "conversation", title: "Starting and leaving", summary: "A plain way in, and a warm way out." },
-  { id: "conv_straight", skill: "conversation", title: "Say it straight", summary: "Point first, one reason, then stop — no more rambling." },
-  { id: "conv_wit", skill: "conversation", title: "Wit and warmth", summary: "Reactions, callbacks and play — the parts of humor anyone can learn." },
+  { id: "art_wake", skill: "articulation", tier: 1, title: "Wake the articulators", summary: "Lips, tongue and jaw doing their job — and finishing every word." },
+  { id: "art_sounds", skill: "articulation", tier: 2, title: "Tricky sounds", summary: "The pairs people blur most: s/sh, r/l and th." },
+  { id: "art_speed", skill: "articulation", tier: 3, title: "Speed with clarity", summary: "Stay crisp as the pace goes up." },
+  { id: "cad_pace", skill: "cadence", tier: 1, title: "Find your pace", summary: "A speed people can follow — and the control to change it." },
+  { id: "cad_pause", skill: "cadence", tier: 1, title: "The power of the pause", summary: "Silence as a tool, not a gap to fill." },
+  { id: "cad_pitch", skill: "cadence", tier: 2, title: "Pitch", summary: "Where your voice goes at the end of a phrase — and using all of it." },
+  { id: "cad_rhythm", skill: "cadence", tier: 3, title: "Rhythm", summary: "Short and long, fast and slow — the beat that keeps people listening." },
+  { id: "cad_melody", skill: "cadence", tier: 2, title: "Emphasis", summary: "Stress the word that carries the meaning." },
+  { id: "cad_score", skill: "cadence", tier: 3, title: "Put it together", summary: "Mark a line yourself — pause, pace, pitch, rhythm, stress — then say it." },
+  { id: "imp_start", skill: "impromptu", tier: 1, title: "Just start talking", summary: "Faster word retrieval and fewer stalls — the mind-mouth link." },
+  { id: "imp_short", skill: "impromptu", tier: 2, title: "Say it short", summary: "Find the point, then say only that — summaries, rolling recaps and plain explanations." },
+  { id: "imp_structure", skill: "impromptu", tier: 2, title: "Structure on the fly", summary: "Frameworks that organize an answer as you give it." },
+  { id: "imp_feet", skill: "impromptu", tier: 3, title: "Think on your feet", summary: "Stories out of nowhere, and points you find as you go." },
+  { id: "con_nerves", skill: "confidence", tier: 1, title: "Work with the nerves", summary: "Settle your body with a long out-breath, then turn what's left into energy." },
+  { id: "con_breath", skill: "confidence", tier: 2, title: "Breath support", summary: "Breath that steadies your pace, carries your volume and keeps your voice even." },
+  { id: "con_authority", skill: "confidence", tier: 2, title: "Voice of authority", summary: "Volume, statements, and endings that land." },
+  { id: "con_presence", skill: "confidence", tier: 2, title: "Eye contact and face", summary: "Talk to a person, not a phone." },
+  { id: "conv_attention", skill: "conversation", tier: 1, title: "Outward attention", summary: "Spend your attention on them, not on watching yourself." },
+  { id: "conv_moves", skill: "conversation", tier: 1, title: "Moves", summary: "Small, reliable replies — so you're never stuck for something to say." },
+  { id: "conv_edges", skill: "conversation", tier: 2, title: "Starting and leaving", summary: "A plain way in, and a warm way out." },
+  { id: "conv_straight", skill: "conversation", tier: 2, title: "Say it straight", summary: "Point first, one reason, then stop — no more rambling." },
+  { id: "conv_wit", skill: "conversation", tier: 3, title: "Wit and warmth", summary: "Reactions, callbacks and play — the parts of humor anyone can learn." },
 ];
 
 export const LESSONS: Lesson[] = [
@@ -380,7 +388,11 @@ export const LESSONS: Lesson[] = [
       how: ["Start before you feel ready", "Use short sentences — they're easier to finish", "Pause between thoughts, never inside one"],
       source: "Inspired by BBC Radio 4's 'Just a Minute'; fluency practice",
     },
-    steps: [{ kind: "drill", drill: "just_a_minute" }, { kind: "drill", drill: "category_fluency" }],
+    steps: [
+      { kind: "drill", drill: "just_a_minute" },
+      { kind: "drill", drill: "category_fluency" },
+      { kind: "rep", focus: "One word, one minute: start before you know where it's going, and don't stop.", seconds: 60, promptCategories: ["One word"] },
+    ],
   },
   {
     id: "imp_11_sum",
@@ -432,7 +444,7 @@ export const LESSONS: Lesson[] = [
       how: ["Point: say your answer in one sentence", "Reason + Example: why, and one concrete case", "Point again: restate it to close"],
       source: "A widely taught business-speaking structure; Toastmasters Table Topics",
     },
-    steps: [{ kind: "rep", framework: "PREP", focus: "Hit all four beats: Point, Reason, Example, Point." }],
+    steps: [{ kind: "rep", framework: "PREP", focus: "Hit all four beats: Point, Reason, Example, Point.", promptCategories: ["Opinion", "Debate", "Persuade"] }],
   },
   {
     id: "imp_4_wsn",
@@ -487,6 +499,23 @@ export const LESSONS: Lesson[] = [
     steps: [{ kind: "rep", framework: "STAR", focus: "Situation, task, action, result — most of your time on the action." }],
   },
   {
+    id: "imp_15_side",
+    skill: "impromptu",
+    unitId: "imp_structure",
+    title: "Take a side",
+    minutes: 5,
+    teach: {
+      why: "On a contested question, your listener is already half-thinking of the other side. Say your position, give your best reason, then answer the strongest opposing point yourself. It makes you sound fair and still wins the room. Either side is fine; what's graded is how well you argue it.",
+      how: [
+        "Pick a side in your first sentence, and say it plainly",
+        "Give your best reason and one example",
+        "Name the strongest opposing point and answer it in one sentence",
+      ],
+      source: "Matt Abrahams — Think Faster, Talk Smarter (structured spontaneity); Toastmasters",
+    },
+    steps: [{ kind: "rep", framework: "PREP", focus: "Take a side, give your best reason, then answer the strongest objection.", promptCategories: ["Debate"] }],
+  },
+  {
     id: "imp_6_story",
     skill: "impromptu",
     unitId: "imp_feet",
@@ -497,7 +526,10 @@ export const LESSONS: Lesson[] = [
       how: ["Start the story immediately", "Introduce each word as soon as it fits", "Give it an ending, even a silly one"],
       source: "Johnstone, Impro ('yes, and')",
     },
-    steps: [{ kind: "drill", drill: "random_word_story" }, { kind: "rep", framework: "StoryArc", focus: "Tell it as a story: setup, turn, ending." }],
+    steps: [
+      { kind: "drill", drill: "random_word_story" },
+      { kind: "rep", framework: "StoryArc", focus: "Tell it as a story: setup, turn, ending.", promptCategories: ["Creative"] },
+    ],
   },
   {
     id: "imp_7_three",
@@ -510,7 +542,10 @@ export const LESSONS: Lesson[] = [
       how: ["Say 'There are three reasons…' before you know them all", "Number them out loud", "Close with the strongest one"],
       source: "Classical rhetoric (tricolon); Toastmasters",
     },
-    steps: [{ kind: "drill", drill: "letter_fluency" }, { kind: "rep", framework: "ListOfThree", focus: "Give exactly three points, numbered out loud." }],
+    steps: [
+      { kind: "drill", drill: "letter_fluency" },
+      { kind: "rep", framework: "ListOfThree", focus: "Give exactly three points, numbered out loud.", promptCategories: ["One word", "Debate"] },
+    ],
   },
   {
     id: "imp_10_surprise",
@@ -525,7 +560,29 @@ export const LESSONS: Lesson[] = [
     },
     steps: [
       { kind: "guided", guidedId: "gd_buy_time" },
-      { kind: "rep", focus: "No prep: say the question back in your own words, then answer.", seconds: 60, prepSeconds: 0 },
+      // Prompts that are real questions: you say the question back, which a
+      // bare word wouldn't give you.
+      { kind: "rep", focus: "No prep: say the question back in your own words, then answer.", seconds: 60, prepSeconds: 0, promptCategories: ["Creative", "Hypothetical"] },
+    ],
+  },
+  {
+    id: "imp_14_angle",
+    skill: "impromptu",
+    unitId: "imp_feet",
+    title: "Pick an angle",
+    minutes: 4,
+    teach: {
+      why: "A bare word gives you nothing to answer, so your first job is choosing what to say about it. Speakers who pick an angle in the first few seconds and commit sound prepared; speakers who wait for the perfect one sound lost. Almost any angle works. Switching halfway is what sinks it.",
+      how: [
+        "Take the first angle that comes: a story, an opinion, or how it works",
+        "Say it in your first sentence: \"Coffee is the only reason I'm awake.\"",
+        "Stay on it. Don't switch angles halfway through",
+      ],
+      source: "Matt Abrahams — Think Faster, Talk Smarter (choosing a structure); Toastmasters Table Topics",
+    },
+    steps: [
+      { kind: "rep", focus: "Pick an angle in five seconds and stay on it.", seconds: 60, prepSeconds: 5, promptCategories: ["One word"] },
+      { kind: "rep", focus: "A harder word this time. Same rule: first angle, then commit.", seconds: 60, prepSeconds: 5, promptCategories: ["One word"] },
     ],
   },
 
@@ -636,7 +693,7 @@ export const LESSONS: Lesson[] = [
       how: ["Cut 'I think' from the start of sentences", "Replace 'kind of' with the precise word", "End on the claim, not a qualifier"],
       source: "Blankenship & Holtgraves (2005), powerless speech",
     },
-    steps: [{ kind: "rep", framework: "PREP", focus: "No hedges: state your view plainly." }],
+    steps: [{ kind: "rep", framework: "PREP", focus: "No hedges: state your view plainly.", promptCategories: ["Persuade", "Opinion"] }],
   },
   {
     id: "con_5_endings",
@@ -649,7 +706,24 @@ export const LESSONS: Lesson[] = [
       how: ["Know your last sentence before you start", "Restate your point as the close", "Stop. Hold eye contact for a beat."],
       source: "Toastmasters; Matt Abrahams",
     },
-    steps: [{ kind: "rep", focus: "End on a clear statement — then stop." }],
+    steps: [{ kind: "rep", focus: "End on a clear statement — then stop.", promptCategories: ["Persuade"] }],
+  },
+  {
+    id: "con_8_case",
+    skill: "confidence",
+    unitId: "con_authority",
+    title: "Make the case",
+    minutes: 5,
+    teach: {
+      why: "A persuasive talk is judged by whether anyone would do the thing. Name who you're talking to, say what they gain, then ask plainly for one specific thing. A vague ending (\"so, yeah, think about it\") asks for nothing.",
+      how: [
+        "Start with what your listener gains, not what you want",
+        "Give one reason and one example that fits them",
+        "End on a single, specific ask, then stop",
+      ],
+      source: "Toastmasters; Matt Abrahams",
+    },
+    steps: [{ kind: "rep", framework: "PREP", focus: "Make one clear ask, and end on it.", promptCategories: ["Persuade"] }],
   },
   {
     id: "con_6_lens",
@@ -887,7 +961,11 @@ export const LESSONS: Lesson[] = [
       how: ["Answer in your first sentence", "Add one reason or example", "Stop"],
       source: "Bottom-line-up-front; Abrahams, structured spontaneity",
     },
-    steps: [{ kind: "drill", drill: "land_plane" }, { kind: "drill", drill: "land_plane" }],
+    steps: [
+      { kind: "drill", drill: "land_plane" },
+      { kind: "drill", drill: "land_plane" },
+      { kind: "rep", focus: "Say your point in the first sentence, then add one reason and stop.", seconds: 45, promptCategories: ["One word"] },
+    ],
   },
   {
     id: "conv_15_land",
@@ -1297,6 +1375,14 @@ export const GUIDED: GuidedExercise[] = [
     ratingQuestion: "How okay did it feel to be the one who ends it?",
   },
 ];
+
+export function getUnit(id: string): Unit | undefined {
+  return UNITS.find((u) => u.id === id);
+}
+
+export function lessonsInUnit(unitId: string): Lesson[] {
+  return LESSONS.filter((l) => l.unitId === unitId);
+}
 
 export function getLesson(id: string): Lesson | undefined {
   return LESSONS.find((l) => l.id === id);

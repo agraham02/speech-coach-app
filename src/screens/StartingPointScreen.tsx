@@ -26,7 +26,9 @@ import { getNextEvent, getUserProfile, setUserProfile } from "../services/prefs/
 import { evaluateSkillCheck, feltBelowObserved, type SkillCheckInput, type SkillCheckResult } from "../domain/skillCheck";
 import { defaultsFromProfile, priorityFor } from "../domain/profile";
 import { previewPlans, type DailyPlan } from "../domain/dailyPlan";
-import { getLesson } from "../content/lessons";
+import { replanPath } from "../services/path/pathService";
+import type { StoredPathUnit } from "../services/db/pathRepo";
+import { getLesson, getUnit } from "../content/lessons";
 import { SKILLS } from "../domain/mastery";
 import type { PauseAnalysis } from "../domain/dsp/pauses";
 import type { PresenceMetrics } from "../domain/presenceMetrics";
@@ -98,6 +100,7 @@ export function StartingPointScreen({ route, navigation }: Props) {
   const [check, setCheck] = useState<StoredSkillCheck | null>(null);
   const [previous, setPrevious] = useState<StoredSkillCheck | null>(null);
   const [week, setWeek] = useState<DailyPlan[] | null>(null);
+  const [path, setPath] = useState<StoredPathUnit[] | null>(null);
   const [sessions, setSessions] = useState<{ now: Session | null; then: Session | null }>({ now: null, then: null });
   const [comfort, setComfort] = useState<number | null>(null);
   const profile = getUserProfile();
@@ -142,6 +145,10 @@ export function StartingPointScreen({ route, navigation }: Props) {
       const p = getUserProfile();
       if (p?.speakingComfort) await saveConfidenceCheckin(todayISODate(), p.speakingComfort);
     }
+    // The check is what the path is built from: build it (or re-plan it,
+    // on a retake) now, so the first week follows it.
+    const built = await replanPath();
+    setPath(built);
     const [skills, lessons] = await Promise.all([getSkillStates(), getLessonStates()]);
     setWeek(
       previewPlans(
@@ -152,6 +159,7 @@ export function StartingPointScreen({ route, navigation }: Props) {
           recentFocus: [],
           lessons: Object.fromEntries(Object.entries(lessons).map(([id, l]) => [id, { done: l.done, nextReviewAt: l.nextReviewAt }])),
           priority: priorityFor(getUserProfile(), todayISODate(), getNextEvent()),
+          path: built.filter((u) => u.status === "active" || u.status === "upcoming").map((u) => u.unitId),
         },
         7,
       ),
@@ -307,6 +315,8 @@ export function StartingPointScreen({ route, navigation }: Props) {
           </Card>
         ) : null}
 
+        {path && !retake ? <PathStart path={path} /> : null}
+
         {retake ? (
           <Card style={styles.card}>
             <Txt variant="headline">How do you feel about speaking in front of people now?</Txt>
@@ -357,6 +367,51 @@ export function StartingPointScreen({ route, navigation }: Props) {
   );
 }
 
+// The first units of the path the check just built, and why each is there.
+function PathStart({ path }: { path: StoredPathUnit[] }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const first = path.filter((u) => u.status === "active" || u.status === "upcoming").slice(0, 3);
+  const shown = path.filter((u) => u.status === "tested_out").length;
+  if (!first.length) return null;
+  return (
+    <Card style={styles.card}>
+      <Txt variant="caption2" tone="muted" uppercase>
+        Your path starts with
+      </Txt>
+      {first.map((u, i) => {
+        const unit = getUnit(u.unitId);
+        if (!unit) return null;
+        return (
+          <View key={u.unitId} style={styles.point}>
+            <Txt variant="callout" weight="600" tabular style={styles.step}>
+              {i + 1}
+            </Txt>
+            <View style={styles.flex}>
+              <Txt variant="callout" weight="600">
+                {unit.title}{" "}
+                <Txt variant="caption1" weight="600" color={colors.skill[unit.skill].fg}>
+                  {SKILL_LABELS[unit.skill]}
+                </Txt>
+              </Txt>
+              {u.reasons[0] ? (
+                <Txt variant="footnote" tone="secondary">
+                  {u.reasons[0].text}
+                </Txt>
+              ) : null}
+            </View>
+          </View>
+        );
+      })}
+      {shown ? (
+        <Txt variant="footnote" tone="muted">
+          Your check showed {shown === 1 ? "one foundation" : `${shown} foundations`} already, so the path skips {shown === 1 ? "it" : "them"}.
+        </Txt>
+      ) : null}
+    </Card>
+  );
+}
+
 const useStyles = makeStyles((t) => ({
   container: { gap: t.space.md },
   centered: { justifyContent: "center", alignItems: "center", gap: t.space.md },
@@ -365,6 +420,7 @@ const useStyles = makeStyles((t) => ({
   row: { flexDirection: "row", alignItems: "center", gap: t.space.sm },
   point: { flexDirection: "row", gap: t.space.sm, alignItems: "flex-start" },
   day: { width: 34 },
+  step: { width: 18 },
   skill: { width: 100 },
   flex: { flex: 1 },
 }));

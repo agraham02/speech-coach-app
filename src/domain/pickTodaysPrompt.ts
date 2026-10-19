@@ -41,7 +41,12 @@ export function pickTodaysPrompt(
 // should pass the currently-shown prompt's id in excludePromptIds (alongside
 // the recently-used ids) so a reroll never lands back on the same prompt,
 // unless the whole exclusion window has consumed the entire topic bank.
-export function pickRandomPrompt(topics: Prompt[], excludePromptIds: string[] = []): Prompt {
+//
+// `avoidCategory` (the category just shown or just recorded) keeps variety:
+// with many categories to choose from, two takes in a row don't both come
+// from Opinion. It's a preference, not a rule — if nothing else is left, the
+// category is allowed.
+export function pickRandomPrompt(topics: Prompt[], excludePromptIds: string[] = [], avoidCategory?: string): Prompt {
   if (topics.length === 0) {
     throw new Error("Topic list is empty");
   }
@@ -49,6 +54,8 @@ export function pickRandomPrompt(topics: Prompt[], excludePromptIds: string[] = 
   const excludeSet = new Set(excludePromptIds);
   const candidates = topics.filter((t) => !excludeSet.has(t.id));
   const pool = candidates.length > 0 ? candidates : topics;
+  const varied = avoidCategory ? pool.filter((t) => t.category !== avoidCategory) : pool;
+  const from = varied.length >= 3 ? varied : pool;
 
-  return pool[Math.floor(Math.random() * pool.length)];
+  return from[Math.floor(Math.random() * from.length)];
 }

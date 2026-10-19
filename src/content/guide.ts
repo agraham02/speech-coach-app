@@ -7,9 +7,11 @@
 
 export type TourTargetId =
   | "today.plan"
+  | "today.path"
   | "today.skills"
   | "learn.skills"
   | "learn.path"
+  | "learn.mode"
   | "you.progress"
   | "you.innerVoice"
   | "progress.streak"
@@ -43,14 +45,15 @@ export const GUIDES = {
     { title: "This is Today", body: "Everything for today in one place: your plan, your skills, and anything that's due.", placement: "bottom" },
     {
       title: "Your plan for today",
-      body: "Start session runs a 5–12 minute plan: a warm-up, a line to say with feeling, then a lesson picked for what you need next. Change the length here.",
+      body: "Start session runs a 5–12 minute plan: a warm-up, a line to say with feeling, then the next lesson on your path. Change the length here.",
       target: "today.plan",
     },
-    { title: "Your five skills", body: "They rise as you beat what your level predicts. Tap one to see what it measures and what moved it.", target: "today.skills" },
+    { title: "This week", body: "Your path has two units on the go, from different skills, and days take turns between them. Each says why it's there for you.", target: "today.path" },
+    { title: "Your five skills", body: "Each climbs five stages, Foundations to Polished, and together they make your speaker level. Tap one to see what moved it.", target: "today.skills" },
   ],
   learn: [
-    { title: "Learn", body: "Every lesson, grouped by skill. Each one explains a move, then has you practice it.", target: "learn.skills" },
-    { title: "Your path", body: "Next up marks where you are, and Review due brings a lesson back when it's time. Every lesson is open, so jump anywhere.", target: "learn.path" },
+    { title: "Your path", body: "Every unit, in the order that fits what you told us and what the skill check heard, with the reason for each. It shifts when your goals do.", target: "learn.path" },
+    { title: "All skills", body: "Every lesson, grouped by skill. Each one explains a move, then has you practice it. Everything is open, so jump anywhere.", target: "learn.mode" },
   ],
   you: [
     { title: "You", body: "Your streak, skills and progress. A freeze covers a missed day, so one slip doesn't end a streak.", target: "you.progress" },

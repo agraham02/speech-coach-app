@@ -26,6 +26,51 @@ import { formatBytes } from "../../domain/dev/jsonView";
 import { DAILY_REVIEW_LIMIT } from "../../services/cloud/inputGuards";
 import { todayISODate } from "../../utils/dateUtils";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
+import { ProgressReveal } from "../../components/celebrate/ProgressReveal";
+import { celebrate } from "../../components/celebrate/CelebrationHost";
+import { buildMoment, type MomentInput } from "../../domain/progressMoment";
+
+// Made-up takes for previewing the progress moment: nothing is read or saved.
+const SAMPLE_MOMENTS: { label: string; input: MomentInput }[] = [
+  {
+    label: "Stage earned",
+    input: {
+      score: 7.4,
+      previousScores: [6.8, 6.9, 6.5, 6.6],
+      previousBest: 7.6,
+      moves: [
+        { skill: "impromptu", ratingBefore: 33.5, ratingAfter: 36.2, stageBefore: 1, stageAfter: 2 },
+        { skill: "cadence", ratingBefore: 41, ratingAfter: 42.3, stageBefore: 2, stageAfter: 2 },
+      ],
+      speakerLevelBefore: 2,
+      speakerLevelAfter: 3,
+      path: { unitTitle: "Just start talking", lessonIndex: 2, lessonCount: 3 },
+    },
+  },
+  {
+    label: "Personal best",
+    input: {
+      score: 8.2,
+      previousScores: [7.1, 7.4, 6.9],
+      previousBest: 7.6,
+      moves: [{ skill: "confidence", ratingBefore: 47, ratingAfter: 49.4, stageBefore: 3, stageAfter: 3 }],
+      streakDays: 6,
+    },
+  },
+  {
+    label: "Off day",
+    input: {
+      score: 6.1,
+      previousScores: [7.0, 6.4, 6.2, 6.0, 6.3],
+      previousBest: 7.6,
+      moves: [
+        { skill: "impromptu", ratingBefore: 44, ratingAfter: 42.8, stageBefore: 2, stageAfter: 2 },
+        { skill: "conversation", ratingBefore: 38, ratingAfter: 38.6, stageBefore: 2, stageAfter: 2 },
+      ],
+      goal: { done: 2, goal: 3 },
+    },
+  },
+];
 
 type Props = NativeStackScreenProps<RootStackParamList, "DevTools">;
 
@@ -59,6 +104,8 @@ export function ToolsScreen({ navigation }: Props) {
   const [intro, setIntro] = useState(false);
   const [checking, setChecking] = useState(false);
   const [waveOpen, setWaveOpen] = useState(false);
+  const [momentIndex, setMomentIndex] = useState<number | null>(null);
+  const [momentRun, setMomentRun] = useState(0);
   const [cadenceIndex, setCadenceIndex] = useState(2);
   const subscribeSynthetic = useMemo(() => syntheticVolume(CADENCES[cadenceIndex]), [cadenceIndex]);
 
@@ -155,6 +202,31 @@ export function ToolsScreen({ navigation }: Props) {
       <ListGroup title="Previews">
         <ListRow icon="pulse-outline" title="Preview the live waveform" subtitle="Simulated speech at different reading rates" chevron onPress={() => setWaveOpen(true)} />
         <ListRow icon="play-outline" title="Preview the welcome intro" subtitle="Plays it over this screen; nothing is saved" chevron onPress={() => setIntro(true)} />
+        <ListRow icon="sparkles-outline" title="Preview a progress moment" subtitle="What a take's Result plays once its progress lands" chevron onPress={() => setMomentIndex(0)} />
+        <ListRow
+          icon="ribbon-outline"
+          title="Preview a stage celebration"
+          subtitle="Cadence reaching Steady"
+          chevron
+          onPress={() => celebrate({ kind: "stage", skill: "cadence", stage: 3, speakerLevel: 6 })}
+        />
+        <ListRow
+          icon="checkmark-done-outline"
+          title="Preview a unit celebration"
+          subtitle="Finishing The power of the pause"
+          chevron
+          onPress={() =>
+            celebrate({
+              kind: "unit",
+              skill: "cadence",
+              unitTitle: "The power of the pause",
+              lessons: ["Pause on purpose", "Pause instead of um", "Hold the silence"],
+              ratingFrom: 31,
+              ratingTo: 38.5,
+              next: "Just start talking",
+            })
+          }
+        />
       </ListGroup>
 
       <ListGroup title="Notifications">
@@ -221,6 +293,28 @@ export function ToolsScreen({ navigation }: Props) {
           </View>
           <Waveform height={220} color={colors.skill.conversation.fg} subscribe={subscribeSynthetic} live={waveOpen} />
           <PrimaryButton label="Close" variant="secondary" onPress={() => setWaveOpen(false)} />
+        </View>
+      </Modal>
+
+      <Modal visible={momentIndex != null} animationType="fade" onRequestClose={() => setMomentIndex(null)}>
+        <View style={styles.wavePreview}>
+          <Txt variant="title3">Progress moment</Txt>
+          <View style={styles.waveChips}>
+            {SAMPLE_MOMENTS.map((m, i) => (
+              <Chip
+                key={m.label}
+                label={m.label}
+                selected={momentIndex === i}
+                onPress={() => {
+                  setMomentIndex(i);
+                  setMomentRun((r) => r + 1);
+                }}
+              />
+            ))}
+          </View>
+          {momentIndex != null ? <ProgressReveal key={momentRun} beats={buildMoment(SAMPLE_MOMENTS[momentIndex].input)} animate /> : null}
+          <PrimaryButton label="Replay" variant="secondary" onPress={() => setMomentRun((r) => r + 1)} />
+          <PrimaryButton label="Close" variant="ghost" onPress={() => setMomentIndex(null)} />
         </View>
       </Modal>
 

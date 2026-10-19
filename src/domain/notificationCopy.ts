@@ -1,4 +1,5 @@
 import type { EventKind } from "./profile";
+import { ANCHOR_OPTIONS } from "../content/onboarding";
 
 // What Tono's notifications say. Pure: the schedulers gather the facts (name,
 // streak, upcoming event, the hour it will arrive) and this picks the words.
@@ -17,6 +18,8 @@ export interface ReminderContext {
   slot: number;
   // "After my morning coffee": the habit practice is tied to.
   anchor: string | null;
+  // The hour of a habit the person wrote themselves.
+  anchorHour?: number | null;
   // The streak as it will stand when this arrives (0 when it will have lapsed
   // or the person has not practiced yet today).
   streak: number;
@@ -25,6 +28,42 @@ export interface ReminderContext {
   // When it arrives.
   when: Date;
   event?: { daysLeft: number; kind: EventKind } | null;
+}
+
+// The habit an anchor is tied to happens at a time of day ("after your
+// morning coffee" is a morning), so a line built on it only makes sense near
+// that time. A reminder set for 7 PM must not say "after your morning
+// coffee". Matches the anchor to one of the known habits by its words, so it
+// survives "my" versus "your" and trailing punctuation; a habit it doesn't
+// recognize can't be placed in the day, so it's never used.
+const ANCHOR_WINDOW_HOURS = 2;
+
+function plainAnchor(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z ]/g, " ")
+    .replace(/\b(my|your)\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// The ready-made habit an anchor's words match, if any.
+export function anchorOption(anchor: string | null | undefined) {
+  if (!anchor) return undefined;
+  const plain = plainAnchor(anchor);
+  return ANCHOR_OPTIONS.find((o) => plainAnchor(o.anchor) === plain);
+}
+
+// When the habit happens: a ready-made one knows; one the person wrote was
+// tied to the hour they chose for their reminder (`savedHour`).
+export function anchorHour(anchor: string | null | undefined, savedHour?: number | null): number | null {
+  if (!anchor) return null;
+  return anchorOption(anchor)?.hour ?? savedHour ?? null;
+}
+
+export function anchorFits(anchor: string | null | undefined, when: Date, savedHour?: number | null): boolean {
+  const hour = anchorHour(anchor, savedHour);
+  return hour != null && Math.abs(when.getHours() - hour) <= ANCHOR_WINDOW_HOURS;
 }
 
 export interface NotificationText {
@@ -107,7 +146,7 @@ export function reminderText(ctx: ReminderContext): NotificationText {
     return { title, body: `Day ${ctx.streak + 1} is ready. ${pick(["Keep it going.", "Same time, same rep.", "One response is all it takes."], ctx.when)}` };
   }
 
-  if (ctx.anchor) return { title, body: `${ctx.anchor.replace(/[.!?\s]+$/, "")}: time for today's practice.` };
+  if (ctx.anchor && anchorFits(ctx.anchor, ctx.when, ctx.anchorHour)) return { title, body: `${ctx.anchor.replace(/[.!?\s]+$/, "")}: time for today's practice.` };
 
   const weekday = WEEKDAY[ctx.when.getDay()];
   if (weekday && dayNumber(ctx.when) % 2 === 0) return { title, body: weekday };

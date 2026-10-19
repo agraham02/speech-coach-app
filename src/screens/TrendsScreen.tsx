@@ -175,16 +175,16 @@ export function TrendsScreen() {
         <Card style={styles.curriculumCard}>
           <View style={styles.curriculumHeaderRow}>
             <View>
-              <Text style={styles.sectionLabel}>Your level</Text>
+              <Text style={styles.sectionLabel}>Practice difficulty</Text>
               <Text style={styles.curriculumLevelText}>
-                Level {curriculumLevel} · {difficultyTierLabel(levelToDifficultyTier(curriculumLevel))}
+                Step {curriculumLevel} · {difficultyTierLabel(levelToDifficultyTier(curriculumLevel))}
               </Text>
             </View>
             <Pressable
               onPress={() => navigation.navigate("Curriculum")}
               style={styles.curriculumLink}
               accessibilityRole="button"
-              accessibilityLabel="View curriculum details"
+              accessibilityLabel="View practice difficulty"
             >
               <Text style={styles.curriculumLinkText}>Details</Text>
               <Ionicons name="chevron-forward" size={14} color={colors.accent} />

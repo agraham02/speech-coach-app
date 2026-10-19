@@ -14,6 +14,8 @@ export interface TimelineStep {
   subtitle?: string;
   state: "done" | "current" | "todo";
   onPress?: () => void;
+  // This step's own color for its done node (a path mixes skills).
+  color?: string;
 }
 
 const NODE = 22;
@@ -29,12 +31,13 @@ export function StepTimeline({ steps, color, dense }: { steps: TimelineStep[]; c
     <View>
       {steps.map((step, i) => {
         const last = i === steps.length - 1;
+        const stepFill = step.color ?? fill;
         const row = (
           <View style={styles.row}>
             <View style={styles.rail}>
-              {!last ? <View style={[styles.line, step.state === "done" && { backgroundColor: fill, opacity: 0.6 }]} /> : null}
+              {!last ? <View style={[styles.line, step.state === "done" && { backgroundColor: stepFill, opacity: 0.6 }]} /> : null}
               {step.state === "done" ? (
-                <Animated.View entering={ZoomIn.duration(260)} style={[styles.node, { backgroundColor: fill, borderColor: fill }]}>
+                <Animated.View entering={ZoomIn.duration(260)} style={[styles.node, { backgroundColor: stepFill, borderColor: stepFill }]}>
                   <Ionicons name="checkmark" size={14} color={colors.background} />
                 </Animated.View>
               ) : (

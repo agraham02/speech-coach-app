@@ -161,7 +161,7 @@ const useStyles = makeStyles(({ colors }) => ({
     paddingVertical: spacing.sm,
   },
   searchInput: { ...font("400"), flex: 1, color: colors.textPrimary, fontSize: typography.body, padding: 0 },
-  chipScroll: { flexGrow: 0 },
+  chipScroll: { flexGrow: 0, flexShrink: 0 },
   chipRow: { flexDirection: "row", gap: spacing.xs },
   chip: {
     paddingHorizontal: spacing.md,

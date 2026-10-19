@@ -14,6 +14,8 @@ import { Txt } from "../components/common/Txt";
 import { getSkillEvents, getSkillStates, type SkillEvent, type SkillState } from "../services/db/progressRepo";
 import { HOW_RATINGS_WORK, SKILL_GUIDE } from "../content/skillGuide";
 import { SKILL_LABELS } from "../theme/tokens";
+import { isRusty, nextStageHint, stageName, stageProgress } from "../domain/levels";
+import { DeltaBar } from "../components/celebrate/DeltaBar";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "SkillDetail">;
@@ -62,6 +64,17 @@ export function SkillDetailScreen({ route, navigation }: Props) {
             out of 100
           </Txt>
         </ProgressRing>
+        {state ? (
+          <View style={styles.stage}>
+            <Txt variant="headline" color={c.fg} align="center">
+              {stageName(state.stage)}
+            </Txt>
+            <DeltaBar value={stageProgress(state.rating, state.stage)} color={c.fg} trackColor={c.bg} growIn />
+            <Txt variant="footnote" tone="secondary" align="center">
+              {isRusty(state.rating, state.stage) ? "A bit rusty. A few sessions brings it back." : nextStageHint(state.rating, state.attempts, state.stage)}
+            </Txt>
+          </View>
+        ) : null}
         <Txt variant="callout" tone="secondary" align="center">
           {guide.what}
         </Txt>
@@ -196,6 +209,7 @@ function EventRow({ event: e, last, onOpen }: { event: SkillEvent; last: boolean
 const useStyles = makeStyles((t) => ({
   hero: { alignItems: "center", gap: t.space.md, paddingVertical: t.space.xl },
   heroNumber: { fontSize: 44, lineHeight: 50, letterSpacing: -1.6 },
+  stage: { alignSelf: "stretch", gap: t.space.sm, paddingHorizontal: t.space.md },
   section: { gap: t.space.sm + 4 },
   list: { gap: t.space.sm + 2 },
   bullet: { flexDirection: "row", gap: t.space.sm + 2, alignItems: "flex-start" },

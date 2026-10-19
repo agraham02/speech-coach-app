@@ -202,3 +202,41 @@ describe("previewPlans", () => {
     expect(week[0].focusSkill).toBe("conversation");
   });
 });
+
+describe("daily plan on a path", () => {
+  const path = ["cad_pause", "imp_start", "con_nerves", "art_wake"];
+
+  it("takes the next lesson of an active unit", () => {
+    const plan = buildDailyPlan(input({ path }));
+    expect(plan.unitId).toBe("cad_pause");
+    expect(plan.lessonId).toBe(LESSONS.find((l) => l.unitId === "cad_pause")!.id);
+    expect(plan.isReview).toBe(false);
+  });
+
+  it("alternates between the two active units", () => {
+    expect(buildDailyPlan(input({ path, recentFocus: ["cadence"] })).unitId).toBe("imp_start");
+    expect(buildDailyPlan(input({ path, recentFocus: ["impromptu"] })).unitId).toBe("cad_pause");
+  });
+
+  it("moves on once a unit's lessons are done", () => {
+    const lessons = Object.fromEntries(LESSONS.filter((l) => l.unitId === "cad_pause").map((l) => [l.id, { done: true, nextReviewAt: null }]));
+    const plan = buildDailyPlan(input({ path, lessons, recentFocus: ["impromptu"] }));
+    expect(plan.unitId).toBe("con_nerves");
+  });
+
+  it("gives the day to reviews when they pile up", () => {
+    const due = Object.fromEntries(LESSONS.slice(0, 3).map((l) => [l.id, { done: true, nextReviewAt: "2026-10-01T00:00:00Z" }]));
+    const plan = buildDailyPlan(input({ path, lessons: due }));
+    expect(plan.unitId).toBeUndefined();
+    expect(plan.isReview).toBe(true);
+  });
+
+  it("falls back to need once the path is finished", () => {
+    expect(buildDailyPlan(input({ path: [] })).unitId).toBeUndefined();
+  });
+
+  it("previews a week that follows the path", () => {
+    const week = previewPlans(input({ path }), 4);
+    expect(week.map((p) => p.unitId)).toEqual(["cad_pause", "imp_start", "cad_pause", "imp_start"]);
+  });
+});

@@ -31,6 +31,7 @@ const KEYS = {
   prepSettingsManuallySet: "prepSettingsManuallySet",
   dailySessionGoal: "dailySessionGoal",
   practiceAnchor: "practiceAnchor",
+  practiceAnchorHour: "practiceAnchorHour",
   userProfile: "userProfile",
   skillCheckPending: "skillCheckPending",
   cloudReviewDefault: "cloudReviewDefault",
@@ -54,6 +55,7 @@ const KEYS = {
   faceCalibration: "faceCalibration",
   nextEvent: "nextEvent",
   mediaBackup: "mediaBackup",
+  pathPlan: "pathPlan",
 } as const;
 
 // The session-score rules every stored score was last computed with (see
@@ -228,9 +230,18 @@ export function getPracticeAnchor(): string | null {
   return storage.getString(KEYS.practiceAnchor) ?? null;
 }
 
-export function setPracticeAnchor(anchor: string | null): void {
+// The hour of day the habit belongs to, for a habit the person wrote
+// themselves (the ready-made ones know their own). null when not known.
+export function getPracticeAnchorHour(): number | null {
+  const hour = storage.getNumber(KEYS.practiceAnchorHour);
+  return hour != null && hour >= 0 && hour <= 23 ? hour : null;
+}
+
+export function setPracticeAnchor(anchor: string | null, hour: number | null = null): void {
   if (anchor) storage.set(KEYS.practiceAnchor, anchor);
   else storage.remove(KEYS.practiceAnchor);
+  if (anchor && hour != null) storage.set(KEYS.practiceAnchorHour, hour);
+  else storage.remove(KEYS.practiceAnchorHour);
 }
 
 // What onboarding learned (domain/profile.ts). Kept here rather than in
@@ -522,6 +533,22 @@ export function clearFaceCalibration(): void {
 // speaking_events table by eventsRepo.syncEvents for the readers that can't
 // wait on the database: the daily plan's lean, rep prompts, reminder copy,
 // the deep review's note about the speaker.
+// When the path was last planned, and a fingerprint of what it was planned
+// from (goals, event, skill check) — a change re-plans it.
+export interface PathPlanState {
+  plannedAt: string;
+  fingerprint: string;
+}
+
+export function getPathPlanState(): PathPlanState | null {
+  return readJson<PathPlanState | null>(KEYS.pathPlan, null);
+}
+
+export function setPathPlanState(state: PathPlanState | null): void {
+  if (state) storage.set(KEYS.pathPlan, JSON.stringify(state));
+  else storage.remove(KEYS.pathPlan);
+}
+
 export function getNextEvent(): UpcomingEvent | null {
   return readJson<UpcomingEvent | null>(KEYS.nextEvent, null);
 }

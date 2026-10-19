@@ -64,6 +64,9 @@ function promptExtras(subject: Extract<RecordingSubject, { kind: "prompt" }>): S
     targetFramework: subject.targetFramework,
     promptText: adhoc ? subject.prompt.text : undefined,
     promptCategory: adhoc ? subject.prompt.category : undefined,
+    promptTask: adhoc ? subject.prompt.task : undefined,
+    targetSeconds: subject.targetSeconds,
+    prepUsed: subject.prepUsed,
     feelingEmotion: subject.feeling?.emotion,
     feelingAngle: subject.feeling?.angle,
   };

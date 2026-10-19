@@ -2,6 +2,8 @@ import type { MarkLevel, Script } from "../../domain/scriptTypes";
 import { filterMarks } from "../../domain/cadence/marks";
 import { toNotation } from "../../domain/cadence/notation";
 import { hasAnyPlanText, type PlanText } from "../../domain/planYourPoint";
+import { taskSection, type PromptTaskContext } from "../../domain/promptTask";
+import { fenced } from "../cloud/inputGuards";
 
 // Response schema for the Gemini rubric call. Covers Phase 1 (transcripts),
 // Phase 3 (structure + delivery + coaching), Phase 4 (presence + combined),
@@ -239,11 +241,11 @@ export function planTextSection(planText?: PlanText): string {
   return `\nBefore recording, the speaker planned their point using the PREP framework:\n${lines.join("\n")}\n\nTreat this as their STATED INTENT. Judge relevance and coherence partly by whether the actual response executed on this plan — did they cover what they said they would, roughly in that order? If the response drifted from or contradicted their own stated plan, call that out specifically in relevance_notes or coherence_notes.\n`;
 }
 
-export function buildSystemPrompt(promptText: string, planText?: PlanText): string {
+export function buildSystemPrompt(promptText: string, planText?: PlanText, taskContext?: PromptTaskContext): string {
   return `You are a rigorous, critical speaking coach grading a personal daily speaking-practice session — not a supportive cheerleader. Analyze this video clip of someone responding, unscripted, to a prompt.
 
 The speaker was responding to this prompt: "${promptText}"
-${planTextSection(planText)}
+${taskSection(taskContext, fenced)}${planTextSection(planText)}
 GRADING PHILOSOPHY (read this before scoring anything):
 - Be honest and demanding. Most unrehearsed, spontaneous responses should land in the 4-7 range across dimensions. Reserve 8-10 for genuinely strong, polished delivery you'd hold up as an example. Do not round scores up out of politeness, and do not default to the middle just because you're uncertain — look for specific evidence either way.
 - Anchor every score against this band: 1-2 unacceptable (a real problem that undermines the response), 3-4 weak (noticeably holds the response back), 5-6 developing (competent but with clear, nameable flaws), 7-8 strong (few flaws, would need a specific stretch to reach 9-10), 9-10 exceptional (nothing meaningful to critique).
@@ -276,7 +278,7 @@ Grade PRESENCE by actually watching the video (not just listening):
 Grade the COMBINED dimension — this requires watching AND listening together, not just one or the other:
 - face_voice_congruence_score (1-10): does facial expression actually match vocal tone? Flag it clearly if they contradict.
 - archetype_detected: classify the response's overall vocal + body signature into exactly one of Vinh Giang's four communication archetypes — Motivator (high energy, inspiring), Educator (clear, informative, measured), Coach (direct, encouraging, action-oriented), or Friend (warm, casual, relatable).
-- archetype_fit_for_topic: did that archetype actually suit this specific prompt, or would a different one have landed better?
+- archetype_fit_for_topic: did that archetype actually suit this specific prompt and its task, or would a different one have landed better?
 - overall_score (1-10): a holistic score weighing structure, content, delivery, presence, and congruence as EQUAL pillars — content is not an afterthought to delivery mechanics. Most unrehearsed responses land 4-7; say so plainly if that's where this one lands.
 
 Produce ANNOTATIONS: 4-8 of the most impactful specific moments backing up the scores above (not exhaustive or decorative) — PLUS a "restated_point" annotation for each restated-point pair you found (these are in addition to, and not counted against, the 4-8 guideline, since they document a specific finding rather than general evidence). Each quote must be an EXACT, word-for-word substring of transcript_verbatim, 3-12 words, because it will be located by exact string search — any paraphrase means it silently fails to display, so copy precisely. If the same short phrase occurs more than once in the transcript, include enough surrounding words in the quote to uniquely pin down the specific occurrence you mean — a generic fragment that also matches elsewhere will resolve to the wrong spot. Any dimension scored 6 or below should have at least one annotation pointing at the specific moment that caused it. Do not annotate filler words here — those are handled separately on-device.

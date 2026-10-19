@@ -42,6 +42,7 @@ import { HistoryScreen } from "../screens/HistoryScreen";
 import { TrendsScreen } from "../screens/TrendsScreen";
 import type { SkillId } from "../theme/tokens";
 import { SkillDetailScreen } from "../screens/SkillDetailScreen";
+import { LevelScreen } from "../screens/LevelScreen";
 import { DevHomeScreen } from "../screens/dev/DevHomeScreen";
 import { SHOW_DEV_TOOLS } from "../config/devTools";
 import { RecordingScreen } from "../screens/RecordingScreen";
@@ -110,6 +111,8 @@ export type RootStackParamList = {
   Progress: undefined;
   // One skill's rating: what moves it, and its recent changes.
   SkillDetail: { skill: SkillId };
+  // Speaker level and each skill's stage.
+  Level: undefined;
   Phrasebook: undefined;
   ThreeThings: undefined;
   TalkBack: undefined;
@@ -420,6 +423,7 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
         <Stack.Screen name="Sources" component={SourcesScreen} />
         <Stack.Screen name="Trends" component={TrendsScreen} />
         <Stack.Screen name="SkillDetail" component={SkillDetailScreen} />
+        <Stack.Screen name="Level" component={LevelScreen} />
         <Stack.Screen name="Drill" component={DrillRunnerScreen} />
         <Stack.Screen name="Guided" component={GuidedScreen} />
         <Stack.Screen name="Conversation" component={ConversationRunnerScreen} />

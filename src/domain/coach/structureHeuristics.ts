@@ -28,13 +28,13 @@ export const FRAMEWORK_LABELS: Record<FrameworkId, string> = {
 // STAR needs a "tell me about a time". Categories are the prompt library's
 // (data/topics.ts).
 export const FRAMEWORK_PROMPT_CATEGORIES: Record<Exclude<FrameworkId, "None">, string[]> = {
-  PREP: ["Opinion", "Hypothetical"],
+  PREP: ["Opinion", "Hypothetical", "Persuade", "Debate"],
   WhatSoWhatNowWhat: ["Explain"],
-  ProblemSolutionBenefit: ["Opinion", "Hypothetical"],
-  PastPresentFuture: ["Personal", "Spontaneous"],
-  StoryArc: ["Story"],
+  ProblemSolutionBenefit: ["Opinion", "Hypothetical", "Persuade"],
+  PastPresentFuture: ["Personal", "One word"],
+  StoryArc: ["Story", "Creative"],
   STAR: ["Story"],
-  ListOfThree: ["Opinion", "Hypothetical", "Spontaneous"],
+  ListOfThree: ["Opinion", "Hypothetical", "Debate", "One word"],
 };
 
 const CUES: Record<Exclude<FrameworkId, "None">, RegExp[]> = {

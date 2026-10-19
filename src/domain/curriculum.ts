@@ -279,18 +279,18 @@ export interface CurriculumExplanationContext {
 // stretch eases it back. The override template supersedes everything else.
 export function explainCurriculumChange(ctx: CurriculumExplanationContext): string {
   if (ctx.overrideActive) {
-    return `You've set Level ${ctx.level} for Practice — it stays there until you switch back to Auto. Lessons and your daily plan still follow your reps.`;
+    return `You've set step ${ctx.level} for Practice — it stays there until you switch back to Auto. Lessons and your daily plan still follow your reps.`;
   }
   if (ctx.direction === "initial") {
-    return `Starting at Level ${ctx.level}. From here it follows your impromptu reps.`;
+    return `Starting at step ${ctx.level}. From here it follows your impromptu reps.`;
   }
   if (ctx.reason === "changed" && ctx.direction === "up") {
-    return `Your recent reps went well — moving up to Level ${ctx.level}.`;
+    return `Your recent reps went well — moving up to step ${ctx.level}.`;
   }
   if (ctx.reason === "changed" && ctx.direction === "down") {
-    return `Your last rep was a stretch — easing back to Level ${ctx.level}.`;
+    return `Your last rep was a stretch — easing back to step ${ctx.level}.`;
   }
-  return `Level ${ctx.level}. It follows your impromptu reps: each one that goes well nudges it up a little, and one that's a stretch eases it back.`;
+  return `Step ${ctx.level}. It follows your impromptu reps: each one that goes well nudges it up a little, and one that's a stretch eases it back.`;
 }
 
 export function levelToDifficultyTier(level: CurriculumLevel): DifficultyTier {

@@ -2,11 +2,12 @@ import type { SQLiteDatabase } from "expo-sqlite";
 import { TOPICS } from "../../data/topics";
 import { DIFFICULTY_OVERRIDES, defaultDifficultyTier } from "../../domain/promptDifficulty";
 import { inferLegacySteps, type LegacySessionSignals } from "../../domain/sessionSteps";
+import { earnedStage } from "../../domain/levels";
 import type { SessionStatus } from "../../domain/sessionTypes";
 import { logger } from "../../utils/logger";
 
 // Bump this and add a new numbered migration when the schema changes.
-export const LATEST_DB_VERSION = 29;
+export const LATEST_DB_VERSION = 30;
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(
@@ -779,6 +780,42 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
       CREATE INDEX IF NOT EXISTS idx_speaking_events_date ON speaking_events(event_date);
     `);
     currentVersion = await commitVersion(db, 29);
+  }
+
+  if (currentVersion < 30) {
+    // Levels you can see, and your own path through the units.
+    // - skill_mastery.stage: the stage earned in each skill (domain/levels.ts).
+    //   Earned stages never drop, so they're stored, not derived. Backfilled
+    //   from today's ratings without any celebration.
+    // - path_units: the order your units come in, built for you
+    //   (domain/path.ts), with why each one is there.
+    // - path_changes: each time the path's order moved, and why — shown once
+    //   on Today.
+    await db.withTransactionAsync(async () => {
+      await addColumnIfMissing(db, "skill_mastery", "stage", "INTEGER NOT NULL DEFAULT 1");
+      await addColumnIfMissing(db, "skill_mastery", "stage_reached_at", "TEXT");
+      const rows = await db.getAllAsync<{ skill: string; rating: number; attempts: number }>(`SELECT skill, rating, attempts FROM skill_mastery`);
+      for (const r of rows) {
+        await db.runAsync(`UPDATE skill_mastery SET stage = ? WHERE skill = ?`, [earnedStage(1, r.rating, r.attempts), r.skill]);
+      }
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS path_units (
+          unit_id TEXT PRIMARY KEY NOT NULL,
+          position INTEGER NOT NULL,
+          status TEXT NOT NULL,
+          reasons_json TEXT NOT NULL DEFAULT '[]',
+          started_at TEXT,
+          completed_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS path_changes (
+          id TEXT PRIMARY KEY NOT NULL,
+          at TEXT NOT NULL,
+          summary_json TEXT NOT NULL,
+          seen_at TEXT
+        );
+      `);
+    });
+    currentVersion = await commitVersion(db, 30);
   }
 }
 

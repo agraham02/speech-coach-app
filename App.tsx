@@ -9,6 +9,7 @@ import { AppNavigator } from "./src/navigation";
 import { isModelDownloaded, DEFAULT_ASR_MODEL, tidyModelsFolder, subscribeModelReady } from "./src/services/asr/whisperModels";
 import { retryWaitingTakes } from "./src/services/pipeline/retryWaitingTakes";
 import { ToastProvider } from "./src/components/common/ToastProvider";
+import { CelebrationHost } from "./src/components/celebrate/CelebrationHost";
 import { GuideProvider } from "./src/components/common/GuideTip";
 import { ThemeProvider, useTheme } from "./src/theme/ThemeProvider";
 
@@ -54,7 +55,9 @@ export default function App() {
           <AppErrorBoundary>
             <ToastProvider>
               <GuideProvider>
-                <AppNavigator onReady={() => SplashScreen.hide()} />
+                <CelebrationHost>
+                  <AppNavigator onReady={() => SplashScreen.hide()} />
+                </CelebrationHost>
               </GuideProvider>
             </ToastProvider>
           </AppErrorBoundary>

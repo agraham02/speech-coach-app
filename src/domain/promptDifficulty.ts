@@ -11,7 +11,16 @@ const CATEGORY_BASE_TIER: Record<string, DifficultyTier> = {
   Story: "easy",
   Opinion: "medium",
   Hypothetical: "medium",
+  // Persuade and Creative hand you a premise and an audience; Debate asks
+  // for a defended position on something contested.
+  Persuade: "medium",
+  Creative: "medium",
+  Debate: "hard",
   Explain: "hard",
+  // One word spans every level — the built-in ones each carry their own
+  // tier — so a word you add yourself starts in the middle.
+  "One word": "medium",
+  // The old name of One word, for prompts people made under it.
   Spontaneous: "hard",
 };
 
@@ -23,6 +32,8 @@ const TIER_ORDER: DifficultyTier[] = ["easy", "medium", "hard"];
 // bump Spontaneous gets by default.
 export function defaultDifficultyTier(category: string, text: string): DifficultyTier {
   const base = CATEGORY_BASE_TIER[category] ?? "medium";
+  // A bare word is short by design: length says nothing about its difficulty.
+  if (category === "One word") return base;
   const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
   const bumpHarder = wordCount >= 16 || wordCount <= 5;
   if (!bumpHarder) return base;

@@ -1,5 +1,6 @@
 import type { SkillId } from "../theme/tokens";
-import { getGuided, LESSONS, type Lesson, type LessonStep } from "../content/lessons";
+import { getGuided, getLesson, getUnit, LESSONS, type Lesson, type LessonStep } from "../content/lessons";
+import { nextLessonInUnit, pickActive } from "./path";
 import { DRILL_TITLES } from "./drills/drillSpecs";
 import { FRAMEWORK_LABELS, type FrameworkId } from "./coach/structureHeuristics";
 import { WARM_UPS } from "../content/drillContent";
@@ -8,8 +9,10 @@ import { getLines } from "../content/lines";
 import { lineOfTheDay } from "./cadence/lineRep";
 
 // Builds today's 5–12 minute session: warm-up -> line of the day -> focus
-// drill(s) from the next lesson in the focus skill -> one impromptu rep ->
-// quick review. The line of the day (one marked line, read with the marks
+// drill(s) from the next lesson on your path -> one impromptu rep -> quick
+// review. The path (domain/path.ts) has two units on the go at once, from
+// different skills; days alternate between them. When reviews pile up, the
+// day goes to them instead. The line of the day (one marked line, read with the marks
 // and without) puts cadence in every plan, whatever the focus skill.
 // Deterministic for a given day and inputs, so reopening the app shows the
 // same plan.
@@ -27,6 +30,9 @@ export interface PlanInput {
   // Extra focus weight per skill from onboarding (domain/profile.ts): what
   // gets in your way, fading over a few weeks; an upcoming event's skills.
   priority?: Partial<Record<SkillId, number>>;
+  // Your path's units still to do, in order. Without one (or once it's
+  // finished) the plan picks a skill by need, as before paths existed.
+  path?: string[];
 }
 
 export type PlanStepKind = "warmup" | "line" | "drill" | "guided" | "rep" | "review";
@@ -42,8 +48,11 @@ export interface PlanStep {
 
 // Bumped when the plan's shape changes, so a stored plan nobody has started
 // yet is rebuilt (v2: line of the day; v3: a lesson's own warm-up no longer
-// takes one of its practice slots).
-export const PLAN_VERSION = 3;
+// takes one of its practice slots; v4: lessons come from your path).
+export const PLAN_VERSION = 4;
+
+// This many lessons due for review make the day a review day.
+export const REVIEW_DAY_DUE = 3;
 
 export interface DailyPlan {
   version?: number;
@@ -53,6 +62,10 @@ export interface DailyPlan {
   lessonId: string;
   isReview: boolean;
   steps: PlanStep[];
+  // The path unit the lesson belongs to, when the path chose it.
+  unitId?: string;
+  // Built with a path to follow (even on a review day, which sets no unit).
+  followsPath?: boolean;
 }
 
 // Confidence and conversation days settle nerves with the calming sigh: a
@@ -138,9 +151,26 @@ function describeStep(step: LessonStep): { kind: PlanStepKind; title: string; de
   }
 }
 
+// The path's pick for today: the next lesson in one of the two units on
+// the go — the one whose skill wasn't yesterday's focus, so they take turns.
+// Null on a review day, or with no path left.
+export function choosePathLesson(input: PlanInput): { lesson: Lesson; unitId: string } | null {
+  if (!input.path?.length) return null;
+  const due = LESSONS.filter((l) => isDue(input.lessons[l.id]?.nextReviewAt ?? null, input.date)).length;
+  if (due >= REVIEW_DAY_DUE) return null;
+  const open = input.path.filter((id) => nextLessonInUnit(id, input.lessons) != null);
+  const active = pickActive(open);
+  if (!active.length) return null;
+  const unitId = active.find((id) => getUnit(id)?.skill !== input.recentFocus[0]) ?? active[0];
+  const lesson = getLesson(nextLessonInUnit(unitId, input.lessons)!);
+  return lesson ? { lesson, unitId } : null;
+}
+
 export function buildDailyPlan(input: PlanInput): DailyPlan {
-  const focusSkill = chooseFocusSkill(input);
-  const { lesson, isReview } = chooseLesson(focusSkill, input);
+  const fromPath = choosePathLesson(input);
+  const focusSkill = fromPath?.lesson.skill ?? chooseFocusSkill(input);
+  const { lesson, isReview } = fromPath ? { lesson: fromPath.lesson, isReview: false } : chooseLesson(focusSkill, input);
+  const unitId = fromPath?.unitId;
   const steps: PlanStep[] = [];
   const push = (step: LessonStep) => {
     const d = describeStep(step);
@@ -183,7 +213,7 @@ export function buildDailyPlan(input: PlanInput): DailyPlan {
     const lessonDrill = practice.find((s): s is Extract<LessonStep, { kind: "drill" }> => s.kind === "drill" && !used.has(s.drill));
     push(lessonDrill ?? { kind: "drill", drill: CONVERSATION_APPLY.find((d) => !used.has(d)) ?? "conv_reply" });
     // No video rep to review on a conversation day.
-    return { version: PLAN_VERSION, date: input.date, minutes: input.minutes, focusSkill, lessonId: lesson.id, isReview, steps };
+    return { version: PLAN_VERSION, date: input.date, minutes: input.minutes, focusSkill, lessonId: lesson.id, isReview, steps, unitId, followsPath: !!input.path?.length };
   }
   if (lessonRep) {
     push(lessonRep);
@@ -197,7 +227,7 @@ export function buildDailyPlan(input: PlanInput): DailyPlan {
     steps.push({ id: `${steps.length}`, kind: "review", title: "Quick review", detail: "Watch, listen, then both — at 1.5×.", minutes: 1 });
   }
 
-  return { version: PLAN_VERSION, date: input.date, minutes: input.minutes, focusSkill, lessonId: lesson.id, isReview, steps };
+  return { version: PLAN_VERSION, date: input.date, minutes: input.minutes, focusSkill, lessonId: lesson.id, isReview, steps, unitId, followsPath: !!input.path?.length };
 }
 
 // The next `days` days of plans, simulated — each day's focus counts as

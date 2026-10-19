@@ -21,11 +21,13 @@ import { FRAMEWORK_LABELS } from "../domain/coach/structureHeuristics";
 import { completeLesson, getLessonStates, type LessonState } from "../services/db/progressRepo";
 import { launchStep } from "../services/practice/launchStep";
 import { subscribePracticeSteps } from "../services/practice/practiceEvents";
-import { showGlobalToast } from "../components/common/ToastProvider";
 import { SKILL_LABELS } from "../theme/tokens";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import { defaultsFromProfile } from "../domain/profile";
 import { getUserProfile } from "../services/prefs/prefsStore";
+import { getPathView } from "../services/path/pathService";
+import { nextLessonInUnit } from "../domain/path";
+import { LessonCompleteCard } from "../components/path/LessonCompleteCard";
 
 // Drills that read marked text (the pause drill shows only pauses).
 const MARKED_DRILLS: string[] = ["marked_reading", "pause_reading", "move_it"];
@@ -63,6 +65,8 @@ export function LessonScreen({ route, navigation }: Props) {
   const [done, setDone] = useState<Set<number>>(new Set());
   const [state, setState] = useState<LessonState | null>(null);
   const scoresRef = useRef<number[]>([]);
+  // Set when the lesson was finished on this visit: what comes next.
+  const [finished, setFinished] = useState<{ next: { lessonId: string; title: string; label: string } | null } | null>(null);
 
   useEffect(() => {
     getLessonStates().then((s) => setState(s[route.params.lessonId] ?? null));
@@ -83,9 +87,20 @@ export function LessonScreen({ route, navigation }: Props) {
     if (!lesson || done.size < lesson.steps.length) return;
     const scores = scoresRef.current;
     const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0.8;
-    completeLesson(lesson.id, avg, avg >= 0.7).then(() => {
-      showGlobalToast(`Lesson complete — it'll come back for review in a few days.`, "success");
-      getLessonStates().then((s) => setState(s[lesson.id] ?? null));
+    completeLesson(lesson.id, avg, avg >= 0.7).then(async () => {
+      // The path moves on (and a finished unit celebrates) before the way on
+      // is worked out.
+      const view = await getPathView().catch(() => null);
+      const states = await getLessonStates();
+      setState(states[lesson.id] ?? null);
+      const inUnit = nextLessonInUnit(lesson.unitId, Object.fromEntries(Object.entries(states).map(([id, l]) => [id, { done: l.done }])));
+      const onPath = view?.units.find((u) => u.status === "active" && u.unitId !== lesson.unitId && u.nextLessonId);
+      const next = inUnit
+        ? { lessonId: inUnit, title: getLesson(inUnit)?.title ?? "", label: "Next" }
+        : onPath?.nextLessonId
+          ? { lessonId: onPath.nextLessonId, title: onPath.title, label: "Next on your path" }
+          : null;
+      setFinished({ next });
     });
   }, [done, lesson]);
 
@@ -135,7 +150,7 @@ export function LessonScreen({ route, navigation }: Props) {
       </HeroCard>
       </TourTarget>
 
-      {state?.done ? (
+      {state?.done && !finished ? (
         <View style={styles.completed}>
           <Ionicons name="checkmark-circle" size={16} color={colors.success} />
           <Txt variant="footnote" tone="secondary">
@@ -181,6 +196,14 @@ export function LessonScreen({ route, navigation }: Props) {
         );
       })}
       </TourTarget>
+      {finished ? (
+        <LessonCompleteCard
+          lesson={lesson}
+          nextReviewAt={state?.nextReviewAt ?? null}
+          next={finished.next}
+          onNext={(lessonId) => navigation.replace("Lesson", { lessonId })}
+        />
+      ) : null}
       <GuideTip id="lesson" />
     </Screen>
   );

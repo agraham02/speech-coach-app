@@ -27,6 +27,7 @@ import { withAlpha } from "../utils/color";
 import { DRILL_SKILL, DRILL_TITLES, type DrillType } from "../domain/drills/drillSpecs";
 import { SKILL_LABELS, type SkillId } from "../theme/tokens";
 import { SKILLS } from "../domain/mastery";
+import type { Stage } from "../domain/levels";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import { duration } from "../theme/motion";
 
@@ -48,6 +49,7 @@ export function ProgressScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [mastery, setMastery] = useState<Record<SkillId, number> | null>(null);
+  const [stages, setStages] = useState<Record<SkillId, Stage> | undefined>(undefined);
   const [skill, setSkill] = useState<SkillId>("articulation");
   const [drillScores, setDrillScores] = useState<Record<SkillId, number[]>>(emptyBySkill);
   const [levels, setLevels] = useState<{ type: DrillType; level: number }[]>([]);
@@ -61,7 +63,10 @@ export function ProgressScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      getSkillStates().then((s) => setMastery(Object.fromEntries(SKILLS.map((k) => [k, s[k].rating])) as Record<SkillId, number>));
+      getSkillStates().then((s) => {
+        setMastery(Object.fromEntries(SKILLS.map((k) => [k, s[k].rating])) as Record<SkillId, number>);
+        setStages(Object.fromEntries(SKILLS.map((k) => [k, s[k].stage])) as Record<SkillId, Stage>);
+      });
       getRecentDrillAttempts(300).then((attempts) => {
         const bySkill = emptyBySkill();
         for (const a of [...attempts].reverse()) {
@@ -228,7 +233,7 @@ export function ProgressScreen() {
         <TourTarget id="progress.skills" style={styles.section}>
           <SectionHeader title="Skill mastery" subtitle="Rises when you beat what your level predicts. Tap a skill to see what moved it." />
           <Card>
-            <SkillRings mastery={mastery} onPressSkill={(s) => navigation.navigate("SkillDetail", { skill: s })} />
+            <SkillRings mastery={mastery} stages={stages} onPressSkill={(s) => navigation.navigate("SkillDetail", { skill: s })} />
           </Card>
         </TourTarget>
       ) : null}
@@ -303,7 +308,7 @@ export function ProgressScreen() {
       </View>
 
       <ListGroup>
-        <ListRow icon="speedometer-outline" title="Level & difficulty" subtitle="Your impromptu level and manual override" chevron onPress={() => navigation.navigate("Curriculum")} />
+        <ListRow icon="trophy-outline" title="Your level" subtitle="Your speaker level and each skill's stage" chevron onPress={() => navigation.navigate("Level")} />
         <ListRow icon="analytics-outline" title="Deep review trends" subtitle="Scores from cloud deep reviews" chevron onPress={() => navigation.navigate("Trends")} />
       </ListGroup>
       <GuideTip id="progress" />

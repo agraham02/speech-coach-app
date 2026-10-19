@@ -21,6 +21,9 @@ import {
   type SkillRating,
 } from "../../domain/mastery";
 import type { SkillEvidence } from "../../domain/repEvidence";
+import { earnedStage, placementStage, speakerLevel, type Stage } from "../../domain/levels";
+import { emitStageEarned } from "../progress/progressEvents";
+import { getPathOrder } from "./pathRepo";
 import { buildDailyPlan, PLAN_VERSION, type DailyPlan, type PlanMinutes } from "../../domain/dailyPlan";
 import { getLesson } from "../../content/lessons";
 import { summarizeAttempt, type AttemptSummary } from "../../domain/conversation/attemptMetrics";
@@ -30,18 +33,32 @@ import { summarizeAttempt, type AttemptSummary } from "../../domain/conversation
 
 export interface SkillState extends SkillRating {
   lastPracticedAt: string | null;
+  // The stage earned in this skill (domain/levels.ts) — it never drops.
+  stage: Stage;
+  stageReachedAt: string | null;
 }
 
 export async function getSkillStates(): Promise<Record<SkillId, SkillState>> {
   const db = await getDatabase();
-  const rows = await db.getAllAsync<{ skill: string; rating: number; attempts: number; last_practiced_at: string | null }>(
-    `SELECT * FROM skill_mastery`,
-  );
+  const rows = await db.getAllAsync<{
+    skill: string;
+    rating: number;
+    attempts: number;
+    last_practiced_at: string | null;
+    stage: number | null;
+    stage_reached_at: string | null;
+  }>(`SELECT * FROM skill_mastery`);
   const out = {} as Record<SkillId, SkillState>;
-  for (const skill of SKILLS) out[skill] = { rating: INITIAL_RATING, attempts: 0, lastPracticedAt: null };
+  for (const skill of SKILLS) out[skill] = { rating: INITIAL_RATING, attempts: 0, lastPracticedAt: null, stage: 1, stageReachedAt: null };
   for (const row of rows) {
     if ((SKILLS as string[]).includes(row.skill)) {
-      out[row.skill as SkillId] = { rating: row.rating, attempts: row.attempts, lastPracticedAt: row.last_practiced_at };
+      out[row.skill as SkillId] = {
+        rating: row.rating,
+        attempts: row.attempts,
+        lastPracticedAt: row.last_practiced_at,
+        stage: (row.stage ?? 1) as Stage,
+        stageReachedAt: row.stage_reached_at,
+      };
     }
   }
   return out;
@@ -50,10 +67,21 @@ export async function getSkillStates(): Promise<Record<SkillId, SkillState>> {
 async function saveSkill(skill: SkillId, state: SkillState): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    `INSERT INTO skill_mastery (skill, rating, attempts, last_practiced_at) VALUES (?, ?, ?, ?)
-     ON CONFLICT(skill) DO UPDATE SET rating = excluded.rating, attempts = excluded.attempts, last_practiced_at = excluded.last_practiced_at`,
-    [skill, state.rating, state.attempts, state.lastPracticedAt],
+    `INSERT INTO skill_mastery (skill, rating, attempts, last_practiced_at, stage, stage_reached_at) VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(skill) DO UPDATE SET rating = excluded.rating, attempts = excluded.attempts, last_practiced_at = excluded.last_practiced_at,
+       stage = excluded.stage, stage_reached_at = excluded.stage_reached_at`,
+    [skill, state.rating, state.attempts, state.lastPracticedAt, state.stage, state.stageReachedAt],
   );
+}
+
+// A skill's state after a new rating: the stage it has now earned, and when.
+function withStage(before: SkillState, next: SkillRating & { lastPracticedAt: string | null }, now: string): SkillState {
+  const stage = earnedStage(before.stage, next.rating, next.attempts);
+  return { ...next, stage, stageReachedAt: stage > before.stage ? now : before.stageReachedAt };
+}
+
+export function speakerLevelOf(skills: Record<SkillId, SkillState>): number {
+  return speakerLevel(Object.fromEntries(SKILLS.map((s) => [s, skills[s].stage])) as Record<SkillId, Stage>);
 }
 
 // Starting ratings from the onboarding skill check. Only for skills with no
@@ -63,7 +91,9 @@ export async function seedSkillRatings(ratings: Partial<Record<SkillId, number |
   for (const skill of SKILLS) {
     const rating = ratings[skill];
     if (rating == null || skills[skill].attempts > 0) continue;
-    await saveSkill(skill, { rating, attempts: 0, lastPracticedAt: skills[skill].lastPracticedAt });
+    // The skill check places you; a placement is quiet, never a level-up.
+    const stage = Math.max(skills[skill].stage, placementStage(rating)) as Stage;
+    await saveSkill(skill, { ...skills[skill], rating, attempts: 0, stage });
     await logSkillEvent({ skill, before: skills[skill].rating, after: rating, source: "seed", label });
   }
 }
@@ -171,6 +201,24 @@ export async function getSkillEvents(skill: SkillId, limit = 40): Promise<SkillE
   });
 }
 
+// How each skill's rating moved since a moment (practice only, not the
+// skill check's placement): where it started and where it is now.
+export async function getSkillMovesSince(sinceIso: string): Promise<{ skill: SkillId; from: number; to: number }[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{ skill: string; rating_before: number; rating_after: number }>(
+    `SELECT skill, rating_before, rating_after FROM skill_events WHERE at >= ? AND source != 'seed' ORDER BY at ASC`,
+    [sinceIso],
+  );
+  const moves = new Map<SkillId, { skill: SkillId; from: number; to: number }>();
+  for (const r of rows) {
+    const skill = r.skill as SkillId;
+    const m = moves.get(skill);
+    if (m) m.to = r.rating_after;
+    else moves.set(skill, { skill, from: r.rating_before, to: r.rating_after });
+  }
+  return [...moves.values()];
+}
+
 export async function getDrillLevel(type: DrillType): Promise<number> {
   const db = await getDatabase();
   const row = await db.getFirstAsync<{ level: number }>(`SELECT level FROM drill_difficulty WHERE drill_type = ?`, [type]);
@@ -201,6 +249,14 @@ export interface ProgressChange {
   levelAfter: number;
   // Crossed into a new whole difficulty level — worth celebrating.
   leveledUp: boolean;
+  // The skill's stage, and the speaker level built from every stage
+  // (domain/levels.ts). Optional: progress saved before levels existed
+  // doesn't have them.
+  stageBefore?: Stage;
+  stageAfter?: Stage;
+  stagedUp?: boolean;
+  speakerLevelBefore?: number;
+  speakerLevelAfter?: number;
 }
 
 // Records one scored drill attempt: logs it, moves the drill's difficulty on
@@ -243,8 +299,8 @@ export async function recordDrillOutcome(args: {
 
   const skills = await getSkillStates();
   const before = skills[skill];
-  const updated = updateRating(before, args.outcome.score, args.level);
-  await saveSkill(skill, { ...updated, lastPracticedAt: now });
+  const updated = withStage(before, { ...updateRating(before, args.outcome.score, args.level), lastPracticedAt: now }, now);
+  await saveSkill(skill, updated);
   await logSkillEvent({
     skill,
     before: before.rating,
@@ -256,6 +312,11 @@ export async function recordDrillOutcome(args: {
     level: args.level,
     drillType: args.drillType,
   });
+  const speakerLevelBefore = speakerLevelOf(skills);
+  const speakerLevelAfter = speakerLevelOf({ ...skills, [skill]: updated });
+  if (updated.stage > before.stage) {
+    emitStageEarned({ skill, stage: updated.stage, speakerLevel: speakerLevelAfter > speakerLevelBefore ? speakerLevelAfter : null });
+  }
   return {
     skill,
     ratingBefore: before.rating,
@@ -263,6 +324,11 @@ export async function recordDrillOutcome(args: {
     levelBefore: args.level,
     levelAfter,
     leveledUp: Math.floor(levelAfter) > Math.floor(args.level),
+    stageBefore: before.stage,
+    stageAfter: updated.stage,
+    stagedUp: updated.stage > before.stage,
+    speakerLevelBefore,
+    speakerLevelAfter,
   };
 }
 
@@ -271,12 +337,21 @@ export async function recordDrillOutcome(args: {
 // this is how real speaking, not just drills, moves mastery.
 export async function recordRepOutcome(
   evidence: SkillEvidence,
-  context: { sessionId: string; label: string; local: SkillEvidence; cloud: SkillEvidence },
+  context: {
+    sessionId: string;
+    label: string;
+    local: SkillEvidence;
+    cloud: SkillEvidence;
+    // How much of the impromptu skill's move to keep: a take with research
+    // behind it is less of an impromptu take, so it counts for less there.
+    impromptuWeight?: number;
+  },
 ): Promise<ProgressChange[]> {
   const entries = (Object.entries(evidence) as [SkillId, number][]).filter(([, v]) => v != null && Number.isFinite(v));
   if (entries.length === 0) return [];
   const level = await getDrillLevel("rep");
   const skills = await getSkillStates();
+  const after = { ...skills };
   const now = new Date().toISOString();
   const changes: ProgressChange[] = [];
   let total = 0;
@@ -284,8 +359,12 @@ export async function recordRepOutcome(
   for (const [skill, score] of entries) {
     total += score;
     n += 1;
-    const updated = updateRating(skills[skill], score, level);
-    await saveSkill(skill, { ...updated, lastPracticedAt: now });
+    const full = updateRating(skills[skill], score, level);
+    const weight = skill === "impromptu" ? context.impromptuWeight ?? 1 : 1;
+    const scaled = weight === 1 ? full : { ...full, rating: Math.round((skills[skill].rating + weight * (full.rating - skills[skill].rating)) * 10) / 10 };
+    const updated = withStage(skills[skill], { ...scaled, lastPracticedAt: now }, now);
+    after[skill] = updated;
+    await saveSkill(skill, updated);
     await logSkillEvent({
       skill,
       before: skills[skill].rating,
@@ -299,12 +378,24 @@ export async function recordRepOutcome(
       drillType: "rep",
       detail: { local: context.local[skill], cloud: context.cloud[skill] },
     });
-    changes.push({ skill, ratingBefore: skills[skill].rating, ratingAfter: updated.rating, levelBefore: level, levelAfter: level, leveledUp: false });
+    changes.push({
+      skill,
+      ratingBefore: skills[skill].rating,
+      ratingAfter: updated.rating,
+      levelBefore: level,
+      levelAfter: level,
+      leveledUp: false,
+      stageBefore: skills[skill].stage,
+      stageAfter: updated.stage,
+      stagedUp: updated.stage > skills[skill].stage,
+    });
   }
   const success = total / n >= 0.7;
   const levelAfter = nextDifficulty(level, success);
   await saveDrillLevel("rep", levelAfter, success);
-  return changes.map((c) => ({ ...c, levelAfter, leveledUp: Math.floor(levelAfter) > Math.floor(level) }));
+  const speakerLevelBefore = speakerLevelOf(skills);
+  const speakerLevelAfter = speakerLevelOf(after);
+  return changes.map((c) => ({ ...c, levelAfter, leveledUp: Math.floor(levelAfter) > Math.floor(level), speakerLevelBefore, speakerLevelAfter }));
 }
 
 // ---------------------------------------------------------------------------
@@ -385,9 +476,12 @@ async function readPlan(date: string): Promise<StoredPlan | null> {
 // `regenerate` swaps it (only allowed before any step is done).
 export async function getTodaysPlan(minutes: PlanMinutes, regenerate = false): Promise<StoredPlan> {
   const date = todayISODate();
-  const existing = await readPlan(date);
+  const [existing, path] = await Promise.all([readPlan(date), getPathOrder().catch(() => [] as string[])]);
   const outdated = existing && (existing.plan.version ?? 1) < PLAN_VERSION;
-  if (existing && !regenerate && !outdated && existing.plan.minutes === minutes) return existing;
+  // A plan made before your path was built doesn't follow it; until it's
+  // started, it's remade.
+  const pathless = existing && !existing.plan.followsPath && path.length > 0;
+  if (existing && !regenerate && !outdated && !pathless && existing.plan.minutes === minutes) return existing;
   if (existing && existing.completedStepIds.length > 0) return existing;
 
   const db = await getDatabase();
@@ -406,6 +500,7 @@ export async function getTodaysPlan(minutes: PlanMinutes, regenerate = false): P
     recentFocus: recent.map((r) => (JSON.parse(r.plan_json) as DailyPlan).focusSkill),
     lessons: Object.fromEntries(Object.entries(lessons).map(([id, l]) => [id, { done: l.done, nextReviewAt: l.nextReviewAt }])),
     priority: priorityFor(getUserProfile(), date, getNextEvent()),
+    path,
   });
   await db.runAsync(
     `INSERT OR REPLACE INTO daily_plans (date, plan_json, completed_steps_json, completed_at) VALUES (?, ?, '[]', NULL)`,

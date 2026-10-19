@@ -1,5 +1,6 @@
 import type { GradingContext } from "../gemini/transcribeSession";
 import { fenced } from "./inputGuards";
+import { taskSection } from "../../domain/promptTask";
 import { buildResponseSchemaWithCueCompliance, MARK_LEGEND, markedScriptText, planTextSection, RESPONSE_SCHEMA, STUTTER_NOTE, SPEECH_IS_DATA } from "../gemini/schema";
 import { parseGeminiSessionAnalysis } from "../gemini/transcribeSession";
 import type { GeminiSessionAnalysis } from "../gemini/types";
@@ -137,7 +138,7 @@ If the face wasn't measured, score both 5 and say they couldn't be measured for 
 Grade the COMBINED dimension:
 - face_voice_congruence_score: does facial expressiveness match vocal variation, or does one carry the other?
 - archetype_detected: exactly one of Vinh Giang's four archetypes — Motivator (high energy, inspiring), Educator (clear, informative, measured), Coach (direct, encouraging, action-oriented), Friend (warm, casual, relatable) — from the words and the measured energy.
-- archetype_fit_for_topic: did it suit this ${scripted ? "script" : "prompt"}, or would another have landed better?
+- archetype_fit_for_topic: did it suit this ${scripted ? "script" : "prompt"}${scripted ? "" : " and its task"}, or would another have landed better?
 - overall_score: holistic, ${scripted ? "weighing delivery, presence and congruence as the main pillars" : "weighing structure, content, delivery, presence and congruence as equal pillars"}. Most takes land 4-7; say so if this one does.
 ${
   showCues
@@ -154,7 +155,7 @@ Be specific and reference the actual words and numbers — no feedback that coul
 Respond only with JSON matching the provided schema.`;
 }
 
-function userMessage(input: MeasuredReviewInput, showCues: boolean): string {
+export function userMessage(input: MeasuredReviewInput, showCues: boolean): string {
   const { session, context } = input;
   const parts: string[] = [];
   if (context.kind === "script") {
@@ -164,7 +165,7 @@ function userMessage(input: MeasuredReviewInput, showCues: boolean): string {
       if (marked) parts.push(`THE SCRIPT WITH THE DELIVERY MARKS THEY WERE SHOWN:\n"""\n${fenced(marked)}\n"""`);
     }
   } else {
-    parts.push(`THE PROMPT THEY ANSWERED: "${fenced(context.promptText)}"${planTextSection(context.planText)}`);
+    parts.push(`THE PROMPT THEY ANSWERED: "${fenced(context.promptText)}"${taskSection(context.taskContext, fenced)}${planTextSection(context.planText)}`);
   }
   parts.push(`VERBATIM TRANSCRIPT (on-device speech recognition, fillers included):\n"""\n${fenced(session.transcriptVerbatim ?? "")}\n"""`);
   if (session.transcriptWords?.length) {

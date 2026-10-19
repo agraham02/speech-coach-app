@@ -1,4 +1,4 @@
-import { Linking, View } from "react-native";
+import { View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
@@ -34,8 +34,7 @@ export function FaceCheckScreen({ navigation }: Props) {
           <Card style={styles.card}>
             <Txt variant="callout">The face check needs the camera. Recordings stay on this phone.</Txt>
           </Card>
-          <PrimaryButton label="Allow camera" onPress={perms.requestCameraPermission} />
-          <PrimaryButton label="Open Settings" variant="secondary" icon="open-outline" onPress={() => Linking.openSettings()} />
+          <PrimaryButton label={perms.cameraBlocked ? "Open Settings" : "Allow camera"} onPress={perms.requestCameraPermission} />
         </View>
       )}
     </ScreenContainer>

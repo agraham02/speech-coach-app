@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { CoachInput, CoachOutput } from "./ruleCoach";
 import { FRAMEWORK_LABELS, type FrameworkId } from "./structureHeuristics";
+import { coachTaskNote } from "../promptTask";
 
 // Prompt + schema for the Apple on-device model (~3B params, 4,096-token
 // context shared by instructions, input and output). The model only writes
@@ -37,6 +38,7 @@ export function buildAppleCoachPrompt(input: CoachInput, rules: CoachOutput): st
       : "";
   return [
     input.promptText ? `Prompt they answered: "${input.promptText}"` : "This was a free-form recording.",
+    coachTaskNote(input.task ?? undefined),
     target,
     `Measurements:\n${facts || "- none available"}`,
     `The measurement-based tip is: "${rules.tip}". Prefer it unless the transcript shows a more important issue.`,

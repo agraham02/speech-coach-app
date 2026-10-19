@@ -42,6 +42,7 @@ import { setSessionHour } from "../domain/reminderSettings";
 import {
   getDailySessionGoal,
   getPlanMinutes,
+  getPracticeAnchor,
   getReminderSettings,
   getUserProfile,
   setCloudConsent,
@@ -57,6 +58,7 @@ import {
   setWarmUpEnabled,
 } from "../services/prefs/prefsStore";
 import { requestNotificationPermission, syncDailyReminder } from "../services/notifications/reminderScheduler";
+import { anchorOption } from "../domain/notificationCopy";
 import { AiCoachSetup, providerForPastedKey } from "../components/onboarding/AiCoachSetup";
 import { TranscriptionSetup } from "../components/onboarding/TranscriptionSetup";
 import { useTranscriptionModel } from "../hooks/useTranscriptionModel";
@@ -237,7 +239,8 @@ export function OnboardingScreen({ route, navigation }: Props) {
       case "anchor": {
         const option = ANCHOR_OPTIONS.find((a) => a.key === anchorKey);
         const text = option ? option.anchor : customAnchor.trim() ? `After ${customAnchor.trim().replace(/^after\s+/i, "")}` : null;
-        setPracticeAnchor(text);
+        // A habit of their own has no known hour yet; the reminders step ties it to theirs.
+        setPracticeAnchor(text, option ? option.hour : null);
         if (option) {
           setHour(option.hour);
           setExtraHours(defaultExtraHours(option.hour, goal));
@@ -249,6 +252,9 @@ export function OnboardingScreen({ route, navigation }: Props) {
         if (enabled) enabled = await requestNotificationPermission();
         const hours = sessionHours(hour, extraHours, goal).slice(1);
         setReminderSettings({ enabled, hour, extraHours: hours, practiceDays: days.length === 7 ? [] : days });
+        // A habit they wrote themselves happens at the time they just chose.
+        const habit = getPracticeAnchor();
+        if (habit && !anchorOption(habit)) setPracticeAnchor(habit, hour);
         await syncDailyReminder().catch(() => undefined);
         return true;
       }

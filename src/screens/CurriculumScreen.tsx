@@ -46,11 +46,12 @@ function historyReasonLabel(entry: CurriculumStateEntry): string {
   return entry.direction === "up" ? "Moved up — your reps went well." : "Eased back — a rep was a stretch.";
 }
 
-// The full "why" behind today's level, plus history and the manual
-// override — pushed from both Home's level chip and Trends' curriculum
-// card. Auto-adjustment is deliberately gradual (see curriculum.ts's
-// header note) — this screen is where that's made visible and explained,
-// not just asserted.
+// Practice difficulty: the step free practice and the drills start at,
+// the "why" behind it, its history and the manual pin — pushed from free
+// practice's prompt chip, Trends, Settings and the Level screen. Not your
+// level: that's the speaker level (LevelScreen). Auto-adjustment is
+// deliberately gradual (see curriculum.ts's header note) — this screen is
+// where that's made visible and explained, not just asserted.
 export function CurriculumScreen({ navigation }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -98,7 +99,7 @@ export function CurriculumScreen({ navigation }: Props) {
   function handleResetProgress() {
     Alert.alert(
       "Reset progress?",
-      `This clears your curriculum level and history, and starts back at Level ${DEFAULT_CURRICULUM_LEVEL} (Auto). Your recorded sessions and scores aren't affected.`,
+      `This clears your practice difficulty and its history, and starts back at step ${DEFAULT_CURRICULUM_LEVEL} (Auto). Your recorded sessions and scores aren't affected.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -117,21 +118,21 @@ export function CurriculumScreen({ navigation }: Props) {
 
   return (
     <ScreenContainer style={styles.container}>
-      <Header title="Your level" onBack={() => navigation.goBack()} backIcon="chevron-back"
+      <Header title="Practice difficulty" onBack={() => navigation.goBack()} backIcon="chevron-back"
       />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <Card style={styles.levelCard}>
-          <Text style={styles.levelNumber}>Level {level}</Text>
+          <Text style={styles.levelNumber}>Step {level}</Text>
           <Text style={styles.levelTier}>{difficultyTierLabel(tier)} difficulty</Text>
           <Text style={styles.explanation}>{explanation}</Text>
         </Card>
 
         <Card style={styles.section}>
-          <Text style={styles.sectionTitle}>Set level</Text>
+          <Text style={styles.sectionTitle}>Set the step</Text>
           <Text style={styles.sectionSubtitle}>
             Auto follows your impromptu reps: each one that goes well nudges it up a little, and one that's a stretch
-            eases it back, so it settles where most of your reps go well. Pin a level to choose the prompt difficulty,
+            eases it back, so it settles where most of your reps go well. Pin a step to choose the prompt difficulty,
             recording length and prep time on the Practice tab, and the drills' starting tier, yourself. Lessons and
             your daily plan keep following your reps. Switching back to Auto picks up wherever your reps have taken it.
           </Text>
@@ -156,7 +157,7 @@ export function CurriculumScreen({ navigation }: Props) {
               <View key={entry.id} style={styles.historyRow}>
                 <Ionicons name={directionIcon(entry.direction)} size={16} color={directionColor(entry.direction, colors)} />
                 <View style={styles.historyText}>
-                  <Text style={styles.historyLevel}>Level {entry.level}</Text>
+                  <Text style={styles.historyLevel}>Step {entry.level}</Text>
                   <Text style={styles.historyReason}>{historyReasonLabel(entry)}</Text>
                 </View>
                 <Text style={styles.historyDate}>{formatChangeDate(entry.changedAt)}</Text>
@@ -168,7 +169,7 @@ export function CurriculumScreen({ navigation }: Props) {
         <Card style={styles.section}>
           <Text style={styles.sectionTitle}>Reset progress</Text>
           <Text style={styles.sectionSubtitle}>
-            Clears your curriculum level and history, and starts back at Level {DEFAULT_CURRICULUM_LEVEL} (Auto).
+            Clears your practice difficulty and its history, and starts back at step {DEFAULT_CURRICULUM_LEVEL} (Auto).
             Doesn't touch your recorded sessions or scores.
           </Text>
           <Pressable
@@ -178,7 +179,7 @@ export function CurriculumScreen({ navigation }: Props) {
             accessibilityLabel="Reset curriculum progress"
           >
             <Ionicons name="refresh" size={16} color={colors.danger} />
-            <Text style={styles.resetButtonText}>Reset to Level {DEFAULT_CURRICULUM_LEVEL}</Text>
+            <Text style={styles.resetButtonText}>Reset to step {DEFAULT_CURRICULUM_LEVEL}</Text>
           </Pressable>
         </Card>
       </ScrollView>
