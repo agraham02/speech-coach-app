@@ -14,6 +14,7 @@ import { PrepOverlay } from "../components/recording/PrepOverlay";
 import { PromptBanner } from "../components/recording/PromptBanner";
 import { NotesTeleprompterOverlay } from "../components/recording/NotesTeleprompterOverlay";
 import { armPrepAlert, clearPrepAlert } from "../services/recording/prepAlert";
+import { startPrepActivity } from "../services/recording/prepActivity";
 import { deadlineFor, extendDeadline, PREP_CHOICES, prepUsedFrom, researchHelps, searchUrl, startResearch } from "../domain/prepTimer";
 import { useDeadlineCountdown } from "../hooks/useDeadlineCountdown";
 import { taskLabel, taskOf } from "../domain/promptTask";
@@ -165,6 +166,8 @@ export function RecordingScreen({ route, navigation }: Props) {
     setPrepDeadline(deadline);
     setStage("prep");
     if (mode === "research") armPrepAlert(deadline, prepText);
+    // A long plain prep gets the Dynamic Island timer too, without the alert.
+    else if (seconds >= 60) startPrepActivity(prepText, now, deadline).catch(() => undefined);
   }
 
   function advanceFromWarmUp() {

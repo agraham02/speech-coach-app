@@ -1,6 +1,7 @@
 import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import { logger } from "../../utils/logger";
+import { endPrepActivity, startPrepActivity } from "./prepActivity";
 
 // While you research in another app, the phone tells you when your time is
 // up: a notification at the deadline, and on Android an ongoing one while it
@@ -28,7 +29,10 @@ function clock(date: Date): string {
 }
 
 // Arms the alert for `deadlineMs`; calling it again re-arms (an extension).
+// On iPhone the live timer goes to the Dynamic Island too, which needs no
+// notification permission.
 export async function armPrepAlert(deadlineMs: number, promptText: string): Promise<void> {
+  startPrepActivity(promptText, Date.now(), deadlineMs).catch(() => undefined);
   try {
     if (!(await allowed())) return;
     await clearPrepAlert();
@@ -59,6 +63,7 @@ export async function armPrepAlert(deadlineMs: number, promptText: string): Prom
 }
 
 export async function clearPrepAlert(): Promise<void> {
+  endPrepActivity().catch(() => undefined);
   try {
     await Notifications.cancelScheduledNotificationAsync(DONE_ID).catch(() => undefined);
     await Notifications.dismissNotificationAsync(RUNNING_ID).catch(() => undefined);

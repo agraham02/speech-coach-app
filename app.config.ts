@@ -27,7 +27,9 @@ export default (): ExpoConfig => ({
     // The EAS project's slug — internal, and renaming it would unlink the
     // project, so it keeps the old name.
     slug: "speech-coach-app",
-    version: "1.0.0",
+    // 1.1.0: expo-widgets (the Dynamic Island prep timer) is native code, so
+    // the runtime version moves with it — see the note on runtimeVersion.
+    version: "1.1.0",
     scheme: "tono",
     orientation: "portrait",
     // Follows the system light/dark setting (needs expo-system-ui on
@@ -116,6 +118,11 @@ export default (): ExpoConfig => ({
         "expo-video",
         "expo-font",
         "expo-notifications",
+        // The prep and research timer on the Dynamic Island (a Live Activity,
+        // src/widgets/PrepActivity.tsx). Adds a widget extension target and an
+        // App Group; the defaults for both identifiers derive from the bundle
+        // id (com.ahmadgraham.tono.ExpoWidgetsTarget, group.com.ahmadgraham.tono).
+        "expo-widgets",
         // Keys never ask for Face ID (no requireAuthentication), so drop the
         // plugin's generic Face ID prompt rather than declare an unused
         // permission. `false` deletes the key (config-plugins applyPermissions).
