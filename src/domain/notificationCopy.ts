@@ -1,4 +1,5 @@
 import type { EventKind } from "./profile";
+import { ANCHOR_OPTIONS } from "../content/onboarding";
 
 // What Tono's notifications say. Pure: the schedulers gather the facts (name,
 // streak, upcoming event, the hour it will arrive) and this picks the words.
@@ -25,6 +26,35 @@ export interface ReminderContext {
   // When it arrives.
   when: Date;
   event?: { daysLeft: number; kind: EventKind } | null;
+}
+
+// The habit an anchor is tied to happens at a time of day ("after your
+// morning coffee" is a morning), so a line built on it only makes sense near
+// that time. A reminder set for 7 PM must not say "after your morning
+// coffee". Matches the anchor to one of the known habits by its words, so it
+// survives "my" versus "your" and trailing punctuation; a habit it doesn't
+// recognize can't be placed in the day, so it's never used.
+const ANCHOR_WINDOW_HOURS = 2;
+
+function plainAnchor(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z ]/g, " ")
+    .replace(/\b(my|your)\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function anchorHour(anchor: string): number | null {
+  const plain = plainAnchor(anchor);
+  const match = ANCHOR_OPTIONS.find((o) => plainAnchor(o.anchor) === plain);
+  return match ? match.hour : null;
+}
+
+export function anchorFits(anchor: string | null | undefined, when: Date): boolean {
+  if (!anchor) return false;
+  const hour = anchorHour(anchor);
+  return hour != null && Math.abs(when.getHours() - hour) <= ANCHOR_WINDOW_HOURS;
 }
 
 export interface NotificationText {
@@ -107,7 +137,7 @@ export function reminderText(ctx: ReminderContext): NotificationText {
     return { title, body: `Day ${ctx.streak + 1} is ready. ${pick(["Keep it going.", "Same time, same rep.", "One response is all it takes."], ctx.when)}` };
   }
 
-  if (ctx.anchor) return { title, body: `${ctx.anchor.replace(/[.!?\s]+$/, "")}: time for today's practice.` };
+  if (ctx.anchor && anchorFits(ctx.anchor, ctx.when)) return { title, body: `${ctx.anchor.replace(/[.!?\s]+$/, "")}: time for today's practice.` };
 
   const weekday = WEEKDAY[ctx.when.getDay()];
   if (weekday && dayNumber(ctx.when) % 2 === 0) return { title, body: weekday };

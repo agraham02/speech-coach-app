@@ -36,6 +36,7 @@ import {
 import { getDailySessionGoal, getPlanMinutes, getPracticeAnchor, getReminderSettings, getUserProfile, setPlanMinutes } from "../services/prefs/prefsStore";
 import { formatReminderHour, reminderHours } from "../domain/reminderSettings";
 import { defaultsFromProfile } from "../domain/profile";
+import { anchorFits } from "../domain/notificationCopy";
 import { takeFreezeNotice } from "../services/streaks/freezeNotice";
 import { showGlobalToast } from "../components/common/ToastProvider";
 import { SKILLS } from "../domain/mastery";
@@ -183,7 +184,7 @@ export function TodayScreen() {
             </View>
           ) : null}
         </View>
-        {anchor && doneToday === 0 ? (
+        {anchor && doneToday === 0 && anchorFits(anchor, new Date()) ? (
           <Txt variant="footnote" tone="muted">
             Your plan: {anchor.charAt(0).toLowerCase() + anchor.slice(1)}, practice.
           </Txt>
