@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { GuideTip, TourTarget } from "../components/common/GuideTip";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -12,6 +12,10 @@ import { CameraPreview } from "../components/recording/CameraPreview";
 import { FramingGuideOverlay } from "../components/recording/FramingGuideOverlay";
 import { PrepOverlay } from "../components/recording/PrepOverlay";
 import { PromptBanner } from "../components/recording/PromptBanner";
+import { NotesTeleprompterOverlay } from "../components/recording/NotesTeleprompterOverlay";
+import { armPrepAlert, clearPrepAlert } from "../services/recording/prepAlert";
+import { deadlineFor, extendDeadline, PREP_CHOICES, prepUsedFrom, researchHelps, searchUrl, startResearch } from "../domain/prepTimer";
+import { useDeadlineCountdown } from "../hooks/useDeadlineCountdown";
 import { taskLabel, taskOf } from "../domain/promptTask";
 import { RecordBlindOverlay } from "../components/recording/RecordBlindOverlay";
 import { RecordBlindToggle } from "../components/recording/RecordBlindToggle";
@@ -19,7 +23,6 @@ import { RecordButton } from "../components/recording/RecordButton";
 import { ScriptTeleprompterOverlay } from "../components/recording/ScriptTeleprompterOverlay";
 import { WarmUpOverlay } from "../components/recording/WarmUpOverlay";
 import { useCameraPermissions } from "../hooks/useCameraPermissions";
-import { useCountdownTimer } from "../hooks/useCountdownTimer";
 import { useFaceDetection } from "../hooks/useFaceDetection";
 import { guideOval, type Size } from "../domain/faceGuide";
 import { useHapticFaceWarning } from "../hooks/useHapticFaceWarning";
@@ -128,10 +131,20 @@ export function RecordingScreen({ route, navigation }: Props) {
     if (getPrepSettingsManuallySet()) return resolvePrepDurationSeconds(getPrepPhaseSettings());
     return curriculumLevelToPrepSeconds(getEffectiveCurriculumLevel().level);
   });
-  const [stage, setStage] = useState<Stage>(() => {
-    if (warmUpEnabled) return "warmup";
-    return prepEnabled ? "prep" : "idle";
-  });
+  const initialStage: Stage = warmUpEnabled ? "warmup" : prepEnabled ? "prep" : "idle";
+  const [stage, setStage] = useState<Stage>(initialStage);
+
+  // Prep runs against a wall-clock deadline, so it stays right while you're
+  // in another app researching. "short" starts recording when it ends;
+  // "research" (minutes, with notes and a web search) waits for you.
+  const [prepMode, setPrepMode] = useState<"short" | "research">("short");
+  const [prepDeadline, setPrepDeadline] = useState<number | null>(() => (initialStage === "prep" ? deadlineFor(Date.now(), prepDurationSeconds) : null));
+  const [timeUp, setTimeUp] = useState(false);
+  const [prepNotes, setPrepNotes] = useState("");
+  const [notesOnScreen, setNotesOnScreen] = useState(false);
+  const prepStartedAt = useRef<number | null>(initialStage === "prep" ? Date.now() : null);
+  const prepEndedAt = useRef<number | null>(null);
+  const searchedRef = useRef(false);
 
   useHapticFaceWarning(stage === "recording", faceDetected);
 
@@ -140,12 +153,74 @@ export function RecordingScreen({ route, navigation }: Props) {
     setRecordBlindPref(value);
   }
 
+  // Opens (or reopens) the prep countdown — from the warm-up, or from the
+  // ready screen when you decide to prepare after all.
+  function startPrep(seconds: number, mode: "short" | "research") {
+    const now = Date.now();
+    const deadline = deadlineFor(now, seconds);
+    prepStartedAt.current = now;
+    prepEndedAt.current = null;
+    setPrepMode(mode);
+    setTimeUp(false);
+    setPrepDeadline(deadline);
+    setStage("prep");
+    if (mode === "research") armPrepAlert(deadline, prepText);
+  }
+
   function advanceFromWarmUp() {
-    setStage(prepEnabled ? "prep" : "idle");
+    if (prepEnabled) startPrep(prepDurationSeconds, "short");
+    else setStage("idle");
+  }
+
+  function switchToResearch() {
+    const now = Date.now();
+    const next = startResearch(prepDeadline ?? now, now);
+    setPrepDeadline(next);
+    setPrepMode("research");
+    setTimeUp(false);
+    armPrepAlert(next, prepText);
+  }
+
+  function addPrepTime() {
+    const now = Date.now();
+    const next = extendDeadline(prepDeadline ?? now, now);
+    setPrepDeadline(next);
+    setTimeUp(false);
+    if (prepMode === "research") armPrepAlert(next, prepText);
+  }
+
+  // "No prep": back to the ready screen, with nothing counted as preparation.
+  function cancelPrep() {
+    clearPrepAlert();
+    prepStartedAt.current = null;
+    prepEndedAt.current = null;
+    setPrepDeadline(null);
+    setPrepMode("short");
+    setTimeUp(false);
+    setStage("idle");
+  }
+
+  function searchTheWeb() {
+    searchedRef.current = true;
+    Linking.openURL(searchUrl(prepText)).catch(() => showGlobalToast("Couldn't open your browser.", "error"));
   }
 
   function beginRecording() {
     if (!cameraRef.current) return;
+    if (stage === "prep" && prepEndedAt.current == null) prepEndedAt.current = Date.now();
+    clearPrepAlert();
+    // What preparation went into this take, told to the reviewer. A take
+    // started cold, or restarted after prepping, is described truthfully.
+    const prepUsed = isScript
+      ? undefined
+      : prepUsedFrom({
+          startedMs: prepStartedAt.current,
+          endedMs: prepEndedAt.current ?? Date.now(),
+          researched: prepMode === "research",
+          notes: prepNotes,
+          searched: searchedRef.current,
+          notesOnScreen,
+        });
     stoppingRef.current = false;
     setStage("recording");
     start();
@@ -170,7 +245,7 @@ export function RecordingScreen({ route, navigation }: Props) {
           const durationSecondsLocal = Math.round(video.duration);
 
           navigation.replace("Preview", {
-            ...subject,
+            ...(subject.kind === "prompt" && prepUsed ? { ...subject, prepUsed } : subject),
             videoUri: persistedUri,
             durationSecondsLocal,
           });
@@ -214,11 +289,13 @@ export function RecordingScreen({ route, navigation }: Props) {
     await cameraRef.current.stopRecording();
   }
 
-  const { remainingSeconds: prepRemaining, skip: skipPrep } = useCountdownTimer(
-    prepDurationSeconds,
-    beginRecording,
-    stage === "prep",
-  );
+  const prepRemaining = useDeadlineCountdown(prepDeadline, stage === "prep", () => {
+    if (prepMode === "research") setTimeUp(true);
+    else beginRecording();
+  });
+
+  // Nothing left armed if you leave mid-research.
+  useEffect(() => () => void clearPrepAlert(), []);
 
   const remainingRecordingSeconds = Math.max(0, targetDurationSeconds - elapsedSeconds);
   // A speech's target is a guide, not a limit — reading with the marked
@@ -295,11 +372,24 @@ export function RecordingScreen({ route, navigation }: Props) {
       {stage === "prep" && (
         <PrepOverlay
           promptText={prepText}
+          taskLabel={subject.kind === "prompt" ? taskLabel(taskOf(subject.prompt)) : null}
           notes={subject.kind === "prompt" ? subject.prepNotes : undefined}
-          remainingSeconds={prepRemaining}
-          onSkip={skipPrep}
+          remainingSeconds={prepDeadline == null ? prepDurationSeconds : prepRemaining}
+          mode={prepMode}
+          timeUp={timeUp}
+          researchNotes={prepNotes}
+          onChangeNotes={setPrepNotes}
+          notesOnScreen={notesOnScreen}
+          onToggleNotesOnScreen={setNotesOnScreen}
+          researchSuggested={subject.kind === "prompt" && researchHelps(subject.prompt)}
+          onSearch={searchTheWeb}
+          onAddTime={addPrepTime}
+          onResearch={switchToResearch}
+          onStart={beginRecording}
+          onNoPrep={cancelPrep}
           onClose={() => navigation.goBack()}
           topInset={insets.top + spacing.sm}
+          bottomInset={insets.bottom + spacing.lg}
         />
       )}
 
@@ -325,6 +415,18 @@ export function RecordingScreen({ route, navigation }: Props) {
       {stage === "recording" && !isScript && recordBlind && (
         <RecordBlindOverlay promptText={subject.prompt.text} remainingSeconds={remainingRecordingSeconds} targetSeconds={targetDurationSeconds} />
       )}
+
+      {/* Your research notes, like a teleprompter — over the camera, or over
+          the blank screen when the preview is hidden. Off unless you asked. */}
+      {notesOnScreen && !isScript && (stage === "idle" || stage === "recording") ? (
+        <NotesTeleprompterOverlay
+          notes={prepNotes}
+          isRecording={stage === "recording"}
+          elapsedSeconds={elapsedSeconds}
+          targetSeconds={targetDurationSeconds}
+          top={insets.top + (stage === "recording" ? 64 : 170)}
+        />
+      ) : null}
 
       {/* Show or hide the preview mid-take. Above the blind overlay so it
           stays reachable; dimmed while blind so it doesn't draw the eye. */}
@@ -369,6 +471,24 @@ export function RecordingScreen({ route, navigation }: Props) {
 
       {stage !== "warmup" && stage !== "prep" && (
         <View style={[styles.bottomBar, { paddingBottom: insets.bottom + spacing.lg }]}>
+          {stage === "idle" && !isScript ? (
+            <View style={styles.prepRow}>
+              <Text style={styles.prepRowLabel}>{subject.kind === "prompt" && researchHelps(subject.prompt) ? "New topic? Prepare first" : "Prepare first"}</Text>
+              <View style={styles.prepChips}>
+                {PREP_CHOICES.map((c) => (
+                  <Pressable
+                    key={c.seconds}
+                    onPress={() => startPrep(c.seconds, c.seconds >= 60 ? "research" : "short")}
+                    style={styles.prepChip}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Prepare for ${c.label}`}
+                  >
+                    <Text style={styles.prepChipText}>{c.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          ) : null}
           {stage === "idle" && !isScript && (
             <TourTarget id="recording.blind">
               <RecordBlindToggle value={recordBlind} onValueChange={handleToggleRecordBlind} />
@@ -464,6 +584,18 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   recordButtonGroup: { alignItems: "center", gap: spacing.sm },
+  prepRow: { alignItems: "center", gap: spacing.xs },
+  prepRowLabel: { color: colors.textSecondary, fontSize: typography.caption, ...font("600") },
+  prepChips: { flexDirection: "row", gap: spacing.sm },
+  prepChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: 999,
+    backgroundColor: "rgba(10,10,8,0.62)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+  },
+  prepChipText: { color: colors.textPrimary, fontSize: typography.caption, ...font("600") },
   restartButton: {
     position: "absolute",
     left: spacing.lg,

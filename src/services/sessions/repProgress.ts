@@ -11,6 +11,7 @@ import type { CloudTranscriptArtifact } from "../pipeline/steps/cloudReviewStep"
 import { cloudSourceOf } from "./sessionScoreService";
 import { describeSessionSubject } from "./sessionSubject";
 import { logger } from "../../utils/logger";
+import { RESEARCH_IMPROMPTU_WEIGHT } from "../../domain/prepTimer";
 import { saveProgress } from "../progress/progressMoments";
 import { emitProgressSettled, isWatchingProgress } from "../progress/progressEvents";
 import { stageName } from "../../domain/levels";
@@ -53,6 +54,8 @@ export async function settleRepProgress(sessionId: string, options: { abandoned?
       label: subject.title || "A recorded take",
       local,
       cloud: reviewed,
+      // Research makes it a prepared answer, not an impromptu one.
+      impromptuWeight: session.subjectExtras?.prepUsed?.researched ? RESEARCH_IMPROMPTU_WEIGHT : 1,
     });
     // A path lesson's rep says where it leaves you in the unit.
     const position = session.subjectExtras?.lessonId ? lessonPosition(session.subjectExtras.lessonId) : null;

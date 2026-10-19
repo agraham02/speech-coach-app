@@ -337,7 +337,15 @@ export async function recordDrillOutcome(args: {
 // this is how real speaking, not just drills, moves mastery.
 export async function recordRepOutcome(
   evidence: SkillEvidence,
-  context: { sessionId: string; label: string; local: SkillEvidence; cloud: SkillEvidence },
+  context: {
+    sessionId: string;
+    label: string;
+    local: SkillEvidence;
+    cloud: SkillEvidence;
+    // How much of the impromptu skill's move to keep: a take with research
+    // behind it is less of an impromptu take, so it counts for less there.
+    impromptuWeight?: number;
+  },
 ): Promise<ProgressChange[]> {
   const entries = (Object.entries(evidence) as [SkillId, number][]).filter(([, v]) => v != null && Number.isFinite(v));
   if (entries.length === 0) return [];
@@ -351,7 +359,10 @@ export async function recordRepOutcome(
   for (const [skill, score] of entries) {
     total += score;
     n += 1;
-    const updated = withStage(skills[skill], { ...updateRating(skills[skill], score, level), lastPracticedAt: now }, now);
+    const full = updateRating(skills[skill], score, level);
+    const weight = skill === "impromptu" ? context.impromptuWeight ?? 1 : 1;
+    const scaled = weight === 1 ? full : { ...full, rating: Math.round((skills[skill].rating + weight * (full.rating - skills[skill].rating)) * 10) / 10 };
+    const updated = withStage(skills[skill], { ...scaled, lastPracticedAt: now }, now);
     after[skill] = updated;
     await saveSkill(skill, updated);
     await logSkillEvent({
