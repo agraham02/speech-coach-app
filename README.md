@@ -52,3 +52,59 @@ If a future need arises to move to the v5 Nitro pair, re-check `visioncamera.mar
 ## Native dependencies requiring an EAS rebuild
 
 Beyond the original camera/face-detection stack: `expo-video` (Result screen video playback), `react-native-gifted-charts` + `react-native-svg` (Trends chart, Phase 6), `expo-notifications` (daily reminder, Phase 7), `expo-secure-store` (on-device API keys, Settings). None of these need extra config beyond what's already in `app.config.ts`'s `plugins` array. As always on this Windows-only dev setup, a JS-only change just needs a dev-client reload; anything that adds/updates a native module needs `eas build --profile development --platform ios` first.
+
+
+## Versions, builds and over-the-air updates
+
+Three different numbers get called "the version". They live in different places and change for different reasons.
+
+| What | Where it lives | Who changes it |
+| --- | --- | --- |
+| **Version** (`1.0.0`) | `version` in `app.config.ts`. It's the number in Settings and on the App Store, and it is also the **runtime version**: the key that decides which over-the-air updates a build may receive. | You, by hand. |
+| **Build number** (iOS build `5` at the time of writing) | Stored on EAS (`appVersionSource: "remote"`). `autoIncrement` is on for the `production` and `testflight` profiles. | EAS, on every build. Never edit it. Check it with `eas build:version:get -p ios --profile testflight`. |
+| **Update ID** | One per `eas update`. Shown in Dev → App tools → Over-the-air updates. | EAS, on every update. |
+
+### What ships how
+
+| The change | What to do |
+| --- | --- |
+| JavaScript only: lessons and other content, copy, screens, logic, new database migrations, the built-in topic list | Nothing to bump. Publish an update: `npm run update:testflight -- --message "..."` or `npm run update:production -- --message "..."`. It reaches phones on their next cold start: the first launch downloads it, the second runs it. |
+| Anything native: a new or upgraded native library, a config plugin or permission change, the icon or splash screen, an Expo or React Native upgrade, the face model | **Bump `version`**, then build and submit. It can't be an update. |
+
+To check whether a change is native since your last build, compare against the commit you built:
+
+```
+git diff <last-build-tag> -- package.json app.config.ts plugins modules assets
+```
+
+If that shows a dependency, a plugin, a permission or an image, it needs a build and a new `version`.
+
+### How to number the version
+
+Plain `MAJOR.MINOR.PATCH`:
+
+- **Minor** (`1.0.0` → `1.1.0`) for every build that changes native code. This is the common case.
+- **Patch** (`1.1.0` → `1.1.1`) for a small native-only fix that you want a separate store release for.
+- **Major** (`1.x` → `2.0.0`) for a big relaunch or redesign.
+- **No change** for a TestFlight rebuild with nothing native in it. The build number still goes up on its own.
+
+The App Store wants each version submitted for review to be higher than the last one released. TestFlight accepts several builds of the same version.
+
+Tag the commit you build from (`git tag v1.1.0`). The tag is what you diff against next time, and what you check out to publish an update for an older version (below).
+
+### Can the version be changed over the air?
+
+No, it needs a build. Two reasons:
+
+1. The version is written into the app itself (iOS `Info.plist`, Android manifest) when it's built. An update replaces the JavaScript, not the app.
+2. With `runtimeVersion: { policy: "appVersion" }` the version is how updates are matched to builds. If you change `version` in `app.config.ts` and publish an update, that update gets the new runtime version, and no installed build has it, so nobody receives it.
+
+### After you bump the version
+
+- Updates only reach builds with the **same** version. Builds of the old version stay on the last update they got.
+- To send a fix to an old version, check out its tag, publish from there (`git switch --detach v1.0.0`, then `npm run update:production -- --message "..."`), and come back.
+- If you forget to bump after a native change, an update made afterwards can reach an older build that is missing the native part it needs. `expo-updates` has crash recovery that falls back to the build's own bundle when an update crashes on launch, but it can't catch JavaScript that fails later. This is the reason for the rule above.
+
+### Why not the "fingerprint" policy
+
+It would pick the runtime version automatically from the native code. It was tried and removed: EAS Build recomputes the fingerprint on its own machines after its iOS prebuild, and from Windows it never matched, which failed the iOS build at "Configure expo-updates" (build `b68591c4`). `appVersion` is a plain string that can't mismatch, at the cost of the bump being manual.
