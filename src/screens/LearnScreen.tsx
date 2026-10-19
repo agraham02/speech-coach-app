@@ -13,6 +13,9 @@ import { ListGroup, ListRow } from "../components/common/ListRow";
 import { ProgressRing } from "../components/common/ProgressRing";
 import { PressableScale } from "../components/common/PressableScale";
 import { StepTimeline } from "../components/common/StepTimeline";
+import { SegmentedControl } from "../components/common/SegmentedControl";
+import { PathList } from "../components/path/PathList";
+import { getPathView, type PathView } from "../services/path/pathService";
 import { LESSONS, UNITS } from "../content/lessons";
 import { getLessonStates, getSkillStates, type LessonState, type SkillState } from "../services/db/progressRepo";
 import { SKILL_LABELS, type SkillId } from "../theme/tokens";
@@ -30,9 +33,10 @@ const SKILL_BLURB: Record<SkillId, string> = {
   conversation: "Knowing what to say, staying present, starting and leaving, and getting to the point.",
 };
 
-// Every lesson, open to browse — each skill as a path through its units.
-// "Next up" is the recommended lesson per track; reviews come due on a
-// spaced schedule.
+// Learn has two views. Your path: every unit in the order built for you,
+// with why each is there. All skills: every lesson, open to browse — each
+// skill as a track through its units, with "Next up" per track and reviews
+// coming due on a spaced schedule.
 export function LearnScreen() {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -40,11 +44,14 @@ export function LearnScreen() {
   const [skill, setSkill] = useState<SkillId>("articulation");
   const [lessons, setLessons] = useState<Record<string, LessonState>>({});
   const [skills, setSkills] = useState<Record<SkillId, SkillState> | null>(null);
+  const [mode, setMode] = useState<"path" | "skills">("path");
+  const [pathView, setPathView] = useState<PathView | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       getLessonStates().then(setLessons);
       getSkillStates().then(setSkills);
+      getPathView().then(setPathView).catch(() => undefined);
     }, []),
   );
 
@@ -57,109 +64,137 @@ export function LearnScreen() {
 
   return (
     <Screen tabRoot large title="Learn">
-      <TourTarget id="learn.skills">
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll} contentContainerStyle={styles.tabs}>
-        {SKILLS.map((s) => {
-          const selected = s === skill;
-          const sc = colors.skill[s];
-          return (
-            <PressableScale
-              key={s}
-              onPress={() => setSkill(s)}
-              haptic={selected ? undefined : "tick"}
-              scaleTo={0.94}
-              accessibilityRole="tab"
-              accessibilityState={{ selected }}
-              accessibilityLabel={SKILL_LABELS[s]}
-              style={[styles.tab, selected && styles.tabSelected]}
-            >
-              <ProgressRing size={34} strokeWidth={3} progress={(skills?.[s].rating ?? 0) / 100} color={sc.fg} trackColor={sc.bg}>
-                <Txt variant="caption2" tabular>
-                  {Math.round(skills?.[s].rating ?? 0)}
-                </Txt>
-              </ProgressRing>
-              <Txt variant="subhead" weight={selected ? "600" : "500"} tone={selected ? "primary" : "secondary"}>
-                {SKILL_LABELS[s]}
-              </Txt>
-            </PressableScale>
-          );
-        })}
-      </ScrollView>
+      <TourTarget id="learn.mode">
+        <SegmentedControl
+          options={[
+            { key: "path", label: "Your path" },
+            { key: "skills", label: "All skills" },
+          ]}
+          value={mode}
+          onChange={setMode}
+        />
       </TourTarget>
 
-      <Animated.View key={skill} entering={FadeIn.duration(duration.base)} style={styles.body}>
-        <HeroCard accent={c.fg} contentStyle={styles.skillCard}>
-          <View style={styles.flex}>
-            <Txt variant="title1">{SKILL_LABELS[skill]}</Txt>
-            <Txt variant="callout" tone="secondary">
-              {SKILL_BLURB[skill]}
-            </Txt>
-            <View style={styles.progressRow}>
-              <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${(doneCount / Math.max(1, track.length)) * 100}%`, backgroundColor: c.fg }]} />
+      {mode === "path" ? (
+        <Animated.View key="path" entering={FadeIn.duration(duration.base)} style={styles.body}>
+          <PathList
+            view={pathView}
+            onOpenUnit={(u) => {
+              const lessonId = u.nextLessonId ?? LESSONS.find((l) => l.unitId === u.unitId)?.id;
+              if (lessonId) navigation.navigate("Lesson", { lessonId });
+            }}
+          />
+          <ListGroup>
+            <ListRow icon="book-outline" title="Frameworks" subtitle="The models behind the lessons, and where they come from" chevron onPress={() => navigation.navigate("Frameworks")} />
+          </ListGroup>
+        </Animated.View>
+      ) : (
+        <>
+        <TourTarget id="learn.skills">
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll} contentContainerStyle={styles.tabs}>
+          {SKILLS.map((s) => {
+            const selected = s === skill;
+            const sc = colors.skill[s];
+            return (
+              <PressableScale
+                key={s}
+                onPress={() => setSkill(s)}
+                haptic={selected ? undefined : "tick"}
+                scaleTo={0.94}
+                accessibilityRole="tab"
+                accessibilityState={{ selected }}
+                accessibilityLabel={SKILL_LABELS[s]}
+                style={[styles.tab, selected && styles.tabSelected]}
+              >
+                <ProgressRing size={34} strokeWidth={3} progress={(skills?.[s].rating ?? 0) / 100} color={sc.fg} trackColor={sc.bg}>
+                  <Txt variant="caption2" tabular>
+                    {Math.round(skills?.[s].rating ?? 0)}
+                  </Txt>
+                </ProgressRing>
+                <Txt variant="subhead" weight={selected ? "600" : "500"} tone={selected ? "primary" : "secondary"}>
+                  {SKILL_LABELS[s]}
+                </Txt>
+              </PressableScale>
+            );
+          })}
+        </ScrollView>
+        </TourTarget>
+
+        <Animated.View key={skill} entering={FadeIn.duration(duration.base)} style={styles.body}>
+          <HeroCard accent={c.fg} contentStyle={styles.skillCard}>
+            <View style={styles.flex}>
+              <Txt variant="title1">{SKILL_LABELS[skill]}</Txt>
+              <Txt variant="callout" tone="secondary">
+                {SKILL_BLURB[skill]}
+              </Txt>
+              <View style={styles.progressRow}>
+                <View style={styles.progressTrack}>
+                  <View style={[styles.progressFill, { width: `${(doneCount / Math.max(1, track.length)) * 100}%`, backgroundColor: c.fg }]} />
+                </View>
+                <Txt variant="footnote" tone="secondary" tabular>
+                  {doneCount} of {track.length}
+                </Txt>
               </View>
-              <Txt variant="footnote" tone="secondary" tabular>
-                {doneCount} of {track.length}
-              </Txt>
             </View>
-          </View>
-          <View style={styles.ringCol}>
-            <ProgressRing size={76} strokeWidth={6} progress={rating / 100} color={c.fg} trackColor={c.bg}>
-              <Txt variant="title1" style={styles.ringNumber}>
-                {rating}
-              </Txt>
-            </ProgressRing>
-            {skills ? (
-              <Txt variant="caption1" weight="600" color={c.fg}>
-                {stageName(skills[skill].stage)}
-              </Txt>
-            ) : null}
-          </View>
-        </HeroCard>
-
-        {UNITS.filter((u) => u.skill === skill).map((unit, unitIndex) => (
-          <TourTarget key={unit.id} id={unitIndex === 0 ? "learn.path" : undefined} style={styles.unit}>
-            <View style={styles.unitHead}>
-              <Txt variant="title3">{unit.title}</Txt>
-              <Txt variant="subhead" tone="secondary">
-                {unit.summary}
-              </Txt>
+            <View style={styles.ringCol}>
+              <ProgressRing size={76} strokeWidth={6} progress={rating / 100} color={c.fg} trackColor={c.bg}>
+                <Txt variant="title1" style={styles.ringNumber}>
+                  {rating}
+                </Txt>
+              </ProgressRing>
+              {skills ? (
+                <Txt variant="caption1" weight="600" color={c.fg}>
+                  {stageName(skills[skill].stage)}
+                </Txt>
+              ) : null}
             </View>
-            <Card style={styles.path}>
-              <StepTimeline
-                color={c.fg}
-                steps={track
-                  .filter((l) => l.unitId === unit.id)
-                  .map((lesson) => {
-                    const st = lessons[lesson.id];
-                    const due = !!st?.nextReviewAt && st.nextReviewAt.slice(0, 10) <= today;
-                    const isNext = lesson.id === nextUp;
-                    return {
-                      id: lesson.id,
-                      title: lesson.title,
-                      subtitle: isNext ? "Next up" : undefined,
-                      meta: due ? "Review due" : `${lesson.minutes} min`,
-                      metaColor: due ? colors.warning : undefined,
-                      state: st?.done && !due ? "done" : isNext ? "current" : "todo",
-                      onPress: () => navigation.navigate("Lesson", { lessonId: lesson.id }),
-                    };
-                  })}
-              />
-            </Card>
-          </TourTarget>
-        ))}
+          </HeroCard>
 
-        {skill === "conversation" ? (
-          <Txt variant="footnote" tone="muted" style={styles.note}>
-            These lessons are practice, not treatment. If worry about conversations is taking over your days, CBT for social anxiety has strong
-            evidence and is worth looking into.
-          </Txt>
-        ) : null}
+          {UNITS.filter((u) => u.skill === skill).map((unit) => (
+            <View key={unit.id} style={styles.unit}>
+              <View style={styles.unitHead}>
+                <Txt variant="title3">{unit.title}</Txt>
+                <Txt variant="subhead" tone="secondary">
+                  {unit.summary}
+                </Txt>
+              </View>
+              <Card style={styles.path}>
+                <StepTimeline
+                  color={c.fg}
+                  steps={track
+                    .filter((l) => l.unitId === unit.id)
+                    .map((lesson) => {
+                      const st = lessons[lesson.id];
+                      const due = !!st?.nextReviewAt && st.nextReviewAt.slice(0, 10) <= today;
+                      const isNext = lesson.id === nextUp;
+                      return {
+                        id: lesson.id,
+                        title: lesson.title,
+                        subtitle: isNext ? "Next up" : undefined,
+                        meta: due ? "Review due" : `${lesson.minutes} min`,
+                        metaColor: due ? colors.warning : undefined,
+                        state: st?.done && !due ? "done" : isNext ? "current" : "todo",
+                        onPress: () => navigation.navigate("Lesson", { lessonId: lesson.id }),
+                      };
+                    })}
+                />
+              </Card>
+            </View>
+          ))}
 
-        <ListGroup>
-          <ListRow icon="book-outline" title="Frameworks" subtitle="The models behind the lessons, and where they come from" chevron onPress={() => navigation.navigate("Frameworks")} />
-        </ListGroup>
-      </Animated.View>
+          {skill === "conversation" ? (
+            <Txt variant="footnote" tone="muted" style={styles.note}>
+              These lessons are practice, not treatment. If worry about conversations is taking over your days, CBT for social anxiety has strong
+              evidence and is worth looking into.
+            </Txt>
+          ) : null}
+
+          <ListGroup>
+            <ListRow icon="book-outline" title="Frameworks" subtitle="The models behind the lessons, and where they come from" chevron onPress={() => navigation.navigate("Frameworks")} />
+          </ListGroup>
+        </Animated.View>
+        </>
+      )}
       <GuideTip id="learn" />
     </Screen>
   );

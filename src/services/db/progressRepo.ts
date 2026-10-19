@@ -23,6 +23,7 @@ import {
 import type { SkillEvidence } from "../../domain/repEvidence";
 import { earnedStage, placementStage, speakerLevel, type Stage } from "../../domain/levels";
 import { emitStageEarned } from "../progress/progressEvents";
+import { getPathOrder } from "./pathRepo";
 import { buildDailyPlan, PLAN_VERSION, type DailyPlan, type PlanMinutes } from "../../domain/dailyPlan";
 import { getLesson } from "../../content/lessons";
 import { summarizeAttempt, type AttemptSummary } from "../../domain/conversation/attemptMetrics";
@@ -446,9 +447,12 @@ async function readPlan(date: string): Promise<StoredPlan | null> {
 // `regenerate` swaps it (only allowed before any step is done).
 export async function getTodaysPlan(minutes: PlanMinutes, regenerate = false): Promise<StoredPlan> {
   const date = todayISODate();
-  const existing = await readPlan(date);
+  const [existing, path] = await Promise.all([readPlan(date), getPathOrder().catch(() => [] as string[])]);
   const outdated = existing && (existing.plan.version ?? 1) < PLAN_VERSION;
-  if (existing && !regenerate && !outdated && existing.plan.minutes === minutes) return existing;
+  // A plan made before your path was built doesn't follow it; until it's
+  // started, it's remade.
+  const pathless = existing && !existing.plan.followsPath && path.length > 0;
+  if (existing && !regenerate && !outdated && !pathless && existing.plan.minutes === minutes) return existing;
   if (existing && existing.completedStepIds.length > 0) return existing;
 
   const db = await getDatabase();
@@ -467,6 +471,7 @@ export async function getTodaysPlan(minutes: PlanMinutes, regenerate = false): P
     recentFocus: recent.map((r) => (JSON.parse(r.plan_json) as DailyPlan).focusSkill),
     lessons: Object.fromEntries(Object.entries(lessons).map(([id, l]) => [id, { done: l.done, nextReviewAt: l.nextReviewAt }])),
     priority: priorityFor(getUserProfile(), date, getNextEvent()),
+    path,
   });
   await db.runAsync(
     `INSERT OR REPLACE INTO daily_plans (date, plan_json, completed_steps_json, completed_at) VALUES (?, ?, '[]', NULL)`,

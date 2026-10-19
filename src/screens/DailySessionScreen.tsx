@@ -22,6 +22,7 @@ import { launchStep } from "../services/practice/launchStep";
 import { subscribePracticeSteps } from "../services/practice/practiceEvents";
 import { showGlobalToast } from "../components/common/ToastProvider";
 import { getLesson } from "../content/lessons";
+import { onLessonCompleted } from "../services/path/pathService";
 import { isoDateFromDate, todayISODate } from "../utils/dateUtils";
 import type { PlanStep } from "../domain/dailyPlan";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
@@ -87,6 +88,7 @@ export function DailySessionScreen({ route, navigation }: Props) {
     try {
       const updated = slot ? await completeTopUpStep(plan.date, slot, step.id) : await completePlanStep(plan.date, step.id);
       if (updated) setStored(updated);
+      if (!slot && updated?.completedAt) onLessonCompleted();
     } catch (error) {
       logger.error(`[daily] skip failed — ${(error as Error).message}`);
       setStored(before);

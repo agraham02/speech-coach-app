@@ -54,6 +54,7 @@ const KEYS = {
   faceCalibration: "faceCalibration",
   nextEvent: "nextEvent",
   mediaBackup: "mediaBackup",
+  pathPlan: "pathPlan",
 } as const;
 
 // The session-score rules every stored score was last computed with (see
@@ -522,6 +523,22 @@ export function clearFaceCalibration(): void {
 // speaking_events table by eventsRepo.syncEvents for the readers that can't
 // wait on the database: the daily plan's lean, rep prompts, reminder copy,
 // the deep review's note about the speaker.
+// When the path was last planned, and a fingerprint of what it was planned
+// from (goals, event, skill check) — a change re-plans it.
+export interface PathPlanState {
+  plannedAt: string;
+  fingerprint: string;
+}
+
+export function getPathPlanState(): PathPlanState | null {
+  return readJson<PathPlanState | null>(KEYS.pathPlan, null);
+}
+
+export function setPathPlanState(state: PathPlanState | null): void {
+  if (state) storage.set(KEYS.pathPlan, JSON.stringify(state));
+  else storage.remove(KEYS.pathPlan);
+}
+
 export function getNextEvent(): UpcomingEvent | null {
   return readJson<UpcomingEvent | null>(KEYS.nextEvent, null);
 }

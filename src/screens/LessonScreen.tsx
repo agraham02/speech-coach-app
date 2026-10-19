@@ -26,6 +26,7 @@ import { SKILL_LABELS } from "../theme/tokens";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import { defaultsFromProfile } from "../domain/profile";
 import { getUserProfile } from "../services/prefs/prefsStore";
+import { onLessonCompleted } from "../services/path/pathService";
 
 // Drills that read marked text (the pause drill shows only pauses).
 const MARKED_DRILLS: string[] = ["marked_reading", "pause_reading", "move_it"];
@@ -84,6 +85,7 @@ export function LessonScreen({ route, navigation }: Props) {
     const scores = scoresRef.current;
     const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0.8;
     completeLesson(lesson.id, avg, avg >= 0.7).then(() => {
+      onLessonCompleted();
       showGlobalToast(`Lesson complete — it'll come back for review in a few days.`, "success");
       getLessonStates().then((s) => setState(s[lesson.id] ?? null));
     });

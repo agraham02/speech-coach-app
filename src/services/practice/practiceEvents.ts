@@ -2,6 +2,7 @@ import type { PracticeContext } from "../../domain/practice";
 import { completePlanStep, completeTopUpStep } from "../db/progressRepo";
 import { syncDailyReminder } from "../notifications/reminderScheduler";
 import { logger } from "../../utils/logger";
+import { onLessonCompleted } from "../path/pathService";
 
 export interface PracticeStepDone {
   context: PracticeContext;
@@ -31,6 +32,8 @@ export async function completePracticeStep(context: PracticeContext | undefined,
       else await completePlanStep(context.planDate, context.planStepId);
       // A finished session may satisfy a reminder that's still armed.
       syncDailyReminder().catch(() => undefined);
+      // ...and may have finished a lesson, and with it a unit on your path.
+      if (!context.planSlot) onLessonCompleted();
     }
   } catch (error) {
     logger.error(`[practice] couldn't save plan progress — ${(error as Error).message}`);

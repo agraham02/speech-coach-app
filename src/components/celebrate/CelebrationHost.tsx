@@ -12,7 +12,7 @@ import { SKILL_LABELS, type SkillId } from "../../theme/tokens";
 import { duration, easeOut } from "../../theme/motion";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 import { success } from "../../utils/haptics";
-import { subscribeToStageEarned } from "../../services/progress/progressEvents";
+import { subscribeToStageEarned, subscribeToUnitCompleted } from "../../services/progress/progressEvents";
 
 // The big moments, one at a time over whatever screen you're on: a stage
 // earned in a skill, or a unit finished. Calm — a glow in the skill's
@@ -46,9 +46,12 @@ export function CelebrationHost({ children }: { children: ReactNode }) {
     globalCelebrate = push;
     // A drill that earns a stage celebrates right away, over its result.
     const unsubscribe = subscribeToStageEarned((e) => setTimeout(() => push({ kind: "stage", ...e }), 700));
+    // So does finishing a unit on your path.
+    const unsubscribeUnits = subscribeToUnitCompleted((e) => setTimeout(() => push({ kind: "unit", ...e }), 500));
     return () => {
       if (globalCelebrate === push) globalCelebrate = null;
       unsubscribe();
+      unsubscribeUnits();
     };
   }, [push]);
 

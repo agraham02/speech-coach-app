@@ -2,10 +2,10 @@ import type { SkillId } from "../theme/tokens";
 import type { DrillType } from "../domain/drills/drillSpecs";
 import type { FrameworkId } from "../domain/coach/structureHeuristics";
 
-// The curriculum: 4 skill tracks -> units -> lessons. A lesson is a short
+// The curriculum: 5 skill tracks -> units -> lessons. A lesson is a short
 // teach card, a couple of drills, and usually one impromptu "apply" rep
-// that puts the skill to work. All lessons are open; the daily plan and a
-// "Next up" marker recommend the order.
+// that puts the skill to work. All lessons are open; your path
+// (domain/path.ts) orders the units for you, and the daily plan follows it.
 
 export interface TeachCard {
   why: string; // <= ~60 words
@@ -31,36 +31,42 @@ export interface Lesson {
   steps: LessonStep[];
 }
 
+// Where a unit sits in the path (domain/path.ts): 1 the foundations,
+// 2 the core, 3 the advanced. A tier-3 unit waits until every foundation is
+// done or shown; tiers 1 and 2 can mix when a goal calls for it.
+export type UnitTier = 1 | 2 | 3;
+
 export interface Unit {
   id: string;
   skill: SkillId;
+  tier: UnitTier;
   title: string;
   summary: string;
 }
 
 export const UNITS: Unit[] = [
-  { id: "art_wake", skill: "articulation", title: "Wake the articulators", summary: "Lips, tongue and jaw doing their job — and finishing every word." },
-  { id: "art_sounds", skill: "articulation", title: "Tricky sounds", summary: "The pairs people blur most: s/sh, r/l and th." },
-  { id: "art_speed", skill: "articulation", title: "Speed with clarity", summary: "Stay crisp as the pace goes up." },
-  { id: "cad_pace", skill: "cadence", title: "Find your pace", summary: "A speed people can follow — and the control to change it." },
-  { id: "cad_pause", skill: "cadence", title: "The power of the pause", summary: "Silence as a tool, not a gap to fill." },
-  { id: "cad_pitch", skill: "cadence", title: "Pitch", summary: "Where your voice goes at the end of a phrase — and using all of it." },
-  { id: "cad_rhythm", skill: "cadence", title: "Rhythm", summary: "Short and long, fast and slow — the beat that keeps people listening." },
-  { id: "cad_melody", skill: "cadence", title: "Emphasis", summary: "Stress the word that carries the meaning." },
-  { id: "cad_score", skill: "cadence", title: "Put it together", summary: "Mark a line yourself — pause, pace, pitch, rhythm, stress — then say it." },
-  { id: "imp_start", skill: "impromptu", title: "Just start talking", summary: "Faster word retrieval and fewer stalls — the mind-mouth link." },
-  { id: "imp_short", skill: "impromptu", title: "Say it short", summary: "Find the point, then say only that — summaries, rolling recaps and plain explanations." },
-  { id: "imp_structure", skill: "impromptu", title: "Structure on the fly", summary: "Frameworks that organize an answer as you give it." },
-  { id: "imp_feet", skill: "impromptu", title: "Think on your feet", summary: "Stories out of nowhere, and points you find as you go." },
-  { id: "con_nerves", skill: "confidence", title: "Work with the nerves", summary: "Settle your body with a long out-breath, then turn what's left into energy." },
-  { id: "con_breath", skill: "confidence", title: "Breath support", summary: "Breath that steadies your pace, carries your volume and keeps your voice even." },
-  { id: "con_authority", skill: "confidence", title: "Voice of authority", summary: "Volume, statements, and endings that land." },
-  { id: "con_presence", skill: "confidence", title: "Eye contact and face", summary: "Talk to a person, not a phone." },
-  { id: "conv_attention", skill: "conversation", title: "Outward attention", summary: "Spend your attention on them, not on watching yourself." },
-  { id: "conv_moves", skill: "conversation", title: "Moves", summary: "Small, reliable replies — so you're never stuck for something to say." },
-  { id: "conv_edges", skill: "conversation", title: "Starting and leaving", summary: "A plain way in, and a warm way out." },
-  { id: "conv_straight", skill: "conversation", title: "Say it straight", summary: "Point first, one reason, then stop — no more rambling." },
-  { id: "conv_wit", skill: "conversation", title: "Wit and warmth", summary: "Reactions, callbacks and play — the parts of humor anyone can learn." },
+  { id: "art_wake", skill: "articulation", tier: 1, title: "Wake the articulators", summary: "Lips, tongue and jaw doing their job — and finishing every word." },
+  { id: "art_sounds", skill: "articulation", tier: 2, title: "Tricky sounds", summary: "The pairs people blur most: s/sh, r/l and th." },
+  { id: "art_speed", skill: "articulation", tier: 3, title: "Speed with clarity", summary: "Stay crisp as the pace goes up." },
+  { id: "cad_pace", skill: "cadence", tier: 1, title: "Find your pace", summary: "A speed people can follow — and the control to change it." },
+  { id: "cad_pause", skill: "cadence", tier: 1, title: "The power of the pause", summary: "Silence as a tool, not a gap to fill." },
+  { id: "cad_pitch", skill: "cadence", tier: 2, title: "Pitch", summary: "Where your voice goes at the end of a phrase — and using all of it." },
+  { id: "cad_rhythm", skill: "cadence", tier: 3, title: "Rhythm", summary: "Short and long, fast and slow — the beat that keeps people listening." },
+  { id: "cad_melody", skill: "cadence", tier: 2, title: "Emphasis", summary: "Stress the word that carries the meaning." },
+  { id: "cad_score", skill: "cadence", tier: 3, title: "Put it together", summary: "Mark a line yourself — pause, pace, pitch, rhythm, stress — then say it." },
+  { id: "imp_start", skill: "impromptu", tier: 1, title: "Just start talking", summary: "Faster word retrieval and fewer stalls — the mind-mouth link." },
+  { id: "imp_short", skill: "impromptu", tier: 2, title: "Say it short", summary: "Find the point, then say only that — summaries, rolling recaps and plain explanations." },
+  { id: "imp_structure", skill: "impromptu", tier: 2, title: "Structure on the fly", summary: "Frameworks that organize an answer as you give it." },
+  { id: "imp_feet", skill: "impromptu", tier: 3, title: "Think on your feet", summary: "Stories out of nowhere, and points you find as you go." },
+  { id: "con_nerves", skill: "confidence", tier: 1, title: "Work with the nerves", summary: "Settle your body with a long out-breath, then turn what's left into energy." },
+  { id: "con_breath", skill: "confidence", tier: 2, title: "Breath support", summary: "Breath that steadies your pace, carries your volume and keeps your voice even." },
+  { id: "con_authority", skill: "confidence", tier: 2, title: "Voice of authority", summary: "Volume, statements, and endings that land." },
+  { id: "con_presence", skill: "confidence", tier: 2, title: "Eye contact and face", summary: "Talk to a person, not a phone." },
+  { id: "conv_attention", skill: "conversation", tier: 1, title: "Outward attention", summary: "Spend your attention on them, not on watching yourself." },
+  { id: "conv_moves", skill: "conversation", tier: 1, title: "Moves", summary: "Small, reliable replies — so you're never stuck for something to say." },
+  { id: "conv_edges", skill: "conversation", tier: 2, title: "Starting and leaving", summary: "A plain way in, and a warm way out." },
+  { id: "conv_straight", skill: "conversation", tier: 2, title: "Say it straight", summary: "Point first, one reason, then stop — no more rambling." },
+  { id: "conv_wit", skill: "conversation", tier: 3, title: "Wit and warmth", summary: "Reactions, callbacks and play — the parts of humor anyone can learn." },
 ];
 
 export const LESSONS: Lesson[] = [
@@ -1297,6 +1303,14 @@ export const GUIDED: GuidedExercise[] = [
     ratingQuestion: "How okay did it feel to be the one who ends it?",
   },
 ];
+
+export function getUnit(id: string): Unit | undefined {
+  return UNITS.find((u) => u.id === id);
+}
+
+export function lessonsInUnit(unitId: string): Lesson[] {
+  return LESSONS.filter((l) => l.unitId === unitId);
+}
 
 export function getLesson(id: string): Lesson | undefined {
   return LESSONS.find((l) => l.id === id);

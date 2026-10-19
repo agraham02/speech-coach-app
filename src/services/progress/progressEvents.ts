@@ -57,3 +57,27 @@ export function subscribeToStageEarned(listener: (e: StageEarned) => void): () =
     stageListeners.delete(listener);
   };
 }
+
+// A unit on your path is finished (services/path/pathService.ts).
+export interface UnitCompleted {
+  unitId: string;
+  skill: SkillId;
+  unitTitle: string;
+  lessons: string[];
+  ratingFrom: number | null;
+  ratingTo: number | null;
+  next: string | null;
+}
+
+const unitListeners = new Set<(e: UnitCompleted) => void>();
+
+export function emitUnitCompleted(e: UnitCompleted): void {
+  unitListeners.forEach((listener) => listener(e));
+}
+
+export function subscribeToUnitCompleted(listener: (e: UnitCompleted) => void): () => void {
+  unitListeners.add(listener);
+  return () => {
+    unitListeners.delete(listener);
+  };
+}

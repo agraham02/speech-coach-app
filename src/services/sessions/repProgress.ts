@@ -14,6 +14,8 @@ import { logger } from "../../utils/logger";
 import { saveProgress } from "../progress/progressMoments";
 import { emitProgressSettled, isWatchingProgress } from "../progress/progressEvents";
 import { stageName } from "../../domain/levels";
+import { lessonPosition } from "../../domain/path";
+import { getUnit } from "../../content/lessons";
 import { SKILL_LABELS } from "../../theme/tokens";
 import { navigationRef } from "../../navigation/navigationRef";
 
@@ -52,7 +54,11 @@ export async function settleRepProgress(sessionId: string, options: { abandoned?
       local,
       cloud: reviewed,
     });
-    await saveProgress(sessionId, { changes, settledAt: new Date().toISOString(), seenAt: null });
+    // A path lesson's rep says where it leaves you in the unit.
+    const position = session.subjectExtras?.lessonId ? lessonPosition(session.subjectExtras.lessonId) : null;
+    const unit = position ? getUnit(position.unitId) : undefined;
+    const path = position && unit ? { unitTitle: unit.title, lessonIndex: position.index, lessonCount: position.count } : null;
+    await saveProgress(sessionId, { changes, settledAt: new Date().toISOString(), seenAt: null, path });
     // The Result screen for this take plays the moment itself; anywhere
     // else, a stage earned is worth a tap-through toast, and Today keeps
     // the rest waiting in its "new progress" card.

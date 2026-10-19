@@ -48,6 +48,10 @@ import { success } from "../utils/haptics";
 import { TranscriptionBanner } from "../components/common/TranscriptionBanner";
 import { EventTodayCard } from "../components/events/EventTodayCard";
 import { NewProgressCard } from "../components/celebrate/NewProgressCard";
+import { PathNowCard } from "../components/path/PathNowCard";
+import { PathChangeNotice } from "../components/path/PathChangeNotice";
+import { getPathView, type PathView } from "../services/path/pathService";
+import { lessonPosition } from "../domain/path";
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -72,13 +76,19 @@ export function TodayScreen() {
   const [goal, setGoal] = useState(getDailySessionGoal());
   const [doneToday, setDoneToday] = useState(0);
   const [topUp, setTopUp] = useState<{ slot: 1 | 2; stored: StoredPlan } | null>(null);
+  const [pathView, setPathView] = useState<PathView | null>(null);
   const anchor = getPracticeAnchor();
   const profile = getUserProfile();
   const defaults = defaultsFromProfile(profile);
 
   const load = useCallback(
     (m = minutes) => {
-      getTodaysPlan(m).then(setStored);
+      // The plan follows the path, so the path is brought up to date first.
+      const planned = getPathView()
+        .then(setPathView)
+        .catch(() => undefined)
+        .then(() => getTodaysPlan(m));
+      planned.then(setStored);
       getSkillStates().then(setSkillStates);
       getStreakState().then((state) => {
         setStreak(state.currentStreak);
@@ -90,7 +100,7 @@ export function TodayScreen() {
       setGoal(g);
       getSessionsDoneToday().then(setDoneToday);
       // The next top-up, once the main plan is finished.
-      Promise.all([getTodaysPlan(m), getCompletedTopUpSlots()]).then(async ([main, slots]) => {
+      Promise.all([planned, getCompletedTopUpSlots()]).then(async ([main, slots]) => {
         const next = ([1, 2] as const).find((s) => s < g && !slots.includes(s));
         setTopUp(main.completedAt && next ? { slot: next, stored: await getTopUpPlan(next, { quiet: defaultsFromProfile(getUserProfile()).quiet }) } : null);
       });
@@ -117,6 +127,8 @@ export function TodayScreen() {
   const mastery = skillStates ? (Object.fromEntries(SKILLS.map((k) => [k, skillStates[k].rating])) as Record<SkillId, number>) : null;
   const stages = skillStates ? (Object.fromEntries(SKILLS.map((k) => [k, skillStates[k].stage])) as Record<SkillId, Stage>) : undefined;
   const level = skillStates ? speakerLevelOf(skillStates) : null;
+  const planUnit = plan?.unitId ? pathView?.units.find((u) => u.unitId === plan.unitId) : undefined;
+  const position = plan && planUnit ? lessonPosition(plan.lessonId) : null;
 
   return (
     <Screen
@@ -179,6 +191,7 @@ export function TodayScreen() {
       </View>
 
       <NewProgressCard />
+      <PathChangeNotice refreshKey={pathView} />
       <EventTodayCard />
 
       {!plan ? (
@@ -220,6 +233,22 @@ export function TodayScreen() {
               {plan.isReview ? "Review — " : ""}
               {lesson.teach.why.split(". ")[0]}.
             </Txt>
+            {planUnit && position ? (
+              <View style={styles.pathLine}>
+                <Txt variant="footnote" tone="secondary">
+                  Lesson {position.index} of {position.count} in {planUnit.title}
+                </Txt>
+                {planUnit.reasons[0] ? (
+                  <Txt variant="footnote" weight="600" color={focus.fg}>
+                    {planUnit.reasons[0].text}
+                  </Txt>
+                ) : null}
+              </View>
+            ) : plan.isReview ? (
+              <Txt variant="footnote" tone="secondary">
+                A review day: a few lessons are due, so they come back now, while they're easy to keep.
+              </Txt>
+            ) : null}
           </View>
           <StepTimeline
             color={focus.fg}
@@ -250,6 +279,16 @@ export function TodayScreen() {
           <View style={styles.placeholder} />
         </HeroCard>
       )}
+
+      {pathView ? (
+        <TourTarget id="today.path">
+          <PathNowCard
+            view={pathView}
+            onOpenUnit={(u) => (u.nextLessonId ? navigation.navigate("Lesson", { lessonId: u.nextLessonId }) : navigation.navigate("Tabs", { screen: "Learn" }))}
+            onOpenPath={() => navigation.navigate("Tabs", { screen: "Learn" })}
+          />
+        </TourTarget>
+      ) : null}
 
       {topUp ? <TopUpCard slot={topUp.slot} stored={topUp.stored} goal={goal} onStart={() => navigation.navigate("DailySession", { slot: topUp.slot })} /> : null}
 
@@ -365,6 +404,7 @@ const useStyles = makeStyles((t) => ({
   heroTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: t.space.md },
   length: { width: 190 },
   heroTitle: { gap: t.space.sm },
+  pathLine: { gap: 2 },
   finished: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: t.space.sm, paddingVertical: t.space.sm },
   placeholder: { height: 320 },
   topUp: { gap: t.space.md },
