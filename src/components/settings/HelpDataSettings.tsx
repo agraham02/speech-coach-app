@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { ActivityIndicator, Alert, Modal, Platform, Share, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Modal, Platform, Share, View } from "react-native";
 import { CommonActions, useNavigation } from "@react-navigation/native";
 import { ListGroup, ListRow, SwitchRow } from "../common/ListRow";
 import { Txt } from "../common/Txt";
 import { useToast } from "../common/ToastProvider";
+import { FEEDBACK_URL } from "../../config/feedback";
 import { formatLogsForSharing } from "../../services/logs/logStore";
 import { resetApp } from "../../services/data/resetApp";
 import { exportPracticeData, formatBytes } from "../../services/data/dataExport";
@@ -101,6 +102,15 @@ export function HelpDataSettings() {
   return (
     <>
       <ListGroup title="Help">
+        {FEEDBACK_URL ? (
+          <ListRow
+            icon="chatbubble-ellipses-outline"
+            title="Send feedback"
+            subtitle="Tell me what's confusing, broken or missing. Opens a short form."
+            chevron
+            onPress={() => Linking.openURL(FEEDBACK_URL).catch(() => Alert.alert("Couldn't open the form", FEEDBACK_URL))}
+          />
+        ) : null}
         <ListRow
           icon="sparkles-outline"
           title="Show tips again"
