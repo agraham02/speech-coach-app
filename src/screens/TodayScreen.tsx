@@ -33,7 +33,7 @@ import {
   type SkillState,
   type StoredPlan,
 } from "../services/db/progressRepo";
-import { getDailySessionGoal, getPlanMinutes, getPracticeAnchor, getReminderSettings, getUserProfile, setPlanMinutes } from "../services/prefs/prefsStore";
+import { getDailySessionGoal, getPlanMinutes, getPracticeAnchor, getPracticeAnchorHour, getReminderSettings, getUserProfile, setPlanMinutes } from "../services/prefs/prefsStore";
 import { formatReminderHour, reminderHours } from "../domain/reminderSettings";
 import { defaultsFromProfile } from "../domain/profile";
 import { anchorFits } from "../domain/notificationCopy";
@@ -184,7 +184,7 @@ export function TodayScreen() {
             </View>
           ) : null}
         </View>
-        {anchor && doneToday === 0 && anchorFits(anchor, new Date()) ? (
+        {anchor && doneToday === 0 && anchorFits(anchor, new Date(), getPracticeAnchorHour()) ? (
           <Txt variant="footnote" tone="muted">
             Your plan: {anchor.charAt(0).toLowerCase() + anchor.slice(1)}, practice.
           </Txt>

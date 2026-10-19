@@ -31,6 +31,7 @@ const KEYS = {
   prepSettingsManuallySet: "prepSettingsManuallySet",
   dailySessionGoal: "dailySessionGoal",
   practiceAnchor: "practiceAnchor",
+  practiceAnchorHour: "practiceAnchorHour",
   userProfile: "userProfile",
   skillCheckPending: "skillCheckPending",
   cloudReviewDefault: "cloudReviewDefault",
@@ -229,9 +230,18 @@ export function getPracticeAnchor(): string | null {
   return storage.getString(KEYS.practiceAnchor) ?? null;
 }
 
-export function setPracticeAnchor(anchor: string | null): void {
+// The hour of day the habit belongs to, for a habit the person wrote
+// themselves (the ready-made ones know their own). null when not known.
+export function getPracticeAnchorHour(): number | null {
+  const hour = storage.getNumber(KEYS.practiceAnchorHour);
+  return hour != null && hour >= 0 && hour <= 23 ? hour : null;
+}
+
+export function setPracticeAnchor(anchor: string | null, hour: number | null = null): void {
   if (anchor) storage.set(KEYS.practiceAnchor, anchor);
   else storage.remove(KEYS.practiceAnchor);
+  if (anchor && hour != null) storage.set(KEYS.practiceAnchorHour, hour);
+  else storage.remove(KEYS.practiceAnchorHour);
 }
 
 // What onboarding learned (domain/profile.ts). Kept here rather than in

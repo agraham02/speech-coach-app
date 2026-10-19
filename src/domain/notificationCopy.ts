@@ -18,6 +18,8 @@ export interface ReminderContext {
   slot: number;
   // "After my morning coffee": the habit practice is tied to.
   anchor: string | null;
+  // The hour of a habit the person wrote themselves.
+  anchorHour?: number | null;
   // The streak as it will stand when this arrives (0 when it will have lapsed
   // or the person has not practiced yet today).
   streak: number;
@@ -45,15 +47,22 @@ function plainAnchor(text: string): string {
     .trim();
 }
 
-function anchorHour(anchor: string): number | null {
+// The ready-made habit an anchor's words match, if any.
+export function anchorOption(anchor: string | null | undefined) {
+  if (!anchor) return undefined;
   const plain = plainAnchor(anchor);
-  const match = ANCHOR_OPTIONS.find((o) => plainAnchor(o.anchor) === plain);
-  return match ? match.hour : null;
+  return ANCHOR_OPTIONS.find((o) => plainAnchor(o.anchor) === plain);
 }
 
-export function anchorFits(anchor: string | null | undefined, when: Date): boolean {
-  if (!anchor) return false;
-  const hour = anchorHour(anchor);
+// When the habit happens: a ready-made one knows; one the person wrote was
+// tied to the hour they chose for their reminder (`savedHour`).
+export function anchorHour(anchor: string | null | undefined, savedHour?: number | null): number | null {
+  if (!anchor) return null;
+  return anchorOption(anchor)?.hour ?? savedHour ?? null;
+}
+
+export function anchorFits(anchor: string | null | undefined, when: Date, savedHour?: number | null): boolean {
+  const hour = anchorHour(anchor, savedHour);
   return hour != null && Math.abs(when.getHours() - hour) <= ANCHOR_WINDOW_HOURS;
 }
 
@@ -137,7 +146,7 @@ export function reminderText(ctx: ReminderContext): NotificationText {
     return { title, body: `Day ${ctx.streak + 1} is ready. ${pick(["Keep it going.", "Same time, same rep.", "One response is all it takes."], ctx.when)}` };
   }
 
-  if (ctx.anchor && anchorFits(ctx.anchor, ctx.when)) return { title, body: `${ctx.anchor.replace(/[.!?\s]+$/, "")}: time for today's practice.` };
+  if (ctx.anchor && anchorFits(ctx.anchor, ctx.when, ctx.anchorHour)) return { title, body: `${ctx.anchor.replace(/[.!?\s]+$/, "")}: time for today's practice.` };
 
   const weekday = WEEKDAY[ctx.when.getDay()];
   if (weekday && dayNumber(ctx.when) % 2 === 0) return { title, body: weekday };

@@ -8,6 +8,7 @@ import { SegmentedControl } from "../common/SegmentedControl";
 import { Txt } from "../common/Txt";
 import { useToast } from "../common/ToastProvider";
 import { ReminderHours } from "./ReminderHours";
+import { PracticeHabitSettings } from "./PracticeHabitSettings";
 import { sessionHours, type DailyGoal } from "../../domain/dailyGoal";
 import { formatReminderHour, setSessionHour } from "../../domain/reminderSettings";
 import { getDailySessionGoal, getReminderSettings, getRewindReminder, setDailySessionGoal, setReminderSettings, setRewindReminder } from "../../services/prefs/prefsStore";
@@ -157,6 +158,8 @@ export function GoalReminderSettings() {
           </>
         ) : null}
       </Card>
+
+      <PracticeHabitSettings firstHour={reminderSettings.hour} onMoveReminder={(hour) => handleHourChange(0, hour)} />
 
       <Card style={styles.section}>
         <SwitchRow
