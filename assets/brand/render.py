@@ -30,13 +30,13 @@ RED = "#FF453A"  # colors.record
 # middle, where the eye puts the center. Seven rounded bars and the stop,
 # all standing on one baseline. Kept in step with BrandMark in
 # src/components/onboarding/WelcomeIntro.tsx. Sized to fill the icon the way
-# other apps' marks do: about 80% of the width and 50% of the height.
-BAR_WIDTH = 70
-BAR_GAP = 32
-BAR_HEIGHTS = [187, 360, 512, 383, 294, 332, 242]
-STOP_RADIUS = 53  # a bar-sized stop: the last beat
+# other apps' marks do: about 75% of the width and 46% of the height.
+BAR_WIDTH = 66
+BAR_GAP = 30
+BAR_HEIGHTS = [172, 330, 470, 352, 270, 305, 222]
+STOP_RADIUS = 50  # a bar-sized stop: the last beat
 BAR_STEP = BAR_WIDTH + BAR_GAP
-MARK_W = len(BAR_HEIGHTS) * BAR_STEP + 2 * STOP_RADIUS  # 820
+MARK_W = len(BAR_HEIGHTS) * BAR_STEP + 2 * STOP_RADIUS  # 772
 MARK_H = max(BAR_HEIGHTS)
 FIRST_BAR_X = (1024 - MARK_W) // 2
 BASELINE = 500 + MARK_H // 2
@@ -66,7 +66,7 @@ def svg(body, view_box="0 0 1024 1024"):
 # Android's adaptive icon masks to a shape that keeps only the middle ~61%
 # for sure, so the mark shrinks to fit inside it.
 def adaptive(body):
-    return f'<g transform="translate(512 512) scale(0.65) translate(-512 -500)">{body}</g>'
+    return f'<g transform="translate(512 512) scale(0.7) translate(-512 -500)">{body}</g>'
 
 
 MASTERS = {
