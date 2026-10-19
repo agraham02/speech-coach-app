@@ -40,6 +40,7 @@
     "expo-widgets": "~57.0.26",
     "pitchfinder": "^2.3.4",
     "react": "19.2.3",
+    "react-dom": "19.2.3",
     "react-native": "0.86.3",
     "react-native-audio-api": "^0.13.2",
     "react-native-bottom-tabs": "^1.4.0",
