@@ -1,3 +1,4 @@
+import { EMPTY_FEEDBACK_STATE, type FeedbackPromptState } from "../../domain/feedbackPrompt";
 import { createMMKV } from "react-native-mmkv";
 import {
   DEFAULT_CONCISE_DURATION_SECONDS,
@@ -56,6 +57,7 @@ const KEYS = {
   nextEvent: "nextEvent",
   mediaBackup: "mediaBackup",
   pathPlan: "pathPlan",
+  feedbackPrompt: "feedbackPrompt",
 } as const;
 
 // The session-score rules every stored score was last computed with (see
@@ -566,4 +568,13 @@ export function getMediaBackup(): boolean {
 
 export function setMediaBackup(value: boolean): void {
   storage.set(KEYS.mediaBackup, value);
+}
+
+// The "how's Tono going?" prompt: whether it's been answered or put away.
+export function getFeedbackPromptState(): FeedbackPromptState {
+  return { ...EMPTY_FEEDBACK_STATE, ...readJson<Partial<FeedbackPromptState>>(KEYS.feedbackPrompt, {}) };
+}
+
+export function setFeedbackPromptState(state: FeedbackPromptState): void {
+  storage.set(KEYS.feedbackPrompt, JSON.stringify(state));
 }
