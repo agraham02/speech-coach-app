@@ -29,6 +29,8 @@ import {
   getTopUpPlan,
   getStreakState,
   getSessionsDoneToday,
+  speakerLevelOf,
+  type SkillState,
   type StoredPlan,
 } from "../services/db/progressRepo";
 import { getDailySessionGoal, getPlanMinutes, getPracticeAnchor, getReminderSettings, getUserProfile, setPlanMinutes } from "../services/prefs/prefsStore";
@@ -39,6 +41,8 @@ import { showGlobalToast } from "../components/common/ToastProvider";
 import { SKILLS } from "../domain/mastery";
 import { getLesson } from "../content/lessons";
 import { SKILL_LABELS, type SkillId } from "../theme/tokens";
+import type { Stage } from "../domain/levels";
+import { PressableScale } from "../components/common/PressableScale";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import { success } from "../utils/haptics";
 import { TranscriptionBanner } from "../components/common/TranscriptionBanner";
@@ -61,7 +65,7 @@ export function TodayScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [minutes, setMinutes] = useState(getPlanMinutes());
   const [stored, setStored] = useState<StoredPlan | null>(null);
-  const [mastery, setMastery] = useState<Record<SkillId, number> | null>(null);
+  const [skillStates, setSkillStates] = useState<Record<SkillId, SkillState> | null>(null);
   const [streak, setStreak] = useState(0);
   const [freezes, setFreezes] = useState(0);
   const [goal, setGoal] = useState(getDailySessionGoal());
@@ -74,7 +78,7 @@ export function TodayScreen() {
   const load = useCallback(
     (m = minutes) => {
       getTodaysPlan(m).then(setStored);
-      getSkillStates().then((s) => setMastery(Object.fromEntries(SKILLS.map((k) => [k, s[k].rating])) as Record<SkillId, number>));
+      getSkillStates().then(setSkillStates);
       getStreakState().then((state) => {
         setStreak(state.currentStreak);
         setFreezes(state.freezesHeld);
@@ -109,6 +113,9 @@ export function TodayScreen() {
   const finished = !!stored?.completedAt;
   const focus = plan ? colors.skill[plan.focusSkill] : null;
   const firstOpen = plan?.steps.findIndex((s) => !done.has(s.id)) ?? -1;
+  const mastery = skillStates ? (Object.fromEntries(SKILLS.map((k) => [k, skillStates[k].rating])) as Record<SkillId, number>) : null;
+  const stages = skillStates ? (Object.fromEntries(SKILLS.map((k) => [k, skillStates[k].stage])) as Record<SkillId, Stage>) : undefined;
+  const level = skillStates ? speakerLevelOf(skillStates) : null;
 
   return (
     <Screen
@@ -123,6 +130,19 @@ export function TodayScreen() {
           {todayLabel()}
         </Txt>
         <View style={styles.pills}>
+          {level != null ? (
+            <PressableScale
+              style={styles.pill}
+              onPress={() => navigation.navigate("Level")}
+              accessibilityRole="button"
+              accessibilityLabel={`Speaker level ${level}. Shows each skill's stage`}
+            >
+              <Ionicons name="trophy-outline" size={14} color={colors.textSecondary} />
+              <Txt variant="footnote" weight="600" tabular>
+                Level {level}
+              </Txt>
+            </PressableScale>
+          ) : null}
           {streak > 0 ? (
             <View style={styles.pill} accessibilityLabel={`${streak}-day streak${freezes ? `, ${freezes} streak freeze${freezes === 1 ? "" : "s"}` : ""}`}>
               <Ionicons name="flame" size={14} color={colors.warning} />
@@ -254,7 +274,7 @@ export function TodayScreen() {
         <TourTarget id="today.skills" style={styles.section}>
           <SectionHeader title="Your skills" action="Progress" onAction={() => navigation.navigate("Progress")} />
           <Card>
-            <SkillRings mastery={mastery} focus={plan?.focusSkill} onPressSkill={(s) => navigation.navigate("SkillDetail", { skill: s })} />
+            <SkillRings mastery={mastery} stages={stages} focus={plan?.focusSkill} onPressSkill={(s) => navigation.navigate("SkillDetail", { skill: s })} />
           </Card>
         </TourTarget>
       ) : null}

@@ -16,16 +16,25 @@ import { countPhrases } from "../services/db/phrasebookRepo";
 import { countThoughts } from "../services/db/selfTalkRepo";
 import { listRewinds } from "../services/db/rewindRepo";
 import { dayLabel } from "../domain/rewind/labels";
-import { getSkillStates, getStreakDates, getStreakState } from "../services/db/progressRepo";
+import { getSkillStates, getStreakDates, getStreakState, speakerLevelOf } from "../services/db/progressRepo";
+import { STAGE_NAMES, type Stage } from "../domain/levels";
 import { SkillRings } from "../components/common/SkillRings";
 import { AppFooter } from "../components/settings/AppFooter";
 import { SKILLS } from "../domain/mastery";
-import type { SkillId } from "../theme/tokens";
+import { SKILL_LABELS, type SkillId } from "../theme/tokens";
 import { getSelfLikesRun, getUserProfile } from "../services/prefs/prefsStore";
 import { listSelfLikes } from "../services/db/selfLikesRepo";
 import { runDays, RUN_DAYS } from "../domain/innerVoice/run";
 import { todayISODate } from "../utils/dateUtils";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
+
+// "Cadence is Steady" — the stage you're furthest along in, or a nudge
+// when every skill is still at the start.
+function highestStageLine(stages: Record<SkillId, Stage>): string {
+  const best = SKILLS.reduce((a, b) => (stages[b] > stages[a] ? b : a));
+  if (stages[best] <= 1) return "Every skill at Foundations. Your first stage is close";
+  return `${SKILL_LABELS[best]} is your strongest, at ${STAGE_NAMES[stages[best]]}`;
+}
 
 // The "You" tab: how you're doing (a short summary, with the full Progress a
 // tap away), the inner-voice and phrase tools, and Settings.
@@ -36,6 +45,8 @@ export function YouScreen() {
   const [streak, setStreak] = useState({ current: 0, freezes: 0, daysThisWeek: 0 });
   const [phraseCount, setPhraseCount] = useState(0);
   const [mastery, setMastery] = useState<Record<SkillId, number>>(() => Object.fromEntries(SKILLS.map((k) => [k, 0])) as Record<SkillId, number>);
+  const [stages, setStages] = useState<Record<SkillId, Stage> | undefined>(undefined);
+  const [level, setLevel] = useState<number | null>(null);
   const [thoughtCount, setThoughtCount] = useState(0);
   const [rewindLine, setRewindLine] = useState("Tell your day, two minutes");
   const [threeThings, setThreeThings] = useState("Something you like about yourself, each day");
@@ -47,7 +58,11 @@ export function YouScreen() {
         .then(([state, dates]) => setStreak({ current: state.currentStreak, freezes: state.freezesHeld, daysThisWeek: practiceDaysThisWeek(dates) }))
         .catch(() => undefined);
       getSkillStates()
-        .then((s) => setMastery(Object.fromEntries(SKILLS.map((k) => [k, s[k].rating])) as Record<SkillId, number>))
+        .then((s) => {
+          setMastery(Object.fromEntries(SKILLS.map((k) => [k, s[k].rating])) as Record<SkillId, number>);
+          setStages(Object.fromEntries(SKILLS.map((k) => [k, s[k].stage])) as Record<SkillId, Stage>);
+          setLevel(speakerLevelOf(s));
+        })
         .catch(() => undefined);
       countPhrases().then(setPhraseCount).catch(() => undefined);
       countThoughts().then(setThoughtCount).catch(() => undefined);
@@ -106,10 +121,20 @@ export function YouScreen() {
             </View>
           </View>
         </View>
-        <SkillRings mastery={mastery} onPressSkill={(s) => navigation.navigate("SkillDetail", { skill: s })} />
+        <SkillRings mastery={mastery} stages={stages} onPressSkill={(s) => navigation.navigate("SkillDetail", { skill: s })} />
         <PrimaryButton label="See all progress" variant="secondary" size="md" iconRight="chevron-forward" onPress={() => navigation.navigate("Progress")} />
       </HeroCard>
       </TourTarget>
+
+      <ListGroup>
+        <ListRow
+          icon="trophy-outline"
+          title={level != null ? `Speaker level ${level}` : "Your level"}
+          subtitle={stages ? highestStageLine(stages) : "Each skill's stage, and what's next"}
+          chevron
+          onPress={() => navigation.navigate("Level")}
+        />
+      </ListGroup>
 
       <TourTarget id="you.innerVoice">
       <ListGroup title="Inner voice">

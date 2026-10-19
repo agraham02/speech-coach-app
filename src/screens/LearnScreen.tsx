@@ -17,6 +17,7 @@ import { LESSONS, UNITS } from "../content/lessons";
 import { getLessonStates, getSkillStates, type LessonState, type SkillState } from "../services/db/progressRepo";
 import { SKILL_LABELS, type SkillId } from "../theme/tokens";
 import { SKILLS } from "../domain/mastery";
+import { stageName } from "../domain/levels";
 import { todayISODate } from "../utils/dateUtils";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import { duration } from "../theme/motion";
@@ -102,11 +103,18 @@ export function LearnScreen() {
               </Txt>
             </View>
           </View>
-          <ProgressRing size={76} strokeWidth={6} progress={rating / 100} color={c.fg} trackColor={c.bg}>
-            <Txt variant="title1" style={styles.ringNumber}>
-              {rating}
-            </Txt>
-          </ProgressRing>
+          <View style={styles.ringCol}>
+            <ProgressRing size={76} strokeWidth={6} progress={rating / 100} color={c.fg} trackColor={c.bg}>
+              <Txt variant="title1" style={styles.ringNumber}>
+                {rating}
+              </Txt>
+            </ProgressRing>
+            {skills ? (
+              <Txt variant="caption1" weight="600" color={c.fg}>
+                {stageName(skills[skill].stage)}
+              </Txt>
+            ) : null}
+          </View>
         </HeroCard>
 
         {UNITS.filter((u) => u.skill === skill).map((unit, unitIndex) => (
@@ -176,6 +184,7 @@ const useStyles = makeStyles((t) => ({
   skillCard: { flexDirection: "row", gap: t.space.md, alignItems: "center" },
   flex: { flex: 1, gap: t.space.xs },
   ringNumber: { fontSize: 24, lineHeight: 30, letterSpacing: -0.8 },
+  ringCol: { alignItems: "center", gap: t.space.xs },
   progressRow: { flexDirection: "row", alignItems: "center", gap: t.space.sm, marginTop: t.space.sm },
   progressTrack: { flex: 1, height: 4, borderRadius: 2, backgroundColor: t.colors.surfaceRaised, overflow: "hidden" },
   progressFill: { height: 4, borderRadius: 2 },

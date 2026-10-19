@@ -2,6 +2,7 @@ import { View } from "react-native";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 import { SKILL_LABELS, type SkillId } from "../../theme/tokens";
 import { SKILLS } from "../../domain/mastery";
+import { stageName, type Stage } from "../../domain/levels";
 import { PressableScale } from "./PressableScale";
 import { ProgressRing } from "./ProgressRing";
 import { Txt } from "./Txt";
@@ -13,11 +14,14 @@ import { Txt } from "./Txt";
 // means and what moved it.
 export function SkillRings({
   mastery,
+  stages,
   focus,
   size = 54,
   onPressSkill,
 }: {
   mastery: Record<SkillId, number>;
+  // Each skill's earned stage, named under its label.
+  stages?: Record<SkillId, Stage>;
   focus?: SkillId | null;
   size?: number;
   onPressSkill?: (skill: SkillId) => void;
@@ -30,7 +34,7 @@ export function SkillRings({
         const value = Math.round(mastery[skill] ?? 0);
         const c = colors.skill[skill];
         const isFocus = focus === skill;
-        const label = `${SKILL_LABELS[skill]} ${value} out of 100`;
+        const label = `${SKILL_LABELS[skill]} ${value} out of 100${stages ? `, ${stageName(stages[skill])}` : ""}`;
         const ring = (
           <>
             <ProgressRing size={size} strokeWidth={isFocus ? 5 : 4} progress={value / 100} color={c.fg} trackColor={c.bg}>
@@ -41,6 +45,11 @@ export function SkillRings({
             <Txt variant="caption1" tone={isFocus ? "primary" : "muted"} weight={isFocus ? "600" : "500"} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
               {SKILL_LABELS[skill]}
             </Txt>
+            {stages ? (
+              <Txt variant="caption2" color={c.fg} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={styles.stage}>
+                {stageName(stages[skill])}
+              </Txt>
+            ) : null}
           </>
         );
         return onPressSkill ? (
@@ -67,4 +76,5 @@ export function SkillRings({
 const useStyles = makeStyles((t) => ({
   row: { flexDirection: "row", justifyContent: "space-between" },
   item: { alignItems: "center", gap: t.space.sm - 2, flex: 1, minWidth: 0, paddingHorizontal: 2 },
+  stage: { marginTop: -4 },
 }));

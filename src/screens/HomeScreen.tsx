@@ -310,18 +310,19 @@ export function HomeScreen() {
           <View style={styles.promptCardHeader}>
             <Badge label={prompt.category} {...colorForCategory(prompt.category, colors)} />
             <View style={styles.promptCardHeaderRight}>
-              {/* Small tappable chip — opens the full "why" + manual
-                  override on CurriculumScreen. Reflects the tier that's
-                  already filtering the prompt pool above, not just a
-                  decoration. */}
+              {/* Small tappable chip — opens the practice difficulty
+                  and its manual pin. Reflects the tier that's already
+                  filtering the prompt pool above, not just a decoration.
+                  Says "prompts", not "level": your level is the speaker
+                  level (LevelScreen). */}
               <Pressable
                 onPress={() => navigation.navigate("Curriculum")}
                 style={styles.levelChip}
                 accessibilityRole="button"
-                accessibilityLabel={`Curriculum level ${curriculumLevel}, ${difficultyTierLabel(levelToDifficultyTier(curriculumLevel))}. View details`}
+                accessibilityLabel={`${difficultyTierLabel(levelToDifficultyTier(curriculumLevel))} prompts. Practice difficulty`}
               >
                 <Text style={styles.levelChipText}>
-                  Level {curriculumLevel} · {difficultyTierLabel(levelToDifficultyTier(curriculumLevel))}
+                  {difficultyTierLabel(levelToDifficultyTier(curriculumLevel))} prompts
                 </Text>
               </Pressable>
               <Pressable
