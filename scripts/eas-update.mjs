@@ -13,7 +13,12 @@ import { spawnSync } from "node:child_process";
 
 const DEV_TOOLS = { production: false, testflight: true };
 
-const [channel, ...rest] = process.argv.slice(2);
+// EAS asks which environment's variables to bundle with. Both kinds of build
+// are made in "production", which has none, so nothing is added to the bundle.
+const ENVIRONMENT = "production";
+
+const [channel, ...passed] = process.argv.slice(2);
+const rest = passed.includes("--environment") ? passed : [...passed, "--environment", ENVIRONMENT];
 if (!(channel in DEV_TOOLS)) {
   console.error(`Usage: node scripts/eas-update.mjs <${Object.keys(DEV_TOOLS).join("|")}> [eas update options]`);
   process.exit(1);
@@ -24,5 +29,8 @@ if (DEV_TOOLS[channel]) env.EXPO_PUBLIC_DEV_TOOLS = "1";
 else delete env.EXPO_PUBLIC_DEV_TOOLS;
 
 console.log(`Publishing to "${channel}" with the Dev tab ${DEV_TOOLS[channel] ? "on" : "off"}.`);
-const result = spawnSync("eas", ["update", "--channel", channel, ...rest], { env, stdio: "inherit", shell: true });
+// Run through a shell (eas is a .cmd file on Windows), which splits on spaces,
+// so anything with a space in it (a --message) has to be quoted.
+const quote = (arg) => (/[\s"&|<>^]/.test(arg) ? `"${arg.replace(/"/g, '\\"')}"` : arg);
+const result = spawnSync("eas", ["update", "--channel", channel, ...rest].map(quote), { env, stdio: "inherit", shell: true });
 process.exit(result.status ?? 1);
