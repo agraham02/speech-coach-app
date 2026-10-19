@@ -3,6 +3,7 @@ import type { PauseAnalysis } from "../dsp/pauses";
 import type { PresenceMetrics } from "../presenceMetrics";
 import { FRAMEWORK_LABELS, findHedges, guessStructure, hasStrongEnding, type FrameworkId, type StructureGuess } from "./structureHeuristics";
 import { ramblingMetrics } from "./ramblingMetrics";
+import type { PromptTask } from "../promptTask";
 
 // Deterministic on-device coaching from measured signals. Always available
 // (no model, no network); the Apple on-device model, when present, writes
@@ -17,6 +18,9 @@ export interface CoachInput {
   presence: PresenceMetrics | null;
   pitchRangeHz: number | null;
   promptText?: string | null;
+  // What the prompt asked for ("closing", "debate"), so the on-device model
+  // doesn't mark a closing-only take down for lacking a beginning.
+  task?: PromptTask | null;
   targetFramework?: FrameworkId | null;
 }
 
@@ -115,18 +119,23 @@ export function ruleCoach(input: CoachInput): CoachOutput {
     else if (rate <= 3) wins.push({ weight: 3, text: "Very few filler words." });
   }
   if (transcript) {
-    observations.push({
-      skill: "impromptu",
-      label: "Structure",
-      value: FRAMEWORK_LABELS[structure.framework],
-      verdict: structure.framework !== "None" ? "good" : "work",
-    });
-    if (input.targetFramework && input.targetFramework !== "None" && structure.framework !== input.targetFramework) {
-      findings.push({ skill: "impromptu", severity: 5.5, tip: `This rep was for ${FRAMEWORK_LABELS[input.targetFramework]} — hit each beat out loud, even if it feels mechanical at first.` });
-    } else if (structure.framework === "None") {
-      findings.push({ skill: "impromptu", severity: 4, tip: "Give your answer a shape: state your point, give a reason, an example, then repeat the point (PREP)." });
-    } else {
-      wins.push({ weight: 4, text: `Clear structure (${FRAMEWORK_LABELS[structure.framework]}).` });
+    // A prompt for only an opening or a closing isn't a whole answer, so the
+    // answer frameworks (PREP and the rest) don't apply to it: no verdict.
+    const partOfATalk = input.task === "opening" || input.task === "closing";
+    if (!partOfATalk) {
+      observations.push({
+        skill: "impromptu",
+        label: "Structure",
+        value: FRAMEWORK_LABELS[structure.framework],
+        verdict: structure.framework !== "None" ? "good" : "work",
+      });
+      if (input.targetFramework && input.targetFramework !== "None" && structure.framework !== input.targetFramework) {
+        findings.push({ skill: "impromptu", severity: 5.5, tip: `This rep was for ${FRAMEWORK_LABELS[input.targetFramework]} — hit each beat out loud, even if it feels mechanical at first.` });
+      } else if (structure.framework === "None") {
+        findings.push({ skill: "impromptu", severity: 4, tip: "Give your answer a shape: state your point, give a reason, an example, then repeat the point (PREP)." });
+      } else {
+        wins.push({ weight: 4, text: `Clear structure (${FRAMEWORK_LABELS[structure.framework]}).` });
+      }
     }
     // Rambling cues become tips only, not observations, so they don't
     // change how a rep moves mastery.

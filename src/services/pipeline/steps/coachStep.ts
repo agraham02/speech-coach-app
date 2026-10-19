@@ -37,6 +37,7 @@ export async function coachStep(sessionId: string): Promise<void> {
     presence,
     pitchRangeHz,
     promptText: session.sessionType === "free_record" ? null : subject.title,
+    task: session.sessionType === "free_record" ? null : subject.task,
     targetFramework: (session.subjectExtras?.targetFramework as FrameworkId | undefined) ?? null,
   };
   const rules = ruleCoach(input);

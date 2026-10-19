@@ -1,5 +1,6 @@
 import { checkExistingFileActive, generateContent, uploadVideoFile, waitForFileActive } from "./geminiClient";
 import type { TokenUsage } from "../../domain/cloudUsage";
+import type { PromptTaskContext } from "../../domain/promptTask";
 import {
   buildResponseSchemaWithCueCompliance,
   buildScriptSystemPrompt,
@@ -37,7 +38,7 @@ export type TranscribeProgressStep =
 // recording time). Determines which system prompt + response schema
 // transcribeSession uses.
 export type GradingContext =
-  | { kind: "prompt"; promptText: string; planText?: PlanText }
+  | { kind: "prompt"; promptText: string; planText?: PlanText; taskContext?: PromptTaskContext }
   | { kind: "script"; script: Script; cuesEnabled: boolean; markLevel?: MarkLevel };
 
 // Shared by transcribeSession and transcribeOnly: upload the recording to the
@@ -142,7 +143,7 @@ export async function analyzeUploadedVideo(
   const systemPrompt =
     (context.kind === "script"
       ? buildScriptSystemPrompt(context.script, context.cuesEnabled ? context.markLevel ?? "full" : "none")
-      : buildSystemPrompt(context.promptText, context.planText)) +
+      : buildSystemPrompt(context.promptText, context.planText, context.taskContext)) +
     speakerContextForReview() +
     SPEECH_IS_DATA +
     (defaultsFromProfile(getUserProfile()).stutterMode ? STUTTER_NOTE : "");

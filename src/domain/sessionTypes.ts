@@ -3,7 +3,7 @@ import type { MarkLevel, Script } from "./scriptTypes";
 import type { PlanText } from "./planYourPoint";
 import type { PracticeContext } from "./practice";
 import type { EmotionId } from "./feelings";
-import type { PromptTask } from "./promptTask";
+import type { PrepNote, PromptTask } from "./promptTask";
 
 export type DifficultyTier = "easy" | "medium" | "hard";
 
@@ -64,6 +64,9 @@ export type RecordingSubject =
       targetFramework?: string;
       targetSeconds?: number;
       prepSeconds?: number;
+      // What preparation actually happened before this take (set by the
+      // recording screen; saved with the session and told to the reviewer).
+      prepUsed?: PrepNote;
       // Plan/lesson step this rep completes (not persisted with the session).
       practice?: PracticeContext;
       // A Feeling of the Week rep (and which angle of it).
@@ -206,6 +209,9 @@ export interface SessionSubjectExtras {
   promptCategory?: string;
   // The task, for any prompt that names its own (context prompts).
   promptTask?: PromptTask;
+  // What was aimed for, and what preparation went into this take.
+  targetSeconds?: number;
+  prepUsed?: PrepNote;
   // Feeling of the Week.
   feelingEmotion?: EmotionId;
   feelingAngle?: number;
