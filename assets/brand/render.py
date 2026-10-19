@@ -29,20 +29,24 @@ RED = "#FF453A"  # colors.record
 # The mark on a 1024 canvas, centered on (512, 500) — a little above the
 # middle, where the eye puts the center. Seven rounded bars and the stop,
 # all standing on one baseline. Kept in step with BrandMark in
-# src/components/onboarding/WelcomeIntro.tsx.
-BASELINE = 631
-BAR_WIDTH = 52
-BAR_GAP = 26
-BAR_HEIGHTS = [96, 184, 262, 196, 150, 170, 124]
-STOP_RADIUS = 39  # a bar-sized stop: the last beat
-FIRST_BAR_X = 200
-STOP_CX = FIRST_BAR_X + len(BAR_HEIGHTS) * (BAR_WIDTH + BAR_GAP) + STOP_RADIUS  # 785
-MARK_BOX = (200, 369, 624, 262)  # x, y, w, h of the bars and the stop
+# src/components/onboarding/WelcomeIntro.tsx. Sized to fill the icon the way
+# other apps' marks do: about 80% of the width and 50% of the height.
+BAR_WIDTH = 70
+BAR_GAP = 32
+BAR_HEIGHTS = [187, 360, 512, 383, 294, 332, 242]
+STOP_RADIUS = 53  # a bar-sized stop: the last beat
+BAR_STEP = BAR_WIDTH + BAR_GAP
+MARK_W = len(BAR_HEIGHTS) * BAR_STEP + 2 * STOP_RADIUS  # 820
+MARK_H = max(BAR_HEIGHTS)
+FIRST_BAR_X = (1024 - MARK_W) // 2
+BASELINE = 500 + MARK_H // 2
+STOP_CX = FIRST_BAR_X + len(BAR_HEIGHTS) * BAR_STEP + STOP_RADIUS
+MARK_BOX = (FIRST_BAR_X, BASELINE - MARK_H, MARK_W, MARK_H)  # x, y, w, h of the bars and the stop
 
 
 def mark(fill, dot=RED):
     bars = "".join(
-        f'<rect x="{FIRST_BAR_X + i * (BAR_WIDTH + BAR_GAP)}" y="{BASELINE - h}" width="{BAR_WIDTH}" height="{h}" rx="{BAR_WIDTH // 2}" fill="{fill}"/>'
+        f'<rect x="{FIRST_BAR_X + i * BAR_STEP}" y="{BASELINE - h}" width="{BAR_WIDTH}" height="{h}" rx="{BAR_WIDTH // 2}" fill="{fill}"/>'
         for i, h in enumerate(BAR_HEIGHTS)
     )
     return bars + f'<circle cx="{STOP_CX}" cy="{BASELINE - STOP_RADIUS}" r="{STOP_RADIUS}" fill="{dot}"/>'
@@ -62,7 +66,7 @@ def svg(body, view_box="0 0 1024 1024"):
 # Android's adaptive icon masks to a shape that keeps only the middle ~61%
 # for sure, so the mark shrinks to fit inside it.
 def adaptive(body):
-    return f'<g transform="translate(512 512) scale(0.74) translate(-512 -500)">{body}</g>'
+    return f'<g transform="translate(512 512) scale(0.65) translate(-512 -500)">{body}</g>'
 
 
 MASTERS = {

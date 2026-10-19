@@ -180,12 +180,12 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 // The Tono mark, the same geometry as assets/brand/render.py: a waveform of
 // a phrase that rises, falls and lands, and the red stop as its last beat,
 // all on one baseline.
-const BASELINE = 631;
-const BAR_WIDTH = 52;
-const BAR_STEP = 78;
-const BAR_HEIGHTS = [96, 184, 262, 196, 150, 170, 124];
-const FIRST_BAR_X = 200;
-const STOP_RADIUS = 39;
+const BASELINE = 756;
+const BAR_WIDTH = 70;
+const BAR_STEP = 102;
+const BAR_HEIGHTS = [187, 360, 512, 383, 294, 332, 242];
+const FIRST_BAR_X = 102;
+const STOP_RADIUS = 53;
 const STOP_CX = FIRST_BAR_X + BAR_HEIGHTS.length * BAR_STEP + STOP_RADIUS;
 // The bars rise one beat apart; the stop lands on the next beat.
 const BEAT_MS = 70;
@@ -206,8 +206,8 @@ function BrandMark({ play }: { play: boolean }) {
   }, [play, clock, dot]);
   const stop = useAnimatedProps(() => ({ r: STOP_RADIUS * dot.value }));
   return (
-    // The mark's box (200 369 624 262) with room around it for the overshoot.
-    <Svg width={210} height={100} viewBox="180 336 664 316" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    // The mark's box (102 244 820 512) with room around it for the overshoot.
+    <Svg width={191} height={129} viewBox="72 185 880 600" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       {BAR_HEIGHTS.map((h, i) => (
         <BeatBar key={i} index={i} height={h} clock={clock} color={colors.textPrimary} />
       ))}
