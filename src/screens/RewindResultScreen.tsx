@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp, NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -12,11 +12,12 @@ import { PrimaryButton } from "../components/common/PrimaryButton";
 import { Txt } from "../components/common/Txt";
 import { showGlobalToast } from "../components/common/ToastProvider";
 import { partsCovered } from "../domain/rewind/stats";
-import { deleteRewind, getRewind, updateRewind, type Rewind } from "../services/db/rewindRepo";
-import { playClip, stopClip } from "../services/audio/clipPlayer";
-import { deleteRewindAudio, rewindAudioExists, resolveRewindUri } from "../services/rewind/rewindStorage";
+import { getRewind, updateRewind, type Rewind } from "../services/db/rewindRepo";
+import { stopClip } from "../services/audio/clipPlayer";
+import { rewindAudioExists, resolveRewindUri } from "../services/rewind/rewindStorage";
 import { canReviewOnDevice, reviewInCloud } from "../services/rewind/rewindReview";
-import { syncRewindReminder } from "../services/rewind/rewindReminder";
+import { RewindPlayer } from "../components/rewind/RewindPlayer";
+import { confirmDeleteRewind } from "../components/rewind/confirmDeleteRewind";
 import { retranscribeRewind } from "../services/rewind/rewindProcessor";
 import { getAudioRetentionDays } from "../services/prefs/prefsStore";
 import { currentProvider } from "../services/cloud/providers";
@@ -42,7 +43,6 @@ export function RewindResultScreen({ route }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [rewind, setRewind] = useState<Rewind | null>(null);
   const [missing, setMissing] = useState(false);
-  const [playing, setPlaying] = useState(false);
   const [showText, setShowText] = useState(false);
   const [asking, setAsking] = useState(false);
   const [retrying, setRetrying] = useState(false);
@@ -72,37 +72,9 @@ export function RewindResultScreen({ route }: Props) {
     return () => clearInterval(timer);
   }, [rewind?.status, load]);
 
-  async function togglePlay() {
-    if (!rewind?.audioFile) return;
-    if (playing) {
-      stopClip();
-      setPlaying(false);
-      return;
-    }
-    setPlaying(true);
-    const ok = await playClip(resolveRewindUri(rewind.audioFile), () => alive.current && setPlaying(false));
-    if (!ok) {
-      setPlaying(false);
-      showGlobalToast("Couldn't play that back.", "error");
-    }
-  }
-
   function confirmDelete() {
     if (!rewind) return;
-    Alert.alert("Delete this Rewind?", "The recording, transcript and notes are removed from your phone.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          stopClip();
-          await deleteRewind(rewind.id);
-          deleteRewindAudio(rewind.audioFile);
-          syncRewindReminder().catch(() => undefined);
-          navigation.goBack();
-        },
-      },
-    ]);
+    confirmDeleteRewind(rewind, () => navigation.goBack());
   }
 
   // Whisper again, from the saved audio — the phone's recognizer wrote this one.
@@ -239,15 +211,24 @@ export function RewindResultScreen({ route }: Props) {
         </Txt>
       ) : null}
 
-      {hasAudio && rewind.transcriptSource === "live" ? (
+      {hasAudio ? (
+        <RewindPlayer
+          uri={resolveRewindUri(rewind.audioFile!)}
+          durationSeconds={rewind.durationSeconds}
+          words={rewind.words}
+          transcript={rewind.transcript}
+          live={rewind.transcriptSource === "live"}
+        />
+      ) : null}
+
+      {/* Whisper again also brings the word timings the player follows —
+          for live-recognizer takes, and for takes from before timings were
+          kept. */}
+      {hasAudio && !processing && (rewind.transcriptSource === "live" || !rewind.words?.length) ? (
         <PrimaryButton label="Write it out again" variant="ghost" icon="refresh" onPress={again} loading={retrying} />
       ) : null}
 
-      {hasAudio ? (
-        <PrimaryButton label={playing ? "Stop" : "Listen back"} variant="secondary" icon={playing ? "stop" : "play"} onPress={togglePlay} />
-      ) : null}
-
-      {rewind.transcript ? (
+      {!hasAudio && rewind.transcript ? (
         <Card style={styles.notes}>
           <Txt variant="headline" onPress={() => setShowText((s) => !s)} accessibilityRole="button">
             {showText ? "Hide what you said" : "Show what you said"}
