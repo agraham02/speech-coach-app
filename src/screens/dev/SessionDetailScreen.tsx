@@ -153,6 +153,16 @@ export function SessionDetailScreen({ navigation, route }: Props) {
         <ListRow icon="share-outline" title="Share analysis as a file" onPress={() => exportAnalysis("share")} />
       </ListGroup>
 
+      <ListGroup title="Labs">
+        <ListRow
+          icon="pulse-outline"
+          title="Voice Lab"
+          subtitle={"Today’s pitch tracker against the candidate, on this take"}
+          chevron
+          onPress={() => navigation.navigate("DevVoiceLab", { sessionId })}
+        />
+      </ListGroup>
+
       <ListGroup title="Stored results">
         {artifacts.length === 0 ? (
           <ListRow title="Nothing stored yet" />

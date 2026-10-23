@@ -31,7 +31,10 @@ import { PipelineScreen } from "../screens/dev/PipelineScreen";
 import { SessionDetailScreen } from "../screens/dev/SessionDetailScreen";
 import { ArtifactScreen } from "../screens/dev/ArtifactScreen";
 import { FaceLabScreen } from "../screens/dev/FaceLabScreen";
+import { VoiceLabScreen } from "../screens/dev/VoiceLabScreen";
 import { ToolsScreen } from "../screens/dev/ToolsScreen";
+import { MetricsScreen } from "../screens/dev/MetricsScreen";
+import { PathFinaleScreen } from "../screens/PathFinaleScreen";
 import type { ArtifactKind } from "../services/db/artifactsRepo";
 import type { LogLevelFilter } from "../domain/dev/logFilter";
 import { reconcileOnLaunch } from "../services/pipeline/reconcile";
@@ -140,6 +143,8 @@ export type RootStackParamList = {
   // defer: put it off until tomorrow. retake: the 30-day check.
   SkillCheck: { defer?: boolean; retake?: boolean } | undefined;
   StartingPoint: { checkId: string };
+  // The end of the path. preview: opened from Dev, so it isn't marked seen.
+  PathFinale: { preview?: boolean } | undefined;
   PromptLibrary: undefined;
   AddPrompt: undefined;
   PlanYourPoint: { prompt: Prompt };
@@ -176,7 +181,9 @@ export type RootStackParamList = {
   DevSession: { sessionId: string };
   DevArtifact: { sessionId: string; kind: ArtifactKind };
   DevFaceLab: undefined;
+  DevVoiceLab: { sessionId: string };
   DevTools: undefined;
+  DevMetrics: undefined;
 };
 
 const JSTab = createBottomTabNavigator<TabParamList>();
@@ -399,6 +406,7 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
         <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ gestureEnabled: false }} />
         <Stack.Screen name="SetupCheck" component={SetupCheckScreen} options={{ gestureEnabled: false }} />
         <Stack.Screen name="SkillCheck" component={SkillCheckScreen} />
+        <Stack.Screen name="PathFinale" component={PathFinaleScreen} options={{ presentation: "fullScreenModal" }} />
         <Stack.Screen name="StartingPoint" component={StartingPointScreen} options={{ gestureEnabled: false }} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen name="Paywall" component={PaywallScreen} />
@@ -418,8 +426,10 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
             <Stack.Screen name="DevSession" component={SessionDetailScreen} />
             <Stack.Screen name="DevArtifact" component={ArtifactScreen} />
             <Stack.Screen name="DevFaceLab" component={FaceLabScreen} />
+            <Stack.Screen name="DevVoiceLab" component={VoiceLabScreen} />
             <Stack.Screen name="DevTools" component={ToolsScreen} />
             <Stack.Screen name="AsrLab" component={AsrLabScreen} />
+            <Stack.Screen name="DevMetrics" component={MetricsScreen} />
           </Stack.Group>
         ) : null}
         <Stack.Screen name="Practice" component={HomeScreen} />

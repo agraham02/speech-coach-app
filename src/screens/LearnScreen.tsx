@@ -83,6 +83,7 @@ export function LearnScreen() {
               const lessonId = u.nextLessonId ?? LESSONS.find((l) => l.unitId === u.unitId)?.id;
               if (lessonId) navigation.navigate("Lesson", { lessonId });
             }}
+            onOpenFinale={() => navigation.navigate("PathFinale")}
           />
           <ListGroup>
             <ListRow icon="book-outline" title="Frameworks" subtitle="The models behind the lessons, and where they come from" chevron onPress={() => navigation.navigate("Frameworks")} />

@@ -227,6 +227,13 @@ export function ToolsScreen({ navigation }: Props) {
             })
           }
         />
+        <ListRow
+          icon="trophy-outline"
+          title="Preview the path finale"
+          subtitle="The screen for finishing every unit; not marked seen"
+          chevron
+          onPress={() => navigation.navigate("PathFinale", { preview: true })}
+        />
       </ListGroup>
 
       <ListGroup title="Notifications">

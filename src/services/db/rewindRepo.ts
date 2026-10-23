@@ -3,6 +3,7 @@ import { generateId } from "../../utils/generateId";
 import { todayISODate } from "../../utils/dateUtils";
 import type { RewindStats } from "../../domain/rewind/stats";
 import type { RewindReview } from "../../domain/rewind/reviewPrompt";
+import type { TranscriptWord } from "../../domain/sessionTypes";
 
 // Rewind: the end-of-day spoken recall (domain/rewind). One row per take.
 
@@ -17,6 +18,9 @@ export interface Rewind {
   durationSeconds: number;
   transcript: string;
   transcriptSource: "whisper" | "live" | null;
+  // Whisper's word timings (verbatim, fillers included) for follow-along
+  // playback. Null when the live recognizer wrote the transcript.
+  words: TranscriptWord[] | null;
   stats: RewindStats | null;
   review: RewindReview | null;
   reviewSource: ReviewSource;
@@ -31,6 +35,7 @@ interface Row {
   duration_seconds: number;
   transcript: string | null;
   transcript_source: string | null;
+  words_json?: string | null;
   stats_json: string | null;
   review_json: string | null;
   review_source: string | null;
@@ -55,6 +60,7 @@ function fromRow(r: Row): Rewind {
     durationSeconds: r.duration_seconds,
     transcript: r.transcript ?? "",
     transcriptSource: r.transcript_source === "whisper" || r.transcript_source === "live" ? r.transcript_source : null,
+    words: parse<TranscriptWord[]>(r.words_json ?? null),
     stats: parse<RewindStats>(r.stats_json),
     review: parse<RewindReview>(r.review_json),
     reviewSource: r.review_source === "apple" || r.review_source === "cloud" ? r.review_source : null,
@@ -74,6 +80,7 @@ export async function createRewind(durationSeconds: number): Promise<Rewind> {
     durationSeconds: Math.round(durationSeconds),
     transcript: "",
     transcriptSource: null,
+    words: null,
     stats: null,
     review: null,
     reviewSource: null,
@@ -94,6 +101,7 @@ export async function updateRewind(
     audioFile: string | null;
     transcript: string;
     transcriptSource: "whisper" | "live";
+    words: TranscriptWord[] | null;
     stats: RewindStats;
     review: RewindReview;
     reviewSource: "apple" | "cloud";
@@ -110,6 +118,7 @@ export async function updateRewind(
   if ("audioFile" in patch) add("audio_file", patch.audioFile ?? null);
   if (patch.transcript !== undefined) add("transcript", patch.transcript);
   if (patch.transcriptSource) add("transcript_source", patch.transcriptSource);
+  if ("words" in patch) add("words_json", patch.words?.length ? JSON.stringify(patch.words) : null);
   if (patch.stats) add("stats_json", JSON.stringify(patch.stats));
   if (patch.review) add("review_json", JSON.stringify(patch.review));
   if (patch.reviewSource) add("review_source", patch.reviewSource);
@@ -142,7 +151,7 @@ export async function listRewindAudioBefore(cutoffIso: string): Promise<{ id: st
 }
 
 // Everything a take holds of what you said.
-const CONTENT_COLUMNS = ["transcript", "stats_json", "review_json"];
+const CONTENT_COLUMNS = ["transcript", "words_json", "stats_json", "review_json"];
 
 // What you said goes as soon as you delete it: the transcript, the review
 // and the counts are cleared now, and the row itself is purged later

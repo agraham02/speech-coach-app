@@ -1,12 +1,13 @@
 import { getLessonStates, getSkillEvents, getSkillStates } from "../db/progressRepo";
 import { listSkillChecks } from "../db/skillChecksRepo";
 import { readPath, recordPathChange, writePath, type StoredPathUnit } from "../db/pathRepo";
-import { getPathPlanState, getUserProfile, setPathPlanState } from "../prefs/prefsStore";
+import { getPathFinaleSeenAt, getPathPlanState, getUserProfile, setPathPlanState } from "../prefs/prefsStore";
+import { isPathComplete } from "../../domain/pathFinale";
 import { listEvents } from "../db/eventsRepo";
 import { buildPath, nextLessonInUnit, reasonsFor, replan, type PathInput, type PathUnit } from "../../domain/path";
 import { SKILLS } from "../../domain/mastery";
 import { getUnit, lessonsInUnit } from "../../content/lessons";
-import { emitUnitCompleted } from "../progress/progressEvents";
+import { emitPathCompleted, emitUnitCompleted } from "../progress/progressEvents";
 import { todayISODate } from "../../utils/dateUtils";
 import { logger } from "../../utils/logger";
 import type { SkillId } from "../../theme/tokens";
@@ -87,6 +88,9 @@ async function doSync({ force }: { force?: boolean }): Promise<StoredPathUnit[]>
     setPathPlanState({ plannedAt: now.toISOString(), fingerprint: print });
     const fresh = await readPath();
     for (const unit of finished) await announceFinished(unit, stored, fresh, input);
+    // The last unit: the finale follows its celebration, once. Missed (the
+    // app closed first), it waits on Today's path card instead.
+    if (finished.length && isPathComplete(fresh) && !getPathFinaleSeenAt()) emitPathCompleted();
     return fresh;
   } catch (error) {
     logger.error(`[path] sync failed — ${(error as Error).message}`);

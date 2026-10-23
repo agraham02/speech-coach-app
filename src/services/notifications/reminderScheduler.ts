@@ -1,9 +1,10 @@
 import * as Notifications from "expo-notifications";
 import { reminderHours } from "../../domain/reminderSettings";
 import { reminderDates } from "../../domain/dailyGoal";
-import { daysUntil, reminderText } from "../../domain/notificationCopy";
+import { daysUntil, recencyFacts, reminderText } from "../../domain/notificationCopy";
 import { getDailySessionGoal, getNextEvent, getPracticeAnchor, getPracticeAnchorHour, getReminderSettings, getUserProfile } from "../prefs/prefsStore";
-import { getSessionsDoneToday, getStreakState } from "../db/progressRepo";
+import { getLessonStates, getSessionsDoneToday, getStreakDates, getStreakState } from "../db/progressRepo";
+import { getLesson } from "../../content/lessons";
 import { logger } from "../../utils/logger";
 
 const REMINDER_IDENTIFIER = "daily-practice-reminder";
@@ -38,23 +39,36 @@ export async function syncDailyReminder(): Promise<void> {
   const dates = reminderDates(reminderHours(settings, goal), doneToday, new Date(), settings.practiceDays ?? []);
   const anchor = getPracticeAnchor();
   const profile = getUserProfile();
-  const streak = await getStreakState().then((s) => s.currentStreak).catch(() => 0);
+  const streakState = await getStreakState().catch(() => null);
+  const streak = streakState?.currentStreak ?? 0;
   const nextEvent = getNextEvent();
   const eventDays = nextEvent ? daysUntil(nextEvent.date, new Date()) : NaN;
+  // What was practiced last, and when (unknown if the reads fail).
+  const [practiceDates, lessonStates] = await Promise.all([getStreakDates().catch(() => null), getLessonStates().catch(() => ({}))]);
+  const lastLesson = Object.entries(lessonStates)
+    .filter(([, l]) => l.completedAt)
+    .sort((a, b) => (b[1].completedAt ?? "").localeCompare(a[1].completedAt ?? ""))
+    .map(([id, l]) => ({ title: getLesson(id)?.title ?? "", completedAt: l.completedAt! }))
+    .find((l) => l.title);
 
   for (const [i, date] of dates.entries()) {
     const today = isToday(date);
     const slot = today ? Math.min(doneToday, goal - 1) + i : 0;
+    const recency = practiceDates ? recencyFacts(practiceDates, lastLesson ?? null, date) : { daysSinceLast: undefined, lastLesson: null };
     // A reminder for a later day only knows the streak if today's rep is done.
     const text = reminderText({
       name: profile?.name,
       slot,
+      doneToday: today ? doneToday : undefined,
       anchor,
       anchorHour: getPracticeAnchorHour(),
       streak: today || doneToday > 0 ? streak : 0,
       atRiskToday: today && doneToday === 0,
+      freezesHeld: streakState?.freezesHeld ?? 0,
       when: date,
       event: nextEvent && Number.isFinite(eventDays) ? { daysLeft: daysUntil(nextEvent.date, date), kind: nextEvent.kind } : null,
+      daysSinceLast: recency.daysSinceLast,
+      lastLesson: recency.lastLesson,
     });
     await Notifications.scheduleNotificationAsync({
       identifier: `${REMINDER_IDENTIFIER}-${i}`,

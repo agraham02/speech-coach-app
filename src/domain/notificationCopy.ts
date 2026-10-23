@@ -2,20 +2,36 @@ import type { EventKind } from "./profile";
 import { ANCHOR_OPTIONS } from "../content/onboarding";
 
 // What Tono's notifications say. Pure: the schedulers gather the facts (name,
-// streak, upcoming event, the hour it will arrive) and this picks the words.
+// streak, the next event, the hour it will arrive, what was practiced last)
+// and this picks the words. Every notification the app sends gets its text
+// here, so the voice stays one voice.
+//
+// The voice: a calm coach who was in the room.
+// - Notice one real thing (the hour, the streak, the event, the last lesson),
+//   then offer one small step. Observation first, invitation second.
+// - Specific over generic: "Day 8", "3 days to your interview", not "Keep it up".
+// - Invite, never instruct or guilt: no "Don't forget", "You need to", "Time to".
+//   A streak at risk is a fact with a way to keep it, never a warning.
+// - Say how little it takes ("one short rep", "two minutes").
+// - Plain and quiet: sentence case, no emoji, no exclamation marks, no hype
+//   words. One or two short sentences; it has to read on a lock screen.
 //
 // Rules the copy keeps:
-// - Notifications show on the lock screen, so they use only the first name,
-//   the streak and the kind of event. Never the "why", an event's note, or
-//   anything the person said or was scored on.
-// - Pick by day, not at random: the same facts give the same words (testable),
-//   and consecutive days still differ.
-// - Never guilt. A streak at risk is stated as a fact with a way to save it.
+// - Lock-screen safe: only the first name, the streak, the kind of event and
+//   curriculum text (a lesson's title). Never the "why", an event's title or
+//   note, a score, or anything the person said.
+// - Deterministic: picked by day from a small pool, so the same facts give
+//   the same words (testable), consecutive days differ, and nothing is
+//   generated on the fly. A future generator (an on-device model, say) could
+//   take the same facts and must pass the same `checkCopy` limits.
 
 export interface ReminderContext {
   name?: string | null;
   // 0 is the day's first session; 1 and up are the optional top-ups.
   slot: number;
+  // Sessions already done today when this was scheduled (today's reminders).
+  // A top-up slot whose earlier session isn't done reads as the first one.
+  doneToday?: number;
   // "After my morning coffee": the habit practice is tied to.
   anchor: string | null;
   // The hour of a habit the person wrote themselves.
@@ -25,9 +41,16 @@ export interface ReminderContext {
   streak: number;
   // Nothing done yet today, and this arrives today.
   atRiskToday: boolean;
+  // Streak freezes in hand: a missed day would be covered.
+  freezesHeld?: number;
   // When it arrives.
   when: Date;
   event?: { daysLeft: number; kind: EventKind } | null;
+  // Whole days from the last practice to `when`; null if never practiced,
+  // undefined if unknown.
+  daysSinceLast?: number | null;
+  // The title of the lesson finished most recently (curriculum text).
+  lastLesson?: string | null;
 }
 
 // The habit an anchor is tied to happens at a time of day ("after your
@@ -77,10 +100,19 @@ export function firstName(name?: string | null): string | null {
   return first.length > 0 && first.length <= 24 ? first : null;
 }
 
-function daypart(hour: number): string {
-  if (hour < 12) return "Morning";
-  if (hour < 17) return "Afternoon";
-  return "Evening";
+type Daypart = "morning" | "afternoon" | "evening";
+
+function daypart(hour: number): Daypart {
+  if (hour < 12) return "morning";
+  if (hour < 17) return "afternoon";
+  return "evening";
+}
+
+// "Morning, Sam", or "Good morning" without a name.
+function greeting(when: Date, who: string | null): string {
+  const part = daypart(when.getHours());
+  const word = part.charAt(0).toUpperCase() + part.slice(1);
+  return who ? `${word}, ${who}` : `Good ${part}`;
 }
 
 // A whole number that changes every day, to rotate through a pool.
@@ -92,6 +124,10 @@ function pick<T>(pool: readonly T[], date: Date, salt = 0): T {
   return pool[(dayNumber(date) + salt) % pool.length];
 }
 
+function plural(n: number, word: string): string {
+  return `${n} ${word}${n === 1 ? "" : "s"}`;
+}
+
 const EVENT_NOUN: Record<EventKind, string> = {
   interview: "interview",
   talk: "talk",
@@ -101,92 +137,233 @@ const EVENT_NOUN: Record<EventKind, string> = {
   other: "big day",
 };
 
-function eventLine(event: { daysLeft: number; kind: EventKind }, who: string | null): string | null {
+// The countdown to an event, two weeks out at most.
+function eventText(event: { daysLeft: number; kind: EventKind }, when: Date): NotificationText | null {
   const noun = EVENT_NOUN[event.kind];
-  const you = who ? `${who}, ` : "";
-  if (event.daysLeft < 0 || event.daysLeft > 14) return null;
-  if (event.daysLeft === 0) return `${you}today's the day. A short warm-up rep before your ${noun}?`;
-  if (event.daysLeft === 1) return `${you}your ${noun} is tomorrow. One calm run-through tonight.`;
-  if (event.daysLeft <= 3) return `${event.daysLeft} days to your ${noun}. Today's rep is part of the plan.`;
-  return `${event.daysLeft} days until your ${noun}. Every rep counts toward it.`;
+  const n = event.daysLeft;
+  if (n < 0 || n > 14) return null;
+  if (n === 0) {
+    return {
+      title: `Today's your ${noun}`,
+      body: pick(["One easy warm-up rep before you go. The work is already done.", "A minute of warm-up, then trust your practice."], when),
+    };
+  }
+  if (n === 1) {
+    const today = daypart(when.getHours()) === "evening" ? "tonight" : "today";
+    return {
+      title: `Your ${noun} is tomorrow`,
+      body: pick([`One calm run-through ${today} is plenty. Then rest.`, `Keep it light ${today}: one rep, out loud, start to finish.`], when),
+    };
+  }
+  if (n <= 3) {
+    return {
+      title: `${plural(n, "day")} to your ${noun}`,
+      body: pick(["Today's rep is part of the plan. Short is fine.", "Close now. A short rep today keeps it familiar."], when),
+    };
+  }
+  return {
+    title: `${plural(n, "day")} until your ${noun}`,
+    body: pick(["Plenty of time. A few minutes today still adds up.", "Each short rep makes the real one feel more familiar."], when),
+  };
 }
 
-const FIRST_SESSION = [
-  (who: string | null) => (who ? `${who}, today's practice is ready when you are.` : "Today's practice is ready when you are."),
-  () => "One response, a few minutes. Today's rep is waiting.",
-  (who: string | null) => (who ? `A few minutes for yourself, ${who}? Pick a prompt and go.` : "A few minutes for yourself? Pick a prompt and go."),
-  () => "Small reps add up. Today's is ready.",
+const FIRST_EVER = [
+  "Your first rep is one prompt and a minute of talking. Whenever you're ready.",
+  "No warm-up needed for the first one. Pick a prompt and talk for a minute.",
+  "Start small: one prompt, one minute, no wrong answers.",
 ];
 
-const TOP_UPS = [
-  (who: string | null) => (who ? `Quick top-up, ${who}? Four minutes on something new.` : "Quick top-up? Four minutes on something new."),
-  () => "A short second session. Spacing practice out is what makes it stick.",
-  () => "Four more minutes while it's fresh?",
+const COMEBACK = [
+  "No catching up needed. One short rep and you're back in it.",
+  "It's been a few days. Start with something short; that's all it takes.",
+  "Whenever you're ready, today's session is a fresh start.",
 ];
+
+const GENERIC: Record<Daypart, readonly string[]> = {
+  morning: [
+    "Today's session is ready. A few minutes before the day fills up.",
+    "One prompt, a few minutes, then on with your day.",
+    "Today's rep is ready, before the day gets loud.",
+    "A few minutes out loud now makes the rest of the day's talking easier.",
+  ],
+  afternoon: [
+    "A few minutes for yourself this afternoon? Today's session is ready.",
+    "A midday reset: one prompt, out loud.",
+    "Today's session is ready whenever there's a gap.",
+  ],
+  evening: [
+    "Today's session is still here if you have a few minutes.",
+    "Wind down with one short rep. It doesn't need to be perfect.",
+    "A few minutes before the day ends. One prompt is plenty.",
+  ],
+};
+
+const TOP_UPS: Record<number, readonly string[]> = {
+  1: [
+    "One more short session? Spacing practice out is what makes it stick.",
+    "A second, shorter round, on a different skill from earlier.",
+    "A few more minutes while today's practice is still fresh?",
+  ],
+  2: ["Last one for today, if you want it. Short, and different again.", "A final few minutes, then you're done for the day."],
+};
 
 const WEEKDAY: Partial<Record<number, string>> = {
-  1: "New week. Start it with one rep.",
-  5: "Friday. End the week on a rep you're proud of.",
+  1: "New week. One short rep to open it.",
+  5: "Friday. End the week on a rep you're glad you did.",
 };
 
 export function reminderText(ctx: ReminderContext): NotificationText {
   const who = firstName(ctx.name);
-  const title = who ? `${daypart(ctx.when.getHours())}, ${who}` : "Tono";
+  const title = greeting(ctx.when, who);
+  const hour = ctx.when.getHours();
 
-  if (ctx.slot > 0) return { title, body: pick(TOP_UPS, ctx.when, ctx.slot)(who) };
+  // A later session of the day, once the first is done.
+  const firstOpen = ctx.slot > 0 && ctx.doneToday === 0;
+  if (ctx.slot > 0 && !firstOpen) return { title, body: pick(TOP_UPS[ctx.slot] ?? TOP_UPS[1], ctx.when, ctx.slot) };
 
-  const event = ctx.event ? eventLine(ctx.event, who) : null;
-  if (event) return { title, body: event };
+  const event = ctx.event ? eventText(ctx.event, ctx.when) : null;
+  if (event) return event;
 
-  // The streak is the strongest nudge when it is actually in danger.
-  if (ctx.atRiskToday && ctx.streak >= 3) {
-    return { title, body: `Your ${ctx.streak}-day streak is waiting on today's rep. A short one counts.` };
+  if (ctx.daysSinceLast === null) return { title, body: pick(FIRST_EVER, ctx.when) };
+
+  // Back after a gap: no counting, no guilt.
+  if (ctx.streak === 0 && ctx.daysSinceLast != null && ctx.daysSinceLast >= 3) {
+    const lesson = ctx.lastLesson ? [`Last time was ${ctx.lastLesson}. A short rep brings it back.`] : [];
+    return { title: "Pick up where you left off", body: pick([...COMEBACK, ...lesson], ctx.when) };
   }
-  if (ctx.streak >= 2 && !ctx.atRiskToday) {
-    return { title, body: `Day ${ctx.streak + 1} is ready. ${pick(["Keep it going.", "Same time, same rep.", "One response is all it takes."], ctx.when)}` };
+
+  // The streak: in the evening, with nothing done yet, it's worth saying the
+  // day is still open. Otherwise it's simply the next day of a run.
+  if (ctx.atRiskToday && ctx.streak >= 3 && daypart(hour) === "evening") {
+    const covered = (ctx.freezesHeld ?? 0) > 0;
+    return {
+      title: `Day ${ctx.streak + 1} is still open`,
+      body: pick(
+        [
+          covered ? "One short rep keeps it going. If tonight gets away from you, a freeze has it covered." : "One short rep keeps it going. A minute counts.",
+          "Still time tonight. Even one prompt keeps the run going.",
+        ],
+        ctx.when,
+      ),
+    };
+  }
+  // The habit they tied practice to, near its hour. On a run it takes turns
+  // with the day count, so neither goes stale.
+  const anchorOk = !!ctx.anchor && anchorFits(ctx.anchor, ctx.when, ctx.anchorHour);
+  if (ctx.streak >= 2 && !(anchorOk && dayNumber(ctx.when) % 2 === 1)) {
+    const day = ctx.streak + 1;
+    const lesson = ctx.lastLesson && ctx.daysSinceLast === 1 ? [`Day ${day}. Yesterday was ${ctx.lastLesson}; today picks up from there.`] : [];
+    return {
+      title,
+      body: pick([`Day ${day}. One short rep keeps the thread going.`, `Day ${day} is ready when you are.`, `${ctx.streak} days running. Same few minutes today.`, ...lesson], ctx.when),
+    };
   }
 
-  if (ctx.anchor && anchorFits(ctx.anchor, ctx.when, ctx.anchorHour)) return { title, body: `${ctx.anchor.replace(/[.!?\s]+$/, "")}: time for today's practice.` };
+  if (ctx.anchor && anchorOk) {
+    const anchor = ctx.anchor.replace(/[.!?\s]+$/, "");
+    return { title, body: pick([`${anchor}: a good moment for today's rep.`, `${anchor}, as planned. Today's session is ready.`], ctx.when) };
+  }
+
+  if (ctx.lastLesson && ctx.daysSinceLast === 1) {
+    return { title, body: `Yesterday was ${ctx.lastLesson}. Today's session picks up from there.` };
+  }
 
   const weekday = WEEKDAY[ctx.when.getDay()];
   if (weekday && dayNumber(ctx.when) % 2 === 0) return { title, body: weekday };
-  return { title, body: pick(FIRST_SESSION, ctx.when)(who) };
+  return { title, body: pick(GENERIC[daypart(hour)], ctx.when) };
 }
 
 // The evening "tell your day" nudge.
 export function rewindReminderText(name: string | null | undefined, when: Date): NotificationText {
   const who = firstName(name);
   const pool = [
-    who ? `${who}, tell your day, morning to night. Two minutes.` : "Tell your day, morning to night. Two minutes.",
-    "Rewind: what happened today? Say it out loud, details and all.",
-    who ? `Two minutes to put your day into words, ${who}.` : "Two minutes to put your day into words.",
+    "How did today go? Tell it start to finish, in about two minutes.",
+    "Rewind: say your day out loud, small details and all.",
+    "Two minutes to put today into words, before it blurs.",
+    "What happened today? Start with the morning and keep going.",
   ];
-  return { title: who ? `Evening, ${who}` : "Tono", body: pick(pool, when) };
+  return { title: who ? `Evening, ${who}` : "Good evening", body: pick(pool, when) };
 }
 
 // The morning of an event, until the before check-in is done.
-export function eventDayOfText(name: string | null | undefined, kind: EventKind): NotificationText {
+export function eventDayOfText(name: string | null | undefined, kind: EventKind, when: Date = new Date()): NotificationText {
   const who = firstName(name);
-  return { title: who ? `Today's the day, ${who}` : "Today's the day", body: `Your ${EVENT_NOUN[kind]} is today. A minute to check in before it?` };
+  const noun = EVENT_NOUN[kind];
+  return {
+    title: who ? `${who}, today's your ${noun}` : `Today's your ${noun}`,
+    body: pick(["A one-minute check-in before you go: how you feel, and one thing to keep in mind.", "Before it starts: a minute to notice how you feel and pick one focus."], when),
+  };
 }
 
 // The day after, until the after check-in is done.
-export function eventAfterText(name: string | null | undefined, kind: EventKind): NotificationText {
+export function eventAfterText(name: string | null | undefined, kind: EventKind, when: Date = new Date()): NotificationText {
   const who = firstName(name);
-  return { title: who ? `${who}, how did it go?` : "How did it go?", body: `Your ${EVENT_NOUN[kind]} was yesterday. Two minutes to say how it actually felt.` };
+  const noun = EVENT_NOUN[kind];
+  return {
+    title: who ? `${who}, how did your ${noun} go?` : `How did your ${noun} go?`,
+    body: pick(["Two minutes to say how it felt. Not a score, a note for next time.", "Say how it actually went while it's fresh. It helps with the next one."], when),
+  };
 }
 
-// A finished review or analysis, when the app was in the background.
-export function sessionReadyText(name: string | null | undefined, overall: number | null): NotificationText {
+export type ReadyKind = "take" | "review" | "feeling";
+
+// A finished analysis or deep review, when the app was in the background.
+// No score on the lock screen: the Result screen has it.
+export function sessionReadyText(name: string | null | undefined, kind: ReadyKind): NotificationText {
   const who = firstName(name);
-  if (overall == null) {
-    return { title: who ? `${who}, your take is ready` : "Your take is ready", body: "Your pace, pauses and fillers are in. Tap to see them." };
+  if (kind === "feeling") return { title: "Saved", body: "Your feeling take is saved, just for you." };
+  if (kind === "review") {
+    return { title: who ? `${who}, your deep review is in` : "Your deep review is in", body: "What landed, and one thing to try next time. Tap to read it." };
   }
-  const rounded = Math.round(overall * 10) / 10;
-  const lead = rounded >= 8 ? "Strong take" : rounded >= 6 ? "Solid take" : "Useful take";
+  return { title: who ? `${who}, your take is ready` : "Your take is ready", body: "Pace, pauses and fillers are in. Tap to see what stood out." };
+}
+
+// The in-app toast after a take lands on a streak worth noticing: a
+// milestone (3, 7, 14 days...) or a new longest run.
+export function streakToastText(streak: number, kind: "milestone" | "record"): string {
+  if (kind === "milestone") return streak >= 7 ? `${streak} days in a row. That's a habit now.` : `${streak} days in a row. Nice rhythm.`;
+  return `${streak} days in a row, your longest yet.`;
+}
+
+// A step of the analysis failed while the app was in the background.
+export function stepFailedText(stepLabel: string, message: string): NotificationText {
+  const reason = message.trim().replace(/([^.!?])$/, "$1.");
+  return { title: `${stepLabel} didn't finish`, body: `${reason} Open the take to try again.` };
+}
+
+// Research time ran out while you were in another app.
+export function prepTimeUpText(prompt: string): NotificationText {
+  return { title: "Time's up", body: `Your prompt is ready when you are: ${prompt}` };
+}
+
+// Android's ongoing notification while you research. It can't count down,
+// so it names the end time rather than a "minutes left" that goes stale.
+export function prepRunningText(backBy: string, prompt: string): NotificationText {
+  return { title: `Researching · back by ${backBy}`, body: `Take your time. Your prompt: ${prompt}` };
+}
+
+function localDay(dateOrDatetime: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateOrDatetime)) return dateOrDatetime;
+  const d = new Date(dateOrDatetime);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// How long ago the last practice was, as of `when`, and the lesson finished
+// that day (only then, so "yesterday was X" is true). Dates are YYYY-MM-DD
+// or datetimes (UTC ones count on their local day). daysSinceLast is null
+// when there has never been any practice.
+export function recencyFacts(
+  practiceDates: string[],
+  lastLesson: { title: string; completedAt: string } | null,
+  when: Date,
+): { daysSinceLast: number | null; lastLesson: string | null } {
+  const days = practiceDates.filter(Boolean).map(localDay).sort();
+  const last = days[days.length - 1];
+  if (!last) return { daysSinceLast: null, lastLesson: null };
+  const daysSinceLast = daysUntil(localDay(when.toISOString()), new Date(Number(last.slice(0, 4)), Number(last.slice(5, 7)) - 1, Number(last.slice(8, 10))));
   return {
-    title: who ? `${lead}, ${who}` : lead,
-    body: `Your deep review is in: ${rounded}/10 overall. Tap to see what stood out and what to try next.`,
+    daysSinceLast: Math.max(0, daysSinceLast),
+    lastLesson: lastLesson && localDay(lastLesson.completedAt) === last ? lastLesson.title : null,
   };
 }
 
@@ -198,4 +375,22 @@ export function daysUntil(isoDate: string, from: Date): number {
   const target = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
   const start = new Date(from.getFullYear(), from.getMonth(), from.getDate());
   return Math.round((target.getTime() - start.getTime()) / 86_400_000);
+}
+
+// Limits any notification text must meet, whoever wrote it: short enough for
+// a lock screen, no emoji, no exclamation marks, no pushy openers.
+export const COPY_LIMITS = { title: 50, body: 120 } as const;
+const PUSHY = /\b(don't forget|you need to|you must|time to|hurry|last chance)\b/i;
+const EMOJI = /\p{Extended_Pictographic}/u;
+
+export function checkCopy(text: NotificationText): string[] {
+  const problems: string[] = [];
+  if (text.title.length > COPY_LIMITS.title) problems.push(`title over ${COPY_LIMITS.title} characters`);
+  if (text.body.length > COPY_LIMITS.body) problems.push(`body over ${COPY_LIMITS.body} characters`);
+  for (const part of [text.title, text.body]) {
+    if (part.includes("!")) problems.push("exclamation mark");
+    if (EMOJI.test(part)) problems.push("emoji");
+    if (PUSHY.test(part)) problems.push("pushy phrasing");
+  }
+  return problems;
 }

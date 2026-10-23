@@ -29,7 +29,10 @@ export default (): ExpoConfig => ({
     slug: "speech-coach-app",
     // 1.1.0: expo-widgets (the Dynamic Island prep timer) is native code, so
     // the runtime version moves with it — see the note on runtimeVersion.
-    version: "1.4.0",
+    // 1.4.0: the local device-metrics module (Dev → Metrics).
+    // 1.5.0: Tono AI sign-in (expo-apple-authentication, expo-web-browser) and
+    // Plus purchases (react-native-purchases) are native code too.
+    version: "1.5.0",
     scheme: "tono",
     orientation: "portrait",
     // Follows the system light/dark setting (needs expo-system-ui on

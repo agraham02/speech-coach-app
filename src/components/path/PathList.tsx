@@ -10,6 +10,7 @@ import { SkeletonCard } from "../common/Skeleton";
 import { Txt } from "../common/Txt";
 import { DeltaBar } from "../celebrate/DeltaBar";
 import type { PathView } from "../../services/path/pathService";
+import { isPathComplete } from "../../domain/pathFinale";
 import { SKILL_LABELS } from "../../theme/tokens";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
@@ -20,7 +21,7 @@ const UP_NEXT_SHOWN = 6;
 // Learn's "Your path": every unit in your order — what's on the go now,
 // what's next and why, what's done, and what the skill check showed you
 // already have. Tapping a unit opens its next lesson.
-export function PathList({ view, onOpenUnit }: { view: PathView | null; onOpenUnit: (unit: PathUnitView) => void }) {
+export function PathList({ view, onOpenUnit, onOpenFinale }: { view: PathView | null; onOpenUnit: (unit: PathUnitView) => void; onOpenFinale?: () => void }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const [showAll, setShowAll] = useState(false);
@@ -58,6 +59,9 @@ export function PathList({ view, onOpenUnit }: { view: PathView | null; onOpenUn
         <Txt variant="footnote" tone="secondary">
           {builtFrom.length ? `Ordered for you: ${builtFrom.map((t) => t.charAt(0).toLowerCase() + t.slice(1)).join("; ")}.` : "Foundations first, skills taking turns. Tell us what gets in your way and it orders itself around that."}
         </Txt>
+        {onOpenFinale && isPathComplete(view.units) ? (
+          <PrimaryButton label="Open the finale" variant="secondary" size="sm" onPress={onOpenFinale} style={styles.finale} />
+        ) : null}
       </HeroCard>
 
       {active.length ? (
@@ -110,6 +114,7 @@ export function PathList({ view, onOpenUnit }: { view: PathView | null; onOpenUn
 const useStyles = makeStyles((t) => ({
   body: { gap: t.space.lg },
   hero: { gap: t.space.sm },
+  finale: { alignSelf: "flex-start", marginTop: t.space.xs },
   section: { gap: t.space.sm + 4 },
   path: { paddingBottom: t.space.sm + 4 },
 }));

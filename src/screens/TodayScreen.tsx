@@ -289,6 +289,7 @@ export function TodayScreen() {
             view={pathView}
             onOpenUnit={(u) => (u.nextLessonId ? navigation.navigate("Lesson", { lessonId: u.nextLessonId }) : navigation.navigate("Tabs", { screen: "Learn" }))}
             onOpenPath={() => navigation.navigate("Tabs", { screen: "Learn" })}
+            onOpenFinale={() => navigation.navigate("PathFinale")}
           />
         </TourTarget>
       ) : null}

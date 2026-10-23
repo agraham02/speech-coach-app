@@ -11,9 +11,12 @@ import { retryWaitingTakes } from "./src/services/pipeline/retryWaitingTakes";
 import { initAccount } from "./src/services/account/accountStore";
 import { initPurchases } from "./src/services/purchases/purchases";
 import { logger } from "./src/utils/logger";
+import { clearPrepAlert } from "./src/services/recording/prepAlert";
 import { ToastProvider } from "./src/components/common/ToastProvider";
 import { CelebrationHost } from "./src/components/celebrate/CelebrationHost";
 import { GuideProvider } from "./src/components/common/GuideTip";
+import { MetricsOverlay } from "./src/components/dev/MetricsOverlay";
+import { SHOW_DEV_TOOLS } from "./src/config/devTools";
 import { ThemeProvider, useTheme } from "./src/theme/ThemeProvider";
 
 // The splash (app.config.ts) stays up until the first screen can draw in the
@@ -38,6 +41,10 @@ export default function App() {
 
   // Old model files and abandoned partial downloads go (whisperModels.ts).
   useEffect(() => tidyModelsFolder(), []);
+
+  // A prep timer or alert left by an app that was closed mid-research: the
+  // countdown it belonged to is gone, so the timer ends and the alert goes.
+  useEffect(() => void clearPrepAlert(), []);
 
   // Takes saved while the transcription model was missing are transcribed
   // when it arrives (and on launch, if it arrived while the app was closed).
@@ -69,6 +76,8 @@ export default function App() {
                 <CelebrationHost>
                   <AppNavigator onReady={() => SplashScreen.hide()} />
                 </CelebrationHost>
+                {/* Dev builds: the Metrics overlay, when turned on in Dev → Metrics. */}
+                {SHOW_DEV_TOOLS ? <MetricsOverlay /> : null}
               </GuideProvider>
             </ToastProvider>
           </AppErrorBoundary>
