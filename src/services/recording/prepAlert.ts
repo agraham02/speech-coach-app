@@ -1,6 +1,7 @@
 import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import { logger } from "../../utils/logger";
+import { prepRunningText, prepTimeUpText } from "../../domain/notificationCopy";
 import { endPrepActivity } from "./prepActivity";
 
 // The "away" alert for research in another app: a notification at the
@@ -55,16 +56,15 @@ async function arm(deadlineMs: number, promptText: string): Promise<void> {
     if (deadline.getTime() <= Date.now() + 1000) return;
     await Notifications.scheduleNotificationAsync({
       identifier: DONE_ID,
-      content: { title: "Prep time's up", body: `Your prompt is waiting: ${promptText}`, sound: false },
+      content: { ...prepTimeUpText(promptText), sound: false },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: deadline },
     });
     if (Platform.OS === "android") {
-      const minutes = Math.max(1, Math.round((deadlineMs - Date.now()) / 60_000));
+      // It can't count down, so it gives the end time and never goes stale.
       await Notifications.scheduleNotificationAsync({
         identifier: RUNNING_ID,
         content: {
-          title: `Researching · back by ${clock(deadline)}`,
-          body: `${minutes} ${minutes === 1 ? "minute" : "minutes"} to go. ${promptText}`,
+          ...prepRunningText(clock(deadline), promptText),
           sticky: true,
           autoDismiss: false,
           sound: false,

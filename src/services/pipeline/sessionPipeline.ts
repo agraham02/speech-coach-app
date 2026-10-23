@@ -22,7 +22,7 @@ import { notifySessionComplete } from "../notifications/sessionCompleteNotifier"
 import { syncDailyReminder } from "../notifications/reminderScheduler";
 import { navigationRef } from "../../navigation/navigationRef";
 import { streakMilestoneReached } from "../../domain/streaks";
-import { sessionReadyText } from "../../domain/notificationCopy";
+import { sessionReadyText, streakToastText } from "../../domain/notificationCopy";
 import { getUserProfile } from "../prefs/prefsStore";
 import { getStreakState } from "../db/progressRepo";
 import { takeFreezeNotice } from "../streaks/freezeNotice";
@@ -220,7 +220,7 @@ async function announceCompletion(sessionId: string, ranCloudReview: boolean): P
   const scores = ranCloudReview ? await getScoresBySessionId(sessionId) : null;
   const title = scores ? "Deep review ready" : "Session ready";
   // The OS notification is personal; the in-app toast above keeps its short form.
-  const ready = sessionReadyText(getUserProfile()?.name, scores ? scores.overallScore : null);
+  const ready = sessionReadyText(getUserProfile()?.name, session.sessionType === "feeling" ? "feeling" : scores ? "review" : "take");
   notifySessionComplete(sessionId, ready.title, ready.body).catch(() => undefined);
   if (!isViewingSession(sessionId)) {
     showGlobalToast(scores ? `${title} — overall ${scores.overallScore}/10` : title, "success", () => goToResult(sessionId));
@@ -234,8 +234,8 @@ async function announceCompletion(sessionId: string, ranCloudReview: boolean): P
   if (freezeNotice) {
     showGlobalToast(freezeNotice, "success");
   } else if (milestone) {
-    showGlobalToast(`🏆 ${milestone}-day streak milestone!`, "success");
+    showGlobalToast(streakToastText(milestone, "milestone"), "success");
   } else if (currentStreak >= 2 && currentStreak === longestStreak && !ranCloudReview) {
-    showGlobalToast(`🔥 ${currentStreak} day streak!`, "success");
+    showGlobalToast(streakToastText(currentStreak, "record"), "success");
   }
 }

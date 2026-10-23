@@ -6,6 +6,7 @@ import { notifySessionComplete } from "../notifications/sessionCompleteNotifier"
 import { emitStepEvent } from "./processingEvents";
 import { runExclusive } from "./jobQueue";
 import { traceRun } from "../dev/deviceMetrics";
+import { stepFailedText } from "../../domain/notificationCopy";
 import { logger } from "../../utils/logger";
 
 // A step failure the user should read as-is (e.g. "No transcript yet").
@@ -51,7 +52,8 @@ export function runStep(sessionId: string, step: SessionStep, task: () => Promis
       emitStepEvent({ sessionId, step, status: "failed", errorMessage: message });
       // Only shows when the app is backgrounded (the Result screen shows it
       // otherwise) — failures used to be completely silent there.
-      notifySessionComplete(sessionId, `${STEP_LABELS[step]} failed`, `${message} Tap to retry.`).catch(() => undefined);
+      const failed = stepFailedText(STEP_LABELS[step], message);
+      notifySessionComplete(sessionId, failed.title, failed.body).catch(() => undefined);
       return false;
     } finally {
       await refreshSessionStatus(sessionId).catch(() => undefined);

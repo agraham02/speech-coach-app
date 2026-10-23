@@ -23,7 +23,7 @@ export async function syncEventReminders(events: SpeakingEvent[]): Promise<void>
   const plan = eventReminderPlan(events, new Date());
   const name = getUserProfile()?.name;
   for (const r of plan) {
-    const text = r.phase === "before" ? eventDayOfText(name, r.kind) : eventAfterText(name, r.kind);
+    const text = r.phase === "before" ? eventDayOfText(name, r.kind, r.date) : eventAfterText(name, r.kind, r.date);
     await Notifications.scheduleNotificationAsync({
       identifier: `${PREFIX}${r.phase}-${r.eventId}`,
       content: { title: text.title, body: text.body, data: { route: "EventCheckIn", eventId: r.eventId, phase: r.phase } },
