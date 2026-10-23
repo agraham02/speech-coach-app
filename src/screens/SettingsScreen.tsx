@@ -3,6 +3,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { Screen } from "../components/common/Screen";
 import { ListGroup, ListRow } from "../components/common/ListRow";
+import { AccountSettings } from "../components/settings/AccountSettings";
 import { AppFooter } from "../components/settings/AppFooter";
 import { DeepReviewSettings } from "../components/settings/DeepReviewSettings";
 import { GoalReminderSettings } from "../components/settings/GoalReminderSettings";
@@ -20,6 +21,7 @@ const SECTION_BODY: Record<SettingsSection, () => React.JSX.Element> = {
   practice: PracticeSettings,
   goal: GoalReminderSettings,
   ai: OnDeviceAiSettings,
+  account: AccountSettings,
   deepReviews: DeepReviewSettings,
   permissions: PermissionSettings,
   help: HelpDataSettings,

@@ -229,6 +229,53 @@ export function buildResponseSchemaWithCueCompliance(): object {
   };
 }
 
+const QUICK_COACH_FIELD = {
+  type: "object",
+  description: "The short coaching card shown beside the full review: one strength, one change, the skill it trains, and a follow-up question.",
+  properties: {
+    strength: { type: "string", description: "One specific thing the speaker did well, under 20 words, addressed to them." },
+    tip: { type: "string", description: "The single most useful change for next time, concrete, under 35 words, addressed to them." },
+    focus_skill: {
+      type: "string",
+      enum: ["articulation", "cadence", "impromptu", "confidence", "conversation"],
+      description: "The one skill the tip trains.",
+    },
+    follow_up_question: { type: "string", description: "A natural follow-up question a listener would ask next, under 18 words." },
+  },
+  required: ["strength", "tip", "focus_skill", "follow_up_question"],
+} as const;
+
+// Tono AI reviews also write the coach card (domain/coach/cloudCoach.ts), so
+// the same call that scores the take coaches it. Own-key reviews don't ask.
+export function withQuickCoach(schema: object): object {
+  const base = schema as { properties: Record<string, unknown>; required: readonly string[] };
+  return { ...base, properties: { ...base.properties, quick_coach: QUICK_COACH_FIELD }, required: [...base.required, "quick_coach"] };
+}
+
+// What a Tono AI video review adds to the prompt: the phone's measurements
+// (for the notes only, never the transcript or the filler count: Gemini once
+// copied the phone's transcript, so it hears the audio itself) and how to
+// write the coach card.
+export function hostedReviewSection(measurementLines: string[]): string {
+  const measured = measurementLines.length
+    ? `
+
+MEASURED ON THE PHONE while they spoke (for your notes only):
+${measurementLines.join("\n")}
+
+Use these numbers to make your notes concrete: quote them where they help ("eye contact was 64% by the phone's count"). They must not move any score, and they are not a transcript. Score every dimension only from what you see and hear in the video, and if the video clearly contradicts a number, say so in the note rather than deferring to it. Count filler words yourself, from the audio.`
+    : "";
+  return `${measured}
+
+Also fill quick_coach, the short coaching card that sits beside the full review:
+- strength: one specific thing they did well, under 20 words.
+- tip: the single most useful change for next time, concrete, under 35 words.
+- focus_skill: the one skill that tip trains. articulation = crisp, clear words. cadence = pace, pauses and vocal melody. impromptu = structure and thinking on your feet (fillers, rambling, a slow start). confidence = presence, eye contact, hedging and how they end.
+  conversation = answering naturally and staying on the point of a question.
+- follow_up_question: a natural question a listener would ask next, under 18 words.
+Speak to the speaker directly ("you"), and don't repeat the coaching summary word for word.`;
+}
+
 // When present and non-empty, gives Gemini the speaker's own stated PREP plan
 // (Plan Your Point) as grounding for judging relevance/coherence — did the
 // actual response execute on what they said they'd cover, roughly in order?

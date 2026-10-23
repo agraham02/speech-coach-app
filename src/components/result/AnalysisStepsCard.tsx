@@ -11,9 +11,10 @@ const VISIBLE_STEPS: SessionStep[] = ["transcribe", "audio_metrics", "presence",
 // What "Get" would do, for the provider chosen in Settings.
 function cloudReviewDescription(): string {
   const provider = currentProvider();
+  const paidBy = provider.id === "tono" ? "Counts toward your Tono AI reviews." : "Your own key.";
   return provider.input === "video"
-    ? `${provider.name} scores structure, delivery and presence from the video. Your own key.`
-    : `${provider.name} scores your transcript and the phone's measurements. Your own key.`;
+    ? `${provider.name} scores structure, delivery and presence from the video. ${paidBy}`
+    : `${provider.name} scores your transcript and the phone's measurements. ${paidBy}`;
 }
 
 interface Props {

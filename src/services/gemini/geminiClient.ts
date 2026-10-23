@@ -1,4 +1,6 @@
 import { File } from "expo-file-system";
+import { randomUUID } from "expo-crypto";
+import { tonoFileStatus, tonoGenerate, tonoUploadStart } from "../tono/tonoApi";
 import { getGeminiApiKey } from "../secrets/secretsStore";
 import { GeminiApiError, type UploadedGeminiFile } from "./types";
 import { fetchWithTimeout, withDeadline } from "../../utils/fetchWithTimeout";
@@ -8,6 +10,17 @@ import { usageFromGemini, type TokenUsage } from "../../domain/cloudUsage";
 import { extractResponseText, rateLimitRetryMs } from "./responseHandling";
 
 const API_BASE = "https://generativelanguage.googleapis.com";
+
+// "direct" talks to Google with the person's own key; "hosted" goes through
+// Tono's server, which holds the key, picks the model and counts the allowance.
+// The same prompts, schemas and answers either way.
+export type GeminiTransport = "direct" | "hosted";
+
+// What Tono's server tells us about a call it ran.
+export interface HostedResult {
+  model: string;
+  usedFallback: boolean;
+}
 const SERVER_ERROR_RETRY_DELAYS_MS = [2_000, 6_000, 15_000];
 // A per-minute rate limit (common on the free tier) clears in seconds.
 const RATE_LIMIT_RETRIES = 2;
@@ -87,29 +100,41 @@ export async function uploadVideoFile(
   fileUri: string,
   mimeType: string,
   displayName: string,
+  transport: GeminiTransport = "direct",
 ): Promise<UploadedGeminiFile> {
   const fileSizeBytes = new File(fileUri).size;
-  const uploadUrl = await startResumableUpload(fileSizeBytes, mimeType, displayName);
+  // Hosted: the server starts the upload (so the key never reaches the phone)
+  // and returns only the URL; the bytes still go straight from here to Google.
+  const uploadUrl =
+    transport === "hosted"
+      ? (await tonoUploadStart({ sizeBytes: fileSizeBytes, mimeType })).uploadUrl
+      : await startResumableUpload(fileSizeBytes, mimeType, displayName);
   return uploadBytes(uploadUrl, fileUri, mimeType);
+}
+
+// A file's state as Google (or, hosted, Tono's server) reports it.
+async function fileInfo(fileName: string, transport: GeminiTransport): Promise<UploadedGeminiFile> {
+  if (transport === "hosted") {
+    const info = await tonoFileStatus(fileName);
+    return { name: info.name, uri: info.uri, mimeType: info.mimeType, state: info.state } as UploadedGeminiFile;
+  }
+  const response = await fetchWithTimeout(`${API_BASE}/v1beta/${fileName}?${await apiKeyQuery()}`, {}, 15_000, "Checking the Gemini upload");
+  if (!response.ok) {
+    throw new GeminiApiError(`Failed to poll file status (${response.status})`, response.status);
+  }
+  return (await response.json()) as UploadedGeminiFile;
 }
 
 export async function waitForFileActive(
   fileName: string,
-  opts: { timeoutMs?: number; intervalMs?: number } = {},
+  opts: { timeoutMs?: number; intervalMs?: number; transport?: GeminiTransport } = {},
 ): Promise<void> {
   const timeoutMs = opts.timeoutMs ?? 120_000;
   const intervalMs = opts.intervalMs ?? 3000;
   const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {
-    const response = await fetchWithTimeout(`${API_BASE}/v1beta/${fileName}?${await apiKeyQuery()}`, {}, 15_000, "Checking the Gemini upload");
-    if (!response.ok) {
-      throw new GeminiApiError(
-        `Failed to poll file status (${response.status})`,
-        response.status,
-      );
-    }
-    const data = (await response.json()) as UploadedGeminiFile;
+    const data = await fileInfo(fileName, opts.transport ?? "direct");
     if (data.state === "ACTIVE") {
       return;
     }
@@ -128,12 +153,9 @@ export async function waitForFileActive(
 // anything other than a confirmed ACTIVE state — expired, deleted, failed,
 // or a network error — so callers can always safely fall through to a fresh
 // upload instead of surfacing a reuse-check failure as a session-level error.
-export async function checkExistingFileActive(fileName: string): Promise<boolean> {
+export async function checkExistingFileActive(fileName: string, transport: GeminiTransport = "direct"): Promise<boolean> {
   try {
-    const response = await fetchWithTimeout(`${API_BASE}/v1beta/${fileName}?${await apiKeyQuery()}`, {}, 15_000, "Checking the Gemini upload");
-    if (!response.ok) return false;
-    const data = (await response.json()) as UploadedGeminiFile;
-    return data.state === "ACTIVE";
+    return (await fileInfo(fileName, transport)).state === "ACTIVE";
   } catch {
     return false;
   }
@@ -148,6 +170,13 @@ export async function checkExistingFileActive(fileName: string): Promise<boolean
 export async function generateContent(args: {
   fileUri?: string;
   mimeType?: string;
+  // Hosted only: the uploaded file's name (files/abc...), the seconds of video
+  // (to size the reservation) and which allowance the call counts against.
+  transport?: GeminiTransport;
+  fileName?: string;
+  videoSeconds?: number;
+  kind?: "review" | "text" | "insight";
+  onHosted?: (result: HostedResult) => void;
   systemPrompt: string;
   responseSchema: object;
   mediaResolution?: "MEDIA_RESOLUTION_LOW" | "MEDIA_RESOLUTION_MEDIUM";
@@ -155,6 +184,7 @@ export async function generateContent(args: {
   onUsage?: (usage: TokenUsage) => void;
 }): Promise<string> {
   const hasMedia = !!args.fileUri && !!args.mimeType;
+  if (args.transport === "hosted") return generateHosted(args, hasMedia);
   const parts: object[] = hasMedia
     ? [{ file_data: { file_uri: args.fileUri, mime_type: args.mimeType } }, { text: args.systemPrompt }]
     : [{ text: args.systemPrompt }];
@@ -211,6 +241,36 @@ export async function generateContent(args: {
   const answer = extractResponseText(data);
   if (!answer.ok) {
     logger.warn(`[gemini] no usable answer: ${answer.reason}`);
+    throw new GeminiApiError(answer.reason, undefined, data);
+  }
+  return answer.text;
+}
+
+// The same call through Tono's server. The server picks the model, enforces the
+// limits and retries on its fallback; the answer comes back exactly as Gemini
+// gave it, so everything downstream (usage, text, parsing) is shared.
+async function generateHosted(
+  args: { systemPrompt: string; responseSchema: object; fileName?: string; videoSeconds?: number; kind?: "review" | "text" | "insight"; onUsage?: (usage: TokenUsage) => void; onHosted?: (result: HostedResult) => void },
+  hasMedia: boolean,
+): Promise<string> {
+  const kind = args.kind ?? (hasMedia ? "review" : "text");
+  if (kind === "review" && (!args.fileName || !args.videoSeconds)) {
+    throw new GeminiApiError("A hosted review needs the uploaded file and the length of the video.");
+  }
+  const result = await tonoGenerate({
+    kind,
+    systemPrompt: args.systemPrompt,
+    schema: args.responseSchema,
+    ...(kind === "review" ? { fileName: args.fileName, videoSeconds: args.videoSeconds } : {}),
+    idempotencyKey: randomUUID(),
+  });
+  args.onHosted?.({ model: result.model, usedFallback: result.usedFallback });
+  const data = result.gemini as { usageMetadata?: unknown } | null;
+  const usage = usageFromGemini(data?.usageMetadata as Parameters<typeof usageFromGemini>[0]);
+  if (usage) args.onUsage?.(usage);
+  const answer = extractResponseText(data);
+  if (!answer.ok) {
+    logger.warn(`[gemini] no usable answer from Tono AI: ${answer.reason}`);
     throw new GeminiApiError(answer.reason, undefined, data);
   }
   return answer.text;

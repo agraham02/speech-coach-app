@@ -1,5 +1,5 @@
 import * as SecureStore from "expo-secure-store";
-import type { ProviderId } from "../cloud/providers";
+import type { KeyProviderId } from "../cloud/providers";
 
 // Keychain (iOS) / Keystore (Android) backed storage for the API secrets
 // this app needs — deliberately separate from services/prefs/prefsStore.ts
@@ -12,18 +12,18 @@ const KEYS = {
 
 // One key per deep-review provider (services/cloud/providers.ts). Gemini
 // keeps its original item name so existing keys carry over.
-const PROVIDER_KEYS: Record<ProviderId, string> = {
+const PROVIDER_KEYS: Record<KeyProviderId, string> = {
   gemini: KEYS.geminiApiKey,
   openai: "openaiApiKey",
   anthropic: "anthropicApiKey",
   openrouter: "openrouterApiKey",
 };
 
-export function getProviderKey(id: ProviderId): Promise<string | null> {
+export function getProviderKey(id: KeyProviderId): Promise<string | null> {
   return getSecret(PROVIDER_KEYS[id]);
 }
 
-export function setProviderKey(id: ProviderId, value: string): Promise<void> {
+export function setProviderKey(id: KeyProviderId, value: string): Promise<void> {
   return setSecret(PROVIDER_KEYS[id], value);
 }
 

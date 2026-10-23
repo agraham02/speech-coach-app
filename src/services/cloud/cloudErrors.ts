@@ -1,6 +1,7 @@
 import { GeminiApiError } from "../gemini/types";
 import { TimeoutError } from "../../utils/fetchWithTimeout";
 import { readRateLimit } from "../gemini/responseHandling";
+import { describeTonoError, TonoApiError } from "../tono/tonoError";
 
 // A failed call to a deep-review provider (OpenAI, Claude, OpenRouter —
 // Gemini has its own GeminiApiError).
@@ -34,6 +35,7 @@ function providerMessage(body: unknown): string | null {
 
 // A failed deep review, worded for the person who has to fix it.
 export function describeCloudError(error: unknown): string {
+  if (error instanceof TonoApiError) return describeTonoError(error);
   const named = error instanceof CloudApiError ? error.providerName : error instanceof GeminiApiError ? "Gemini" : null;
   if (named && (error instanceof CloudApiError || error instanceof GeminiApiError)) {
     const { status, body } = error;

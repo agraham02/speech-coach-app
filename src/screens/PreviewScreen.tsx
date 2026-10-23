@@ -14,7 +14,10 @@ import { setVideoKeepsake } from "../services/data/videoKeepsakes";
 import { logger } from "../utils/logger";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { getCloudReviewDefault } from "../services/prefs/prefsStore";
-import { currentProvider, hasConsent, hasProviderKey } from "../services/cloud/providers";
+import { currentProvider, hasConsent } from "../services/cloud/providers";
+import { providerFor } from "../services/cloud/routing";
+import { getAccount, useAccount } from "../services/account/accountStore";
+import { usesOneLine } from "../domain/aiAllowance";
 import { readyForDeepReview } from "../services/cloud/consent";
 import { spacing, typography, font, fontDisplay } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
@@ -34,7 +37,13 @@ export function PreviewScreen({ route, navigation }: Props) {
   const isFeeling = subject.kind === "prompt" && !!subject.feeling;
   // On by default only once a provider is set up and allowed.
   const provider = currentProvider();
-  const [wantsCloudReview, setWantsCloudReview] = useState(() => !isFeeling && getCloudReviewDefault() && hasConsent(provider.id));
+  const account = useAccount();
+  // Tono AI also needs someone signed in, with reviews left.
+  const [wantsCloudReview, setWantsCloudReview] = useState(
+    () => !isFeeling && getCloudReviewDefault() && hasConsent(provider.id) && (provider.id !== "tono" || (getAccount().status === "signedIn" && getAccount().allowed.review)),
+  );
+  // What a review costs the person: a review from their allowance, or their own key.
+  const paidBy = provider.id === "tono" ? (account.allowance && usesOneLine(account.allowance)) || "Counts toward your Tono AI reviews." : "Uses your own key.";
 
   async function toggleCloudReview(on: boolean) {
     if (!on) {
@@ -107,8 +116,9 @@ export function PreviewScreen({ route, navigation }: Props) {
         subject,
         previewUri: videoUri,
         durationSecondsLocal,
-        // A key removed since the switch went on: save without the review.
-        wantsCloudReview: wantsCloudReview && (await hasProviderKey(provider.id)),
+        // A key removed, or Tono AI signed out of, since the switch went on:
+        // save without the review.
+        wantsCloudReview: wantsCloudReview && (await providerFor("video_review", { hasVideo: true, cloudReviewOn: true })) !== null,
       });
       // A lesson / daily-plan rep counts as done once the take is kept.
       if (subject.kind === "prompt") completePracticeStep(subject.practice, null, sessionId);
@@ -144,8 +154,8 @@ export function PreviewScreen({ route, navigation }: Props) {
               <Text style={styles.rowTitle}>Deep review</Text>
               <Text style={styles.rowSubtitle}>
                 {provider.input === "video"
-                  ? `${provider.name} scores ${subject.kind === "script" ? "delivery, presence and how well you followed the marks" : "structure, delivery and presence"} from the video. Uses your own key.`
-                  : `${provider.name} scores ${subject.kind === "script" ? "your reading" : "structure, content and delivery"} from your transcript and the phone's measurements — the video stays here. Uses your own key.`}
+                  ? `${provider.name} scores ${subject.kind === "script" ? "delivery, presence and how well you followed the marks" : "structure, delivery and presence"} from the video. ${paidBy}`
+                  : `${provider.name} scores ${subject.kind === "script" ? "your reading" : "structure, content and delivery"} from your transcript and the phone's measurements — the video stays here. ${paidBy}`}
               </Text>
             </View>
             <Switch

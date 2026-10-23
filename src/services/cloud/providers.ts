@@ -1,15 +1,18 @@
 import { getProviderKey } from "../secrets/secretsStore";
 import { getCloudConsent, getCloudModel, getCloudProvider, getShareProfileWithReviews } from "../prefs/prefsStore";
 
-// Deep reviews are bring-your-own-key: the app itself is free and runs on
-// the phone, and a deep review calls the AI provider the user picked, with
-// their key, billed to their account. Nothing goes through a server of ours.
+// Deep reviews run one of two ways. Tono AI (id "tono") goes through Tono's
+// own server, which holds the Gemini key, enforces the limits and picks the
+// model; it needs a signed-in account. Every other provider is bring your own
+// key: the call goes straight from the phone to that provider with the user's
+// key, billed to their account, and nothing goes through a server of ours.
 //
 // Gemini watches the video (voice, face and words). The others can't take
 // video, so they read the on-device transcript plus everything the phone
 // measured — pace, pauses, fillers, pitch, loudness, eye contact,
 // expression (services/cloud/measuredReview.ts).
-export type ProviderId = "gemini" | "openai" | "anthropic" | "openrouter";
+export type KeyProviderId = "gemini" | "openai" | "anthropic" | "openrouter";
+export type ProviderId = KeyProviderId | "tono";
 
 export interface CloudProvider {
   id: ProviderId;
@@ -25,6 +28,20 @@ export interface CloudProvider {
 }
 
 export const PROVIDERS: Record<ProviderId, CloudProvider> = {
+  tono: {
+    id: "tono",
+    name: "Tono AI",
+    company: "Tono and Google",
+    // Nothing to paste: sign in instead.
+    keyUrl: "",
+    keyHint: "",
+    // The server chooses the model; this label is only what usage records show
+    // until a response reports the real one.
+    defaultModel: "tono-managed",
+    modelHint: "",
+    input: "video",
+    blurb: "Watches the video, no key needed. Sign in and it just works.",
+  },
   gemini: {
     id: "gemini",
     name: "Google Gemini",
@@ -71,7 +88,8 @@ export const PROVIDERS: Record<ProviderId, CloudProvider> = {
   },
 };
 
-export const PROVIDER_ORDER: ProviderId[] = ["gemini", "openai", "anthropic", "openrouter"];
+// The bring-your-own-key providers, in display order. Tono AI is separate.
+export const PROVIDER_ORDER: KeyProviderId[] = ["gemini", "openai", "anthropic", "openrouter"];
 
 export function currentProvider(): CloudProvider {
   return PROVIDERS[getCloudProvider()];
@@ -82,6 +100,7 @@ export function modelFor(id: ProviderId): string {
 }
 
 export async function hasProviderKey(id: ProviderId = getCloudProvider()): Promise<boolean> {
+  if (id === "tono") return false; // Tono AI uses an account, not a key.
   return !!(await getProviderKey(id));
 }
 
@@ -94,6 +113,9 @@ export function hasConsent(id: ProviderId = getCloudProvider()): boolean {
 export function whatGetsSent(provider: CloudProvider): string {
   const about = getShareProfileWithReviews() ? " A short note on your goals and what gets in your way (from setup) goes with it, so the feedback fits you — you can see it and turn it off in Settings." : "";
   const drills = ` The words you say in the Say it short drills (summaries and plain explanations) are sent as text too, so it can check the idea — never audio or video.`;
+  if (provider.id === "tono") {
+    return `Your video (with its audio) goes to Google Gemini for each AI review, and is deleted from Google when the review is done. The phone's measurements of the take (pace, pauses, pitch, loudness, eye contact, expression) go with it, never your transcript.${about}${drills} The sentences you choose in Mark it up, and the words of a Rewind, go the same way, as text.`;
+  }
   return provider.input === "video"
     ? `Your video (with its audio) is uploaded to ${provider.company} for each deep review.${about}${drills}`
     : `Your transcript and the phone's measurements (pace, pauses, pitch, loudness, eye contact, expression) are sent to ${provider.company} for each deep review — never the video.${about}${drills}`;

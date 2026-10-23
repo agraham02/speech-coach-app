@@ -29,7 +29,7 @@ export default (): ExpoConfig => ({
     slug: "speech-coach-app",
     // 1.1.0: expo-widgets (the Dynamic Island prep timer) is native code, so
     // the runtime version moves with it — see the note on runtimeVersion.
-    version: "1.3.0",
+    version: "1.4.0",
     scheme: "tono",
     orientation: "portrait",
     // Follows the system light/dark setting (needs expo-system-ui on
@@ -117,6 +117,10 @@ export default (): ExpoConfig => ({
         ],
         "expo-video",
         "expo-font",
+        // Tono AI sign-in: Apple natively, Google through the browser. New
+        // native modules, hence the version bump above.
+        "expo-apple-authentication",
+        "expo-web-browser",
         "expo-notifications",
         // The prep and research timer on the Dynamic Island (a Live Activity,
         // src/widgets/PrepActivity.tsx). Adds a widget extension target and an

@@ -2,7 +2,7 @@ import { fetchWithTimeout } from "../../utils/fetchWithTimeout";
 import { logger } from "../../utils/logger";
 import { getProviderKey } from "../secrets/secretsStore";
 import { CloudApiError } from "./cloudErrors";
-import { PROVIDERS, type ProviderId } from "./providers";
+import { PROVIDERS, type KeyProviderId } from "./providers";
 import { usageFromAnthropic, usageFromOpenAI, type TokenUsage } from "../../domain/cloudUsage";
 
 // Text-in, JSON-out calls to the providers that don't watch video: OpenAI
@@ -10,7 +10,7 @@ import { usageFromAnthropic, usageFromOpenAI, type TokenUsage } from "../../doma
 // chat completions). Each asks for output matching a JSON Schema with the
 // provider's own structured-output feature; the caller still validates.
 
-export type TextProviderId = Exclude<ProviderId, "gemini">;
+export type TextProviderId = Exclude<KeyProviderId, "gemini">;
 
 interface TextCall {
   provider: TextProviderId;
@@ -152,7 +152,7 @@ export function callTextProvider(call: TextCall): Promise<string> {
 
 // A cheap authenticated request to confirm a key works, for Settings'
 // "Check key". Resolves to null when it does, or a reason when it doesn't.
-export async function checkProviderKey(provider: ProviderId, key: string): Promise<string | null> {
+export async function checkProviderKey(provider: KeyProviderId, key: string): Promise<string | null> {
   const trimmed = key.trim();
   if (!trimmed) return "Paste a key first.";
   const name = PROVIDERS[provider].name;

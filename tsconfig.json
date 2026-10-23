@@ -9,10 +9,20 @@
       "whisper.rn": [
         "./node_modules/whisper.rn/lib/typescript/index"
       ]
-    }
+    },
+    "allowImportingTsExtensions": true
   },
   "exclude": [
     "node_modules",
-    "teleprompter-prototype"
+    "teleprompter-prototype",
+    "supabase/functions/**/index.ts",
+    "supabase/functions/**/*_deno_test.ts",
+    "supabase/functions/_shared/http.ts",
+    "supabase/functions/_shared/auth.ts",
+    "supabase/functions/_shared/ledger.ts",
+    "supabase/functions/_shared/secrets.ts",
+    "supabase/functions/_shared/gemini.ts",
+    "supabase/functions/_shared/apple.ts",
+    "supabase/functions/_shared/revenuecat.ts"
   ]
 }

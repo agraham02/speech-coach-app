@@ -65,6 +65,8 @@ import { useTranscriptionModel } from "../hooks/useTranscriptionModel";
 import { cleanApiKey } from "../services/cloud/inputGuards";
 import { checkProviderKey } from "../services/cloud/textProviders";
 import { currentProvider, hasConsent, hasProviderKey, PROVIDERS } from "../services/cloud/providers";
+import { askCloudConsent } from "../services/cloud/consent";
+import { getAccount } from "../services/account/accountStore";
 import { setProviderKey } from "../services/secrets/secretsStore";
 import { isoDateFromDate, todayISODate } from "../utils/dateUtils";
 import { DatePicker, formatEventDate } from "../components/common/DatePicker";
@@ -101,6 +103,8 @@ export function OnboardingScreen({ route, navigation }: Props) {
   const [extraHours, setExtraHours] = useState<number[]>(reminder.extraHours ?? []);
   const [cloudKey, setCloudKey] = useState("");
   const [cloudError, setCloudError] = useState<string | null>(null);
+  // Paste-a-key instead of signing in to Tono AI.
+  const [ownKey, setOwnKey] = useState(false);
   // Already set up (profile mode, or a key added before onboarding).
   const [connected, setConnected] = useState<string | null>(null);
   const [retention, setRetention] = useState<string | null>(null);
@@ -131,6 +135,10 @@ export function OnboardingScreen({ route, navigation }: Props) {
 
   useEffect(() => {
     const provider = currentProvider();
+    if (provider.id === "tono") {
+      setConnected(getAccount().status === "signedIn" && hasConsent("tono") ? provider.name : null);
+      return;
+    }
     hasProviderKey(provider.id).then((has) => setConnected(has && hasConsent(provider.id) ? provider.name : null));
   }, []);
 
@@ -202,6 +210,19 @@ export function OnboardingScreen({ route, navigation }: Props) {
     setConnected(PROVIDERS[providerId].name);
     setCloudKey("");
     return true;
+  }
+
+  // Signed in to Tono AI. Signing in is not yet permission to send takes, so
+  // the person is asked, with what is sent spelled out, before anything is.
+  async function onTonoSignedIn() {
+    setCloudError(null);
+    if (!hasConsent("tono") && !(await askCloudConsent(PROVIDERS.tono))) {
+      setCloudError("You're signed in, but nothing is sent until you allow it. You can do that later in Settings → Deep reviews.");
+      return;
+    }
+    setCloudProvider("tono");
+    setCloudReviewDefault(true);
+    setConnected(PROVIDERS.tono.name);
   }
 
   // Applies one answer to the app, right away. False keeps you on the step.
@@ -540,7 +561,9 @@ export function OnboardingScreen({ route, navigation }: Props) {
             <View style={styles.flex}>
               <Txt variant="headline">Connected to {connected}</Txt>
               <Txt variant="footnote" tone="secondary">
-                Your AI coach is ready. Change the provider, the key, or whether every take gets a review in Settings → Deep reviews.
+                {connected === PROVIDERS.tono.name
+                  ? "You're signed in and your AI coach is ready. Change the provider, or whether every take gets a review, in Settings → Deep reviews."
+                  : "Your AI coach is ready. Change the provider, the key, or whether every take gets a review in Settings → Deep reviews."}
               </Txt>
             </View>
           </View>
@@ -552,6 +575,12 @@ export function OnboardingScreen({ route, navigation }: Props) {
               setCloudError(null);
             }}
             error={cloudError}
+            ownKey={ownKey}
+            onOwnKeyChange={(own) => {
+              setOwnKey(own);
+              setCloudError(null);
+            }}
+            onSignedIn={onTonoSignedIn}
           />
         );
       case "retention":

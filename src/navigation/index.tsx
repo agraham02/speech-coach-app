@@ -50,6 +50,7 @@ import { PreviewScreen } from "../screens/PreviewScreen";
 import { ProcessingScreen } from "../screens/ProcessingScreen";
 import { ResultScreen } from "../screens/ResultScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
+import { PaywallScreen } from "../screens/PaywallScreen";
 import { YouScreen } from "../screens/YouScreen";
 import { PhrasebookScreen } from "../screens/PhrasebookScreen";
 import { ThreeThingsScreen } from "../screens/ThreeThingsScreen";
@@ -108,6 +109,8 @@ export type RootStackParamList = {
   Tabs: NavigatorScreenParams<TabParamList> | undefined;
   // One section of Settings, or the list of them with no section.
   Settings: { section?: SettingsSection } | undefined;
+  // Tono Plus: what it adds, the plans, restore.
+  Paywall: undefined;
   Progress: undefined;
   // One skill's rating: what moves it, and its recent changes.
   SkillDetail: { skill: SkillId };
@@ -398,6 +401,7 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
         <Stack.Screen name="SkillCheck" component={SkillCheckScreen} />
         <Stack.Screen name="StartingPoint" component={StartingPointScreen} options={{ gestureEnabled: false }} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
+        <Stack.Screen name="Paywall" component={PaywallScreen} />
         <Stack.Screen name="Progress" component={ProgressScreen} />
         <Stack.Screen name="Phrasebook" component={PhrasebookScreen} />
         <Stack.Screen name="ThreeThings" component={ThreeThingsScreen} />

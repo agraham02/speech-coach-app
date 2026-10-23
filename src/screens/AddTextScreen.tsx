@@ -54,7 +54,10 @@ export function AddTextScreen({ navigation }: Props) {
         marks: marked.marks,
         autoMarked: true,
       });
-      showGlobalToast(by === "model" ? "Marked by the on-device model — check it over." : "Marked — check it over and change anything.", "info");
+      showGlobalToast(
+        by === "tono" ? "Marked by Tono AI — check it over." : by === "model" ? "Marked by the on-device model — check it over." : "Marked — check it over and change anything.",
+        "info",
+      );
       navigation.replace("MarkEdit", { id });
     } catch (error) {
       showGlobalToast(`Couldn't mark that: ${(error as Error).message}`, "error");

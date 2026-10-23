@@ -34,7 +34,8 @@ export interface Observation {
 }
 
 export interface CoachOutput {
-  source: "rules" | "apple";
+  // "cloud": written by the Tono AI video review (domain/coach/cloudCoach.ts).
+  source: "rules" | "apple" | "cloud";
   strength: string;
   tip: string;
   focusSkill: SkillId;

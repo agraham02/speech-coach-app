@@ -10,6 +10,9 @@ export type ArtifactKind =
   | "presence_timeline"
   | "presence"
   | "coach"
+  // The Tono AI review's own coaching, kept apart so a re-run of the phone's
+  // coach step can lay it back over the rules (coachStep.ts).
+  | "cloud_coach"
   | "progress"
   | "felt_observed"
   | "session_score"

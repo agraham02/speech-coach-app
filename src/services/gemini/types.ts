@@ -60,6 +60,9 @@ export interface GeminiSessionAnalysis {
     top_focus_area: string;
     recommended_drill: string;
   };
+  // Asked for only by Tono AI reviews: the coach card's strength, tip, focus
+  // skill and follow-up question. Unvalidated here; see acceptQuickCoach.
+  quick_coach?: unknown;
   // Only present when grading a script_practice session recorded with cues
   // enabled — see schema.ts's buildResponseSchema(hasCues).
   cue_compliance?: {

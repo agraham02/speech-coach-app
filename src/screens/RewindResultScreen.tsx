@@ -218,6 +218,8 @@ export function RewindResultScreen({ route }: Props) {
           <Txt variant="subhead" tone="secondary">
             {canReviewOnDevice()
               ? "There wasn't enough here to write notes on yet — try a little longer next time."
+              : provider.id === "tono"
+              ? "This phone can't write notes on its own. Tono AI can: only the words of this take are sent."
               : "This phone can't write notes on its own. You can ask for them with your own AI key — only the words of this take are sent."}
           </Txt>
           {!canReviewOnDevice() ? <PrimaryButton label={`Get notes from ${provider.name}`} variant="secondary" size="md" icon="cloud-outline" onPress={askCloud} loading={asking} /> : null}

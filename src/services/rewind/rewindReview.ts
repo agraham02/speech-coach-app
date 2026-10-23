@@ -3,9 +3,11 @@ import { REWIND_REVIEW_SYSTEM, acceptReview, buildRewindReviewPrompt, rewindRevi
 import { getAppleProvider, isAppleModelAvailable } from "../onDeviceLlm/onDeviceCoach";
 import { callTextProvider, type TextProviderId } from "../cloud/textProviders";
 import { toStrictSchema } from "../cloud/jsonSchema";
-import { CloudApiError } from "../cloud/cloudErrors";
+import { CloudApiError, describeCloudError } from "../cloud/cloudErrors";
+import { askCloudConsent } from "../cloud/consent";
 import { DAILY_REVIEW_LIMIT, MAX_REVIEW_WORDS, fenced, reviewsLeft, wordCount } from "../cloud/inputGuards";
-import { currentProvider, hasProviderKey, modelFor, type CloudProvider } from "../cloud/providers";
+import { currentProvider, hasConsent, hasProviderKey, modelFor, PROVIDERS, type CloudProvider } from "../cloud/providers";
+import { getAccount } from "../account/accountStore";
 import { generateContent } from "../gemini/geminiClient";
 import { getCloudCallsToday, getRewindCloudConsent, noteCloudCall, setRewindCloudConsent } from "../prefs/prefsStore";
 import { todayISODate } from "../../utils/dateUtils";
@@ -87,6 +89,7 @@ export type CloudReviewResult = { ok: true; review: RewindReview } | { ok: false
 // happen, rather than throwing, so the screen can say so plainly.
 export async function reviewInCloud(transcript: string, openSettings: () => void): Promise<CloudReviewResult> {
   const provider = currentProvider();
+  if (provider.id === "tono") return reviewWithTono(transcript, openSettings);
   if (!(await hasProviderKey(provider.id))) {
     Alert.alert("Add an API key first", `Notes from the cloud use your own AI key. Add a ${provider.name} key in Settings → Deep reviews.`, [
       { text: "Not now", style: "cancel" },
@@ -122,5 +125,30 @@ export async function reviewInCloud(transcript: string, openSettings: () => void
   } catch (error) {
     logger.warn(`[rewind] cloud notes failed — ${(error as Error).message}`);
     return { ok: false, message: error instanceof CloudApiError ? error.message : `Couldn't get notes from ${provider.name}.` };
+  }
+}
+
+// Tono AI: signed in, with the single Tono consent (it covers every kind of
+// text sent), and the server counts the allowance.
+async function reviewWithTono(transcript: string, openSettings: () => void): Promise<CloudReviewResult> {
+  if (getAccount().status !== "signedIn") {
+    Alert.alert("Sign in to use Tono AI", "Notes from Tono AI need an account. Sign in with Apple or Google in Settings → Deep reviews.", [
+      { text: "Not now", style: "cancel" },
+      { text: "Open Settings", onPress: openSettings },
+    ]);
+    return { ok: false, message: "Not signed in." };
+  }
+  if (!hasConsent("tono") && !(await askCloudConsent(PROVIDERS.tono))) return { ok: false, message: "Not sent." };
+  if (wordCount(transcript) > MAX_REVIEW_WORDS) return { ok: false, message: "That take is too long to send." };
+
+  const prompt = buildRewindReviewPrompt(fenced(transcript));
+  try {
+    const raw = await generateContent({ systemPrompt: `${REWIND_REVIEW_SYSTEM}\n\n${prompt}`, responseSchema: cloudSchema, transport: "hosted", kind: "text" });
+    const parsed = rewindReviewSchema.safeParse(JSON.parse(raw));
+    const accepted = parsed.success ? acceptReview(parsed.data) : null;
+    return accepted ? { ok: true, review: accepted } : { ok: false, message: "Tono AI didn't send back usable notes. Try again." };
+  } catch (error) {
+    logger.warn(`[rewind] Tono AI notes failed — ${(error as Error).message}`);
+    return { ok: false, message: describeCloudError(error) };
   }
 }

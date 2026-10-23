@@ -80,7 +80,11 @@ export function CoachCard({ coach, onAnswerFollowUp }: { coach: CoachOutput; onA
       ) : null}
 
       <Txt variant="caption1" tone="muted">
-        {coach.source === "apple" ? "Written by the on-device model from your measurements." : "From measurements made on this phone."}
+        {coach.source === "cloud"
+          ? "Written by Tono AI after watching your take, with your phone's measurements."
+          : coach.source === "apple"
+            ? "Written by the on-device model from your measurements."
+            : "From measurements made on this phone."}
       </Txt>
     </Card>
   );

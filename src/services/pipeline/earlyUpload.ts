@@ -1,7 +1,7 @@
 import { File } from "expo-file-system";
 import { uploadVideoForGrading } from "../gemini/transcribeSession";
 import { getSessionById, updateSessionGeminiFile } from "../db/sessionsRepo";
-import { currentProvider, hasConsent } from "../cloud/providers";
+import { providerFor } from "../cloud/routing";
 import { MAX_REVIEW_VIDEO_BYTES, reviewsLeft } from "../cloud/inputGuards";
 import { getCloudCallsToday } from "../prefs/prefsStore";
 import { resolveVideoUri, videoExists } from "../storage/videoStorage";
@@ -19,18 +19,20 @@ const inFlight = new Map<string, Promise<void>>();
 
 export function startEarlyUpload(sessionId: string): void {
   if (inFlight.has(sessionId)) return;
-  const provider = currentProvider();
-  if (provider.input !== "video" || !hasConsent(provider.id)) return;
-  // The review would be refused today anyway.
-  if (reviewsLeft(getCloudCallsToday(todayISODate())) === 0) return;
 
   const task = (async () => {
+    // Only a video-watching route is worth an early upload, and only when the
+    // review would not be refused anyway (the person's own key has a daily cap;
+    // Tono AI's server says no by itself).
+    const resolved = await providerFor("video_review", { hasVideo: true, cloudReviewOn: true });
+    if (!resolved || resolved.provider.input !== "video") return;
+    if (resolved.transport === "direct" && reviewsLeft(getCloudCallsToday(todayISODate())) === 0) return;
     const session = await getSessionById(sessionId);
     if (!session || session.geminiFileName || session.videoDeletedAt) return;
     const videoUri = resolveVideoUri(session);
     if (!videoExists(videoUri) || (new File(videoUri).size ?? 0) > MAX_REVIEW_VIDEO_BYTES) return;
     const started = Date.now();
-    const uploaded = await uploadVideoForGrading(videoUri);
+    const uploaded = await uploadVideoForGrading(videoUri, undefined, resolved.transport === "hosted" ? "hosted" : "direct");
     await updateSessionGeminiFile(sessionId, { name: uploaded.name, uri: uploaded.uri, uploadedAt: new Date().toISOString() });
     logger.info(`[gemini] early upload for ${sessionId} ready in ${((Date.now() - started) / 1000).toFixed(1)} s`);
   })()

@@ -5,15 +5,18 @@ import { File } from "expo-file-system";
 import { getSessionById, updateSessionGeminiFile, updateTranscriptFields } from "../../db/sessionsRepo";
 import { analysisToSessionScores, upsertScores } from "../../db/scoresRepo";
 import { getArtifact, putArtifact } from "../../db/artifactsRepo";
-import { currentProvider, hasConsent, modelFor, reviewBlockedReason, type ProviderId } from "../../cloud/providers";
-import { measuredReview } from "../../cloud/measuredReview";
+import { modelFor, reviewBlockedReason, type ProviderId } from "../../cloud/providers";
+import { providerFor, whyNoDeepReview } from "../../cloud/routing";
+import { measuredReview, measurementLines } from "../../cloud/measuredReview";
+import { applyCloudCoach } from "./coachStep";
 import { recordCloudUsage } from "../../cloud/usageStore";
 import type { TokenUsage } from "../../../domain/cloudUsage";
 import type { TextProviderId } from "../../cloud/textProviders";
 import type { PauseAnalysis } from "../../../domain/dsp/pauses";
 import type { PresenceMetrics } from "../../../domain/presenceMetrics";
 import { defaultsFromProfile } from "../../../domain/profile";
-import { getCloudCallsToday, getUserProfile, noteCloudCall } from "../../prefs/prefsStore";
+import { getCloudCallsToday, getCloudProvider, getUserProfile, noteCloudCall } from "../../prefs/prefsStore";
+import { getAccount, refreshAccount } from "../../account/accountStore";
 import { setStepStatus } from "../../db/stepsRepo";
 import { resolveVideoUri, videoExists } from "../../storage/videoStorage";
 import { gradingContextFromSession } from "../../sessions/sessionSubject";
@@ -44,17 +47,26 @@ export interface CloudTranscriptArtifact {
 export async function cloudReviewStep(sessionId: string): Promise<void> {
   const session = await getSessionById(sessionId);
   if (!session) throw new StepError("Session not found.");
-  const provider = currentProvider();
-  if (!hasConsent(provider.id)) {
-    throw new StepError(`Deep reviews with ${provider.name} haven't been allowed yet — tap Get to review what's sent, or choose a provider in Settings.`);
+  // Tono AI first, then the person's own key (domain/aiRouting.ts). A review
+  // that is already queued was wanted, whatever the "every take" switch says.
+  const videoAvailable = !session.videoDeletedAt && videoExists(resolveVideoUri(session));
+  let resolved = await providerFor("video_review", { hasVideo: videoAvailable, cloudReviewOn: true });
+  if (!resolved && getCloudProvider() === "tono" && getAccount().status === "signedIn" && !getAccount().allowed.review) {
+    // The cached "no reviews left" may be old (a new month began): ask once.
+    await refreshAccount();
+    resolved = await providerFor("video_review", { hasVideo: videoAvailable, cloudReviewOn: true });
   }
+  if (!resolved) throw new StepError(videoAvailable ? await whyNoDeepReview() : "The video was deleted, so a deep review isn't possible.");
+  const { provider, transport } = resolved;
+  const hosted = transport === "hosted";
 
   const context = await gradingContextFromSession(session);
   if (!context) throw new StepError("Couldn't find this session's prompt or script.");
 
-  // Every call is paid for with the user's own key.
+  // A call to the person's own provider is paid for with their own key, so a
+  // stuck retry is capped here. Tono AI's server enforces its own limits.
   const today = todayISODate();
-  if (reviewsLeft(getCloudCallsToday(today)) === 0) {
+  if (!hosted && reviewsLeft(getCloudCallsToday(today)) === 0) {
     throw new StepError(
       `That's ${DAILY_REVIEW_LIMIT} deep reviews today — the daily limit that keeps a stuck retry from running up your bill. It resets tomorrow.`,
     );
@@ -73,6 +85,7 @@ export async function cloudReviewStep(sessionId: string): Promise<void> {
     noteCloudCall(today);
     const started = Date.now();
     const seen: { usage?: TokenUsage } = {};
+    // Own key only: Tono AI reviews watch the video.
     const analysis = await measuredReview(
       { session, context, pauses, presence, stutterMode: defaultsFromProfile(getUserProfile()).stutterMode },
       provider.id as TextProviderId,
@@ -119,20 +132,49 @@ export async function cloudReviewStep(sessionId: string): Promise<void> {
     latest.geminiFileName && latest.geminiFileUri && latest.geminiFileUploadedAt
       ? { name: latest.geminiFileName, uri: latest.geminiFileUri, uploadedAt: latest.geminiFileUploadedAt }
       : null;
-  noteCloudCall(today);
-  const { uploaded, reused } = await resolveUploadForGrading(videoUri, existingUpload);
+  if (!hosted) noteCloudCall(today);
+  // A Tono AI review is told what the phone measured, for its notes only: not
+  // the transcript or the filler count, which it takes from its own listening.
+  const stutterMode = defaultsFromProfile(getUserProfile()).stutterMode;
+  let measurements: string[] | undefined;
+  if (hosted) {
+    const [pauses, presence] = await Promise.all([
+      getArtifact<PauseAnalysis>(sessionId, "pauses"),
+      getArtifact<PresenceMetrics>(sessionId, "presence"),
+    ]);
+    measurements = measurementLines({ session: latest, pauses, presence, stutterMode, withFillers: false });
+  }
+  const { uploaded, reused } = await resolveUploadForGrading(videoUri, existingUpload, undefined, transport);
   if (!reused) {
     await updateSessionGeminiFile(sessionId, { name: uploaded.name, uri: uploaded.uri, uploadedAt: new Date().toISOString() });
   }
 
   const reviewStarted = Date.now();
   const seenUsage: { usage?: TokenUsage } = {};
-  const analysis = await analyzeUploadedVideo(uploaded, context, undefined, (usage) => {
-    seenUsage.usage = usage;
-  });
+  const seenHosted: { model?: string } = {};
+  const analysis = await analyzeUploadedVideo(
+    uploaded,
+    context,
+    undefined,
+    (usage) => {
+      seenUsage.usage = usage;
+    },
+    hosted
+      ? {
+          transport,
+          videoSeconds: Math.min(300, Math.max(1, Math.ceil(session.durationSeconds || 60))),
+          measurements,
+          onHosted: (result) => {
+            seenHosted.model = result.model;
+          },
+        }
+      : undefined,
+  );
+  // The model the server actually used (it can change without an app update).
+  const modelUsed = seenHosted.model ?? modelFor(provider.id);
   await recordCloudUsage(sessionId, {
-    provider: "gemini",
-    model: modelFor("gemini"),
+    provider: provider.id,
+    model: modelUsed,
     input: "video",
     elapsedMs: Date.now() - reviewStarted,
     videoBytes: new File(videoUri).size ?? null,
@@ -144,10 +186,12 @@ export async function cloudReviewStep(sessionId: string): Promise<void> {
     verbatim: analysis.transcript_verbatim,
     clean: analysis.transcript_clean,
     durationSeconds: analysis.duration_seconds,
-    provider: "gemini",
-    model: modelFor("gemini"),
+    provider: provider.id,
+    model: modelUsed,
     heardAudio: true,
   } satisfies CloudTranscriptArtifact);
+  // Tono AI wrote the coach card in the same call: no second request.
+  if (hosted) await applyCloudCoach(sessionId, analysis.quick_coach, modelUsed);
 
   // No device transcript at all (on-device transcription failed): the deep
   // review's transcript becomes the session's transcript.

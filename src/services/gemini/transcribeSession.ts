@@ -1,4 +1,4 @@
-import { checkExistingFileActive, generateContent, uploadVideoFile, waitForFileActive } from "./geminiClient";
+import { checkExistingFileActive, generateContent, uploadVideoFile, waitForFileActive, type GeminiTransport, type HostedResult } from "./geminiClient";
 import type { TokenUsage } from "../../domain/cloudUsage";
 import type { PromptTaskContext } from "../../domain/promptTask";
 import {
@@ -7,11 +7,13 @@ import {
   buildSystemPrompt,
   buildTranscriptCleanOnlySystemPrompt,
   buildTranscriptOnlySystemPrompt,
+  hostedReviewSection,
   RESPONSE_SCHEMA,
   SPEECH_IS_DATA,
   STUTTER_NOTE,
   TRANSCRIPT_CLEAN_ONLY_SCHEMA,
   TRANSCRIPT_ONLY_SCHEMA,
+  withQuickCoach,
 } from "./schema";
 import {
   GeminiApiError,
@@ -44,15 +46,15 @@ export type GradingContext =
 // Shared by transcribeSession and transcribeOnly: upload the recording to the
 // Gemini Files API and wait for it to become ACTIVE before generateContent
 // can reference it.
-async function uploadAndWaitForActive(videoUri: string, onProgress?: (step: TranscribeProgressStep) => void) {
+async function uploadAndWaitForActive(videoUri: string, onProgress?: (step: TranscribeProgressStep) => void, transport: GeminiTransport = "direct") {
   onProgress?.("uploading");
-  logger.info("[gemini] uploading video file...");
-  const uploaded = await uploadVideoFile(videoUri, "video/mp4", `session-${Date.now()}.mp4`);
+  logger.info(`[gemini] uploading video file (${transport})...`);
+  const uploaded = await uploadVideoFile(videoUri, "video/mp4", `session-${Date.now()}.mp4`, transport);
   logger.info(`[gemini] upload complete: ${uploaded.name} (state=${uploaded.state})`);
 
   onProgress?.("processing");
   logger.info(`[gemini] waiting for ${uploaded.name} to become ACTIVE...`);
-  await waitForFileActive(uploaded.name);
+  await waitForFileActive(uploaded.name, { transport });
   logger.info(`[gemini] ${uploaded.name} is ACTIVE`);
 
   return uploaded;
@@ -91,8 +93,9 @@ function extractTranscriptFields(
 export async function uploadVideoForGrading(
   videoUri: string,
   onProgress?: (step: TranscribeProgressStep) => void,
+  transport: GeminiTransport = "direct",
 ): Promise<UploadedGeminiFile> {
-  return uploadAndWaitForActive(videoUri, onProgress);
+  return uploadAndWaitForActive(videoUri, onProgress, transport);
 }
 
 export interface ExistingGeminiUpload {
@@ -117,9 +120,10 @@ export async function resolveUploadForGrading(
   videoUri: string,
   existingUpload: ExistingGeminiUpload | null,
   onProgress?: (step: TranscribeProgressStep) => void,
+  transport: GeminiTransport = "direct",
 ): Promise<{ uploaded: UploadedGeminiFile; reused: boolean }> {
   const isFresh = existingUpload && Date.now() - Date.parse(existingUpload.uploadedAt) < FILE_REUSE_WINDOW_MS;
-  if (existingUpload && isFresh && (await checkExistingFileActive(existingUpload.name))) {
+  if (existingUpload && isFresh && (await checkExistingFileActive(existingUpload.name, transport))) {
     logger.info(`[gemini] reusing previously-uploaded file ${existingUpload.name} — skipping re-upload`);
     onProgress?.("processing");
     return {
@@ -130,8 +134,19 @@ export async function resolveUploadForGrading(
   if (existingUpload) {
     logger.info(`[gemini] previously-uploaded file ${existingUpload.name} is no longer usable — uploading fresh`);
   }
-  const uploaded = await uploadAndWaitForActive(videoUri, onProgress);
+  const uploaded = await uploadAndWaitForActive(videoUri, onProgress, transport);
   return { uploaded, reused: false };
+}
+
+// How a hosted (Tono AI) review is run: the server sizes its reservation from
+// the video's length and reports which model it used.
+export interface HostedReviewOptions {
+  transport: GeminiTransport;
+  videoSeconds: number;
+  // What the phone measured, as prompt lines (cloud/measuredReview.ts): the
+  // notes may quote them; they never touch a score.
+  measurements?: string[];
+  onHosted?: (result: HostedResult) => void;
 }
 
 export async function analyzeUploadedVideo(
@@ -139,17 +154,20 @@ export async function analyzeUploadedVideo(
   context: GradingContext,
   onProgress?: (step: TranscribeProgressStep) => void,
   onUsage?: (usage: TokenUsage) => void,
+  hosted?: HostedReviewOptions,
 ): Promise<GeminiSessionAnalysis> {
   const systemPrompt =
     (context.kind === "script"
       ? buildScriptSystemPrompt(context.script, context.cuesEnabled ? context.markLevel ?? "full" : "none")
       : buildSystemPrompt(context.promptText, context.planText, context.taskContext)) +
+    (hosted ? hostedReviewSection(hosted.measurements ?? []) : "") +
     speakerContextForReview() +
     SPEECH_IS_DATA +
     (defaultsFromProfile(getUserProfile()).stutterMode ? STUTTER_NOTE : "");
   const showsCueCompliance =
     context.kind === "script" && context.cuesEnabled && context.script.marks.length > 0;
-  const responseSchema = showsCueCompliance ? buildResponseSchemaWithCueCompliance() : RESPONSE_SCHEMA;
+  const baseSchema = showsCueCompliance ? buildResponseSchemaWithCueCompliance() : RESPONSE_SCHEMA;
+  const responseSchema = hosted ? withQuickCoach(baseSchema) : baseSchema;
 
   onProgress?.("transcribing");
   logger.info("[gemini] calling generateContent...");
@@ -160,6 +178,7 @@ export async function analyzeUploadedVideo(
     responseSchema,
     mediaResolution: "MEDIA_RESOLUTION_LOW",
     onUsage,
+    ...(hosted ? { transport: hosted.transport, fileName: uploaded.name, videoSeconds: hosted.videoSeconds, kind: "review" as const, onHosted: hosted.onHosted } : {}),
   });
   logger.info(`[gemini] generateContent returned ${responseText.length} chars`);
 
@@ -386,6 +405,8 @@ export function parseGeminiSessionAnalysis(responseText: string): GeminiSessionA
     combined,
     annotations,
     coaching,
+    // Checked later (acceptQuickCoach): a bad coach card never fails the review.
+    ...(candidate.quick_coach !== undefined ? { quick_coach: candidate.quick_coach } : {}),
     ...(cueCompliance ? { cue_compliance: cueCompliance } : {}),
   };
 }

@@ -1,4 +1,4 @@
-import type { ProviderId } from "./providers";
+import type { KeyProviderId } from "./providers";
 
 // Guards on what goes into a deep review — the user's own key pays for
 // every call, so the app refuses what can only waste money (a stuck retry
@@ -36,7 +36,7 @@ export function cleanApiKey(raw: string): string {
 // The provider a key's prefix gives away, when it's distinctive enough to
 // say — so a Claude key pasted under OpenAI gets a useful hint instead of a
 // bare "rejected".
-export function providerForKey(key: string): ProviderId | null {
+export function providerForKey(key: string): KeyProviderId | null {
   if (key.startsWith("sk-ant-")) return "anthropic";
   if (key.startsWith("sk-or-")) return "openrouter";
   if (key.startsWith("AIza")) return "gemini";

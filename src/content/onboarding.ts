@@ -140,7 +140,7 @@ export const QUESTIONS: Question[] = [
     title: "Turn on your AI coach",
     subtitle: "Your phone can count. It can't tell whether your answer made sense or your tone landed — an AI coach can, so Tono leans on it for your scores, your starting point and your plan.",
     optional: true,
-    changes: "Skip it and everything runs on this phone. Add a key any time in Settings → Deep reviews.",
+    changes: "Skip it and everything runs on this phone. Turn it on any time in Settings → Deep reviews.",
   },
   { id: "retention", chapter: 2, title: "How long should full videos be kept?", changes: "Older videos are cleared automatically; the best and the toughest take from each month are always kept." },
   {

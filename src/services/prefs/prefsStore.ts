@@ -37,6 +37,7 @@ const KEYS = {
   skillCheckPending: "skillCheckPending",
   cloudReviewDefault: "cloudReviewDefault",
   cloudProvider: "cloudProvider",
+  accountCache: "accountCache",
   cloudModels: "cloudModels",
   cloudConsent: "cloudConsent",
   videoRetentionDays: "videoRetentionDays",
@@ -289,12 +290,29 @@ export function setCloudReviewDefault(value: boolean): void {
   storage.set(KEYS.cloudReviewDefault, value);
 }
 
-const PROVIDER_IDS: ProviderId[] = ["gemini", "openai", "anthropic", "openrouter"];
+const PROVIDER_IDS: ProviderId[] = ["tono", "gemini", "openai", "anthropic", "openrouter"];
 
-// Which bring-your-own-key provider runs deep reviews (Gemini until chosen).
+// Which provider runs deep reviews: Tono AI until one is chosen. (Phones that
+// already had a Gemini key are moved to Gemini once, at launch, by
+// services/account/accountStore.ts, so their key keeps working.)
 export function getCloudProvider(): ProviderId {
   const id = storage.getString(KEYS.cloudProvider);
-  return id && (PROVIDER_IDS as string[]).includes(id) ? (id as ProviderId) : "gemini";
+  return id && (PROVIDER_IDS as string[]).includes(id) ? (id as ProviderId) : "tono";
+}
+
+export function hasChosenCloudProvider(): boolean {
+  return storage.getString(KEYS.cloudProvider) !== undefined;
+}
+
+// The last known signed-in account, as JSON (domain/account.ts). Kept so the
+// app knows who you are and what you have left before the network answers.
+export function getAccountCacheRaw(): string | null {
+  return storage.getString(KEYS.accountCache) ?? null;
+}
+
+export function setAccountCacheRaw(raw: string | null): void {
+  if (raw) storage.set(KEYS.accountCache, raw);
+  else storage.remove(KEYS.accountCache);
 }
 
 export function setCloudProvider(id: ProviderId): void {

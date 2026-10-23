@@ -4,6 +4,8 @@ import { getUserProfile } from "../../prefs/prefsStore";
 import { getArtifact, putArtifact } from "../../db/artifactsRepo";
 import { describeSessionSubject } from "../../sessions/sessionSubject";
 import { ruleCoach, type CoachOutput } from "../../../domain/coach/ruleCoach";
+import { acceptQuickCoach, mergeCloudCoach, type CloudCoaching } from "../../../domain/coach/cloudCoach";
+import { logger } from "../../../utils/logger";
 import type { PauseAnalysis } from "../../../domain/dsp/pauses";
 import type { PresenceMetrics } from "../../../domain/presenceMetrics";
 import type { FrameworkId } from "../../../domain/coach/structureHeuristics";
@@ -11,9 +13,25 @@ import { StepError } from "../stepRunner";
 import { coachWithOnDeviceModel } from "../../onDeviceLlm/onDeviceCoach";
 import { measuredVoice, refreshSessionScore } from "../../sessions/sessionScoreService";
 
-// On-device coaching: measured signals -> one strength, one tip, a focus
-// skill and a follow-up question. Uses the Apple on-device model when
-// available (Phase 2B), otherwise deterministic rules — never the cloud.
+// Lays a Tono AI review's own coaching over this take's coach card. The
+// phone's coach runs first so the Result screen has something at once; the
+// review's version replaces its words when it arrives. A card the review
+// didn't write well enough to use leaves the phone's coaching as it was.
+export async function applyCloudCoach(sessionId: string, quickCoach: unknown, model?: string): Promise<void> {
+  const cloud = acceptQuickCoach(quickCoach, model);
+  if (!cloud) {
+    logger.warn(`[coach] ${sessionId}: the review's coach card wasn't usable — keeping the phone's`);
+    return;
+  }
+  await putArtifact(sessionId, "cloud_coach", cloud);
+  const coach = await getArtifact<CoachOutput>(sessionId, "coach");
+  if (coach) await putArtifact(sessionId, "coach", mergeCloudCoach(coach, cloud));
+}
+
+// Coaching: measured signals -> one strength, one tip, a focus skill and a
+// follow-up question. The phone writes it (the Apple on-device model when
+// available, otherwise deterministic rules); a Tono AI review's coaching, when
+// the take has one, replaces the words (applyCloudCoach).
 export async function coachStep(sessionId: string): Promise<void> {
   const session = await getSessionById(sessionId);
   if (!session) throw new StepError("Session not found.");
@@ -41,7 +59,10 @@ export async function coachStep(sessionId: string): Promise<void> {
     targetFramework: (session.subjectExtras?.targetFramework as FrameworkId | undefined) ?? null,
   };
   const rules = ruleCoach(input);
-  const output: CoachOutput = (await coachWithOnDeviceModel(input, rules)) ?? rules;
+  // A re-run (after a transcript retry, say) keeps the review's coaching and
+  // skips the on-device model it would only replace.
+  const cloud = await getArtifact<CloudCoaching>(sessionId, "cloud_coach");
+  const output: CoachOutput = cloud ? mergeCloudCoach(rules, cloud) : ((await coachWithOnDeviceModel(input, rules)) ?? rules);
   await putArtifact(sessionId, "coach", output);
   await refreshSessionScore(sessionId);
   // Skill mastery moves once the whole take has settled, deep review

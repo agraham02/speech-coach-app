@@ -5,11 +5,12 @@ import { getAppleProvider, isAppleModelAvailable } from "../onDeviceLlm/onDevice
 import { callTextProvider, type TextProviderId } from "../cloud/textProviders";
 import { toStrictSchema } from "../cloud/jsonSchema";
 import { MAX_REVIEW_WORDS, fenced, reviewsLeft, wordCount } from "../cloud/inputGuards";
-import { currentProvider, hasConsent, hasProviderKey, modelFor } from "../cloud/providers";
+import { modelFor } from "../cloud/providers";
+import { providerFor } from "../cloud/routing";
 import { speakerContextForReview } from "../cloud/speakerContext";
 import { generateContent } from "../gemini/geminiClient";
 import { SPEECH_IS_DATA, STUTTER_NOTE } from "../gemini/schema";
-import { getCloudCallsToday, getCloudReviewDefault, getUserProfile, noteCloudCall } from "../prefs/prefsStore";
+import { getCloudCallsToday, getUserProfile, noteCloudCall } from "../prefs/prefsStore";
 import { todayISODate } from "../../utils/dateUtils";
 import { withDeadline } from "../../utils/fetchWithTimeout";
 import { logger } from "../../utils/logger";
@@ -40,25 +41,32 @@ function systemFor(setup: SummarySetup): string {
   return SUMMARY_REVIEW_SYSTEM[setup.type] + speakerContextForReview() + SPEECH_IS_DATA + (stutters ? STUTTER_NOTE : "");
 }
 
-export function cloudReviewAvailable(): Promise<boolean> {
-  const provider = currentProvider();
-  if (!getCloudReviewDefault() || !hasConsent(provider.id)) return Promise.resolve(false);
-  return hasProviderKey(provider.id);
+// Tono AI when signed in with something left, else the person's own key, else
+// nobody off-phone (domain/aiRouting.ts).
+export async function cloudReviewAvailable(): Promise<boolean> {
+  return (await providerFor("summary_notes", { hasVideo: false })) !== null;
 }
 
 async function reviewInCloud(setup: SummarySetup, transcripts: string[]): Promise<SummaryReviewResult | null> {
-  if (!(await cloudReviewAvailable())) return null;
-  const provider = currentProvider();
+  const resolved = await providerFor("summary_notes", { hasVideo: false });
+  if (!resolved) return null;
+  const { provider, transport } = resolved;
+  const hosted = transport === "hosted";
   const today = todayISODate();
-  if (reviewsLeft(getCloudCallsToday(today)) <= 0) return null;
+  // The person's own key has a daily cap here; Tono AI's server has its own.
+  if (!hosted && reviewsLeft(getCloudCallsToday(today)) <= 0) return null;
   const prompt = buildSummaryReviewPrompt(setup, transcripts, fenced);
   const system = systemFor(setup);
   try {
-    noteCloudCall(today);
+    if (!hosted) noteCloudCall(today);
     const schema = jsonSchemaFor(setup.type);
     const raw =
-      provider.id === "gemini"
-        ? await withDeadline(generateContent({ systemPrompt: `${system}\n\n${prompt}`, responseSchema: schema }), CLOUD_TIMEOUT_MS, `${provider.name} summary notes`)
+      provider.id === "gemini" || hosted
+        ? await withDeadline(
+            generateContent({ systemPrompt: `${system}\n\n${prompt}`, responseSchema: schema, ...(hosted ? { transport: "hosted" as const, kind: "text" as const } : {}) }),
+            CLOUD_TIMEOUT_MS,
+            `${provider.name} summary notes`,
+          )
         : await withDeadline(
             callTextProvider({ provider: provider.id as TextProviderId, model: modelFor(provider.id), system, user: prompt, schemaName: "summary_review", schema: toStrictSchema(schema) }),
             CLOUD_TIMEOUT_MS,

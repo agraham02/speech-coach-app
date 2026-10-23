@@ -45,7 +45,16 @@ export function timedTranscript(words: TranscriptWord[]): string {
 
 const round = (n: number, digits = 0) => Number(n.toFixed(digits));
 
-export function measurementLines({ session, pauses, presence, stutterMode }: Omit<MeasuredReviewInput, "context">): string[] {
+// `withFillers: false` leaves out the filler and repeated-word counts. A video
+// review hears the audio itself and counts those from its own transcript, so it
+// must not be handed the phone's.
+export function measurementLines({
+  session,
+  pauses,
+  presence,
+  stutterMode,
+  withFillers = true,
+}: Omit<MeasuredReviewInput, "context"> & { withFillers?: boolean }): string[] {
   const lines: string[] = [];
   const { wpmAvg } = measuredVoice(session);
   lines.push(`- Duration: ${Math.round(session.durationSeconds)} s`);
@@ -54,10 +63,10 @@ export function measurementLines({ session, pauses, presence, stutterMode }: Omi
     const range = curve.length > 1 ? ` (from ${Math.min(...curve)} to ${Math.max(...curve)} wpm across the take)` : "";
     lines.push(`- Pace: ${wpmAvg} words per minute on average${range}`);
   }
-  if (!stutterMode && session.fillerWordCount != null) {
+  if (withFillers && !stutterMode && session.fillerWordCount != null) {
     lines.push(`- Filler words: ${session.fillerWordCount}${session.fillerRatePerMinute != null ? ` (${round(session.fillerRatePerMinute, 1)} per minute)` : ""}`);
   }
-  if (!stutterMode && session.repeatedWordCount) lines.push(`- Repeated words (the same word twice in a row): ${session.repeatedWordCount}`);
+  if (withFillers && !stutterMode && session.repeatedWordCount) lines.push(`- Repeated words (the same word twice in a row): ${session.repeatedWordCount}`);
   if (pauses) {
     const parts = [`${round(pauses.pausesPerMinute, 1)} pauses per minute`, `longest ${round(pauses.longestPauseMs / 1000, 1)} s`];
     if (!stutterMode) parts.push(`${pauses.hesitations} hesitations (mid-phrase gaps of 2 s or more)`);

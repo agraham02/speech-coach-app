@@ -8,6 +8,9 @@ import { useFonts } from "expo-font";
 import { AppNavigator } from "./src/navigation";
 import { isModelDownloaded, DEFAULT_ASR_MODEL, tidyModelsFolder, subscribeModelReady } from "./src/services/asr/whisperModels";
 import { retryWaitingTakes } from "./src/services/pipeline/retryWaitingTakes";
+import { initAccount } from "./src/services/account/accountStore";
+import { initPurchases } from "./src/services/purchases/purchases";
+import { logger } from "./src/utils/logger";
 import { ToastProvider } from "./src/components/common/ToastProvider";
 import { CelebrationHost } from "./src/components/celebrate/CelebrationHost";
 import { GuideProvider } from "./src/components/common/GuideTip";
@@ -41,6 +44,14 @@ export default function App() {
   useEffect(() => {
     if (isModelDownloaded(DEFAULT_ASR_MODEL)) retryWaitingTakes().catch(() => undefined);
     return subscribeModelReady(() => retryWaitingTakes().catch(() => undefined));
+  }, []);
+
+  // The sign-in session and what Tono AI has left. Never blocks the app: a
+  // failure just leaves the person signed out, and the phone-only features work.
+  useEffect(() => {
+    initAccount()
+      .catch((error) => logger.warn(`[account] startup failed — ${(error as Error).message}`))
+      .finally(initPurchases);
   }, []);
 
   useEffect(() => {
