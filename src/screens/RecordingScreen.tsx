@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { GuideTip, TourTarget } from "../components/common/GuideTip";
-import { Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, AppState, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -13,8 +13,8 @@ import { FramingGuideOverlay } from "../components/recording/FramingGuideOverlay
 import { PrepOverlay } from "../components/recording/PrepOverlay";
 import { PromptBanner } from "../components/recording/PromptBanner";
 import { NotesTeleprompterOverlay } from "../components/recording/NotesTeleprompterOverlay";
-import { armPrepAlert, clearPrepAlert } from "../services/recording/prepAlert";
-import { startPrepActivity } from "../services/recording/prepActivity";
+import { armAwayAlert, clearPrepAlert, quietAwayAlert } from "../services/recording/prepAlert";
+import { endPrepActivity, prepActivityRunning, startPrepActivity } from "../services/recording/prepActivity";
 import { deadlineFor, extendDeadline, PREP_CHOICES, prepUsedFrom, researchHelps, searchUrl, startResearch } from "../domain/prepTimer";
 import { useDeadlineCountdown } from "../hooks/useDeadlineCountdown";
 import { taskLabel, taskOf } from "../domain/promptTask";
@@ -164,9 +164,11 @@ export function RecordingScreen({ route, navigation }: Props) {
     setTimeUp(false);
     setPrepDeadline(deadline);
     setStage("prep");
-    if (mode === "research") armPrepAlert(deadline, prepText);
-    // A long plain prep gets the Dynamic Island timer too, without the alert.
-    else if (seconds >= 60) startPrepActivity(prepText, now, deadline).catch(() => undefined);
+    // The Dynamic Island timer starts now, while the app is in front (iOS
+    // won't start one later). Research also gets the away alert, armed as
+    // you leave; a long plain prep gets only the timer.
+    if (mode === "research") startPrepActivity(prepText, now, deadline, "Researching").catch(() => undefined);
+    else if (seconds >= 60) startPrepActivity(prepText, now, deadline, "Preparing").catch(() => undefined);
   }
 
   function advanceFromWarmUp() {
@@ -180,7 +182,7 @@ export function RecordingScreen({ route, navigation }: Props) {
     setPrepDeadline(next);
     setPrepMode("research");
     setTimeUp(false);
-    armPrepAlert(next, prepText);
+    startPrepActivity(prepText, now, next, "Researching").catch(() => undefined);
   }
 
   function addPrepTime() {
@@ -188,7 +190,9 @@ export function RecordingScreen({ route, navigation }: Props) {
     const next = extendDeadline(prepDeadline ?? now, now);
     setPrepDeadline(next);
     setTimeUp(false);
-    if (prepMode === "research") armPrepAlert(next, prepText);
+    // Moves the running timer (or starts one if time had run out).
+    if (prepMode === "research") startPrepActivity(prepText, now, next, "Researching").catch(() => undefined);
+    else if (next - now >= 60_000 || prepActivityRunning()) startPrepActivity(prepText, now, next, "Preparing").catch(() => undefined);
   }
 
   // "No prep": back to the ready screen, with nothing counted as preparation.
@@ -204,6 +208,8 @@ export function RecordingScreen({ route, navigation }: Props) {
 
   function searchTheWeb() {
     searchedRef.current = true;
+    // Armed here, while the app is still in front, as well as on the way out.
+    if (prepDeadline != null && !timeUp) armAwayAlert(prepDeadline, prepText);
     Linking.openURL(searchUrl(prepText)).catch(() => showGlobalToast("Couldn't open your browser.", "error"));
   }
 
@@ -292,9 +298,40 @@ export function RecordingScreen({ route, navigation }: Props) {
   }
 
   const prepRemaining = useDeadlineCountdown(prepDeadline, stage === "prep", () => {
-    if (prepMode === "research") setTimeUp(true);
-    else beginRecording();
+    if (prepMode === "research") {
+      setTimeUp(true);
+      // "Time's up" is on screen, so the timer and the alert are done. Not
+      // while the app is in the background: the alert is still to fire, and
+      // coming back ends both (below).
+      if (AppState.currentState === "active") clearPrepAlert();
+    } else beginRecording();
   });
+
+  // Research in another app: the away alert is armed as you leave and quieted
+  // as you come back, so it only ever reaches you while you're gone. Back
+  // after the deadline, the timer ends too; back early, it keeps running for
+  // the next trip out (and iOS hides it from the Dynamic Island meanwhile).
+  const researching = stage === "prep" && prepMode === "research" && prepDeadline != null;
+  useEffect(() => {
+    if (!researching || prepDeadline == null) return undefined;
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        quietAwayAlert();
+        if (Date.now() >= prepDeadline) endPrepActivity().catch(() => undefined);
+      } else if (Date.now() < prepDeadline) {
+        armAwayAlert(prepDeadline, prepText);
+      }
+    });
+    return () => sub.remove();
+  }, [researching, prepDeadline, prepText]);
+
+  // A countdown that opens the screen (no warm-up first) gets the timer too.
+  useEffect(() => {
+    if (initialStage === "prep" && prepDeadline != null && prepDurationSeconds >= 60) {
+      startPrepActivity(prepText, Date.now(), prepDeadline, "Preparing").catch(() => undefined);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Nothing left armed if you leave mid-research.
   useEffect(() => () => void clearPrepAlert(), []);
