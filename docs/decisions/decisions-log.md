@@ -12,7 +12,7 @@ What Ahmad decided, with the reason, so later sessions don't re-open it. Newest 
 - **Remove bring-your-own-key** entirely. Testers' stored keys get deleted on update. Only Tono AI.
 - **Sign-in stays optional.** Free use needs no account. An anonymous Supabase account linked to RevenueCat behind the scenes, so purchases work without forced registration.
 - **Age:** ask the user's age range in onboarding. Ahmad's understanding is that people under 18 can use Gemini (Google promotes it to students). Session 04 read the Gemini *API* terms as requiring 18 or older for apps built on it. Session 08 must check the current terms text and decide what to do with minors; don't block anyone on the strength of either claim until that's read.
-- **Open:** what "a free taste of AI" means for free users (none, one judged take a month, or one sample conversation). Ahmad asked for an explanation; undecided.
+- **Free taste of AI: one judged take a month** for free users outside the trial (decided 2026-10-23). Costs about 1.3 cents per take. Session 08 builds it as a server setting so the count can change without an app update.
 
 ### Signals (from the signal-capture research)
 
@@ -22,7 +22,7 @@ What Ahmad decided, with the reason, so later sessions don't re-open it. Newest 
 - **Face detection at 15 frames a second or more**, battery cost accepted.
 - **Shaky voice is dropped as a goal** (jitter, shimmer, tremor, and the held-vowel check).
 - **"Like" and "actually" count as fillers, but as a different kind of filler** from the traditional ones (um, uh), because they depend on context. Show them separately.
-- **Open:** keep a small audio-only copy of every take after the video is deleted? Ahmad asked why. Undecided.
+- **No audio-only copy of deleted takes** (decided 2026-10-23). Deleting a video deletes its audio with it, by hand or by the retention cleanup. The app already keeps each month's best and toughest take as keepsakes (`src/domain/videoKeepsakes.ts`); those keep their video and audio and are the takes that can be re-analysed when the algorithms improve. Every other take keeps its transcript, its numbers and the small versioned feature track, and older numbers are labelled as measured with the older method.
 
 ### Small decisions, accepted as built
 
