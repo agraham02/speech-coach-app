@@ -40,3 +40,9 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# real recordings analysis exports (personal transcripts; repo is public)
+/analysis_samples/
+
+# supabase CLI local state
+supabase/.temp/

@@ -1,0 +1,36 @@
+# Supabase project settings used by the CLI (deploys only). Run
+#   npx supabase login
+#   npx supabase link --project-ref dtqbsdhjwmftwozstpwk
+#   npx supabase functions deploy --use-api
+# verify_jwt is off because every function checks the caller itself with
+# auth.getUser (the platform check does not understand the new signing keys).
+
+project_id = "dtqbsdhjwmftwozstpwk"
+
+[functions.ai-upload-start]
+verify_jwt = false
+import_map = "./functions/deno.json"
+
+[functions.ai-file]
+verify_jwt = false
+import_map = "./functions/deno.json"
+
+[functions.ai-generate]
+verify_jwt = false
+import_map = "./functions/deno.json"
+
+[functions.me]
+verify_jwt = false
+import_map = "./functions/deno.json"
+
+[functions.apple-token]
+verify_jwt = false
+import_map = "./functions/deno.json"
+
+[functions.delete-account]
+verify_jwt = false
+import_map = "./functions/deno.json"
+
+[functions.revenuecat-webhook]
+verify_jwt = false
+import_map = "./functions/deno.json"
