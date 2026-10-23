@@ -67,10 +67,13 @@ export function AnnotatedTranscript({
   const panelProgress = useSharedValue(0);
 
   const fillerMatches = detectFillerWords(transcriptVerbatim);
+  // The two kinds are shown apart: um/uh, and words like "like" or "you
+  // know" that are fillers only in context (domain/fillers.ts).
+  const typed = computeFillerStats(transcriptVerbatim, durationSeconds);
   const stats =
     fillerWordCount !== null && fillerRatePerMinute !== null
-      ? { count: fillerWordCount, ratePerMinute: fillerRatePerMinute, label: labelForRate(fillerRatePerMinute) }
-      : computeFillerStats(transcriptVerbatim, durationSeconds);
+      ? { ...typed, count: fillerWordCount, ratePerMinute: fillerRatePerMinute, label: labelForRate(fillerRatePerMinute) }
+      : typed;
 
   const repeatedWordMatches =
     transcriptWords && transcriptWords.length > 0
@@ -83,7 +86,10 @@ export function AnnotatedTranscript({
       start: match.start,
       end: match.end,
       category: "filler" as AnnotationCategory,
-      note: `Filler word ("${match.word}") — cut it or replace it with a deliberate pause.`,
+      note:
+        match.type === "hesitation"
+          ? `Filler sound ("${match.word}") — cut it or replace it with a deliberate pause.`
+          : `Filler word ("${match.word}") — here it fills a gap instead of adding meaning. A pause does the same job.`,
     })),
     ...(() => {
       // Same "advance past claimed spans" tracking as the Gemini-annotation
@@ -154,6 +160,11 @@ export function AnnotatedTranscript({
       <Text style={styles.statLine}>
         {stats.count} filler word{stats.count === 1 ? "" : "s"} · {stats.ratePerMinute}/min · {stats.label}
       </Text>
+      {typed.count > 0 ? (
+        <Text style={styles.statLine}>
+          {typed.hesitation.count} um or uh · {typed.contextual.count} like, you know, actually…
+        </Text>
+      ) : null}
       {repeatedCount > 0 ? (
         <Text style={styles.statLineSecondary}>
           {repeatedCount} repeated speech pattern{repeatedCount === 1 ? "" : "s"}
