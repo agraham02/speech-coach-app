@@ -7,13 +7,11 @@ import { ListGroup, ListRow } from "../common/ListRow";
 import { DEFAULT_ASR_MODEL, cancelDownload, deleteModel, downloadedModelBytes, formatModelSize, formatSpeed, getDownloadState, isModelDownloaded, modelInfo, pauseDownload, startDownload, subscribeDownloads } from "../../services/asr/whisperModels";
 import { releaseWhisperContext } from "../../services/asr/whisperRn";
 import { Txt } from "../common/Txt";
-import { isAppleModelAvailable } from "../../services/onDeviceLlm/onDeviceCoach";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 // Settings → Coaching & AI: what runs on the phone, and what it runs on.
 export function OnDeviceAiSettings() {
   const styles = useStyles();
-  const [appleCoach] = useState(() => isAppleModelAvailable());
   const [onDeviceRecognition] = useState(() => {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -26,7 +24,7 @@ export function OnDeviceAiSettings() {
   return (
     <>
       <ListGroup>
-        <StatusLine label="Coaching" value={appleCoach ? "Apple Intelligence" : "Built-in rules"} ok />
+        <StatusLine label="Coaching" value="Built-in rules" ok />
         <StatusLine label="Live recognition" value={onDeviceRecognition ? "On-device" : "System recognizer"} ok={onDeviceRecognition} />
         <TranscriptionModelRow />
         <FaceCalibrationRows />

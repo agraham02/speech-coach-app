@@ -3,7 +3,7 @@ import { File, Paths } from "expo-file-system";
 import { decodeVideoAudio, type DecodedAudio } from "../../domain/audioAnalysis";
 import { encodeWavPcm16 } from "../../domain/eval/wer";
 import type { TimedWord } from "../../domain/asr/verbatim";
-import { getAppleProvider } from "../onDeviceLlm/onDeviceCoach";
+import { getAppleProvider } from "./appleProvider";
 import { isModelDownloaded, type WhisperModelId } from "./whisperModels";
 import { FILLER_PROMPT, transcribeWithWhisperRn } from "./whisperRn";
 

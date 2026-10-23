@@ -1,11 +1,10 @@
-import { z } from "zod";
 import { parseNotation } from "./notation";
 import { sanitizeMarks, wordsOf, type MarkedText } from "./marks";
 
-// On-device model marking (Apple Foundation Models). Asking a small model
-// for word indices is fragile, so it returns the text rewritten in the
-// notation instead; we parse it and accept it only if the words come back
-// exactly as given. Anything else falls back to the rule marker. Pure.
+// AI marking (Tono AI). Asking a model for word indices is fragile, so it
+// returns the text rewritten in the notation instead; we parse it and accept
+// it only if the words come back exactly as given. Anything else falls back
+// to the rule marker. Pure.
 
 export const AUTO_MARK_SYSTEM = `You mark short texts for reading aloud, like a voice coach annotating a script.
 Rewrite the text EXACTLY as given — same words, same order, same punctuation — adding only these marks:
@@ -20,11 +19,7 @@ export function buildAutoMarkPrompt(text: string): string {
   return `Mark this text:\n\n${text}`;
 }
 
-export const autoMarkSchema = z.object({
-  marked: z.string().describe("The same text with the marks added"),
-});
-
-// The same answer shape as a JSON schema, for Tono AI's text call.
+// The answer's shape as a JSON schema, for Tono AI's text call.
 export const AUTO_MARK_JSON_SCHEMA = {
   type: "object",
   properties: { marked: { type: "string", description: "The same text with the marks added" } },

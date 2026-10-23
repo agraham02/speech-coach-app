@@ -24,12 +24,12 @@ describe("withQuickCoach", () => {
 });
 
 describe("hostedReviewSection", () => {
-  it("hands over the measurements for the notes only", () => {
+  it("hands over the measurements as evidence for the scores, never to be contradicted", () => {
     const text = hostedReviewSection(["- Pace: 150 words per minute on average", "- Face (camera): eye contact with the lens 64%"]);
     expect(text).toContain("- Pace: 150 words per minute on average");
     expect(text).toContain("eye contact with the lens 64%");
-    expect(text).toMatch(/for your notes only/);
-    expect(text).toMatch(/must not move any score/);
+    expect(text).toMatch(/use them as evidence for your scores/);
+    expect(text).toMatch(/Never contradict a measured number/);
     expect(text).toMatch(/Count filler words yourself/);
   });
 

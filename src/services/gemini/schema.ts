@@ -85,7 +85,7 @@ export const RESPONSE_SCHEMA = {
               type: "string",
               description:
                 NOTE_DESCRIPTION +
-                " Explicitly count filler words (um, uh, like, you know, etc.) you hear and state the count and approximate rate per minute — research puts 5/min or fewer as barely noticeable, a dozen/min as clearly hurting perceived competence, so weight this score accordingly rather than ignoring it.",
+                " Pace only: filler words are scored separately, so don't lower this score for them.",
             },
           },
           required: ["score", "wpm_avg", "notes"],
@@ -252,28 +252,33 @@ export function withQuickCoach(schema: object): object {
   return { ...base, properties: { ...base.properties, quick_coach: QUICK_COACH_FIELD }, required: [...base.required, "quick_coach"] };
 }
 
-// What a Tono AI video review adds to the prompt: the phone's measurements
-// (for the notes only, never the transcript or the filler count: Gemini once
-// copied the phone's transcript, so it hears the audio itself) and how to
-// write the coach card.
-export function hostedReviewSection(measurementLines: string[]): string {
-  const measured = measurementLines.length
-    ? `
-
-MEASURED ON THE PHONE while they spoke (for your notes only):
-${measurementLines.join("\n")}
-
-Use these numbers to make your notes concrete: quote them where they help ("eye contact was 64% by the phone's count"). They must not move any score, and they are not a transcript. Score every dimension only from what you see and hear in the video, and if the video clearly contradicts a number, say so in the note rather than deferring to it. Count filler words yourself, from the audio.`
-    : "";
-  return `${measured}
+// How to write the coach card that comes back with a Tono AI review.
+export const QUICK_COACH_INSTRUCTIONS = `
 
 Also fill quick_coach, the short coaching card that sits beside the full review:
 - strength: one specific thing they did well, under 20 words.
 - tip: the single most useful change for next time, concrete, under 35 words.
-- focus_skill: the one skill that tip trains. articulation = crisp, clear words. cadence = pace, pauses and vocal melody. impromptu = structure and thinking on your feet (fillers, rambling, a slow start). confidence = presence, eye contact, hedging and how they end.
+- focus_skill: the one skill that tip trains. articulation = crisp, clear words. cadence = pace, pauses, pitch variety and emphasis. impromptu = structure, staying on the point, clarity and fluency (fillers, stalls, a slow start). confidence = eye contact, expression and conviction (hedging, how they end).
   conversation = answering naturally and staying on the point of a question.
 - follow_up_question: a natural question a listener would ask next, under 18 words.
 Speak to the speaker directly ("you"), and don't repeat the coaching summary word for word.`;
+
+// What a Tono AI video review adds to the prompt: the phone's measurements as
+// evidence for the scores (never the transcript or the filler count: the
+// judge hears the audio itself and counts those from its own transcript), and
+// how to write the coach card. The judge's scores are the take's scores
+// (docs/decisions/scoring-taxonomy.md); the measurements are facts it must
+// not contradict.
+export function hostedReviewSection(measurementLines: string[]): string {
+  const measured = measurementLines.length
+    ? `
+
+MEASURED ON THE PHONE while they spoke:
+${measurementLines.join("\n")}
+
+These are facts, measured more precisely than you can from the video (it is sampled about once a second): use them as evidence for your scores and quote them in your notes ("eye contact was 64% by the phone's count"). Never contradict a measured number (don't claim a different pace or eye-contact share). Judge what the numbers can't show, such as whether a pace or a pause suited the moment and how the voice came across, from what you see and hear. Count filler words yourself, from the audio.`
+    : "";
+  return measured + QUICK_COACH_INSTRUCTIONS;
 }
 
 // When present and non-empty, gives Gemini the speaker's own stated PREP plan
@@ -311,7 +316,7 @@ Grade CONTENT — this is Toastmasters' third pillar alongside structure and del
 - coherence: are the sentences clear and well-formed? Does the response flow logically? Does it tell an engaging, concrete story rather than staying abstract? Critically, watch for RESTATED POINTS: flag every instance where the speaker makes a point, then later makes essentially the same point again — reworded, restated, or approached from a slightly different angle — without adding new information, a new example, or advancing the argument. This is different from emphasis/intentional repetition for rhetorical effect (e.g. a deliberate callback or a rule-of-three) — only flag it when it reads as the speaker running out of new things to say and circling back, not as a deliberate device. When this happens, name it in coherence_notes AND create a "restated_point" annotation for BOTH occurrences (the original point and its restatement) so each is individually highlighted — this is one of the most common and important weaknesses to catch, not a minor style note.
 
 Grade DELIVERY using Vinh Giang's five vocal foundations, each scored 1-10:
-- rate: pacing — too fast, too slow, or well-varied for emphasis? Explicitly count filler words you hear (um, uh, like, you know, sort of, kind of, basically, actually, literally) and state the count and rate per minute in your notes — 5/min or fewer is barely noticeable, a dozen/min or more clearly hurts perceived competence, and this should visibly move the score, not just be mentioned in passing.
+- rate: pacing — too fast, too slow, or well-varied for emphasis? Pace only: filler words are scored separately (from your verbatim transcript), so don't lower this score for them.
 - volume: is it varied deliberately, or flat/monotone in loudness?
 - pitch_melody: does the pitch rise and fall naturally, or is delivery flat?
 - tonality: does the vocal tone match the emotional content of what's being said?
@@ -378,7 +383,7 @@ Produce two transcripts of what they actually said:
 Also report duration_seconds: the approximate duration of the spoken response in seconds.
 
 Grade DELIVERY using Vinh Giang's five vocal foundations, each scored 1-10:
-- rate: pacing — too fast, too slow, or well-varied for emphasis? Explicitly count filler words you hear and state the count and rate per minute.
+- rate: pacing — too fast, too slow, or well-varied for emphasis? Pace only: filler words are scored separately.
 - volume: is it varied deliberately, or flat/monotone?
 - pitch_melody: does pitch rise and fall naturally, or is delivery flat?
 - tonality: does vocal tone match the content being said?

@@ -18,6 +18,7 @@ import { evaluateSummary, type SummaryDetails } from "../domain/summary/evaluate
 import { words } from "../domain/conversation/text";
 import { getDrillLevel, recordDrillOutcome } from "../services/db/progressRepo";
 import { reviewSummary, type SummaryReviewResult } from "../services/summary/summaryReview";
+import { producerName } from "../domain/analysis/provenance";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { logger } from "../utils/logger";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
@@ -115,7 +116,7 @@ export function SummaryRunnerScreen({ route, navigation }: Props) {
         level: current.level,
         contentId: current.contentId,
         lessonId: practice?.lessonId,
-        metrics: { ...evaluated.details, reviewSource: review?.source ?? null },
+        metrics: { ...evaluated.details, reviewSource: review ? review.provenance.producer : null },
       });
       setReviewed(review);
       setResult(evaluated);
@@ -253,7 +254,7 @@ export function SummaryRunnerScreen({ route, navigation }: Props) {
   function renderResult({ outcome, details }: { outcome: DrillOutcome; details: SummaryDetails }) {
     if (!setup) return null;
     const review = details.review ?? null;
-    const label = reviewed?.source === "cloud" ? `From your AI coach (${reviewed.provider})` : "On-device notes";
+    const label = `From your AI coach (${producerName(reviewed?.provenance)})`;
     const jargon = new Set([...(details.turns[0]?.longWords ?? []), ...(review?.drill === "explain_simple" ? review.jargon.flatMap((j) => words(j)) : [])]);
     return (
       <>

@@ -1,8 +1,11 @@
 import { ALL_ALLOWED, SIGNED_OUT, type AccountSnapshot } from "../../../domain/account";
+import { routeAnalysis } from "../../../domain/analysis/routing";
+import type { AnalysisKind } from "../../../domain/analysis/types";
 
-let mockPrefs = { provider: "tono", cloudReviewOn: true, consent: ["tono"] as string[] };
+let mockPrefs = { provider: "tono", cloudReviewOn: true, consent: ["tono"] as string[], judgeInput: "text", rewindConsent: [] as string[] };
 let mockAccount: AccountSnapshot = SIGNED_OUT;
 let mockKeys: Record<string, string | null> = {};
+const mockRefresh = jest.fn(async () => undefined);
 
 jest.mock("../../prefs/prefsStore", () => ({
   getCloudProvider: () => mockPrefs.provider,
@@ -10,11 +13,13 @@ jest.mock("../../prefs/prefsStore", () => ({
   getCloudConsent: () => mockPrefs.consent,
   getCloudModel: () => null,
   getShareProfileWithReviews: () => false,
+  getJudgeInput: () => mockPrefs.judgeInput,
+  getRewindCloudConsent: () => mockPrefs.rewindConsent,
 }));
 jest.mock("../../secrets/secretsStore", () => ({ getProviderKey: async (id: string) => mockKeys[id] ?? null }));
-jest.mock("../../account/accountStore", () => ({ getAccount: () => mockAccount }));
+jest.mock("../../account/accountStore", () => ({ getAccount: () => mockAccount, refreshAccount: () => mockRefresh() }));
 
-import { providerFor, whyNoDeepReview } from "../routing";
+import { analysisContext, whyNoDeepReview, type ContextArgs } from "../routing";
 
 const signedIn = (patch: Partial<AccountSnapshot> = {}): AccountSnapshot => ({
   status: "signedIn",
@@ -30,67 +35,84 @@ const signedIn = (patch: Partial<AccountSnapshot> = {}): AccountSnapshot => ({
 });
 
 beforeEach(() => {
-  mockPrefs = { provider: "tono", cloudReviewOn: true, consent: ["tono"] };
+  mockPrefs = { provider: "tono", cloudReviewOn: true, consent: ["tono"], judgeInput: "text", rewindConsent: [] };
   mockAccount = signedIn();
   mockKeys = {};
+  mockRefresh.mockClear();
 });
 
-const review = { hasVideo: true, cloudReviewOn: true };
+const take: ContextArgs = { hasVideo: true, hasTranscript: true, takeOptIn: true };
+const route = async (kind: AnalysisKind, args: ContextArgs = take) => routeAnalysis(kind, await analysisContext({ ...args, kind }));
 
-describe("providerFor video_review", () => {
-  it("uses Tono AI through the server when signed in, allowed and consented", async () => {
-    expect(await providerFor("video_review", review)).toMatchObject({ transport: "hosted", provider: { id: "tono" } });
+describe("the take review route, from the live facts", () => {
+  it("goes to Tono AI from the transcript and measurements by default", async () => {
+    expect(await route("take_review")).toMatchObject({ producers: ["tono_ai"], tonoInput: "text" });
+  });
+
+  it("sends the video when that's the setting, or when there's no transcript", async () => {
+    mockPrefs.judgeInput = "video";
+    expect((await route("take_review")).tonoInput).toBe("video");
+    mockPrefs.judgeInput = "text";
+    expect((await route("take_review", { ...take, hasTranscript: false })).tonoInput).toBe("video");
   });
 
   it("falls back to an own key when signed out", async () => {
     mockAccount = SIGNED_OUT;
     mockKeys = { gemini: "AIzaKey" };
     mockPrefs.consent = ["tono", "gemini"];
-    expect(await providerFor("video_review", review)).toMatchObject({ transport: "direct", provider: { id: "gemini" } });
+    const ctx = await analysisContext(take);
+    expect(ctx.ownKey).toBe("gemini");
+    expect(routeAnalysis("take_review", ctx).producers).toEqual(["own_key"]);
   });
 
-  it("falls back to an own key when out of reviews", async () => {
-    mockAccount = signedIn({ allowed: { review: false, text: true, insight: true } });
-    mockKeys = { gemini: "AIzaKey" };
-    mockPrefs.consent = ["tono", "gemini"];
-    expect(await providerFor("video_review", review)).toMatchObject({ transport: "direct", provider: { id: "gemini" } });
+  it("falls back to an own key when out of Tono AI calls, and says why when there's none", async () => {
+    mockAccount = signedIn({ allowed: { review: true, text: false, insight: true } });
+    expect(await route("take_review")).toMatchObject({ producers: [], blocked: "quota" });
+    mockKeys = { openai: "sk-key" };
+    mockPrefs.consent = ["tono", "openai"];
+    expect((await route("take_review")).producers).toEqual(["own_key"]);
   });
 
-  it("is nothing when out of reviews with no key", async () => {
+  it("asks the server once when the cached allowance says no", async () => {
     mockAccount = signedIn({ allowed: { review: false, text: true, insight: true } });
-    expect(await providerFor("video_review", review)).toBeNull();
+    await analysisContext({ ...take, refresh: true });
+    expect(mockRefresh).toHaveBeenCalledTimes(1);
   });
 
   it("needs the person's consent for each provider", async () => {
     mockPrefs.consent = [];
-    expect(await providerFor("video_review", review)).toBeNull();
+    expect(await route("take_review")).toMatchObject({ producers: [], blocked: "no_consent" });
     mockKeys = { gemini: "AIzaKey" };
-    expect(await providerFor("video_review", review)).toBeNull();
+    expect((await route("take_review")).producers).toEqual([]);
   });
 
   it("keeps someone who chose their own provider on it, even when signed in to Tono", async () => {
-    mockPrefs = { provider: "openai", cloudReviewOn: true, consent: ["tono", "openai"] };
+    mockPrefs = { ...mockPrefs, provider: "openai", consent: ["tono", "openai"] };
     mockKeys = { openai: "sk-key", gemini: "AIzaKey" };
-    expect(await providerFor("video_review", review)).toMatchObject({ transport: "direct", provider: { id: "openai" } });
+    const ctx = await analysisContext(take);
+    expect(ctx.wantsTono).toBe(false);
+    expect(ctx.ownKey).toBe("openai");
+    expect(routeAnalysis("take_review", ctx).producers).toEqual(["own_key"]);
   });
 
   it("does not reach for a different own-key provider than the one chosen", async () => {
-    mockPrefs = { provider: "openai", cloudReviewOn: true, consent: ["gemini"] };
+    mockPrefs = { ...mockPrefs, provider: "openai", consent: ["gemini"] };
     mockKeys = { gemini: "AIzaKey" };
-    expect(await providerFor("video_review", review)).toBeNull();
+    expect((await route("take_review")).producers).toEqual([]);
   });
 
-  it("cannot review a deleted video with Tono AI", async () => {
-    expect(await providerFor("video_review", { hasVideo: false, cloudReviewOn: true })).toBeNull();
-  });
-});
-
-describe("providerFor text features", () => {
-  it("follows the Review every take switch", async () => {
+  it("follows the per-take switch, defaulting to Review every take", async () => {
     mockPrefs.cloudReviewOn = false;
-    expect(await providerFor("summary_notes", { hasVideo: false })).toBeNull();
+    expect(await route("summary_notes", { hasVideo: false, hasTranscript: true })).toMatchObject({ producers: [], blocked: "opted_out" });
     mockPrefs.cloudReviewOn = true;
-    expect(await providerFor("summary_notes", { hasVideo: false })).toMatchObject({ transport: "hosted" });
+    expect((await route("summary_notes", { hasVideo: false, hasTranscript: true })).producers).toEqual(["tono_ai"]);
+  });
+
+  it("lets a Rewind's own consent stand for an own key", async () => {
+    mockPrefs = { ...mockPrefs, provider: "anthropic", consent: [], rewindConsent: ["anthropic"] };
+    mockKeys = { anthropic: "sk-ant-key" };
+    expect((await route("rewind_notes", { hasVideo: false, hasTranscript: true, takeOptIn: true })).producers).toEqual(["own_key"]);
+    expect((await route("take_review")).producers).toEqual([]);
   });
 });
 
@@ -111,8 +133,8 @@ describe("whyNoDeepReview", () => {
   });
 
   it("talks about the provider's key for someone using their own", async () => {
-    mockPrefs = { provider: "anthropic", cloudReviewOn: true, consent: ["anthropic"] };
-    expect(await whyNoDeepReview()).toMatch(/Add a Anthropic Claude key|Anthropic Claude key/);
+    mockPrefs = { ...mockPrefs, provider: "anthropic", consent: ["anthropic"] };
+    expect(await whyNoDeepReview()).toMatch(/Anthropic Claude key/);
     mockPrefs.consent = [];
     expect(await whyNoDeepReview()).toMatch(/haven't been allowed/);
   });

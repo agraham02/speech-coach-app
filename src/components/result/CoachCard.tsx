@@ -5,6 +5,7 @@ import { Txt } from "../common/Txt";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 import { SKILL_LABELS } from "../../theme/tokens";
 import type { CoachOutput, Verdict } from "../../domain/coach/ruleCoach";
+import { provenanceLabel } from "../../domain/analysis/provenance";
 
 // The on-device coach's read on one take: what went well, the one thing to
 // change next, the measurements behind it, and a follow-up question to
@@ -80,11 +81,7 @@ export function CoachCard({ coach, onAnswerFollowUp }: { coach: CoachOutput; onA
       ) : null}
 
       <Txt variant="caption1" tone="muted">
-        {coach.source === "cloud"
-          ? "Written by Tono AI after watching your take, with your phone's measurements."
-          : coach.source === "apple"
-            ? "Written by the on-device model from your measurements."
-            : "From measurements made on this phone."}
+        {provenanceLabel(coach.provenance)}
       </Txt>
     </Card>
   );

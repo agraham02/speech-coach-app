@@ -1,7 +1,7 @@
 import type { GradingContext } from "../gemini/transcribeSession";
 import { fenced } from "./inputGuards";
 import { taskSection } from "../../domain/promptTask";
-import { buildResponseSchemaWithCueCompliance, MARK_LEGEND, markedScriptText, planTextSection, RESPONSE_SCHEMA, STUTTER_NOTE, SPEECH_IS_DATA } from "../gemini/schema";
+import { buildResponseSchemaWithCueCompliance, MARK_LEGEND, markedScriptText, planTextSection, QUICK_COACH_INSTRUCTIONS, RESPONSE_SCHEMA, STUTTER_NOTE, SPEECH_IS_DATA, withQuickCoach } from "../gemini/schema";
 import { parseGeminiSessionAnalysis } from "../gemini/transcribeSession";
 import type { GeminiSessionAnalysis } from "../gemini/types";
 import type { PauseAnalysis } from "../../domain/dsp/pauses";
@@ -132,7 +132,7 @@ Grade CONTENT independently of structure:
 `
 }
 Grade DELIVERY from the measurements, each 1-10:
-- rate: from the average pace and how much it varied, and the filler rate (5 per minute or fewer is barely noticeable; a dozen or more clearly hurts). State the numbers.
+- rate: from the average pace and how much it varied. Pace only: filler words are scored separately on the phone, so don't lower rate for them (you may mention them in the notes). State the numbers.
 - volume: from how much loudness varied.
 - pitch_melody: from the pitch span in semitones.
 - tonality: you can't hear tone, so estimate it from whether the pitch and loudness variation suit the emotional content of the words. Keep it close to the pitch and volume evidence, and say in the notes that it's estimated from measurements.
@@ -184,11 +184,28 @@ export function userMessage(input: MeasuredReviewInput, showCues: boolean): stri
   return parts.join("\n\n");
 }
 
-export async function measuredReview(input: MeasuredReviewInput, provider: TextProviderId, onUsage?: (usage: TokenUsage) => void): Promise<GeminiSessionAnalysis> {
-  const { session, context } = input;
+// The judged take review from the transcript and the measurements: what a
+// text-only judge is sent. Tono AI's version also asks for the coach card in
+// the same call (`withCoach`). Session 08 moves this template to the server.
+export function measuredReviewRequest(input: MeasuredReviewInput, options: { withCoach?: boolean } = {}): { system: string; user: string; schema: object } {
+  const { context } = input;
   const showCues = context.kind === "script" && context.cuesEnabled && context.script.marks.length > 0;
   const base = showCues ? buildResponseSchemaWithCueCompliance() : RESPONSE_SCHEMA;
-  const schema = toStrictSchema(withoutProperties(base, ["transcript_verbatim", "duration_seconds"]));
+  const trimmed = withoutProperties(base, ["transcript_verbatim", "duration_seconds"]);
+  return {
+    system:
+      systemPrompt(context, showCues, input.stutterMode) +
+      (options.withCoach ? QUICK_COACH_INSTRUCTIONS : "") +
+      speakerContextForReview() +
+      SPEECH_IS_DATA,
+    user: userMessage(input, showCues),
+    schema: options.withCoach ? withQuickCoach(trimmed) : trimmed,
+  };
+}
+
+export async function measuredReview(input: MeasuredReviewInput, provider: TextProviderId, onUsage?: (usage: TokenUsage) => void): Promise<GeminiSessionAnalysis> {
+  const { session } = input;
+  const request = measuredReviewRequest(input);
   const model = modelFor(provider);
   const name = PROVIDERS[provider].name;
 
@@ -196,27 +213,31 @@ export async function measuredReview(input: MeasuredReviewInput, provider: TextP
   const text = await callTextProvider({
     provider,
     model,
-    system: systemPrompt(context, showCues, input.stutterMode) + speakerContextForReview() + SPEECH_IS_DATA,
-    user: userMessage(input, showCues),
+    system: request.system,
+    user: request.user,
     schemaName: "speech_review",
-    schema,
+    schema: toStrictSchema(request.schema),
     onUsage,
   });
+  return parseMeasuredReview(text, session, name);
+}
 
+// A text-only judge's answer as the full review rubric: the device transcript
+// and duration complete its shape, so the same validation (and everything
+// downstream) applies as for a review that watched the video.
+export function parseMeasuredReview(text: string, session: Session, name: string): GeminiSessionAnalysis {
   let parsed: Record<string, unknown>;
   try {
     parsed = JSON.parse(text) as Record<string, unknown>;
   } catch {
     throw new CloudApiError(name, `${name}'s review wasn't valid JSON — retry, or try another model.`, undefined, text);
   }
-  // The device transcript and duration complete the rubric's shape, so the
-  // same validation (and everything downstream) applies as for Gemini.
   try {
     return parseGeminiSessionAnalysis(
       JSON.stringify({ ...parsed, transcript_verbatim: session.transcriptVerbatim ?? "", duration_seconds: session.durationSeconds }),
     );
   } catch (error) {
-    logger.error(`[cloud] ${provider} review didn't match the schema — ${(error as Error).message}`);
+    logger.error(`[cloud] ${name} review didn't match the schema — ${(error as Error).message}`);
     throw new CloudApiError(name, `${name}'s review was missing parts — retry, or try another model.`, undefined, parsed);
   }
 }

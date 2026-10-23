@@ -17,7 +17,7 @@ import { Chip } from "../../components/common/Chip";
 import { PrimaryButton } from "../../components/common/PrimaryButton";
 import { CADENCES, syntheticVolume } from "../../services/dev/syntheticVolume";
 import { GUIDES } from "../../content/guide";
-import { getCloudCallsToday, getGuideSeen, resetCloudCallsToday, resetGuide, unmarkGuideSeen } from "../../services/prefs/prefsStore";
+import { getCloudCallsToday, getGuideSeen, getJudgeInput, resetCloudCallsToday, resetGuide, setJudgeInput, unmarkGuideSeen } from "../../services/prefs/prefsStore";
 import { requestNotificationPermission } from "../../services/notifications/reminderScheduler";
 import { storageBreakdown, type StorageLine } from "../../services/dev/storageInfo";
 import { mediaBackupStatus } from "../../services/storage/mediaBackup";
@@ -103,6 +103,7 @@ export function ToolsScreen({ navigation }: Props) {
   const [backup, setBackup] = useState<ModelBackupStatus | null>(null);
   const [intro, setIntro] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [judgeInput, setJudgeInputState] = useState(getJudgeInput);
   const [waveOpen, setWaveOpen] = useState(false);
   const [momentIndex, setMomentIndex] = useState<number | null>(null);
   const [momentRun, setMomentRun] = useState(0);
@@ -157,6 +158,18 @@ export function ToolsScreen({ navigation }: Props) {
 
   return (
     <Screen title="App tools" eyebrow="Dev" onBack={navigation.goBack}>
+      <ListGroup title="Tono AI take reviews">
+        <ListRow
+          title="Judge from"
+          subtitle="Words and measurements is the default (cheaper). Video sends the take's video too, as before."
+          value={judgeInput === "video" ? "Video" : "Words and measurements"}
+          onPress={() => {
+            const next = judgeInput === "video" ? "text" : "video";
+            setJudgeInput(next);
+            setJudgeInputState(next);
+          }}
+        />
+      </ListGroup>
       <ListGroup title="Over-the-air updates">
         <ListRow title="Channel" value={Updates.channel ?? "none"} />
         <ListRow title="Runtime" subtitle={Updates.runtimeVersion ?? "unknown"} />

@@ -15,8 +15,7 @@ jest.mock("../../db/scriptsRepo", () => ({ getScriptById: jest.fn() }));
 import { userMessage } from "../measuredReview";
 import { buildSystemPrompt } from "../../gemini/schema";
 import { taskContextFor } from "../../sessions/sessionSubject";
-import { taskSection, coachTaskNote } from "../../../domain/promptTask";
-import { buildAppleCoachPrompt } from "../../../domain/coach/appleCoachPrompt";
+import { taskSection } from "../../../domain/promptTask";
 import { ruleCoach } from "../../../domain/coach/ruleCoach";
 import type { Prompt, Session } from "../../../domain/sessionTypes";
 
@@ -95,14 +94,6 @@ describe("what each reviewer is told", () => {
   it("leaves an ordinary old take's prompt as it was", () => {
     const text = buildSystemPrompt("Should voting be mandatory?");
     expect(text).not.toContain("THE TASK:");
-  });
-
-  it("tells the on-device coach not to ask for a beginning", () => {
-    expect(coachTaskNote("closing")).toMatch(/only the closing/);
-    expect(coachTaskNote("answer")).toBe("");
-    const rules = ruleCoach({ transcript: "so the one idea is simple. cook at home. it changes your week.", durationSeconds: 30, task: "closing" } as never);
-    const prompt = buildAppleCoachPrompt({ transcript: "so", promptText: closing.text, task: "closing" } as never, rules);
-    expect(prompt).toMatch(/only the closing/);
   });
 
   it("doesn't give a part-of-a-talk take a whole-answer structure verdict", () => {

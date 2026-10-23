@@ -135,12 +135,3 @@ export function taskSection(ctx: PromptTaskContext | undefined, fence: (text: st
   lines.push("Where this section differs from the general STRUCTURE and CONTENT guidance, this section wins. Say in structure_notes or relevance_notes what the task changed about how you judged.");
   return `\n${lines.join("\n")}\n`;
 }
-
-// One line for the on-device coach, whose context is small.
-export function coachTaskNote(task: PromptTask | undefined): string {
-  if (!task || task === "answer" || task === "story" || task === "explain") return "";
-  if (task === "opening" || task === "closing") {
-    return `They were asked for only the ${task} of a talk, not a whole one: don't suggest adding the rest.`;
-  }
-  return `The task was "${LABELS[task] ?? task}": ${taskBrief(task)}`;
-}

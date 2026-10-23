@@ -9,15 +9,13 @@ import type { TranscriptWord } from "../../domain/sessionTypes";
 import { runHeavy } from "../pipeline/jobQueue";
 import { createRewind, getRewind, updateRewind } from "../db/rewindRepo";
 import { resolveRewindUri, rewindAudioExists, writeRewindAudio } from "./rewindStorage";
-import { reviewOnDevice } from "./rewindReview";
 import { syncRewindReminder } from "./rewindReminder";
 import { logger } from "../../utils/logger";
 import type { RewindTake } from "../../hooks/useRewindRecorder";
 
 // What happens to a Rewind take once you've told your day: the pieces of
 // audio are joined into one file, Whisper writes the transcript, the counts
-// are worked out, and — where the phone has an on-device model — the coach
-// writes its notes. The row is saved first and filled in as each step
+// are worked out. Notes on the words come from Tono AI, on request. The row is saved first and filled in as each step
 // finishes, so a failure partway never loses the take.
 
 // Writes a take's transcript again with Whisper, from its saved audio — for
@@ -35,10 +33,6 @@ export async function retranscribeRewind(id: string): Promise<boolean> {
     const fresh = rewindStats({ transcript, seconds: rewind.durationSeconds, volume: [] });
     const stats = { ...fresh, longestPauseSeconds: rewind.stats?.longestPauseSeconds ?? null, longPauses: rewind.stats?.longPauses ?? 0 };
     await updateRewind(id, { transcript, transcriptSource: "whisper", words: timedWords(result.words), stats });
-    if (!rewind.review) {
-      const review = await reviewOnDevice(transcript);
-      if (review) await updateRewind(id, { review, reviewSource: "apple" });
-    }
     return true;
   } catch (error) {
     logger.warn(`[rewind] transcribing again failed — ${(error as Error).message}`);
@@ -77,15 +71,15 @@ export async function processRewind(take: RewindTake): Promise<string> {
         logger.warn(`[rewind] Whisper didn't finish, using what the recognizer heard — ${(error as Error).message}`);
       }
     }
-    // 3. The counts, then the notes.
+    // 3. The counts. Notes on the words are asked for from the result
+    // screen (services/rewind/rewindReview.ts).
     await updateRewind(rewind.id, {
       transcript,
       transcriptSource: source,
       words,
       stats: rewindStats({ transcript, seconds, volume: take.volume }),
+      status: "done",
     });
-    const review = await reviewOnDevice(transcript);
-    await updateRewind(rewind.id, review ? { review, reviewSource: "apple", status: "done" } : { status: "done" });
   } catch (error) {
     logger.error(`[rewind] processing failed — ${(error as Error).message}`);
     await updateRewind(rewind.id, { transcript, transcriptSource: source, words, stats: rewindStats({ transcript, seconds, volume: take.volume }), status: "failed" }).catch(() => undefined);

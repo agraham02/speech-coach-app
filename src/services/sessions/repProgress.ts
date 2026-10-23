@@ -1,14 +1,11 @@
 import { getArtifact } from "../db/artifactsRepo";
 import { getSessionById } from "../db/sessionsRepo";
-import { getScoresBySessionId } from "../db/scoresRepo";
 import { getSessionSteps } from "../db/stepsRepo";
 import { recordRepOutcome } from "../db/progressRepo";
 import { showGlobalToast } from "../../components/common/ToastProvider";
-import { blendRepEvidence, cloudRepEvidence, localRepEvidence } from "../../domain/repEvidence";
-import type { CoachOutput } from "../../domain/coach/ruleCoach";
+import { repEvidence } from "../../domain/repEvidence";
 import type { StepStatus } from "../../domain/sessionSteps";
-import type { CloudTranscriptArtifact } from "../pipeline/steps/cloudReviewStep";
-import { cloudSourceOf } from "./sessionScoreService";
+import { refreshSessionScore } from "./sessionScoreService";
 import { describeSessionSubject } from "./sessionSubject";
 import { logger } from "../../utils/logger";
 import { RESEARCH_IMPROMPTU_WEIGHT } from "../../domain/prepTimer";
@@ -23,7 +20,8 @@ import { navigationRef } from "../../navigation/navigationRef";
 // Moves skill mastery for an impromptu rep — once per session, after its
 // analysis has settled. It used to run as soon as the phone's coach
 // finished, so a deep review arriving a minute later never counted; now it
-// waits for the review (or its failure) and lets it lead. A review asked
+// waits for the review (or its failure), and the judged score is the one
+// that counts. A review asked
 // for later, on an old take, doesn't count it again.
 //
 // `abandoned`: an interrupted step that won't resume on its own (the app
@@ -40,20 +38,16 @@ export async function settleRepProgress(sessionId: string, options: { abandoned?
     const status = (step: string) => steps.find((s) => s.step === step)?.status;
     if (unsettled(status("coach")) || unsettled(status("cloud_review"))) return;
 
-    const [coach, cloud, transcript, subject] = await Promise.all([
-      getArtifact<CoachOutput>(sessionId, "coach"),
-      getScoresBySessionId(sessionId),
-      getArtifact<CloudTranscriptArtifact>(sessionId, "cloud_transcript"),
-      describeSessionSubject(session),
-    ]);
-    if (!coach && !cloud) return;
-    const local = coach ? localRepEvidence(coach) : {};
-    const reviewed = cloud ? cloudRepEvidence(cloud) : {};
-    const changes = await recordRepOutcome(blendRepEvidence(local, reviewed, cloudSourceOf(transcript)), {
+    // The take's score sheets as they stand now that everything is in: the
+    // judged one leads when there is one (domain/repEvidence.ts).
+    const [scores, subject] = await Promise.all([refreshSessionScore(sessionId), describeSessionSubject(session)]);
+    if (!scores) return;
+    const { evidence, measured, judged } = repEvidence(scores);
+    const changes = await recordRepOutcome(evidence, {
       sessionId,
       label: subject.title || "A recorded take",
-      local,
-      cloud: reviewed,
+      local: measured,
+      cloud: judged,
       // Research makes it a prepared answer, not an impromptu one.
       impromptuWeight: session.subjectExtras?.prepUsed?.researched ? RESEARCH_IMPROMPTU_WEIGHT : 1,
     });

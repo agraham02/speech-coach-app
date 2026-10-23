@@ -2,6 +2,7 @@ import { getDatabase } from "../db/database";
 import { getArtifact, putArtifact } from "../db/artifactsRepo";
 import { getSessionById } from "../db/sessionsRepo";
 import { getScoreHistoryBefore } from "../db/scoresRepo";
+import type { TakeScores } from "../../domain/scoring/takeScore";
 import { getPracticeDates, getSessionsDoneToday, getStreakState, type ProgressChange } from "../db/progressRepo";
 import { getDailySessionGoal } from "../prefs/prefsStore";
 import { describeSessionSubject } from "../sessions/sessionSubject";
@@ -48,7 +49,9 @@ export async function loadMoment(sessionId: string): Promise<LoadedMoment | null
   const [progress, session] = await Promise.all([readProgress(sessionId), getSessionById(sessionId)]);
   if (!progress || !session) return null;
   try {
-    const history = await getScoreHistoryBefore(session.recordedAt);
+    // Set against earlier takes scored in the same layer (judged or measured).
+    const sheets = await getArtifact<TakeScores>(sessionId, "session_score");
+    const history = await getScoreHistoryBefore(session.recordedAt, sheets?.headline ?? "measured");
     const day = isoDateFromDate(new Date(session.recordedAt));
     const today = todayISODate();
     let streakDays: number | null = null;

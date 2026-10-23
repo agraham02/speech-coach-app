@@ -1,5 +1,5 @@
 import { getProviderKey } from "../secrets/secretsStore";
-import { getCloudConsent, getCloudModel, getCloudProvider, getShareProfileWithReviews } from "../prefs/prefsStore";
+import { getCloudConsent, getCloudModel, getCloudProvider, getJudgeInput, getShareProfileWithReviews } from "../prefs/prefsStore";
 
 // Deep reviews run one of two ways. Tono AI (id "tono") goes through Tono's
 // own server, which holds the Gemini key, enforces the limits and picks the
@@ -40,7 +40,7 @@ export const PROVIDERS: Record<ProviderId, CloudProvider> = {
     defaultModel: "tono-managed",
     modelHint: "",
     input: "video",
-    blurb: "Watches the video, no key needed. Sign in and it just works.",
+    blurb: "Judges your takes from your words and the phone's measurements, no key needed. Sign in and it just works.",
   },
   gemini: {
     id: "gemini",
@@ -114,7 +114,14 @@ export function whatGetsSent(provider: CloudProvider): string {
   const about = getShareProfileWithReviews() ? " A short note on your goals and what gets in your way (from setup) goes with it, so the feedback fits you — you can see it and turn it off in Settings." : "";
   const drills = ` The words you say in the Say it short drills (summaries and plain explanations) are sent as text too, so it can check the idea — never audio or video.`;
   if (provider.id === "tono") {
-    return `Your video (with its audio) goes to Google Gemini for each AI review, and is deleted from Google when the review is done. The phone's measurements of the take (pace, pauses, pitch, loudness, eye contact, expression) go with it, never your transcript.${about}${drills} The sentences you choose in Mark it up, and the words of a Rewind, go the same way, as text.`;
+    // What a take review sends depends on the judge setting (prefsStore
+    // getJudgeInput): the words and the measurements by default, the video
+    // only when that's chosen or a take has no transcript.
+    const take =
+      getJudgeInput() === "video"
+        ? "Your video (with its audio) goes to Google Gemini for each AI review, and is deleted from Google when the review is done. The phone's measurements of the take (pace, pauses, pitch, loudness, eye contact, expression) go with it, never your transcript."
+        : "For each AI review, the words of your take (the phone's transcript) and the phone's measurements of it (pace, pauses, pitch, loudness, eye contact, expression) go to Google Gemini, as text. The video stays on your phone, unless a take has no transcript: then its video is sent instead, and deleted from Google when the review is done.";
+    return `${take}${about}${drills} The sentences you choose in Mark it up, and the words of a Rewind, go the same way, as text.`;
   }
   return provider.input === "video"
     ? `Your video (with its audio) is uploaded to ${provider.company} for each deep review.${about}${drills}`
@@ -126,6 +133,8 @@ export function reviewBlockedReason(
   provider: CloudProvider,
   take: { hasVideo: boolean; hasDeviceTranscript: boolean },
 ): string | undefined {
+  // Tono AI judges from the transcript, or from the video when there isn't one.
+  if (provider.id === "tono") return take.hasVideo || take.hasDeviceTranscript ? undefined : "Tono AI needs the transcript or the video, and this take has neither.";
   if (provider.input === "video" && !take.hasVideo) return `${provider.name} needs the video, which has been deleted.`;
   if (provider.input === "measurements" && !take.hasDeviceTranscript) {
     return `${provider.name} reviews the on-device transcript, and this take doesn't have one yet.`;

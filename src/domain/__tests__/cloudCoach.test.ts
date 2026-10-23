@@ -11,16 +11,18 @@ const rules: CoachOutput = ruleCoach({
   pitchRangeHz: null,
 });
 
+const judgedBy = { producer: "tono_ai" as const, provider: "Tono AI", model: "model-x", promptVersion: "p1", judged: true, input: "text" as const, at: "2026-10-23T10:00:00.000Z" };
+
 const good = { strength: "You opened with your point.", tip: "Pause after your main idea.", focus_skill: "cadence", follow_up_question: "What would you try first?" };
 
 describe("acceptQuickCoach", () => {
   it("accepts a complete card", () => {
-    expect(acceptQuickCoach(good, "model-x")).toEqual({
+    expect(acceptQuickCoach(good, judgedBy)).toEqual({
       strength: "You opened with your point.",
       tip: "Pause after your main idea.",
       focusSkill: "cadence",
       followUpQuestion: "What would you try first?",
-      model: "model-x",
+      provenance: judgedBy,
     });
   });
 
@@ -50,9 +52,9 @@ describe("acceptQuickCoach", () => {
 
 describe("mergeCloudCoach", () => {
   it("replaces the words and keeps what the phone measured", () => {
-    const cloud = acceptQuickCoach(good)!;
+    const cloud = acceptQuickCoach(good, judgedBy)!;
     const merged = mergeCloudCoach(rules, cloud);
-    expect(merged).toMatchObject({ source: "cloud", strength: good.strength, tip: good.tip, focusSkill: "cadence", followUpQuestion: good.follow_up_question });
+    expect(merged).toMatchObject({ provenance: judgedBy, strength: good.strength, tip: good.tip, focusSkill: "cadence", followUpQuestion: good.follow_up_question });
     expect(merged.structure).toEqual(rules.structure);
     expect(merged.hedges).toEqual(rules.hedges);
     expect(merged.strongEnding).toBe(rules.strongEnding);
@@ -63,5 +65,11 @@ describe("mergeCloudCoach", () => {
     const merged = mergeCloudCoach(rules, acceptQuickCoach({ ...good, focus_skill: "nope", follow_up_question: "" })!);
     expect(merged.focusSkill).toBe(rules.focusSkill);
     expect(merged.followUpQuestion).toBe(rules.followUpQuestion);
+  });
+});
+
+describe("rule coach provenance", () => {
+  it("says the rules wrote it, and never claims a judgement", () => {
+    expect(rules.provenance).toMatchObject({ producer: "rules", judged: false });
   });
 });

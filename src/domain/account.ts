@@ -1,5 +1,4 @@
 import type { TonoAllowance } from "./aiAllowance";
-import type { TonoAvailability } from "./aiRouting";
 
 // What the app knows about the signed-in person, kept as one plain object so
 // screens can subscribe to it and the pipeline can read it without awaiting
@@ -95,14 +94,6 @@ export function parseAccountCache(raw: string | null | undefined): AccountSnapsh
 // Only a signed-in account is worth keeping; a signed-out copy is just absent.
 export function serializeAccountCache(a: AccountSnapshot): string | null {
   return a.status === "signedIn" ? JSON.stringify(a) : null;
-}
-
-export function tonoAvailability(a: AccountSnapshot, consent: boolean): TonoAvailability {
-  return {
-    signedIn: a.status === "signedIn",
-    consent,
-    allowed: a.killSwitch ? { review: false, text: false, insight: false } : a.allowed,
-  };
 }
 
 // A new allowance arrived (with a response or from `me`): the flags follow it.
