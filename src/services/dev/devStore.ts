@@ -31,6 +31,27 @@ export function clearDevStore(): void {
   }
 }
 
+// ASR Lab keeps run results and the reference transcript you typed, by take.
+export const ASR_HISTORY_KEY = "asrHistory";
+export const ASR_REFERENCES_KEY = "asrReferences";
+
+// A deleted take leaves nothing here either: its typed reference and its runs.
+export function forgetTakeInDevStore(sessionId: string): void {
+  try {
+    const references = getDevJson<Record<string, string>>(ASR_REFERENCES_KEY, {});
+    if (sessionId in references) {
+      delete references[sessionId];
+      setDevJson(ASR_REFERENCES_KEY, references);
+    }
+    const history = getDevJson<{ sessionId?: string }[]>(ASR_HISTORY_KEY, []);
+    if (history.some((run) => run.sessionId === sessionId)) {
+      setDevJson(ASR_HISTORY_KEY, history.filter((run) => run.sessionId !== sessionId));
+    }
+  } catch {
+    // Dev tooling must never break a delete.
+  }
+}
+
 export function removeDevKey(key: string): void {
   try {
     storage.remove(key);

@@ -57,17 +57,17 @@ export function HelpDataSettings() {
   function handleDeleteOldVideos() {
     const days = getVideoRetentionDays() || 30;
     Alert.alert(
-      `Clear videos older than ${days} days?`,
-      "The best and the toughest take from each month are kept (compressed), so you can see how far you've come — find them under Library → Progress videos. Transcripts, analysis and scores are always kept. This can't be undone.",
+      `Free up space from videos older than ${days} days?`,
+      "This deletes only the old videos and their audio. It does not delete the takes: transcripts, analysis and scores stay. The best and the toughest take from each month keep their video (compressed), so you can see how far you've come — find them under Library → Progress videos. To erase a take completely, delete it from the Library. This can't be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Clear",
+          text: "Free up space",
           style: "destructive",
           onPress: async () => {
             const { deleted, kept } = await deleteOldVideos(days);
             setStorage(storageBreakdown());
-            Alert.alert("Done", `Removed ${deleted} video${deleted === 1 ? "" : "s"}. ${kept} progress video${kept === 1 ? "" : "s"} kept.`);
+            Alert.alert("Done", `Deleted ${deleted} video${deleted === 1 ? "" : "s"}; their transcripts and scores stay. ${kept} progress video${kept === 1 ? "" : "s"} kept.`);
           },
         },
       ],
@@ -79,7 +79,7 @@ export function HelpDataSettings() {
   function confirmReset() {
     Alert.alert(
       "Reset the app?",
-      "This deletes every recording and video, your scores, lessons, levels and streak, and your profile and settings — then starts onboarding again. Your API keys are kept. This can't be undone.",
+      "This erases every recording and video, with their transcripts and scores, your lessons, levels and streak, and your profile and settings — then starts onboarding again. Your API keys are kept. This can't be undone.",
       [
         { text: "Cancel", style: "cancel" },
         { text: "Export first", onPress: handleExport },
@@ -132,7 +132,7 @@ export function HelpDataSettings() {
         {storage.map((line) => (
           <ListRow key={line.key} icon={STORAGE_ICONS[line.key]} title={line.label} value={formatBytes(line.bytes)} />
         ))}
-        <ListRow icon="trash-outline" title="Clear old videos" subtitle="Keeps the best and the toughest take from each month" destructive onPress={handleDeleteOldVideos} />
+        <ListRow icon="trash-outline" title="Free up space from old videos" subtitle="Keeps transcripts and scores, and each month's best and toughest take" destructive onPress={handleDeleteOldVideos} />
         {bytesOf("temp") > 0 ? (
           <ListRow
             icon="sparkles-outline"
@@ -184,7 +184,7 @@ export function HelpDataSettings() {
         />
       </Card>
       <Txt variant="footnote" tone="secondary" style={styles.note}>
-        Your recordings and practice history stay on this phone.
+        Your recordings and practice history stay on this phone. Deleting a take from the Library erases it for good.
       </Txt>
 
       <ListGroup title="Start over">

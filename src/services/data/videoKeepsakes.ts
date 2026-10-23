@@ -3,8 +3,8 @@ import { getLastAutoCleanup, getVideoRetentionDays, setLastAutoCleanup } from ".
 import { todayISODate } from "../../utils/dateUtils";
 import { Video } from "react-native-compressor";
 import { getDatabase } from "../db/database";
-import { deleteSessionVideo } from "../db/sessionsRepo";
-import { deleteRecording, resolveVideoUri } from "../storage/videoStorage";
+import { resolveVideoUri } from "../storage/videoStorage";
+import { freeUpSessionVideo } from "./takeDeletion";
 import { planVideoCleanup, type VideoCandidate } from "../../domain/videoKeepsakes";
 import type { SessionType } from "../../domain/sessionTypes";
 import { logger } from "../../utils/logger";
@@ -26,19 +26,21 @@ interface VideoRow {
   video_compressed_at: string | null;
   video_file: string | null;
   video_path: string;
+  gemini_file_name: string | null;
 }
 
 async function getVideoRows(): Promise<VideoRow[]> {
   const db = await getDatabase();
   return db.getAllAsync<VideoRow>(
     `SELECT s.id, s.recorded_at, s.session_type, s.duration_seconds, COALESCE(s.session_score, sc.overall_score) AS score,
-            s.video_keepsake, s.video_compressed_at, s.video_file, s.video_path
+            s.video_keepsake, s.video_compressed_at, s.video_file, s.video_path, s.gemini_file_name
      FROM sessions s LEFT JOIN scores sc ON sc.session_id = s.id
      WHERE s.deleted_at IS NULL AND s.video_deleted_at IS NULL`,
   );
 }
 
-// Clears videos older than `days`, keeping one per month as a compressed
+// Frees the space of videos older than `days` (transcripts and scores stay;
+// this is not deleting the takes), keeping one per month as a compressed
 // progress keepsake. Compression runs in the background afterwards.
 export async function deleteOldVideos(days: number): Promise<{ deleted: number; kept: number }> {
   const db = await getDatabase();
@@ -60,8 +62,8 @@ export async function deleteOldVideos(days: number): Promise<{ deleted: number; 
   }
   for (const id of plan.delete) {
     const row = byId.get(id)!;
-    deleteRecording(resolveVideoUri({ videoFile: row.video_file, videoPath: row.video_path }));
-    await deleteSessionVideo(id);
+    // The space-saving kind of delete: the transcript and numbers stay.
+    await freeUpSessionVideo({ id, videoFile: row.video_file, videoPath: row.video_path, geminiFileName: row.gemini_file_name });
   }
   logger.info(`[data] cleared ${plan.delete.length} video(s) older than ${days} days, kept ${plan.keep.length} new keepsake(s)`);
 
@@ -75,7 +77,7 @@ export async function deleteOldVideos(days: number): Promise<{ deleted: number; 
 async function compressExpiredKeepsakes(cutoffIso: string): Promise<void> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<VideoRow>(
-    `SELECT id, recorded_at, session_type, duration_seconds, NULL AS score, video_keepsake, video_compressed_at, video_file, video_path
+    `SELECT id, recorded_at, session_type, duration_seconds, NULL AS score, video_keepsake, video_compressed_at, video_file, video_path, gemini_file_name
      FROM sessions
      WHERE deleted_at IS NULL AND video_deleted_at IS NULL AND video_keepsake = 1 AND video_compressed_at IS NULL AND recorded_at < ?`,
     [cutoffIso],

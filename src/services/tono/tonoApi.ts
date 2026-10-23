@@ -118,6 +118,9 @@ export const tonoUploadStart = (args: { sizeBytes: number; mimeType: string }) =
 
 export const tonoFileStatus = (fileName: string) => call<FileStatusResponse>("ai-file", { fileName }, 20_000);
 
+// Removes a take's uploaded video from Google (when the take is deleted).
+export const tonoDeleteFile = (fileName: string) => call<{ ok: true }>("ai-file", { fileName, delete: true }, 20_000);
+
 // A video review waits for Google to watch the video; text is quick.
 export const tonoGenerate = (request: GenerateRequest) => call<GenerateResponse>("ai-generate", request, request.kind === "review" ? 190_000 : 70_000);
 

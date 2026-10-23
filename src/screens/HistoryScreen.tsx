@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { logger } from "../utils/logger";
 import { SkeletonRows } from "../components/common/Skeleton";
 import { GuideTip, TourTarget } from "../components/common/GuideTip";
-import { Alert, Pressable, RefreshControl, ScrollView, SectionList, TextInput, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, SectionList, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -17,15 +17,9 @@ import { useToast } from "../components/common/ToastProvider";
 import { FilterSheet } from "../components/history/FilterSheet";
 import { ProgressVideoStrip } from "../components/history/ProgressVideoStrip";
 import { groupByMonth, type MonthGroup } from "../domain/sessionHistory";
-import {
-  deleteSession,
-  deleteSessionVideo,
-  getAllSessionsWithScores,
-  type SessionWithScore,
-} from "../services/db/sessionsRepo";
+import { getAllSessionsWithScores, type SessionWithScore } from "../services/db/sessionsRepo";
 import { getAllPrompts } from "../services/db/promptsRepo";
 import { FREE_RECORD_PROMPT } from "../data/topics";
-import { deleteRecording, resolveVideoUri } from "../services/storage/videoStorage";
 import { subscribeToAllSessions } from "../services/pipeline/processingEvents";
 import { getScriptById } from "../services/db/scriptsRepo";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
@@ -33,6 +27,8 @@ import { colorForScore } from "../components/result/scoreColor";
 import type { Prompt, Session } from "../domain/sessionTypes";
 import { listRewinds, type Rewind } from "../services/db/rewindRepo";
 import { confirmDeleteRewind } from "../components/rewind/confirmDeleteRewind";
+import { confirmDeleteTake } from "../components/common/confirmDeleteTake";
+import { subscribeToTakeChanges } from "../services/data/takeDeletion";
 import {
   DATE_RANGES,
   hasFilters,
@@ -164,6 +160,8 @@ export function HistoryScreen() {
   useFocusEffect(refreshPrompts);
 
   useEffect(() => subscribeToAllSessions(() => refresh()), [refresh]);
+  // A delete from the Result screen, an undo, or the erase finishing.
+  useEffect(() => subscribeToTakeChanges(() => refresh()), [refresh]);
 
   // A Rewind fills in by itself after you tell it; follow it here too.
   const rewindProcessing = rewinds.some((r) => r.status === "processing");
@@ -243,73 +241,35 @@ export function HistoryScreen() {
     else if (item.session) openSession(item.session);
   }
 
+  // Delete erases the whole take (with a few seconds to undo); "free up space"
+  // deletes only the video and keeps the transcript and scores. The row
+  // changes first and comes back if something goes wrong.
   function confirmDeleteItem(item: Item) {
-    if (item.session) {
-      confirmDelete(item.session);
+    const session = item.session;
+    if (session) {
+      confirmDeleteTake(session, {
+        onDeleted: () => setSessions((prev) => prev.filter((s) => s.id !== session.id)),
+        onFreed: () => {
+          setSessions((prev) => prev.map((s) => (s.id === session.id ? { ...s, videoDeletedAt: new Date().toISOString() } : s)));
+          showToast("Video deleted. Transcript and scores kept", "success");
+        },
+        onFailed: () => {
+          logger.error("[library] delete failed");
+          showToast("Couldn't delete that. Try again", "error");
+        },
+      });
       return;
     }
     const rewind = item.rewind;
     if (!rewind) return;
-    confirmDeleteRewind(
-      rewind,
-      () => {
-        setRewinds((prev) => prev.filter((r) => r.id !== rewind.id));
-        showToast("Rewind deleted", "success");
+    confirmDeleteRewind(rewind, {
+      onDeleted: () => setRewinds((prev) => prev.filter((r) => r.id !== rewind.id)),
+      onFreed: () => {
+        setRewinds((prev) => prev.map((r) => (r.id === rewind.id ? { ...r, audioFile: null } : r)));
+        showToast("Recording deleted. Words and notes kept", "success");
       },
-      () => showToast("Couldn't delete that — try again", "error"),
-    );
-  }
-
-  // Both deletes are optimistic: the row changes first, and comes back if
-  // the database refuses.
-  async function handleDeleteVideo(session: Session) {
-    const before = sessions;
-    setSessions((prev) => prev.map((s) => (s.id === session.id ? { ...s, videoDeletedAt: new Date().toISOString() } : s)));
-    try {
-      await deleteSessionVideo(session.id);
-      deleteRecording(resolveVideoUri(session));
-      showToast("Video deleted — transcript and scores kept", "success");
-    } catch (error) {
-      logger.error(`[library] delete video failed — ${(error as Error).message}`);
-      setSessions(before);
-      showToast("Couldn't delete the video — try again", "error");
-    }
-  }
-
-  async function handleDeleteSession(session: Session) {
-    const before = sessions;
-    setSessions((prev) => prev.filter((s) => s.id !== session.id));
-    try {
-      await deleteSession(session.id);
-      deleteRecording(resolveVideoUri(session));
-      showToast("Session deleted", "success");
-    } catch (error) {
-      logger.error(`[library] delete failed — ${(error as Error).message}`);
-      setSessions(before);
-      showToast("Couldn't delete that — try again", "error");
-    }
-  }
-
-  function confirmDelete(session: SessionWithScore) {
-    const buttons: Parameters<typeof Alert.alert>[2] = [{ text: "Cancel", style: "cancel" }];
-    if (!session.videoDeletedAt) {
-      buttons.push({
-        text: "Delete Video",
-        style: "destructive",
-        onPress: () => handleDeleteVideo(session),
-      });
-    }
-    buttons.push({
-      text: "Delete Session",
-      style: "destructive",
-      onPress: () => handleDeleteSession(session),
+      onFailed: () => showToast("Couldn't delete that. Try again", "error"),
     });
-
-    Alert.alert(
-      "Delete this session?",
-      "Delete Video frees up space but keeps the transcript and scores (a deep review won't be possible afterwards). Delete Session removes it everywhere, including your stats.",
-      buttons,
-    );
   }
 
   const hasAnySessions = items.length > 0;

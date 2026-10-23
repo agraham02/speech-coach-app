@@ -135,13 +135,11 @@ export interface Session {
   // null until then, independent of whether grading was requested.
   fillerWordCount: number | null;
   fillerRatePerMinute: number | null;
-  // Null means present. videoDeletedAt: the "delete video only" action —
-  // videoPath itself is left as a historical reference, just no longer
-  // trusted to point at a real file. deletedAt: a soft delete for the
-  // session as a whole — hidden from History, but the row (and its scores)
-  // are never actually removed, so Trends keeps counting it forever.
+  // Null means present. videoDeletedAt: the "free up space" action — the
+  // video (and its audio) is gone, videoPath itself is left as a historical
+  // reference, just no longer trusted to point at a real file. Deleting the
+  // whole take removes the row; it has no flag here (see takeDeletion.ts).
   videoDeletedAt: string | null;
-  deletedAt: string | null;
   // Plan Your Point (PREP framework), captured before recording started —
   // null for every session recorded before this feature shipped, or where
   // the setting was off, or where the speaker left every field blank.

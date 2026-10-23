@@ -10,13 +10,23 @@ import { success as hapticSuccess, warn as hapticWarn } from "../../utils/haptic
 import { Txt } from "./Txt";
 
 type ToastTone = "success" | "error" | "info";
-type ShowToast = (text: string, tone?: ToastTone, onPress?: () => void) => void;
+// durationMs: how long it stays (default 2.8 s). actionLabel: a word shown at
+// the end that the tap on the toast stands for ("Undo"). exclusive: other
+// toasts wait their turn until this one is gone, so a chance to undo isn't
+// covered by an unrelated message.
+interface ToastOptions {
+  durationMs?: number;
+  actionLabel?: string;
+  exclusive?: boolean;
+}
+type ShowToast = (text: string, tone?: ToastTone, onPress?: () => void, options?: ToastOptions) => void;
 
 interface ToastMessage {
   id: string;
   text: string;
   tone: ToastTone;
   onPress?: () => void;
+  actionLabel?: string;
 }
 
 const TONE_ICONS: Record<ToastTone, keyof typeof Ionicons.glyphMap> = {
@@ -42,8 +52,8 @@ const ToastContext = createContext<ShowToast | null>(null);
 // the pipeline attach a tap-to-view action (e.g. jump to the Result screen)
 // without ever forcing that navigation automatically.
 let globalShow: ShowToast | null = null;
-export function showGlobalToast(text: string, tone: ToastTone = "info", onPress?: () => void): void {
-  globalShow?.(text, tone, onPress);
+export function showGlobalToast(text: string, tone: ToastTone = "info", onPress?: () => void, options?: ToastOptions): void {
+  globalShow?.(text, tone, onPress, options);
 }
 
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -54,9 +64,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(-16);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // While an exclusive toast is up, other toasts are dropped.
+  const exclusiveUntil = useRef(0);
 
   const dismiss = useCallback(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    exclusiveUntil.current = 0;
     opacity.value = withTiming(0, { duration: 220 });
     translateY.value = withTiming(-16, { duration: 220 }, (finished) => {
       if (finished) runOnJS(setToast)(null);
@@ -64,16 +77,19 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const show = useCallback<ShowToast>((text, tone = "info", onPress) => {
+  const show = useCallback<ShowToast>((text, tone = "info", onPress, options) => {
+    if (!options?.exclusive && Date.now() < exclusiveUntil.current) return;
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    const duration = options?.durationMs ?? DISMISS_AFTER_MS;
+    exclusiveUntil.current = options?.exclusive ? Date.now() + duration : 0;
 
-    setToast({ id: `${Date.now()}`, text, tone, onPress });
+    setToast({ id: `${Date.now()}`, text, tone, onPress, actionLabel: options?.actionLabel });
     if (tone === "success") hapticSuccess();
     else if (tone === "error") hapticWarn();
     opacity.value = withTiming(1, { duration: 180 });
     translateY.value = withSpring(0, spring.gentle);
 
-    timeoutRef.current = setTimeout(dismiss, DISMISS_AFTER_MS);
+    timeoutRef.current = setTimeout(dismiss, duration);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dismiss]);
 
@@ -109,7 +125,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <Txt variant="subhead" weight="600" style={styles.text}>
               {toast.text}
             </Txt>
-            {toast.onPress ? (
+            {toast.actionLabel ? (
+              <Txt variant="subhead" weight="600" style={styles.action}>
+                {toast.actionLabel}
+              </Txt>
+            ) : toast.onPress ? (
               <View style={styles.chevron}>
                 <Ionicons name="chevron-forward" size={15} color={colors.textMuted} />
               </View>
@@ -140,4 +160,5 @@ const useStyles = makeStyles((t) => ({
   body: { flexDirection: "row", alignItems: "center", gap: t.space.sm, paddingVertical: 11, paddingLeft: 14, paddingRight: 18 },
   text: { flexShrink: 1 },
   chevron: { marginLeft: -2 },
+  action: { color: t.colors.accent, marginLeft: t.space.xs },
 }));

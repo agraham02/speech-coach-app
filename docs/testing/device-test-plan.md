@@ -132,6 +132,45 @@ These produce the data that tunes the new pitch/volume/pause code in session 06.
 
 ---
 
+## Delete means delete (session 13)
+
+**Needs build:** a normal build; no native changes. Use made-up or throwaway takes. For the "gone from storage" checks, open Dev -> Tools (storage breakdown) before and after.
+
+- [ ] **Delete a take, with undo.** Record a short spontaneous take and let it finish. In the Library, long-press it, choose "Delete take". Pass: the dialog says the video, audio, transcript, scores and notes are erased for good and your streak keeps the day. After confirming, a "Deleted / Undo" toast stays about 8 seconds. Tap Undo: the take comes back with its video, transcript and score. Delete it again and let the 8 seconds pass: it is gone from the Library.
+  Notes:
+- [ ] **Undo too late.** Delete a take, wait for the toast to go, and look for any way to bring it back. Pass: there is none. (Tapping Undo at the very last moment either restores it or says "Too late to undo that", never a half-state.)
+  Notes:
+- [ ] **Gone everywhere.** After deleting a take, check each place. Pass: it is absent from Library (also search by a word from its transcript, and the filters), Trends (session count, weekly averages, score chart), Progress (the skill's "what moved this number" list, the charts), the Result screen if opened from a notification, and the Dev tab's take list. Take a deep-reviewed take if you can.
+  Notes:
+- [ ] **Files really removed.** Note the Videos size in Dev -> Tools storage breakdown (and Settings -> Your data -> Storage). Delete a take of about a minute, wait 10 seconds, reopen the screen. Pass: the video size dropped by about that take's size. Do the same for a Rewind (the Rewind audio size). Then force-quit the app and relaunch: sizes unchanged, nothing reappears.
+  Notes:
+- [ ] **Delete one of each type.** Delete a spontaneous take, a Free recording, a script reading, a Feeling of the Week rep, a take done as part of the onboarding skill check, a take with a deep review, and a Rewind. Pass: each is gone and each deletion is undoable inside the window.
+  Notes:
+- [ ] **Streak keeps the day.** On a day where your only take is the one you will delete (use a day with a streak of 2 or more), delete it. Pass: the streak number does not drop, Home still says you've practiced today, and the daily goal does not go back to 0 of the day's practice. Nothing about the take shows anywhere (no score, no entry), only the day counts.
+  Notes:
+- [ ] **Killed during the undo window.** Delete a take and immediately force-quit the app (swipe it away) within 2 seconds. Relaunch. Pass: the take is gone (finished at launch), not restored. Repeat with putting the app in the background instead of killing it: gone when you come back.
+  Notes:
+- [ ] **Delete while it is still analysing.** Record a take and delete it from the Library while its steps are still running. Pass: it disappears; after a minute and a relaunch it has not come back, no toast announces a score for it, and the skill levels didn't move because of it.
+  Notes:
+- [ ] **No rewriting of past progress.** Note your skill levels, stages and speaker level. Delete a take that had moved a skill. Pass: the levels and stages stay exactly as they were. Do one more rep afterwards: the new movement starts from the same rating, and the deleted take does not appear in "what moved this number".
+  Notes:
+- [ ] **Two clear choices.** Open the delete choice on a take that still has its video. Pass: "Delete take" and "Free up space, keep the transcript and scores" are both there, and each confirmation says exactly what goes and what stays. Choose Free up space: the video is gone and the storage size drops, but the transcript, score, charts and Library entry remain, and the streak and totals still count it. Deep review is no longer offered. On a take whose video is already freed, only "Delete take" is offered. Same on a Rewind: "Free up space, keep the words and notes" removes the recording only.
+  Notes:
+- [ ] **Old-video cleanup stays the space-saving kind.** Settings -> Your data -> "Free up space from old videos" (set a short period first). Pass: old videos go, their takes stay with transcript and score, and each month's best and toughest take keep their video.
+  Notes:
+- [ ] **Exports don't outlive a take.** Export practice data (Settings -> Your data) and save/share the file, then delete a take. Pass: nothing to check inside the app, but note that the file you saved is a copy the app cannot reach: it still holds the take. (The app's own temporary copy is removed on delete.)
+  Notes:
+- [ ] **Uploaded video at Google.** Needs the Tono AI backend. Start a deep review and delete the take right away (while it uploads or after a failed review). Pass: in the Supabase dashboard, `public.uploads` has no row for it afterwards, and the Gemini file is gone (or expires within 48 hours). Send back the `ai_calls` row for that call: it should hold counts and cost only, no text.
+  Notes:
+- [ ] **Reset the app.** Settings -> Your data -> Reset app. Pass: Library, Trends and the streak are empty, storage sizes are near zero, onboarding starts.
+  Notes:
+- [ ] *(When a Plus backup exists)* Delete a take, then check the backed-up copy. Pass: it is gone from the backup too. Not testable yet: no backup is built (the server only has an empty `backups` table), and `takeDeletion.ts` carries a note to add this.
+  Notes:
+
+**Send back:** the storage sizes before and after (Dev -> Tools), and anything that reappeared after a relaunch.
+
+---
+
 ## Sections to be added by later sessions
 
 Each new build session adds its own section here: 06 (signal capture), 07 (scoring and AnalysisService), 08 (trial, tiers, age range), 09 (waiting on analysis), 10 (exercise judging), 11 (impromptu results), 12 (conversation voice).

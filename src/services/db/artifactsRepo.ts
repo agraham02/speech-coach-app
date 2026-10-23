@@ -27,10 +27,10 @@ export async function putArtifact(sessionId: string, kind: ArtifactKind, value: 
 }
 
 // The stored JSON of one kind across every session (oldest first), for
-// totals like deep review usage.
+// totals like deep review usage. A deleted take's artifacts don't count.
 export async function listArtifactsOfKind<T>(kind: ArtifactKind): Promise<T[]> {
   const db = await getDatabase();
-  const rows = await db.getAllAsync<{ json: string }>(`SELECT json FROM session_artifacts WHERE kind = ? ORDER BY created_at`, [kind]);
+  const rows = await db.getAllAsync<{ json: string }>(`SELECT a.json FROM session_artifacts a JOIN sessions s ON s.id = a.session_id WHERE a.kind = ? AND s.deleted_at IS NULL ORDER BY a.created_at`, [kind]);
   const out: T[] = [];
   for (const row of rows) {
     try {

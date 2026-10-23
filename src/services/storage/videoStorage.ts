@@ -84,6 +84,27 @@ export function tempMediaBytes(): number {
   return bytes;
 }
 
+// Copies of your data the app made for sharing: the database copy and the Dev
+// tab's JSON exports (a take's transcript and numbers are inside them), and the
+// ASR Lab's scratch recording. Deleted whenever a take is deleted, so a copy
+// still in the cache can't outlive it. (A copy you already sent somewhere is
+// beyond the app's reach.)
+const EXPORT_COPIES = /^((tono|speech-coach)-.*.(db|json)|asr-lab.wav)$/i;
+
+export function deleteExportCopies(): number {
+  let deleted = 0;
+  for (const entry of Paths.cache.list()) {
+    if (!(entry instanceof File) || !EXPORT_COPIES.test(entry.name)) continue;
+    try {
+      entry.delete();
+      deleted++;
+    } catch {
+      // Still being shared — launch cleanup gets it later.
+    }
+  }
+  return deleted;
+}
+
 // Deletes those files when older than `minAgeMs`: a day on launch, so a take
 // still on screen is never touched; 0 for Reset and "Clear temporary files".
 export function deleteTempMedia(minAgeMs = 0): number {

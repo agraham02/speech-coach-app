@@ -90,7 +90,6 @@ export function rowToSession(row: SessionRow): Session {
     fillerWordCount: row.filler_word_count,
     fillerRatePerMinute: row.filler_rate_per_minute,
     videoDeletedAt: row.video_deleted_at,
-    deletedAt: row.deleted_at,
     sessionType: row.session_type as SessionType,
     scriptId: row.script_id,
     cuesEnabled: row.cues_enabled === null ? null : row.cues_enabled === 1,

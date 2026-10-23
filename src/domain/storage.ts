@@ -9,9 +9,6 @@ export const DOWNLOAD_HEADROOM = 200 * MB;
 export const RECORDING_MIN_FREE = 500 * MB;
 // Re-encoding a keepsake writes a second copy before the swap.
 export const KEEPSAKE_MIN_FREE = 200 * MB;
-// Deleted sessions and Rewinds keep their rows this long before they're
-// purged for good.
-export const PURGE_AFTER_DAYS = 30;
 // Compact the database once this much of it is free pages.
 export const VACUUM_FREE_BYTES = 5 * MB;
 

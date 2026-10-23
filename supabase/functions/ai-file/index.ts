@@ -1,5 +1,5 @@
 import { requireUser } from "../_shared/auth.ts";
-import { fileUri, GeminiError, getFile } from "../_shared/gemini.ts";
+import { deleteFile, fileUri, GeminiError, getFile } from "../_shared/gemini.ts";
 import { env, handler, HttpError, json, readJson } from "../_shared/http.ts";
 import { db } from "../_shared/ledger.ts";
 
@@ -9,14 +9,29 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 // Step 2 of a video review: after the phone finished uploading it asks for the
 // file's state (until it is ACTIVE), and later to check a file can be reused.
 // Only the person who started the upload can see it.
+//
+// With `delete: true` it instead removes the person's uploaded video from
+// Google and forgets the upload: the phone asks for this when a take is
+// deleted, so a video does not sit on Google's side for its 48 hours.
 Deno.serve(
   handler(async (req) => {
     if (req.method !== "POST") throw new HttpError(405, "method_not_allowed");
     const user = await requireUser(req);
 
-    const body = (await readJson(req)) as { fileName?: unknown };
+    const body = (await readJson(req)) as { fileName?: unknown; delete?: unknown };
     const fileName = typeof body.fileName === "string" ? body.fileName : "";
     if (!FILE_NAME.test(fileName)) throw new HttpError(400, "bad_request", "fileName");
+
+    if (body.delete === true) {
+      const owned = await db()`
+        select id from public.uploads where file_name = ${fileName} and user_id = ${user.id}
+      `;
+      // Not this person's (or already gone): nothing to remove, nothing to reveal.
+      if (owned.length === 0) return json({ ok: true });
+      await deleteFile(env("GEMINI_API_KEY"), fileName);
+      await db()`delete from public.uploads where file_name = ${fileName} and user_id = ${user.id}`;
+      return json({ ok: true });
+    }
 
     let file;
     try {

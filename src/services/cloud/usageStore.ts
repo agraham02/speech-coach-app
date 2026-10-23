@@ -41,7 +41,8 @@ export async function getLatestUsage(sessionId: string): Promise<CloudUsageCall 
   return artifact?.calls?.length ? artifact.calls[artifact.calls.length - 1] : null;
 }
 
-// Every review ever made on this phone, oldest first.
+// Every review of a take that is still here, oldest first (a deleted take
+// takes its usage with it).
 export async function getAllUsageCalls(): Promise<CloudUsageCall[]> {
   const all = await listArtifactsOfKind<UsageArtifact>("cloud_usage");
   return all.flatMap((a) => a.calls ?? []).sort((a, b) => a.at.localeCompare(b.at));

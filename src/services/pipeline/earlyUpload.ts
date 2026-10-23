@@ -1,6 +1,7 @@
 import { File } from "expo-file-system";
 import { uploadVideoForGrading } from "../gemini/transcribeSession";
-import { getSessionById, updateSessionGeminiFile } from "../db/sessionsRepo";
+import { getSessionById, isSessionLive, updateSessionGeminiFile } from "../db/sessionsRepo";
+import { tonoDeleteFile } from "../tono/tonoApi";
 import { providerFor } from "../cloud/routing";
 import { MAX_REVIEW_VIDEO_BYTES, reviewsLeft } from "../cloud/inputGuards";
 import { getCloudCallsToday } from "../prefs/prefsStore";
@@ -33,6 +34,11 @@ export function startEarlyUpload(sessionId: string): void {
     if (!videoExists(videoUri) || (new File(videoUri).size ?? 0) > MAX_REVIEW_VIDEO_BYTES) return;
     const started = Date.now();
     const uploaded = await uploadVideoForGrading(videoUri, undefined, resolved.transport === "hosted" ? "hosted" : "direct");
+    // Deleted while it uploaded: don't leave the video at Google.
+    if (!(await isSessionLive(sessionId))) {
+      await tonoDeleteFile(uploaded.name).catch(() => undefined);
+      return;
+    }
     await updateSessionGeminiFile(sessionId, { name: uploaded.name, uri: uploaded.uri, uploadedAt: new Date().toISOString() });
     logger.info(`[gemini] early upload for ${sessionId} ready in ${((Date.now() - started) / 1000).toFixed(1)} s`);
   })()
