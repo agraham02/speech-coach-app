@@ -6,6 +6,7 @@ import {
   reduceResult,
   type LiveTranscript,
 } from "../../domain/speech/liveTranscript";
+import { RECORDING_SAMPLE_RATE_IOS, RECORDING_SESSION_IOS } from "../audio/audioSession";
 
 // A reusable live speech-recognition engine for every drill that listens
 // (tongue twisters now; pace, fluency and filler drills later). It replaces
@@ -314,12 +315,17 @@ export class LiveSpeechSession {
         addsPunctuation: this.options.punctuation,
         requiresOnDeviceRecognition: this.options.preferOnDevice,
         contextualStrings: this.options.contextualStrings,
+        // Set every time, not left to the recognizer's default (which asks
+        // for the Bluetooth call profile) or to whatever played last. iOS
+        // only; see audioSession.ts.
+        iosCategory: RECORDING_SESSION_IOS,
         ...(this.options.volumeMeter
           ? { volumeChangeEventOptions: { enabled: true, intervalMillis: this.options.volumeIntervalMs } }
           : {}),
-        // 16 kHz int16 on both platforms — what the pitch analysis decodes at.
+        // int16 at the iPhone microphone's rate, for listen-back; analysis
+        // resamples to 16 kHz when it decodes. Android always saves 16 kHz.
         ...(this.options.persistAudio
-          ? { recordingOptions: { persist: true, outputSampleRate: 16000, outputEncoding: "pcmFormatInt16" } }
+          ? { recordingOptions: { persist: true, outputSampleRate: RECORDING_SAMPLE_RATE_IOS, outputEncoding: "pcmFormatInt16" } }
           : {}),
       });
     } catch (error) {

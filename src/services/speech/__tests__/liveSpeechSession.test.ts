@@ -83,6 +83,32 @@ describe("LiveSpeechSession", () => {
     expect(session.getSnapshot().status).toBe("listening");
   });
 
+  it("sets its own iOS audio session on every start, never the call profile", () => {
+    const { native, clock, session } = setup();
+    session.start();
+    clock.advance(3000);
+    native.emit("end", null);
+    clock.advance(0);
+    expect(native.starts).toHaveLength(2);
+    for (const options of native.starts) {
+      const category = options.iosCategory as { category: string; categoryOptions: string[]; mode: string };
+      expect(category.category).toBe("playAndRecord");
+      expect(category.categoryOptions).toContain("defaultToSpeaker");
+      // allowBluetooth is HFP: AirPods would record and play at call quality.
+      expect(category.categoryOptions).not.toContain("allowBluetooth");
+      expect(["voiceChat", "videoChat"]).not.toContain(category.mode);
+    }
+  });
+
+  it("saves takes at full rate, not 16 kHz", () => {
+    const native = Object.assign(new FakeNative(), { supportsRecording: () => true });
+    const session = new LiveSpeechSession(native, new FakeClock());
+    session.start({ persistAudio: true });
+    expect(native.starts[0]).toMatchObject({
+      recordingOptions: { persist: true, outputSampleRate: 48000, outputEncoding: "pcmFormatInt16" },
+    });
+  });
+
   it("restarts after an unexpected end and keeps earlier words", () => {
     const { native, clock, session } = setup();
     session.start();
