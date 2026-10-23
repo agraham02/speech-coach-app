@@ -12,7 +12,8 @@ import { SKILL_LABELS, type SkillId } from "../../theme/tokens";
 import { duration, easeOut } from "../../theme/motion";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 import { success } from "../../utils/haptics";
-import { subscribeToStageEarned, subscribeToUnitCompleted } from "../../services/progress/progressEvents";
+import { subscribeToPathCompleted, subscribeToStageEarned, subscribeToUnitCompleted } from "../../services/progress/progressEvents";
+import { navigationRef } from "../../navigation/navigationRef";
 
 // The big moments, one at a time over whatever screen you're on: a stage
 // earned in a skill, or a unit finished. Calm — a glow in the skill's
@@ -29,7 +30,10 @@ export type Celebration =
       ratingFrom: number | null;
       ratingTo: number | null;
       next: string | null;
-    };
+    }
+  // The whole path finished: opens the finale screen when its turn comes,
+  // so it always follows the last unit's own card.
+  | { kind: "finale" };
 
 let globalCelebrate: ((c: Celebration) => void) | null = null;
 
@@ -48,25 +52,40 @@ export function CelebrationHost({ children }: { children: ReactNode }) {
     const unsubscribe = subscribeToStageEarned((e) => setTimeout(() => push({ kind: "stage", ...e }), 700));
     // So does finishing a unit on your path.
     const unsubscribeUnits = subscribeToUnitCompleted((e) => setTimeout(() => push({ kind: "unit", ...e }), 500));
+    // Queued after the last unit's card (which waits 500 ms itself).
+    const unsubscribeFinale = subscribeToPathCompleted(() => setTimeout(() => push({ kind: "finale" }), 900));
     return () => {
       if (globalCelebrate === push) globalCelebrate = null;
       unsubscribe();
       unsubscribeUnits();
+      unsubscribeFinale();
     };
   }, [push]);
 
   const current = queue[0] ?? null;
+  const card = current && current.kind !== "finale" ? current : null;
+
+  // The finale is a screen, not a card: open it once the modal has gone.
+  useEffect(() => {
+    if (current?.kind !== "finale") return;
+    const timer = setTimeout(() => {
+      if (navigationRef.isReady()) navigationRef.navigate("PathFinale");
+      setQueue((q) => q.slice(1));
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [current]);
+
   return (
     <>
       {children}
-      <Modal visible={!!current} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setQueue((q) => q.slice(1))}>
-        {current ? <CelebrationCard key={queue.length} celebration={current} onClose={() => setQueue((q) => q.slice(1))} /> : null}
+      <Modal visible={!!card} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setQueue((q) => q.slice(1))}>
+        {card ? <CelebrationCard key={queue.length} celebration={card} onClose={() => setQueue((q) => q.slice(1))} /> : null}
       </Modal>
     </>
   );
 }
 
-function CelebrationCard({ celebration: c, onClose }: { celebration: Celebration; onClose: () => void }) {
+function CelebrationCard({ celebration: c, onClose }: { celebration: Exclude<Celebration, { kind: "finale" }>; onClose: () => void }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const skill = colors.skill[c.skill];

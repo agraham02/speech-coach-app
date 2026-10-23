@@ -27,6 +27,8 @@ import { logger } from "../../utils/logger";
 import { copyJson, exportFileName, shareJsonFile } from "../../utils/shareJson";
 import { buildAsrExport } from "../../domain/dev/exportData";
 import { exportContext } from "../../services/dev/devInfo";
+import { beginRun } from "../../services/dev/deviceMetrics";
+import { describeRun, type MetricRun } from "../../domain/dev/metrics";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AsrLab">;
@@ -40,6 +42,8 @@ interface EngineRun {
   ms?: number;
   words?: AsrOutput["words"];
   error?: string;
+  // Peak memory and CPU while it ran (dev builds with the metrics module).
+  device?: MetricRun | null;
 }
 
 const pctText = (n: number | null | undefined) => (n === null || n === undefined ? "n/a" : Math.round(n * 100) + "%");
@@ -155,10 +159,12 @@ export function AsrLabScreen({ navigation }: Props) {
     for (const engine of engines) {
       setRuns((r) => ({ ...r, [engine.id]: { status: "running" } }));
       const started = Date.now();
+      const metrics = beginRun("asr", engine.label, { sessionId: selected.id, detail: { engine: engine.id, audioSeconds: Math.round(audioSeconds) } });
       try {
         const out = await engine.transcribe(decoded);
         const ms = Date.now() - started;
-        setRuns((r) => ({ ...r, [engine.id]: { status: "done", text: out.text, ms, words: out.words } }));
+        const device = metrics.end({ ok: true });
+        setRuns((r) => ({ ...r, [engine.id]: { status: "done", text: out.text, ms, words: out.words, device } }));
         logger.info("[asr-lab] " + engine.id + ": " + ms + " ms, " + out.text.split(/\s+/).length + " words, fillers=" + countFillers(out.text));
         if (typed) {
           const record: AsrRunRecord = {
@@ -176,6 +182,7 @@ export function AsrLabScreen({ navigation }: Props) {
           saveRecord(record);
         }
       } catch (error) {
+        metrics.end({ ok: false });
         setRuns((r) => ({ ...r, [engine.id]: { status: "error", error: (error as Error).message } }));
       }
     }
@@ -199,6 +206,7 @@ export function AsrLabScreen({ navigation }: Props) {
         ms: runs[e.id].ms,
         words: runs[e.id].words,
         error: runs[e.id].error,
+        device: runs[e.id].device,
       })),
       deepReview: deepReview
         ? { provider: deepReview.provider ?? "gemini", model: deepReview.model ?? null, heardAudio: reviewHeardAudio, text: deepReview.verbatim }
@@ -318,7 +326,7 @@ export function AsrLabScreen({ navigation }: Props) {
             <ListRow
               key={engine.id}
               title={engine.label}
-              subtitle={ok ? (run?.status === "running" ? "Running..." : run?.status === "done" ? (run.ms ?? 0) / 1000 + " s" : "Ready") : engine.model ? "Download the model first" : "Not available on this device"}
+              subtitle={ok ? (run?.status === "running" ? "Running..." : run?.status === "done" ? (run.device?.measured ? describeRun(run.device) : (run.ms ?? 0) / 1000 + " s") : "Ready") : engine.model ? "Download the model first" : "Not available on this device"}
               right={<IconButton icon="play" variant="plain" size={36} disabled={!ok || !selected || busy} accessibilityLabel={"Run " + engine.label} onPress={() => runEngines([engine])} />}
             />
           );

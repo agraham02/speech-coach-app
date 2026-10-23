@@ -29,7 +29,8 @@ export default (): ExpoConfig => ({
     slug: "speech-coach-app",
     // 1.1.0: expo-widgets (the Dynamic Island prep timer) is native code, so
     // the runtime version moves with it — see the note on runtimeVersion.
-    version: "1.3.0",
+    // 1.4.0: the local device-metrics module (Dev → Metrics).
+    version: "1.4.0",
     scheme: "tono",
     orientation: "portrait",
     // Follows the system light/dark setting (needs expo-system-ui on

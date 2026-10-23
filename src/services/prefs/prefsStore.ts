@@ -58,6 +58,7 @@ const KEYS = {
   mediaBackup: "mediaBackup",
   pathPlan: "pathPlan",
   feedbackPrompt: "feedbackPrompt",
+  pathFinaleSeenAt: "pathFinaleSeenAt",
 } as const;
 
 // The session-score rules every stored score was last computed with (see
@@ -577,4 +578,14 @@ export function getFeedbackPromptState(): FeedbackPromptState {
 
 export function setFeedbackPromptState(state: FeedbackPromptState): void {
   storage.set(KEYS.feedbackPrompt, JSON.stringify(state));
+}
+
+// When the path finale (finishing every unit) was first seen; null before.
+// It plays by itself once; after that it's reopened from Today or Learn.
+export function getPathFinaleSeenAt(): string | null {
+  return storage.getString(KEYS.pathFinaleSeenAt) ?? null;
+}
+
+export function setPathFinaleSeenAt(at: string): void {
+  storage.set(KEYS.pathFinaleSeenAt, at);
 }
