@@ -130,6 +130,43 @@ These produce the data that tunes the new pitch/volume/pause code in session 06.
 - [ ] *(Later, needs iOS 27)* Apple Private Cloud Compute model spike.
   Notes:
 
+## Session 07: score layers and the AnalysisService
+
+**Needs build:** no. Everything is JavaScript, so an over-the-air update onto a 1.5.0 build works. The Tono AI items need sign-in working (section E and `supabase/README.md`). No server change is needed: the app still sends its prompts through `ai-generate`.
+
+- [ ] **A take judged from the words (the new default).** Signed in to Tono AI, Deep review on, record a 60 to 90 s impromptu take. Pass: the Result fills in with a judged score; Dev → Logs has no `[gemini] uploading` line for it; Dev → Pipeline → the take → artifacts shows `analysis` with `take_review` done and provenance `input: "text"` with a model name, and `cloud_usage` with input "measurements".
+  Data to send back: Dev → Pipeline → the take → Copy analysis as JSON, into `analysis_samples/`.
+  Notes:
+- [ ] **The same take judged from the video.** Dev → App tools → "Judge from" → Video. Record a second take of the same prompt. Pass: the upload starts when you save (Logs: `[gemini] early upload … ready`), provenance says `input: "video"`, and Tone fit appears in Cadence marked "not in the total".
+  Data to send back: the export, as above.
+  Notes:
+- [ ] **Text versus video, judged on the same takes** (decides decision 1 in `docs/decisions/scoring-taxonomy.md`). On 4 takes that still have their video (short, long, plenty of ums, a flat voice): Dev → Pipeline → the take → Re-run Deep review, once with "Judge from: Words and measurements" and once with "Video". Pass: the category scores land within about 1 point of each other, and the text one's notes aren't obviously worse. Say which notes you'd rather read.
+  Data to send back: both exports per take.
+  Notes:
+- [ ] **The breakdown reads as one system.** Open a judged take's Overview. Pass:
+  - the rows are Cadence, Impromptu and Confidence;
+  - tapping one shows sub-scores, each labelled "Tono AI" or "measured on the phone";
+  - the hero number sits between the lowest and the highest row;
+  - the footnote gives the measured-only score.
+  (The Scores tab still shows the old rubric until session 11.)
+  Notes:
+- [ ] **An unjudged take.** Turn Deep review off on the save screen, then record. Pass:
+  - the hero score is the measured one, and the footnote says "Measured on this phone";
+  - on a scripted reading's Result, "vs last session" compares only with earlier unjudged takes;
+  - the coach card's caption reads "From measurements made on this phone."
+  Notes:
+- [ ] **Mastery moves with the score.** After a judged take, open Progress → a skill → Recent changes. Pass: the change for this take matches the direction of that skill's category score on the Result (a low Cadence doesn't raise Cadence).
+  Notes:
+- [ ] **Rewind notes on request.** Record a Rewind of a minute or more. Pass: no notes appear by themselves (Apple Intelligence no longer writes them); "Get notes from Tono AI" asks for consent once, then shows notes captioned "Written by Tono AI from your transcript. Not a score."
+  Notes:
+- [ ] **Say it short and Mark it up.** Do one Say it short drill and mark one sentence in Mark it up. Pass: the summary card says "From your AI coach (Tono AI)"; the mark-up toast says "Marked by Tono AI"; with Tono AI signed out, Mark it up still marks (by the rules) and Say it short still scores.
+  Notes:
+- [ ] **A long take fits a text review.** Record a 3-minute take, judged from the words. Pass: the review finishes (no "MAX_TOKENS" or "missing parts" error in the step), in under about 30 s after the on-device steps.
+  Data to send back: the step durations from Dev → Pipeline.
+  Notes:
+- [ ] **Offline.** Airplane mode on, record with Deep review on. Pass: the review step fails with a connection message, not a crash; turn the connection back on and it runs (the existing retry), and the score switches to judged.
+  Notes:
+
 ---
 
 ## Delete means delete (session 13)
