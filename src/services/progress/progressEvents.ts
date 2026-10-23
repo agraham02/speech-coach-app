@@ -81,3 +81,18 @@ export function subscribeToUnitCompleted(listener: (e: UnitCompleted) => void): 
     unitListeners.delete(listener);
   };
 }
+
+// The last unit on your path is finished: the finale plays after its
+// unit celebration (components/celebrate/CelebrationHost.tsx).
+const finaleListeners = new Set<() => void>();
+
+export function emitPathCompleted(): void {
+  finaleListeners.forEach((listener) => listener());
+}
+
+export function subscribeToPathCompleted(listener: () => void): () => void {
+  finaleListeners.add(listener);
+  return () => {
+    finaleListeners.delete(listener);
+  };
+}
