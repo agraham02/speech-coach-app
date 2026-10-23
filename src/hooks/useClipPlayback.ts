@@ -98,7 +98,12 @@ export function useClipPlayback(uri: string | null, knownDurationMs: number): Cl
           setPlaying(false);
         },
       });
-      if (!alive.current || run !== generation.current) return;
+      if (!alive.current || run !== generation.current) {
+        // Paused, replaced or left while the engine was starting: don't let
+        // this clip play on behind it.
+        if (ok && run !== generation.current) stopClip();
+        return;
+      }
       setPlaying(ok);
       if (!ok) setFailed(true);
     },
