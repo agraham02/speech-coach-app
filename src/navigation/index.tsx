@@ -32,6 +32,7 @@ import { SessionDetailScreen } from "../screens/dev/SessionDetailScreen";
 import { ArtifactScreen } from "../screens/dev/ArtifactScreen";
 import { FaceLabScreen } from "../screens/dev/FaceLabScreen";
 import { ToolsScreen } from "../screens/dev/ToolsScreen";
+import { MetricsScreen } from "../screens/dev/MetricsScreen";
 import type { ArtifactKind } from "../services/db/artifactsRepo";
 import type { LogLevelFilter } from "../domain/dev/logFilter";
 import { reconcileOnLaunch } from "../services/pipeline/reconcile";
@@ -174,6 +175,7 @@ export type RootStackParamList = {
   DevArtifact: { sessionId: string; kind: ArtifactKind };
   DevFaceLab: undefined;
   DevTools: undefined;
+  DevMetrics: undefined;
 };
 
 const JSTab = createBottomTabNavigator<TabParamList>();
@@ -416,6 +418,7 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
             <Stack.Screen name="DevFaceLab" component={FaceLabScreen} />
             <Stack.Screen name="DevTools" component={ToolsScreen} />
             <Stack.Screen name="AsrLab" component={AsrLabScreen} />
+            <Stack.Screen name="DevMetrics" component={MetricsScreen} />
           </Stack.Group>
         ) : null}
         <Stack.Screen name="Practice" component={HomeScreen} />

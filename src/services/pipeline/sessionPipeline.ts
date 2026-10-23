@@ -15,6 +15,7 @@ import { takePresenceTimeline } from "./presenceTimelineStore";
 import { clearDecodedAudio } from "./steps/decodedAudioCache";
 import { startEarlyUpload } from "./earlyUpload";
 import { runExclusive } from "./jobQueue";
+import { beginRun, type RunHandle } from "../dev/deviceMetrics";
 import { settleRepProgress } from "../sessions/repProgress";
 import { showGlobalToast } from "../../components/common/ToastProvider";
 import { notifySessionComplete } from "../notifications/sessionCompleteNotifier";
@@ -155,6 +156,9 @@ export async function createSessionFromTake(take: NewTake): Promise<string> {
 export function runPendingSteps(sessionId: string): Promise<void> {
   return runExclusive(`${sessionId}:run`, async () => {
     let ranCloudReview = false;
+    // Dev builds record the run's peaks for the Metrics screen. Started on
+    // the first step, so a launch-time check with nothing to do records nothing.
+    let metrics: RunHandle | null = null;
     // A step can queue earlier steps again (a deep review that supplies the
     // missing transcript re-queues voice analysis and coaching), so keep
     // passing until nothing is left — bounded so a bug can't loop forever.
@@ -166,11 +170,13 @@ export function runPendingSteps(sessionId: string): Promise<void> {
         const state = (await getSessionSteps(sessionId)).find((s) => s.step === step);
         if (!state || (state.status !== "pending" && state.status !== "interrupted")) continue;
         ranAny = true;
-        const ok = await runStep(sessionId, step, () => runner(sessionId));
+        metrics ??= beginRun("pipeline", "Pipeline run", { sessionId });
+        const ok = await runStep(sessionId, step, () => runner(sessionId), metrics.id || undefined);
         if (step === "cloud_review" && ok) ranCloudReview = true;
       }
       if (!ranAny) break;
     }
+    metrics?.end();
     clearDecodedAudio();
     await refreshSessionStatus(sessionId);
     await settleRepProgress(sessionId);

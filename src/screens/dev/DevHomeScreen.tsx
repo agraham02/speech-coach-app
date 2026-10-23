@@ -116,6 +116,13 @@ export function DevHomeScreen() {
           chevron
           onPress={() => navigation.navigate("DevLogs")}
         />
+        <ListRow
+          icon="speedometer-outline"
+          title="Metrics"
+          subtitle="Memory, CPU, thermal and battery, live and per run"
+          chevron
+          onPress={() => navigation.navigate("DevMetrics")}
+        />
       </ListGroup>
 
       <ListGroup title="Labs">

@@ -3,6 +3,7 @@ import { findTranscriptProblems } from "../asr/transcriptSanity";
 import type { Session, SessionScores } from "../sessionTypes";
 import type { StepState } from "../sessionSteps";
 import { summarizeHistory, type AsrRunRecord } from "./asrHistory";
+import type { MetricRun } from "./metrics";
 
 // Builders for the Dev tab's JSON exports: everything needed to look at a
 // take's analysis, or an ASR Lab run, away from the phone. Pure: the screens
@@ -90,6 +91,8 @@ export interface AsrEngineRunInput {
   ms?: number;
   words?: { text: string; startMs: number; endMs: number }[];
   error?: string;
+  // Memory, CPU and thermal while it ran (see domain/dev/metrics.ts).
+  device?: MetricRun | null;
 }
 
 // The take's stored deep-review transcript, scored like an engine.
@@ -153,6 +156,17 @@ export function buildAsrExport({ context, take, reference, runs, deepReview, his
         text: done ? text : null,
         // [word, startMs, endMs]
         timedWords: run.words ? run.words.map((w) => [w.text, w.startMs, w.endMs]) : null,
+        device:
+          run.device && run.device.measured
+            ? {
+                peakMemoryBytes: run.device.peakMemoryBytes ?? null,
+                memoryGrowthBytes: run.device.peakMemoryBytes != null && run.device.startMemoryBytes != null ? run.device.peakMemoryBytes - run.device.startMemoryBytes : null,
+                avgCpuPercent: run.device.avgCpuPercent != null ? round(run.device.avgCpuPercent, 1) : null,
+                peakCpuPercent: run.device.peakCpuPercent != null ? round(run.device.peakCpuPercent, 1) : null,
+                cpuCores: run.device.cpuCores ?? null,
+                worstThermalState: run.device.worstThermalState ?? null,
+              }
+            : null,
       };
     }),
     deepReviewTranscript: deepReview ? { provider: deepReview.provider, model: deepReview.model, heardAudio: deepReview.heardAudio, ...scores(deepReview.text), text: deepReview.text } : null,

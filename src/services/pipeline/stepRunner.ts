@@ -5,6 +5,7 @@ import { describeCloudError } from "../cloud/cloudErrors";
 import { notifySessionComplete } from "../notifications/sessionCompleteNotifier";
 import { emitStepEvent } from "./processingEvents";
 import { runExclusive } from "./jobQueue";
+import { traceRun } from "../dev/deviceMetrics";
 import { logger } from "../../utils/logger";
 
 // A step failure the user should read as-is (e.g. "No transcript yet").
@@ -28,7 +29,9 @@ export async function refreshSessionStatus(sessionId: string): Promise<void> {
 // Runs one step under a per-(session, step) lock: marks it running, runs it,
 // then persists done/failed with a readable error. Never throws — returns
 // whether the step succeeded, so a chain of steps can keep going.
-export function runStep(sessionId: string, step: SessionStep, task: () => Promise<void>): Promise<boolean> {
+// `metricsParent` is the pipeline run this step belongs to on the Dev tab's
+// Metrics screen (dev builds only).
+export function runStep(sessionId: string, step: SessionStep, task: () => Promise<void>, metricsParent?: string): Promise<boolean> {
   return runExclusive(`${sessionId}:${step}`, async () => {
     await setStepStatus(sessionId, step, "running", { bumpAttempts: true });
     emitStepEvent({ sessionId, step, status: "running" });
@@ -36,7 +39,7 @@ export function runStep(sessionId: string, step: SessionStep, task: () => Promis
     // Timed, so the Logs show where a slow take spent its time.
     const started = Date.now();
     try {
-      await task();
+      await traceRun("step", STEP_LABELS[step], task, { parentId: metricsParent, sessionId, detail: { step } });
       await setStepStatus(sessionId, step, "done");
       emitStepEvent({ sessionId, step, status: "done" });
       logger.info(`[pipeline] ${sessionId} ${step}: done in ${elapsed(started)}`);

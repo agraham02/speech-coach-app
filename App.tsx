@@ -11,6 +11,8 @@ import { retryWaitingTakes } from "./src/services/pipeline/retryWaitingTakes";
 import { ToastProvider } from "./src/components/common/ToastProvider";
 import { CelebrationHost } from "./src/components/celebrate/CelebrationHost";
 import { GuideProvider } from "./src/components/common/GuideTip";
+import { MetricsOverlay } from "./src/components/dev/MetricsOverlay";
+import { SHOW_DEV_TOOLS } from "./src/config/devTools";
 import { ThemeProvider, useTheme } from "./src/theme/ThemeProvider";
 
 // The splash (app.config.ts) stays up until the first screen can draw in the
@@ -58,6 +60,8 @@ export default function App() {
                 <CelebrationHost>
                   <AppNavigator onReady={() => SplashScreen.hide()} />
                 </CelebrationHost>
+                {/* Dev builds: the Metrics overlay, when turned on in Dev → Metrics. */}
+                {SHOW_DEV_TOOLS ? <MetricsOverlay /> : null}
               </GuideProvider>
             </ToastProvider>
           </AppErrorBoundary>

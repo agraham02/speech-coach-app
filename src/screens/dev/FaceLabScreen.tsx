@@ -42,6 +42,7 @@ import {
 import { classifyLook, computePresenceMetrics, DEFAULT_PRESENCE_THRESHOLDS, type PresenceSample, type PresenceThresholds } from "../../domain/presenceMetrics";
 import { getFaceThresholds, resetFaceThresholds, setFaceThresholds } from "../../services/dev/devStore";
 import { rescoreRecent, type RescoreRow } from "../../services/dev/rescore";
+import { beginRun } from "../../services/dev/deviceMetrics";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "DevFaceLab">;
@@ -113,6 +114,17 @@ export function FaceLabScreen({ navigation }: Props) {
     }, 1000);
     return () => clearInterval(id);
   }, []);
+
+  // The camera and MediaPipe's cost while the Lab is open, for the Metrics
+  // screen (dev builds with the metrics module).
+  const cameraLive = focused && hasPermission;
+  useEffect(() => {
+    if (!cameraLive) return;
+    const metrics = beginRun("face", "Face Lab camera");
+    return () => {
+      metrics.end();
+    };
+  }, [cameraLive]);
 
   const running = calibration.status === "running";
   useEffect(() => {
