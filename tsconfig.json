@@ -14,7 +14,6 @@
   },
   "exclude": [
     "node_modules",
-    "teleprompter-prototype",
     "supabase/functions/**/index.ts",
     "supabase/functions/**/*_deno_test.ts",
     "supabase/functions/_shared/http.ts",

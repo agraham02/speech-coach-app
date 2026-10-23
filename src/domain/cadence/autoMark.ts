@@ -1,7 +1,7 @@
 import { wordsOf, type Mark, type MarkedText } from "./marks";
 
 // Rule-based marking for any text, following the marking guide in
-// practice-expansion-plan.md §4.6 — the fallback when there's no on-device
+// docs/history/practice-expansion-plan.md §4.6 — the fallback when there's no on-device
 // model, and the starting point for the built-in content. Pure.
 //
 // 1. Every phrase boundary gets a pause: , ; : and dashes a short one,

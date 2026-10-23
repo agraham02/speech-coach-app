@@ -50,10 +50,6 @@ export function videoExists(uri: string): boolean {
   }
 }
 
-export function getVideoFileSize(fileUri: string): number {
-  return new File(fileUri).size;
-}
-
 export function deleteRecording(fileUri: string): void {
   const file = new File(fileUri);
   if (file.exists) {

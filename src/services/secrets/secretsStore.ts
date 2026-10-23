@@ -46,10 +46,6 @@ export function getGeminiApiKey(): Promise<string | null> {
   return getSecret(KEYS.geminiApiKey);
 }
 
-export function setGeminiApiKey(value: string): Promise<void> {
-  return setSecret(KEYS.geminiApiKey, value);
-}
-
 
 // Secrets for features that no longer exist (the Notion journal and
 // AssemblyAI transcription, both removed 2026-10-12). Deleting a missing

@@ -7,7 +7,6 @@ import { ScreenContainer } from "../components/common/ScreenContainer";
 import { Card } from "../components/common/Card";
 import { PrimaryButton } from "../components/common/PrimaryButton";
 import { VideoPlayback } from "../components/result/VideoPlayback";
-import { isFreeRecordPrompt } from "../data/topics";
 import { deleteRecording } from "../services/storage/videoStorage";
 import { createSessionFromTake } from "../services/pipeline/sessionPipeline";
 import { setVideoKeepsake } from "../services/data/videoKeepsakes";

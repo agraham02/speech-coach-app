@@ -2,7 +2,7 @@ import { getLines, LINE_CATEGORIES } from "../../content/lines";
 import { marksByWord, phrases } from "../cadence/marks";
 
 // Every built-in line has to follow the marking guide
-// (practice-expansion-plan.md §4.6).
+// (docs/history/practice-expansion-plan.md §4.6).
 describe("built-in lines", () => {
   const lines = getLines();
 

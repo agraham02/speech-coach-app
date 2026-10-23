@@ -5,13 +5,11 @@ import {
   buildResponseSchemaWithCueCompliance,
   buildScriptSystemPrompt,
   buildSystemPrompt,
-  buildTranscriptCleanOnlySystemPrompt,
   buildTranscriptOnlySystemPrompt,
   hostedReviewSection,
   RESPONSE_SCHEMA,
   SPEECH_IS_DATA,
   STUTTER_NOTE,
-  TRANSCRIPT_CLEAN_ONLY_SCHEMA,
   TRANSCRIPT_ONLY_SCHEMA,
   withQuickCoach,
 } from "./schema";
@@ -247,35 +245,6 @@ export function parseTranscriptOnly(responseText: string): GeminiTranscriptOnly 
   }
 
   return extractTranscriptFields(parsed as Partial<GeminiTranscriptOnly>, parsed);
-}
-
-// Text-only call (no video ever uploaded) — rewrites an already-accurate
-// verbatim transcript (on-device) into clean journal prose.
-// Used when grading wasn't requested and a transcript source resolved, so
-// there's no reason to pay for/wait on a video upload just for this one
-// rewriting task. See sessionProcessor.ts.
-export async function cleanTranscriptOnly(rawTranscript: string): Promise<string> {
-  logger.info("[gemini] calling generateContent (transcript-clean-only, text-only)...");
-  const responseText = await generateContent({
-    systemPrompt: buildTranscriptCleanOnlySystemPrompt(rawTranscript),
-    responseSchema: TRANSCRIPT_CLEAN_ONLY_SCHEMA,
-  });
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(responseText);
-  } catch (error) {
-    throw new GeminiApiError(`Gemini response was not valid JSON: ${(error as Error).message}`);
-  }
-  const candidate = parsed as { transcript_clean?: unknown };
-  if (typeof candidate.transcript_clean !== "string") {
-    throw new GeminiApiError(
-      "Gemini response JSON did not match the expected schema (transcript_clean)",
-      undefined,
-      parsed,
-    );
-  }
-  return candidate.transcript_clean;
 }
 
 function isScoredNote(value: unknown): value is { score: number; notes: string } {

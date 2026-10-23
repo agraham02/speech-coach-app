@@ -12,7 +12,6 @@ import { isFreeRecordPrompt } from "../../data/topics";
 import type { LineCategory } from "../../content/lines";
 import { randomContextPrompt } from "../../data/contextPrompts";
 import { daysUntilEvent, promptContexts } from "../../domain/profile";
-import { makeAdhocPrompt } from "../../domain/sessionTypes";
 import { getNextEvent, getUserProfile } from "../prefs/prefsStore";
 import { todayISODate } from "../../utils/dateUtils";
 

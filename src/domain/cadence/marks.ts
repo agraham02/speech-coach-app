@@ -176,11 +176,6 @@ export function cycleGap(marks: Mark[], afterWord: number): Mark[] {
   return rest;
 }
 
-export function setGap(marks: Mark[], afterWord: number, kind: GapMarkKind | null): Mark[] {
-  const rest = marks.filter((m) => !(isGap(m) && m.afterWord === afterWord));
-  return kind ? [...rest, { kind, afterWord }] : rest;
-}
-
 export function addSpan(marks: Mark[], kind: SpanMarkKind, a: number, b: number): Mark[] {
   const from = Math.min(a, b);
   const to = Math.max(a, b);

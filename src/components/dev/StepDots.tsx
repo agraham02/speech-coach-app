@@ -38,7 +38,7 @@ export function StepDots({ steps }: { steps: StepState[] }) {
   );
 }
 
-const useStyles = makeStyles((t) => ({
+const useStyles = makeStyles(() => ({
   row: { flexDirection: "row", alignItems: "center", gap: 6 },
   dot: { width: 10, height: 10, borderRadius: 5 },
 }));

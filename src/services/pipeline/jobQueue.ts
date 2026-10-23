@@ -13,10 +13,6 @@ export function runExclusive<T>(key: string, task: () => Promise<T>): Promise<T>
   return promise;
 }
 
-export function isRunning(key: string): boolean {
-  return inFlight.has(key);
-}
-
 // Serializes memory-heavy work (audio decode, Whisper) across sessions so two
 // models are never loaded at once.
 let heavyChain: Promise<unknown> = Promise.resolve();

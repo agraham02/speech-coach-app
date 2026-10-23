@@ -62,14 +62,3 @@ export async function markSelfLikeSaid(id: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(`UPDATE self_likes SET said_at = ? WHERE id = ?`, [new Date().toISOString(), id]);
 }
-
-export async function deleteSelfLike(id: string): Promise<void> {
-  const db = await getDatabase();
-  await db.runAsync(`UPDATE self_likes SET deleted_at = ? WHERE id = ?`, [new Date().toISOString(), id]);
-}
-
-// Undo for deleteSelfLike.
-export async function restoreSelfLike(id: string): Promise<void> {
-  const db = await getDatabase();
-  await db.runAsync(`UPDATE self_likes SET deleted_at = NULL WHERE id = ?`, [id]);
-}

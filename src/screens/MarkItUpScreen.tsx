@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { showGlobalToast } from "../components/common/ToastProvider";
 import { logger } from "../utils/logger";
-import { Skeleton, SkeletonCard, SkeletonLines, SkeletonRows } from "../components/common/Skeleton";
+import { SkeletonRows } from "../components/common/Skeleton";
 import { GuideTip } from "../components/common/GuideTip";
 import { Alert, FlatList, Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";

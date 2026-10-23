@@ -14,7 +14,3 @@ export function takePresenceTimeline(previewUri: string): PresenceSample[] | nul
   pending.delete(previewUri);
   return timeline;
 }
-
-export function discardPresenceTimeline(previewUri: string): void {
-  pending.delete(previewUri);
-}

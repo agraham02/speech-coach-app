@@ -26,11 +26,6 @@ export interface StepState {
 
 export const ALL_STEPS: SessionStep[] = ["transcribe", "audio_metrics", "presence", "coach", "cloud_review"];
 
-// Steps that run on-device and are safe to resume automatically after an
-// interruption. Cloud steps cost money/data, so they only auto-resume when
-// the user explicitly asked for them (see reconcile.ts).
-export const ON_DEVICE_STEPS: SessionStep[] = ["transcribe", "audio_metrics", "presence", "coach"];
-
 export const STEP_LABELS: Record<SessionStep, string> = {
   transcribe: "Transcript",
   audio_metrics: "Voice analysis",

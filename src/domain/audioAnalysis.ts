@@ -55,7 +55,7 @@ export interface PitchVolumeAnalysis {
 const FRAME_SIZE = 2048;
 const BUCKET_MS = 200;
 // A plain RMS-energy gate, not a real VAD model — this is the "last-resort
-// fallback" tier from plan.md's Phase 2 (Silero VAD was deferred along with
+// fallback" tier from docs/history/plan.md's Phase 2 (Silero VAD was deferred along with
 // the rest of the ONNX-model work; see the plan's Windows-build-blocker
 // notes). The threshold is a reasonable-sounding heuristic for phone-mic
 // recordings, not empirically tuned against real sessions yet.
@@ -101,7 +101,7 @@ const FAILED_ANALYSIS: PitchVolumeAnalysis = {
 // Pure function over an already-decoded waveform (see decodeVideoAudio) — no
 // I/O, easily testable. Pitch via YIN (pitchfinder, pure JS) — the plan's
 // documented fallback tier; PESTO/onnxcrepe were deferred along with Silero
-// VAD (see plan.md). Downsamples into 200ms buckets before returning (a
+// VAD (see docs/history/plan.md). Downsamples into 200ms buckets before returning (a
 // 3-min session is ~900 points/array — trivial to store/chart). Never
 // throws — returns a `failed`-status result the caller can degrade on.
 export function analyzePitchVolume(waveform: Float32Array, sampleRate: number): PitchVolumeAnalysis {

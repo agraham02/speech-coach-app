@@ -157,17 +157,6 @@ export async function updateSessionGeminiFile(id: string, file: GeminiFileRef | 
   );
 }
 
-export async function updateSessionStatus(
-  id: string,
-  status: SessionStatus,
-): Promise<void> {
-  const db = await getDatabase();
-  await db.runAsync(`UPDATE sessions SET status = ? WHERE id = ?`, [
-    status,
-    id,
-  ]);
-}
-
 export async function getSessionById(id: string): Promise<Session | null> {
   const db = await getDatabase();
   const row = await db.getFirstAsync<SessionRow>(

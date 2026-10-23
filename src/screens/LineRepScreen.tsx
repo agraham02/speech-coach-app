@@ -14,7 +14,7 @@ import { MarkLegend } from "../components/cadence/MarkLegend";
 import { GuideTip, TourScrollContext, TourTarget, useTourScroll } from "../components/common/GuideTip";
 import { MarkEditor, toolsFor } from "../components/cadence/MarkEditor";
 import { useTakeRecorder } from "../hooks/useTakeRecorder";
-import { getLines, LINE_CATEGORIES, type LineCategory } from "../content/lines";
+import { getLines, LINE_CATEGORIES } from "../content/lines";
 import { lineRepConfig, pickLines, kindsYouMark, type LineRepConfig } from "../domain/cadence/lineRep";
 import { compareMarks, keepKinds, type Mark, type MarkKind, type MarkedText } from "../domain/cadence/marks";
 import { autoMark, remixEmphasis } from "../domain/cadence/autoMark";
@@ -47,7 +47,7 @@ const READS = [
   { level: "none" as const, title: "Marks hidden", detail: "Keep the same music without the map." },
 ];
 
-// Mark It Up's main loop (practice-expansion-plan.md §4.2): a few lines of
+// Mark It Up's main loop (docs/history/practice-expansion-plan.md §4.2): a few lines of
 // one or two sentences, each marked (or checked), read twice with the marks
 // and once without. Line of the day is a one-line version with no rating.
 export function LineRepScreen({ route, navigation }: Props) {
@@ -387,10 +387,6 @@ function CompareCards({ line, yours, onChoose }: { line: RepLine; yours: Mark[];
       </Card>
     </>
   );
-}
-
-export function categoryLabel(category: LineCategory | undefined): string {
-  return LINE_CATEGORIES.find((c) => c.id === category)?.label ?? "Lines";
 }
 
 const useStyles = makeStyles((t) => ({

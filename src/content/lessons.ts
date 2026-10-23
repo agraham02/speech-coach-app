@@ -1391,7 +1391,3 @@ export function getLesson(id: string): Lesson | undefined {
 export function getGuided(id: string): GuidedExercise | undefined {
   return GUIDED.find((g) => g.id === id);
 }
-
-export function lessonsForSkill(skill: SkillId): Lesson[] {
-  return LESSONS.filter((l) => l.skill === skill);
-}

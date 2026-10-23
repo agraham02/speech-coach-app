@@ -1,4 +1,4 @@
-import { CONTEXT_OPTIONS, EXPERIENCE_OPTIONS, OBSTACLE_OPTIONS } from "../content/onboarding";
+import { CONTEXT_OPTIONS, OBSTACLE_OPTIONS } from "../content/onboarding";
 import { daysUntilEvent, type UserProfile } from "./profile";
 import type { UpcomingEvent } from "./events";
 

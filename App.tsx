@@ -30,7 +30,7 @@ SplashScreen.setOptions({ duration: 300, fade: true });
 const SPLASH_TIMEOUT_MS = 5000;
 
 export default function App() {
-  // Instrument Sans — the app's one typeface (see design-refresh-plan.md).
+  // Instrument Sans — the app's one typeface (see docs/history/design-refresh-plan.md).
   // One family per weight; keys match the fonts' PostScript names.
   const [fontsLoaded, fontError] = useFonts({
     "InstrumentSans-Regular": require("./assets/fonts/InstrumentSans-Regular.ttf"),

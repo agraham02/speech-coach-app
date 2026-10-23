@@ -84,9 +84,6 @@ export const DEFAULT_PRESENCE_THRESHOLDS: PresenceThresholds = {
   tense: 0.45,
 };
 
-// Kept for existing callers.
-export const EYE_CONTACT_MAX_DEG = DEFAULT_PRESENCE_THRESHOLDS.eyeContactMaxDeg;
-
 export type LookReason = "no_face" | "head_away" | "eyes_away" | "blink" | "on_lens";
 
 export interface LookClassification {

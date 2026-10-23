@@ -78,7 +78,7 @@ type Props = NativeStackScreenProps<RootStackParamList, "Onboarding">;
 
 const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
 
-// Onboarding chapters 1-3 (practice-expansion-plan.md §8): about you, how you
+// Onboarding chapters 1-3 (docs/history/practice-expansion-plan.md §8): about you, how you
 // speak, your practice. Answers save as you go, so quitting halfway resumes
 // where you left off; each one is applied as soon as you move on. "profile"
 // mode is the same questions for someone who's used the app already.

@@ -43,8 +43,6 @@ export function useAccount(): AccountSnapshot {
   return useSyncExternalStore(subscribeAccount, getAccount, getAccount);
 }
 
-export const isSignedIn = (): boolean => state.status === "signedIn";
-
 // A session appeared, changed or went away.
 function applySession(session: Session | null): void {
   if (!session) {

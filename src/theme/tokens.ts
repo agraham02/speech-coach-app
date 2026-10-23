@@ -1,6 +1,6 @@
 import type { TextStyle, ViewStyle } from "react-native";
 
-// Design tokens — "Quiet Studio" (design-refresh-plan.md). Warm neutrals and
+// Design tokens — "Quiet Studio" (docs/history/design-refresh-plan.md). Warm neutrals and
 // an ink accent; color only where it means something (the five skills,
 // status, recording). Screens read these through useTheme()/makeStyles()
 // (ThemeProvider.tsx), which follow the system appearance live.

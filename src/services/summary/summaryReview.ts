@@ -41,12 +41,6 @@ function systemFor(setup: SummarySetup): string {
   return SUMMARY_REVIEW_SYSTEM[setup.type] + speakerContextForReview() + SPEECH_IS_DATA + (stutters ? STUTTER_NOTE : "");
 }
 
-// Tono AI when signed in with something left, else the person's own key, else
-// nobody off-phone (domain/aiRouting.ts).
-export async function cloudReviewAvailable(): Promise<boolean> {
-  return (await providerFor("summary_notes", { hasVideo: false })) !== null;
-}
-
 async function reviewInCloud(setup: SummarySetup, transcripts: string[]): Promise<SummaryReviewResult | null> {
   const resolved = await providerFor("summary_notes", { hasVideo: false });
   if (!resolved) return null;

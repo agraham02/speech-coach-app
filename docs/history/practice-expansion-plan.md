@@ -46,7 +46,7 @@ Inspiration: two short videos by progress.playground (Instagram/TikTok), coverin
 ## 0. Before you touch anything
 
 - Read the Expo SDK 57 docs, as `AGENTS.md` says.
-- Don't break the Conversation skill's design rules (see `conversation-plan.md` §3): Conversation drills score process only, the live transcript stays hidden while you reply, and blanks never move difficulty. Feature E borrows the same philosophy.
+- Don't break the Conversation skill's design rules (see `docs/history/conversation-plan.md` §3): Conversation drills score process only, the live transcript stays hidden while you reply, and blanks never move difficulty. Feature E borrows the same philosophy.
 - The DB is at **migration v17**. New tables start at **v18**.
 - `lesson_progress` is keyed by `lesson_id`. **Never rename an existing lesson id.** New lessons can be inserted anywhere in a track, and `chooseLesson` will route to them because they're not done.
 

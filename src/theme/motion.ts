@@ -1,6 +1,6 @@
 import { Easing, FadeInDown, type WithSpringConfig } from "react-native-reanimated";
 
-// Motion tokens (design-refresh-plan.md): presses answer instantly, content
+// Motion tokens (docs/history/design-refresh-plan.md): presses answer instantly, content
 // enters in a short stagger, progress fills. Nothing loops except live
 // states (recording, listening).
 

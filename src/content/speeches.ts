@@ -2,7 +2,7 @@ import { parseNotation } from "../domain/cadence/notation";
 import type { Mark } from "../domain/cadence/marks";
 
 // The Speeches shelf: the 12 full speeches from Script Practice, re-marked
-// to the marking guide (practice-expansion-plan.md §4.6) — rule-marked first,
+// to the marking guide (docs/history/practice-expansion-plan.md §4.6) — rule-marked first,
 // then corrected by hand — with the old tone directions kept as notes, at
 // most one per paragraph. Notation: see domain/cadence/notation.ts. The
 // words are exactly the scripts' text (a test checks), so the teleprompter

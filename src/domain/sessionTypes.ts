@@ -114,11 +114,6 @@ export type SessionStatus =
 // never in the curriculum or stats, never a keepsake (see domain/feelings.ts).
 export type SessionType = "spontaneous" | "free_record" | "concise" | "script_practice" | "feeling";
 
-// Sessions whose scores feed the curriculum and the stats.
-export function isScoredPractice(type: SessionType): boolean {
-  return type !== "script_practice" && type !== "feeling";
-}
-
 export interface Session {
   id: string;
   promptId: string;

@@ -3,7 +3,6 @@ import { Modal, Platform, Pressable, StyleSheet, View } from "react-native";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 import { dateFromISODate, isoDateFromDate, todayISODate } from "../../utils/dateUtils";
 import { Txt } from "./Txt";
@@ -91,32 +90,6 @@ function IosSheet({ visible, start, min, title, onPick, onClose }: { visible: bo
   );
 }
 
-interface DateFieldProps {
-  label: string;
-  value: string | null;
-  onChange: (date: string) => void;
-  placeholder?: string;
-}
-
-// A row showing the chosen day ("Thu, Nov 6"); tap to change it.
-export function DateField({ label, value, onChange, placeholder = "Pick a date" }: DateFieldProps) {
-  const styles = useStyles();
-  const { colors } = useTheme();
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <Pressable onPress={() => setOpen(true)} style={styles.field} accessibilityRole="button" accessibilityLabel={`${label}: ${value ? formatEventDate(value) : "not set"}`}>
-        <Ionicons name="calendar-clear-outline" size={18} color={colors.textSecondary} />
-        <Txt variant="body" tone={value ? "primary" : "muted"} style={styles.fieldText}>
-          {value ? formatEventDate(value) : placeholder}
-        </Txt>
-        <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
-      </Pressable>
-      <DatePicker visible={open} value={value} onPick={onChange} onClose={() => setOpen(false)} title={label} />
-    </>
-  );
-}
-
 // "Thu, Nov 6", plus the year when it isn't this one.
 export function formatEventDate(date: string): string {
   const d = dateFromISODate(date);
@@ -139,14 +112,4 @@ const useStyles = makeStyles((t) => ({
     gap: t.space.md,
   },
   handle: { alignSelf: "center", width: 40, height: 5, borderRadius: 3, backgroundColor: t.colors.switchTrackOff },
-  field: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: t.space.sm,
-    minHeight: 48,
-    paddingHorizontal: t.space.md,
-    borderRadius: t.radius.md,
-    backgroundColor: t.colors.surfaceRaised,
-  },
-  fieldText: { flex: 1 },
 }));

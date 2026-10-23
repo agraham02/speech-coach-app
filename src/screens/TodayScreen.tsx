@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Skeleton, SkeletonCard, SkeletonLines, SkeletonRows } from "../components/common/Skeleton";
+import { Skeleton, SkeletonLines } from "../components/common/Skeleton";
 import { GuideTip, TourTarget } from "../components/common/GuideTip";
 import { View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";

@@ -1,6 +1,6 @@
 # Tono
 
-Personal, unpublished daily speaking-practice app. Full product spec, phase-by-phase status, and changelog are in [plan.md](./plan.md). Phases 1, 3, 4, 5, plus unplanned Phases 6 (UI/UX pass), 7 (daily reminder), and 8 (Free Record + preview/discard + per-session opt-in grading) are built; Phase 2 (on-device transcription toggle) is deferred.
+Personal, unpublished daily speaking-practice app. Full product spec, phase-by-phase status, and changelog are in [docs/history/plan.md](./docs/history/plan.md). Phases 1, 3, 4, 5, plus unplanned Phases 6 (UI/UX pass), 7 (daily reminder), and 8 (Free Record + preview/discard + per-session opt-in grading) are built; Phase 2 (on-device transcription toggle) is deferred.
 
 ## Setup
 
@@ -34,7 +34,7 @@ This project deliberately pins the **older, well-documented, battle-tested pair*
 - `react-native-worklets-core` (required by the pair above for frame processors)
 - `react-native-reanimated@4` + its `react-native-worklets` dependency (Expo SDK 57's expected pairing; `react-native-reanimated/plugin` just re-exports `react-native-worklets/plugin`)
 
-Both worklets packages (`-core` and the new one) end up installed side by side. There's a documented Android-only build issue when both are present (duplicate type imports) — not a concern here since the only build target is iOS (per `plan.md`, the device is an iPhone 15 Pro). If you ever do need Android, that's the first thing to check.
+Both worklets packages (`-core` and the new one) end up installed side by side. There's a documented Android-only build issue when both are present (duplicate type imports) — not a concern here since the only build target is iOS (per `docs/history/plan.md`, the device is an iPhone 15 Pro). If you ever do need Android, that's the first thing to check.
 
 If a future need arises to move to the v5 Nitro pair, re-check `visioncamera.margelo.com` docs for `useVideoOutput`/recording APIs first — they were still being fleshed out as of this writing.
 
@@ -45,7 +45,7 @@ If a future need arises to move to the v5 Nitro pair, re-check `visioncamera.mar
 - `src/services/pipeline/` — `sessionPipeline.ts` runs each saved take's analysis as independent, resumable steps (transcribe → voice analysis → video analysis → coaching → optional deep review) without any mounted screen; each step can be retried on its own from the Result screen. `processingEvents.ts` is a small pub-sub that screens subscribe to for live status instead of driving the pipeline themselves.
 - `src/screens/PreviewScreen.tsx` — sits between Recording and Processing. Nothing is written to the DB or uploaded anywhere until the user chooses "Save" here (vs. "Discard", which just deletes the temp video file) — recording no longer auto-saves/auto-processes the instant it stops.
 - `src/components/common/ToastProvider.tsx` — a small Reanimated-based toast, plus a module-level `showGlobalToast()` escape hatch so non-component code (the background pipeline) can surface feedback (e.g. "session graded", streak milestones) regardless of which screen is open.
-- `src/services/secrets/secretsStore.ts` — one key per deep-review provider, entered via Settings and stored with `expo-secure-store` (Keychain/Keystore), never embedded in the build (see `plan.md` §12).
+- `src/services/secrets/secretsStore.ts` — one key per deep-review provider, entered via Settings and stored with `expo-secure-store` (Keychain/Keystore), never embedded in the build (see `docs/history/plan.md` §12).
 - `src/services/cloud/` — bring-your-own-key deep reviews. `providers.ts` lists the providers and their defaults; `measuredReview.ts` builds the review for providers that can't take video (the verbatim transcript, a timed transcript with pauses in brackets, and the phone's voice and face measurements) and validates the reply against the same rubric as Gemini's; `textProviders.ts` calls OpenAI (Responses API), Anthropic (Messages API) and OpenRouter (chat completions) with strict JSON-schema output; `consent.ts` asks once per provider before anything is sent (App Review 5.1.2(i)); `cloudErrors.ts` turns failures into fixable messages.
 - `src/services/data/resetApp.ts` — Settings' "Reset app": drops every table and reruns the migrations (like a fresh install), deletes every video, clears preferences and logs, cancels reminders, and sends you back to onboarding. API keys survive.
 

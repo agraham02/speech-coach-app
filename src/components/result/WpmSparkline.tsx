@@ -1,7 +1,7 @@
 import { Text, View } from "react-native";
 import { LineChart } from "react-native-gifted-charts";
 import type { WpmPoint } from "../../domain/sessionTypes";
-import { spacing, typography, font } from "../../theme/theme";
+import { spacing, font } from "../../theme/theme";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 // Real words-per-minute over time, from word-level timestamps (on-device

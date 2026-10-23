@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Skeleton, SkeletonCard, SkeletonLines, SkeletonRows } from "../components/common/Skeleton";
+import { SkeletonCard } from "../components/common/Skeleton";
 import { GuideTip } from "../components/common/GuideTip";
 import { ScrollView, View } from "react-native";
 import * as Speech from "expo-speech";

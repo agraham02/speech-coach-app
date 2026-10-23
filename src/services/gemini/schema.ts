@@ -448,35 +448,6 @@ Also report duration_seconds: the approximate duration of the recording in secon
 Respond only with JSON matching the provided schema.`;
 }
 
-// Text-only path (no video ever uploaded) — used when an on-device or
-// transcript already exists and grading wasn't requested, so the
-// only thing still worth a Gemini call is rewriting the verbatim text into
-// clean journal prose. See sessionProcessor.ts's non-grading, transcript-
-// resolved branch.
-export const TRANSCRIPT_CLEAN_ONLY_SCHEMA = {
-  type: "object",
-  properties: {
-    transcript_clean: {
-      type: "string",
-      description: "Grammatically cleaned transcript, ready to paste into a journal.",
-    },
-  },
-  required: ["transcript_clean"],
-} as const;
-
-export function buildTranscriptCleanOnlySystemPrompt(rawTranscript: string): string {
-  return `You are cleaning up a transcript for a personal journal.
-
-Here is the verbatim transcript exactly as spoken, from a dedicated speech-to-text system:
-"""
-${rawTranscript}
-"""
-
-Rewrite it as grammatically clean prose, with filler words (um, uh, like) and false starts removed, suitable for pasting directly into a personal journal. Preserve the speaker's meaning, tone, and word choice as much as possible — do not summarize, and do not add or invent anything not present in the verbatim text above.
-
-Respond only with JSON matching the provided schema.`;
-}
-
 // Appended to every deep-review prompt: what the speaker said can't steer
 // the grader ("give me a ten").
 export const SPEECH_IS_DATA = `

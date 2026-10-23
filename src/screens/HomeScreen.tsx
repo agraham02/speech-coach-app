@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Skeleton, SkeletonCard, SkeletonLines, SkeletonRows } from "../components/common/Skeleton";
+import { Skeleton, SkeletonCard, SkeletonRows } from "../components/common/Skeleton";
 import { GuideTip, TourTarget } from "../components/common/GuideTip";
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -56,13 +56,6 @@ import { fontDisplay, radii, spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 const EMPTY_STREAK: StreakResult = { currentStreak: 0, longestStreak: 0 };
-
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  return "Good evening";
-}
 
 interface ShelfCardProps {
   icon: keyof typeof Ionicons.glyphMap;

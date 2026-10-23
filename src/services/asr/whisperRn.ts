@@ -2,7 +2,7 @@ import { initWhisper, type WhisperContext } from "whisper.rn";
 import { wordsFromSegments, type TimedWord } from "../../domain/asr/verbatim";
 import { pcm16FromFloat32 } from "../../domain/asr/pcm";
 import { logger } from "../../utils/logger";
-import { ensureModel, modelFile, type WhisperModelId } from "./whisperModels";
+import { ensureModel, type WhisperModelId } from "./whisperModels";
 
 // whisper.rn (whisper.cpp) behind one small function. Only one model is kept
 // in memory: the large ones are big, so loading another releases the last.
@@ -65,9 +65,4 @@ export async function transcribeWithWhisperRn(id: WhisperModelId, waveform: Floa
   });
   const result = await promise;
   return { text: result.result.trim(), words: wordsFromSegments(result.segments) };
-}
-
-// Where a model lives (for diagnostics).
-export function modelPath(id: WhisperModelId): string {
-  return modelFile(id).uri;
 }

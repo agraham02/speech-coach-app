@@ -12,7 +12,6 @@ import { formatEventDate } from "../components/common/DatePicker";
 import { showGlobalToast } from "../components/common/ToastProvider";
 import { eventName, nervesSummary, type SpeakingEvent } from "../domain/events";
 import { EVENT_CONTEXT } from "../domain/profile";
-import { makeAdhocPrompt } from "../domain/sessionTypes";
 import { randomContextPrompt } from "../data/contextPrompts";
 import { getEvent, saveAfterCheckIn, saveBeforeCheckIn } from "../services/db/eventsRepo";
 import { logger } from "../utils/logger";
