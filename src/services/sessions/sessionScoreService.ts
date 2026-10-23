@@ -2,7 +2,7 @@ import { getArtifact, putArtifact } from "../db/artifactsRepo";
 import { defaultsFromProfile } from "../../domain/profile";
 import { getScoreVersion, getUserProfile, setScoreVersion } from "../prefs/prefsStore";
 import { getDatabase } from "../db/database";
-import { getSessionById } from "../db/sessionsRepo";
+import { getSessionById, isSessionLive } from "../db/sessionsRepo";
 import { getScoresBySessionId } from "../db/scoresRepo";
 import { headlineSheet, judgedFromRubric, SCORE_SHEET_VERSION, takeScores, type MeasuredFacts, type TakeScores } from "../../domain/scoring/takeScore";
 import type { Provenance } from "../../domain/analysis/types";
@@ -83,8 +83,9 @@ function judgedBy(analyses: TakeAnalyses | null, transcript: CloudTranscriptArti
 export async function refreshSessionScore(sessionId: string): Promise<TakeScores | null> {
   try {
     const session = await getSessionById(sessionId);
-    // Feeling reps are process only — no score, ever.
-    if (!session || session.sessionType === "feeling") return null;
+    // Feeling reps are process only — no score, ever. A take being deleted
+    // (hidden during the undo window) gets nothing new written for it.
+    if (!session || session.sessionType === "feeling" || !(await isSessionLive(sessionId))) return null;
     const stutterMode = defaultsFromProfile(getUserProfile()).stutterMode;
     const [pauses, presence, coach, review, transcript, analyses] = await Promise.all([
       getArtifact<PauseAnalysis>(sessionId, "pauses"),

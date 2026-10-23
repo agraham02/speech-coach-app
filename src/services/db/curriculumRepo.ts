@@ -18,7 +18,7 @@ import type { CurriculumStateEntry } from "../../domain/sessionTypes";
 
 // Finished impromptu takes (not scripts or feeling reps), for the checkpoint
 // each curriculum_state row keeps. Deleted takes don't count.
-async function countImpromptuTakes(): Promise<number> {
+export async function countImpromptuTakes(): Promise<number> {
   const db = await getDatabase();
   const row = await db.getFirstAsync<{ n: number }>(
     `SELECT COUNT(*) AS n FROM sessions WHERE status = 'done' AND deleted_at IS NULL AND session_type NOT IN ('script_practice', 'feeling')`,

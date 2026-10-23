@@ -1,5 +1,6 @@
 import type { AnalysisKind, AnalysisResult, Provenance, Unavailable } from "../../domain/analysis/types";
 import { getArtifact, putArtifact } from "../db/artifactsRepo";
+import { isSessionLive } from "../db/sessionsRepo";
 import { logger } from "../../utils/logger";
 
 // What happened to each kind of analysis on a take, with its provenance, so a
@@ -41,6 +42,8 @@ export async function getTakeAnalyses(takeId: string): Promise<TakeAnalyses> {
 
 export async function recordAnalysis(takeId: string, kind: AnalysisKind, record: StoredAnalysis): Promise<void> {
   try {
+    // A take deleted meanwhile keeps nothing (delete means delete).
+    if (!(await isSessionLive(takeId))) return;
     const current = await getTakeAnalyses(takeId);
     await putArtifact(takeId, "analysis", { ...current, [kind]: record });
   } catch (error) {
