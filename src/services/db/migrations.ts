@@ -7,7 +7,7 @@ import type { SessionStatus } from "../../domain/sessionTypes";
 import { logger } from "../../utils/logger";
 
 // Bump this and add a new numbered migration when the schema changes.
-export const LATEST_DB_VERSION = 31;
+export const LATEST_DB_VERSION = 32;
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(
@@ -825,6 +825,20 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
     // every take from before this column.
     await addColumnIfMissing(db, "day_recalls", "words_json", "TEXT");
     currentVersion = await commitVersion(db, 31);
+  }
+
+  if (currentVersion < 32) {
+    // Delete means delete. The one thing that outlives a deleted take is a
+    // bare local date, so the streak (and "practiced today") still know you
+    // showed up: no link to the take, nothing else about it. Rows are added
+    // when a take is deleted (practiceDaysRepo.ts); the days of takes that
+    // still exist are counted from the takes themselves.
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS practice_days (
+        date TEXT PRIMARY KEY NOT NULL
+      );
+    `);
+    currentVersion = await commitVersion(db, 32);
   }
 }
 

@@ -107,7 +107,6 @@ export async function createSessionFromTake(take: NewTake): Promise<string> {
     fillerWordCount: null,
     fillerRatePerMinute: null,
     videoDeletedAt: null,
-    deletedAt: null,
     planPointText: planFields.point,
     planReasonText: planFields.reason,
     planExampleText: planFields.example,

@@ -32,6 +32,10 @@ export async function reconcileOnLaunch(): Promise<void> {
   if (reconciled) return;
   reconciled = true;
   try {
+    // First: anything deleted (or deleted and not yet erased when the app was
+    // killed) goes before steps are resumed, so a deleted take never runs again.
+    await purgeDeletedData().catch((error) => logger.warn(`[reconcile] purge failed - ${(error as Error).message}`));
+
     const stale = await getStepsWithStatus(["running"]);
     for (const step of stale) {
       await setStepStatus(step.sessionId, step.step, "interrupted", { lastError: "Interrupted — the app was closed." });
@@ -42,7 +46,7 @@ export async function reconcileOnLaunch(): Promise<void> {
     for (const sessionId of sessionIds) {
       await refreshSessionStatus(sessionId);
       const session = await getSessionById(sessionId);
-      if (!session || session.deletedAt) continue;
+      if (!session) continue;
       const recent = Date.now() - Date.parse(session.recordedAt) < AUTO_RESUME_WINDOW_MS;
       const steps = resumable.filter((s) => s.sessionId === sessionId);
       if (recent && steps.every((s) => s.attempts < MAX_AUTO_ATTEMPTS)) {
@@ -61,7 +65,6 @@ export async function reconcileOnLaunch(): Promise<void> {
     const temp = deleteTempMedia(TEMP_MIN_AGE_MS);
     if (temp) logger.info(`[reconcile] removed ${temp} temporary file(s) from the cache`);
     applyMediaBackup();
-    await purgeDeletedData();
     await repairStoredGazeY();
     await backfillSessionScores();
   } catch (error) {
@@ -70,7 +73,8 @@ export async function reconcileOnLaunch(): Promise<void> {
 }
 
 // Deletes video files no live session references: abandoned previews
-// (back-swiped away before Save/Discard) and deleted sessions' files.
+// (back-swiped away before Save/Discard) and the leftovers of an erase that
+// was cut short.
 async function cleanUpOrphanedVideos(): Promise<void> {
   const referenced = await getReferencedVideoFiles();
   const now = Date.now();

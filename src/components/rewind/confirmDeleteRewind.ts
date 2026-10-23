@@ -1,29 +1,59 @@
 import { Alert } from "react-native";
-import { deleteRewind, type Rewind } from "../../services/db/rewindRepo";
-import { deleteRewindAudio } from "../../services/rewind/rewindStorage";
-import { syncRewindReminder } from "../../services/rewind/rewindReminder";
+import type { Rewind } from "../../services/db/rewindRepo";
+import { deleteTakeWithUndo, freeUpRewindAudio } from "../../services/data/takeDeletion";
 import { stopClip } from "../../services/audio/clipPlayer";
 
-// Asks, then deletes a Rewind: the row's words now (the row itself is purged
-// later), the audio file, and tonight's reminder is worked out again. From
-// the Rewind result and from a long press in the Library.
-export function confirmDeleteRewind(rewind: Pick<Rewind, "id" | "audioFile">, onDeleted: () => void, onFailed?: () => void): void {
-  Alert.alert("Delete this Rewind?", "The recording, transcript and notes are removed from your phone.", [
+// Two clear choices for a Rewind. "Delete" erases the whole take: the
+// recording, transcript, word timings, counts and the coach's notes, with a few
+// seconds to undo. "Free up space" deletes only the recording and keeps what you
+// said and the notes. From the Rewind result and from a long press in the Library.
+export function confirmDeleteRewind(
+  rewind: Pick<Rewind, "id" | "audioFile">,
+  handlers: { onDeleted: () => void; onFreed?: () => void; onFailed?: () => void },
+): void {
+  const buttons: Parameters<typeof Alert.alert>[2] = [
     { text: "Cancel", style: "cancel" },
     {
-      text: "Delete",
+      text: "Delete Rewind",
       style: "destructive",
       onPress: async () => {
         stopClip();
         try {
-          await deleteRewind(rewind.id);
+          if (await deleteTakeWithUndo("rewind", rewind.id)) handlers.onDeleted();
+          else handlers.onFailed?.();
         } catch {
-          onFailed?.();
-          return;
+          handlers.onFailed?.();
         }
-        deleteRewindAudio(rewind.audioFile);
-        syncRewindReminder().catch(() => undefined);
-        onDeleted();
+      },
+    },
+  ];
+  if (rewind.audioFile) {
+    buttons.push({ text: "Free up space, keep the words and notes", onPress: () => confirmFreeUpRewindAudio(rewind, handlers) });
+  }
+  Alert.alert(
+    "Delete this Rewind?",
+    "The recording, the words and the notes are erased from your phone for good. Your streak keeps the day. You can undo for a few seconds.",
+    buttons,
+  );
+}
+
+function confirmFreeUpRewindAudio(
+  rewind: Pick<Rewind, "id" | "audioFile">,
+  handlers: { onFreed?: () => void; onFailed?: () => void },
+): void {
+  Alert.alert("Free up space?", "This deletes only the recording. What you said and the notes stay.", [
+    { text: "Cancel", style: "cancel" },
+    {
+      text: "Free up space",
+      style: "destructive",
+      onPress: async () => {
+        stopClip();
+        try {
+          await freeUpRewindAudio(rewind);
+          handlers.onFreed?.();
+        } catch {
+          handlers.onFailed?.();
+        }
       },
     },
   ]);

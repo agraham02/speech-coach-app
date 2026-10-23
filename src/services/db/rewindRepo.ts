@@ -1,6 +1,7 @@
 import { getDatabase } from "./database";
 import { generateId } from "../../utils/generateId";
 import { todayISODate } from "../../utils/dateUtils";
+import { markPracticeDay } from "./practiceDaysRepo";
 import type { RewindStats } from "../../domain/rewind/stats";
 import type { RewindReview } from "../../domain/rewind/reviewPrompt";
 import type { TranscriptWord } from "../../domain/sessionTypes";
@@ -144,21 +145,45 @@ export async function listRewinds(): Promise<Rewind[]> {
 export async function listRewindAudioBefore(cutoffIso: string): Promise<{ id: string; audioFile: string }[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<{ id: string; audio_file: string }>(
-    `SELECT id, audio_file FROM day_recalls WHERE audio_file IS NOT NULL AND recorded_at < ?`,
+    `SELECT id, audio_file FROM day_recalls WHERE audio_file IS NOT NULL AND deleted_at IS NULL AND recorded_at < ?`,
     [cutoffIso],
   );
   return rows.map((r) => ({ id: r.id, audioFile: r.audio_file }));
 }
 
-// Everything a take holds of what you said.
-const CONTENT_COLUMNS = ["transcript", "words_json", "stats_json", "review_json"];
-
-// What you said goes as soon as you delete it: the transcript, the review
-// and the counts are cleared now, and the row itself is purged later
-// (dataPurge.ts). The audio file is deleted by the caller.
-export async function deleteRewind(id: string): Promise<void> {
+// Deleting a Rewind erases it, the same way a take is erased (sessionsRepo.ts):
+// markRewindDeleted hides it at once and leaves the bare date marker for the
+// streak, and eraseRewindRow removes the row (transcript, word timings,
+// counts, the coach's notes) when the undo window ends, the app goes to the
+// background, or at the next launch. The audio file is deleted by the caller.
+export async function markRewindDeleted(id: string): Promise<boolean> {
   const db = await getDatabase();
-  await db.runAsync(`UPDATE day_recalls SET deleted_at = ?, ${CONTENT_COLUMNS.map((c) => `${c} = NULL`).join(", ")} WHERE id = ?`, [new Date().toISOString(), id]);
+  const row = await db.getFirstAsync<{ date: string }>(`SELECT date FROM day_recalls WHERE id = ?`, [id]);
+  if (!row) return false;
+  await db.runAsync(`UPDATE day_recalls SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL`, [new Date().toISOString(), id]);
+  await markPracticeDay(row.date);
+  return true;
+}
+
+export async function restoreRewind(id: string): Promise<boolean> {
+  const db = await getDatabase();
+  return (await db.runAsync(`UPDATE day_recalls SET deleted_at = NULL WHERE id = ? AND deleted_at IS NOT NULL`, [id])).changes > 0;
+}
+
+export async function listPendingDeletedRewinds(onlyId?: string): Promise<{ id: string; audioFile: string | null }[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{ id: string; audio_file: string | null }>(
+    `SELECT id, audio_file FROM day_recalls WHERE deleted_at IS NOT NULL AND (? IS NULL OR id = ?)`,
+    [onlyId ?? null, onlyId ?? null],
+  );
+  return rows.map((r) => ({ id: r.id, audioFile: r.audio_file }));
+}
+
+export async function eraseRewindRow(id: string): Promise<void> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ date: string }>(`SELECT date FROM day_recalls WHERE id = ?`, [id]);
+  if (row) await markPracticeDay(row.date);
+  await db.runAsync(`DELETE FROM day_recalls WHERE id = ?`, [id]);
 }
 
 // The audio files live Rewinds still point at (for the orphan sweep).

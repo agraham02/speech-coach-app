@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Reveal, Skeleton, SkeletonCard, SkeletonHero } from "../components/common/Skeleton";
 import { GuideTip, TourScrollContext, TourTarget, useTourScroll } from "../components/common/GuideTip";
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
@@ -33,11 +33,12 @@ import { ScoreRadarChart } from "../components/result/ScoreRadarChart";
 import { WpmSparkline } from "../components/result/WpmSparkline";
 import { PitchVolumeChart } from "../components/result/PitchVolumeChart";
 import { useToast } from "../components/common/ToastProvider";
-import { getSessionById, deleteSession, deleteSessionVideo } from "../services/db/sessionsRepo";
+import { getSessionById } from "../services/db/sessionsRepo";
+import { confirmDeleteTake } from "../components/common/confirmDeleteTake";
 import { getPreviousOverallScore, getScoresBySessionId } from "../services/db/scoresRepo";
 import { getPrompt } from "../services/db/promptsRepo";
 import { getScriptById } from "../services/db/scriptsRepo";
-import { deleteRecording, resolveVideoUri, videoExists } from "../services/storage/videoStorage";
+import { resolveVideoUri, videoExists } from "../services/storage/videoStorage";
 import { requestStep } from "../services/pipeline/sessionPipeline";
 import { currentProvider, reviewBlockedReason } from "../services/cloud/providers";
 import { readyForDeepReview } from "../services/cloud/consent";
@@ -226,31 +227,17 @@ export function ResultScreen({ route, navigation }: Props) {
     }
   }
 
-  async function handleDeleteVideo() {
-    await deleteSessionVideo(sessionId);
-    deleteRecording(resolveVideoUri(session!));
-    setSession((prev) => (prev ? { ...prev, videoDeletedAt: new Date().toISOString() } : prev));
-    showToast("Video deleted — transcript and scores kept", "success");
-  }
-
-  async function handleDeleteSession() {
-    await deleteSession(sessionId);
-    deleteRecording(resolveVideoUri(session!));
-    navigation.popToTop();
-  }
-
+  // Delete erases the whole take (with a few seconds to undo, offered from
+  // wherever you land); "free up space" deletes only the video.
   function handleDelete() {
-    const buttons: Parameters<typeof Alert.alert>[2] = [{ text: "Cancel", style: "cancel" }];
-    if (!session!.videoDeletedAt) {
-      buttons.push({ text: "Delete Video", style: "destructive", onPress: handleDeleteVideo });
-    }
-    buttons.push({ text: "Delete Session", style: "destructive", onPress: handleDeleteSession });
-
-    Alert.alert(
-      "Delete this session?",
-      "Delete Video frees up space but keeps the transcript and scores (a deep review won't be possible afterwards). Delete Session removes it everywhere, including your stats.",
-      buttons,
-    );
+    confirmDeleteTake(session!, {
+      onDeleted: () => navigation.popToTop(),
+      onFreed: () => {
+        setSession((prev) => (prev ? { ...prev, videoDeletedAt: new Date().toISOString() } : prev));
+        showToast("Video deleted. Transcript and scores kept", "success");
+      },
+      onFailed: () => showToast("Couldn't delete that. Try again", "error"),
+    });
   }
 
   const videoUri = resolveVideoUri(session);

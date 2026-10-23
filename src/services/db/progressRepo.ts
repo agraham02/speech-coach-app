@@ -24,6 +24,8 @@ import type { SkillEvidence } from "../../domain/repEvidence";
 import { earnedStage, placementStage, speakerLevel, type Stage } from "../../domain/levels";
 import { emitStageEarned } from "../progress/progressEvents";
 import { getPathOrder } from "./pathRepo";
+import { isSessionLive } from "./sessionsRepo";
+import { getPracticeMarkerDates } from "./practiceDaysRepo";
 import { buildDailyPlan, PLAN_VERSION, type DailyPlan, type PlanMinutes } from "../../domain/dailyPlan";
 import { getLesson } from "../../content/lessons";
 import { summarizeAttempt, type AttemptSummary } from "../../domain/conversation/attemptMetrics";
@@ -159,6 +161,10 @@ async function logSkillEvent(e: {
   }
 }
 
+// A rating event of a take that has been deleted (inside its undo window; after
+// that the row is gone) is not part of any history.
+const LIVE_EVENT = `(session_id IS NULL OR session_id IN (SELECT id FROM sessions WHERE deleted_at IS NULL))`;
+
 export async function getSkillEvents(skill: SkillId, limit = 40): Promise<SkillEvent[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<{
@@ -175,7 +181,7 @@ export async function getSkillEvents(skill: SkillId, limit = 40): Promise<SkillE
     session_id: string | null;
     drill_type: string | null;
     detail_json: string | null;
-  }>(`SELECT * FROM skill_events WHERE skill = ? ORDER BY at DESC LIMIT ?`, [skill, limit]);
+  }>(`SELECT * FROM skill_events WHERE skill = ? AND ${LIVE_EVENT} ORDER BY at DESC LIMIT ?`, [skill, limit]);
   return rows.map((r) => {
     let detail: SkillEvent["detail"] = null;
     try {
@@ -206,7 +212,7 @@ export async function getSkillEvents(skill: SkillId, limit = 40): Promise<SkillE
 export async function getSkillMovesSince(sinceIso: string): Promise<{ skill: SkillId; from: number; to: number }[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<{ skill: string; rating_before: number; rating_after: number }>(
-    `SELECT skill, rating_before, rating_after FROM skill_events WHERE at >= ? AND source != 'seed' ORDER BY at ASC`,
+    `SELECT skill, rating_before, rating_after FROM skill_events WHERE at >= ? AND source != 'seed' AND ${LIVE_EVENT} ORDER BY at ASC`,
     [sinceIso],
   );
   const moves = new Map<SkillId, { skill: SkillId; from: number; to: number }>();
@@ -349,6 +355,8 @@ export async function recordRepOutcome(
 ): Promise<ProgressChange[]> {
   const entries = (Object.entries(evidence) as [SkillId, number][]).filter(([, v]) => v != null && Number.isFinite(v));
   if (entries.length === 0) return [];
+  // A take deleted while it was still being analysed moves nothing.
+  if (!(await isSessionLive(context.sessionId))) return [];
   const level = await getDrillLevel("rep");
   const skills = await getSkillStates();
   const after = { ...skills };
@@ -674,10 +682,16 @@ export async function getConversationAttemptSummaries(limit = 60): Promise<(Atte
 }
 
 // Every day with any practice — a recorded session, a drill, or a finished
-// daily plan — for the streak.
+// daily plan — for the streak. A day whose takes were all deleted still counts
+// (the bare date marker a delete leaves; nothing else about the take does).
 export async function getPracticeDates(): Promise<string[]> {
-  const [sessions, drills, plans] = await Promise.all([getCompletedSessionDates(), getDrillCompletionDates(), getPlanCompletionDates()]);
-  return [...sessions, ...drills, ...plans.map((d) => `${d}T12:00:00`)];
+  const [sessions, drills, plans, markers] = await Promise.all([
+    getCompletedSessionDates(),
+    getDrillCompletionDates(),
+    getPlanCompletionDates(),
+    getPracticeMarkerDates(),
+  ]);
+  return [...sessions, ...drills, ...plans.map((d) => `${d}T12:00:00`), ...markers.map((d) => `${d}T12:00:00`)];
 }
 
 // Every day that counts toward the streak. Kept apart from getPracticeDates,

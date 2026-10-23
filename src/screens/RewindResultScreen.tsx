@@ -74,7 +74,14 @@ export function RewindResultScreen({ route }: Props) {
 
   function confirmDelete() {
     if (!rewind) return;
-    confirmDeleteRewind(rewind, () => navigation.goBack());
+    confirmDeleteRewind(rewind, {
+      onDeleted: () => navigation.goBack(),
+      onFreed: () => {
+        load();
+        showGlobalToast("Recording deleted. Words and notes kept", "success");
+      },
+      onFailed: () => showGlobalToast("Couldn't delete that. Try again", "error"),
+    });
   }
 
   // Whisper again, from the saved audio — the phone's recognizer wrote this one.
@@ -245,7 +252,7 @@ export function RewindResultScreen({ route }: Props) {
       ) : null}
 
       <ListGroup>
-        <ListRow icon="trash-outline" title="Delete this Rewind" destructive onPress={confirmDelete} />
+        <ListRow icon="trash-outline" title="Delete or free up space" destructive onPress={confirmDelete} />
       </ListGroup>
     </Screen>
   );

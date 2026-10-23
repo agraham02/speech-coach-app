@@ -8,7 +8,8 @@ import type {
   TranscriptWord,
   WpmPoint,
 } from "../../domain/sessionTypes";
-import { todayISODate } from "../../utils/dateUtils";
+import { isoDateFromDate, todayISODate } from "../../utils/dateUtils";
+import { markPracticeDay } from "./practiceDaysRepo";
 
 export async function insertSession(session: Session): Promise<void> {
   const db = await getDatabase();
@@ -157,6 +158,15 @@ export async function updateSessionGeminiFile(id: string, file: GeminiFileRef | 
   );
 }
 
+// False once a take has been deleted (or is in its undo window). A step
+// that was still running when the take was deleted checks this before it
+// records anything about it.
+export async function isSessionLive(id: string): Promise<boolean> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ n: number }>(`SELECT COUNT(*) AS n FROM sessions WHERE id = ? AND deleted_at IS NULL`, [id]);
+  return (row?.n ?? 0) > 0;
+}
+
 export async function getSessionById(id: string): Promise<Session | null> {
   const db = await getDatabase();
   const row = await db.getFirstAsync<SessionRow>(
@@ -168,20 +178,20 @@ export async function getSessionById(id: string): Promise<Session | null> {
 
 // Returns the promptIds of the most recently recorded sessions (most recent
 // first), deduplicated, for use as a "don't repeat" exclusion set when picking
-// the next prompt. Any session counts as "used" regardless of status.
+// the next prompt. Any session counts as "used" regardless of status; a
+// deleted take doesn't (nothing about it is kept, not even its prompt).
 export async function getRecentlyUsedPromptIds(limit: number): Promise<string[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<{ prompt_id: string }>(
-    `SELECT prompt_id FROM sessions GROUP BY prompt_id ORDER BY MAX(recorded_at) DESC LIMIT ?`,
+    `SELECT prompt_id FROM sessions WHERE deleted_at IS NULL GROUP BY prompt_id ORDER BY MAX(recorded_at) DESC LIMIT ?`,
     [limit],
   );
   return rows.map((row) => row.prompt_id);
 }
 
-// Deliberately not filtered by deleted_at — a soft-deleted session was still
-// recorded today for the purposes of "have you practiced today," but once
-// it's gone from History it shouldn't count, so the user can freely
-// re-record if they deleted their only session for the day.
+// A deleted take isn't returned. "Practiced today" also reads the bare date
+// marker a delete leaves (see practiceDaysRepo.ts), so deleting a take never
+// un-does the day.
 export async function getTodaysSession(): Promise<Session | null> {
   const db = await getDatabase();
   const today = todayISODate();
@@ -193,7 +203,7 @@ export async function getTodaysSession(): Promise<Session | null> {
 }
 
 // All sessions, most recent first — used by the History screen. Excludes
-// soft-deleted sessions (see deleteSession below).
+// takes in their delete window (see markSessionDeleted below).
 export async function getAllSessions(): Promise<Session[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<SessionRow>(
@@ -237,15 +247,82 @@ export async function deleteSessionVideo(id: string): Promise<void> {
   ]);
 }
 
-// Soft-deletes a session: the row stays (so the delete is recoverable), but
-// it's excluded from History, Trends, streaks and the curriculum. The caller
-// deletes the video file itself (reconcile.ts also sweeps leftovers).
-export async function deleteSession(id: string): Promise<void> {
+// --- Deleting a take --------------------------------------------------------
+// Deleting a take erases everything about it. Because of the short undo, that
+// happens in two steps: markSessionDeleted hides it everywhere at once (every
+// query skips a take with deleted_at set, so no total, trend, streak or
+// average counts it), and eraseSessionRows removes it for good when the undo
+// window ends, the app goes to the background, or at the next launch if the
+// app was killed in between (services/data/takeDeletion.ts). The files and
+// remote copies are removed by the caller.
+
+// Hides a take and leaves the bare date marker that keeps the streak. Returns
+// false when there is no such take.
+export async function markSessionDeleted(id: string): Promise<boolean> {
   const db = await getDatabase();
-  const now = new Date().toISOString();
-  await db.runAsync(`UPDATE sessions SET deleted_at = ?, video_deleted_at = ? WHERE id = ?`, [
-    now,
-    now,
-    id,
-  ]);
+  const row = await db.getFirstAsync<{ recorded_at: string; status: string }>(`SELECT recorded_at, status FROM sessions WHERE id = ?`, [id]);
+  if (!row) return false;
+  await db.runAsync(`UPDATE sessions SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL`, [new Date().toISOString(), id]);
+  if (row.status === "done") await markPracticeDay(isoDateFromDate(new Date(row.recorded_at)));
+  return true;
+}
+
+// Undo, inside the window.
+// False when the take is already gone (the window ended first).
+export async function restoreSession(id: string): Promise<boolean> {
+  const db = await getDatabase();
+  return (await db.runAsync(`UPDATE sessions SET deleted_at = NULL WHERE id = ? AND deleted_at IS NOT NULL`, [id])).changes > 0;
+}
+
+export interface PendingDeletedSession {
+  id: string;
+  videoFile: string | null;
+  videoPath: string;
+  geminiFileName: string | null;
+  geminiFileUri: string | null;
+}
+
+// Takes waiting to be erased (their undo window ended, or the app was killed
+// during it).
+export async function listPendingDeletedSessions(onlyId?: string): Promise<PendingDeletedSession[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{ id: string; video_file: string | null; video_path: string; gemini_file_name: string | null; gemini_file_uri: string | null }>(
+    `SELECT id, video_file, video_path, gemini_file_name, gemini_file_uri FROM sessions WHERE deleted_at IS NOT NULL AND (? IS NULL OR id = ?)`,
+    [onlyId ?? null, onlyId ?? null],
+  );
+  return rows.map((r) => ({ id: r.id, videoFile: r.video_file, videoPath: r.video_path, geminiFileName: r.gemini_file_name, geminiFileUri: r.gemini_file_uri }));
+}
+
+// Every table that holds something about one take, by session id.
+export const SESSION_CHILD_TABLES = ["scores", "session_steps", "session_artifacts", "review_passes", "skill_events"] as const;
+
+// Removes the take and everything about it: scores, steps, analysis and review
+// artifacts, review passes, its rating history (skill_events), the skill
+// check that was built on it, and the row itself. Already-computed state
+// (mastery ratings, stages, the path) is left as it is; nothing computed from
+// here on can count the take.
+export async function eraseSessionRows(id: string): Promise<void> {
+  const db = await getDatabase();
+  await db.withTransactionAsync(async () => {
+    const row = await db.getFirstAsync<{ recorded_at: string; status: string }>(`SELECT recorded_at, status FROM sessions WHERE id = ?`, [id]);
+    if (row?.status === "done") await markPracticeDay(isoDateFromDate(new Date(row.recorded_at)));
+    for (const table of SESSION_CHILD_TABLES) await db.runAsync(`DELETE FROM ${table} WHERE session_id = ?`, [id]);
+    // A skill check built on this take (its results are numbers from the take).
+    await db.runAsync(`UPDATE skill_checks SET retake_of = NULL WHERE retake_of IN (SELECT id FROM skill_checks WHERE session_id = ?)`, [id]);
+    await db.runAsync(`DELETE FROM skill_checks WHERE session_id = ?`, [id]);
+    await db.runAsync(`DELETE FROM sessions WHERE id = ?`, [id]);
+  });
+}
+
+// Children left behind by a write that landed after its take was erased (a
+// pipeline step still running when the take was deleted). Run at launch.
+export async function sweepOrphanedSessionRows(): Promise<number> {
+  const db = await getDatabase();
+  let removed = 0;
+  await db.withTransactionAsync(async () => {
+    for (const table of SESSION_CHILD_TABLES) {
+      removed += (await db.runAsync(`DELETE FROM ${table} WHERE session_id IS NOT NULL AND session_id NOT IN (SELECT id FROM sessions)`)).changes;
+    }
+  });
+  return removed;
 }

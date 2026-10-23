@@ -33,6 +33,8 @@ import {
 } from "../domain/curriculum";
 import { getAllPrompts } from "../services/db/promptsRepo";
 import { getRecentlyUsedPromptIds, getTodaysSession } from "../services/db/sessionsRepo";
+import { hasPracticeMarker } from "../services/db/practiceDaysRepo";
+import { todayISODate } from "../utils/dateUtils";
 import { getEffectiveCurriculumLevel, recomputeCurriculumLevel } from "../services/db/curriculumRepo";
 import {
   getConciseModeSeconds,
@@ -155,8 +157,9 @@ export function HomeScreen() {
         }
       })();
 
-      getTodaysSession()
-        .then((session) => setAlreadyPracticedToday(session?.status === "done"))
+      // A day whose take was deleted still counts as practiced (the marker).
+      Promise.all([getTodaysSession(), hasPracticeMarker(todayISODate())])
+        .then(([session, marker]) => setAlreadyPracticedToday(session?.status === "done" || marker))
         .catch(() => setAlreadyPracticedToday(false));
 
       getStreakState()

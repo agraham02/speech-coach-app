@@ -39,6 +39,7 @@ import type { ArtifactKind } from "../services/db/artifactsRepo";
 import type { LogLevelFilter } from "../domain/dev/logFilter";
 import { reconcileOnLaunch } from "../services/pipeline/reconcile";
 import { autoCleanupVideos } from "../services/data/videoKeepsakes";
+import { purgeWhenBackgrounded } from "../services/data/dataPurge";
 import type { PracticeContext } from "../domain/practice";
 import type { ConversationDrillType, DrillType, SummaryDrillType } from "../domain/drills/drillSpecs";
 import { HistoryScreen } from "../screens/HistoryScreen";
@@ -372,6 +373,9 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
     reconcileOnLaunch();
     autoCleanupVideos().catch((err) => logger.error(`[videos] auto-cleanup failed — ${(err as Error).message}`));
     autoCleanupRewindAudio().catch((err) => logger.error(`[rewind] audio cleanup failed — ${(err as Error).message}`));
+    // A delete has a short undo; whatever is still waiting when the app leaves
+    // the screen is erased then.
+    return purgeWhenBackgrounded();
   }, []);
 
   useEffect(() => {

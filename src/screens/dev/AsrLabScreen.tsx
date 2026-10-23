@@ -15,7 +15,7 @@ import { resolveVideoUri } from "../../services/storage/videoStorage";
 import { ASR_ENGINES, decodeForLab, type AsrEngine, type AsrOutput } from "../../services/asr/asrEngines";
 import { WHISPER_MODELS, cancelDownload, deleteModel, downloadedModelBytes, formatModelSize, formatSpeed, getDownloadState, isModelDownloaded, pauseDownload, startDownload, subscribeDownloads, type WhisperModelId } from "../../services/asr/whisperModels";
 import { releaseWhisperContext } from "../../services/asr/whisperRn";
-import { getDevJson, setDevJson } from "../../services/dev/devStore";
+import { ASR_HISTORY_KEY as HISTORY_KEY, ASR_REFERENCES_KEY as REFERENCES_KEY, getDevJson, setDevJson } from "../../services/dev/devStore";
 import { historyToCsv, summarizeHistory, upsertRun, type AsrRunRecord } from "../../domain/dev/asrHistory";
 import { countFillers, fillerRetention, matchFillers, wordErrorRate } from "../../domain/eval/wer";
 import { describeTranscriptProblems, findTranscriptProblems } from "../../domain/asr/transcriptSanity";
@@ -33,8 +33,6 @@ import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AsrLab">;
 
-const HISTORY_KEY = "asrHistory";
-const REFERENCES_KEY = "asrReferences";
 
 interface EngineRun {
   status: "running" | "done" | "error";
