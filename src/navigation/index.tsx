@@ -31,6 +31,7 @@ import { PipelineScreen } from "../screens/dev/PipelineScreen";
 import { SessionDetailScreen } from "../screens/dev/SessionDetailScreen";
 import { ArtifactScreen } from "../screens/dev/ArtifactScreen";
 import { FaceLabScreen } from "../screens/dev/FaceLabScreen";
+import { VoiceLabScreen } from "../screens/dev/VoiceLabScreen";
 import { ToolsScreen } from "../screens/dev/ToolsScreen";
 import type { ArtifactKind } from "../services/db/artifactsRepo";
 import type { LogLevelFilter } from "../domain/dev/logFilter";
@@ -173,6 +174,7 @@ export type RootStackParamList = {
   DevSession: { sessionId: string };
   DevArtifact: { sessionId: string; kind: ArtifactKind };
   DevFaceLab: undefined;
+  DevVoiceLab: { sessionId: string };
   DevTools: undefined;
 };
 
@@ -414,6 +416,7 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
             <Stack.Screen name="DevSession" component={SessionDetailScreen} />
             <Stack.Screen name="DevArtifact" component={ArtifactScreen} />
             <Stack.Screen name="DevFaceLab" component={FaceLabScreen} />
+            <Stack.Screen name="DevVoiceLab" component={VoiceLabScreen} />
             <Stack.Screen name="DevTools" component={ToolsScreen} />
             <Stack.Screen name="AsrLab" component={AsrLabScreen} />
           </Stack.Group>
