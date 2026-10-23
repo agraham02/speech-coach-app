@@ -7,7 +7,7 @@ import type { SessionStatus } from "../../domain/sessionTypes";
 import { logger } from "../../utils/logger";
 
 // Bump this and add a new numbered migration when the schema changes.
-export const LATEST_DB_VERSION = 30;
+export const LATEST_DB_VERSION = 31;
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(
@@ -816,6 +816,15 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
       `);
     });
     currentVersion = await commitVersion(db, 30);
+  }
+
+  if (currentVersion < 31) {
+    // Rewind word timings, from Whisper, so playback can follow along with
+    // the transcript and a tapped word can jump the audio there. Null for
+    // takes written by the live recognizer (it gives no timings) and for
+    // every take from before this column.
+    await addColumnIfMissing(db, "day_recalls", "words_json", "TEXT");
+    currentVersion = await commitVersion(db, 31);
   }
 }
 
