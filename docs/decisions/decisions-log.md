@@ -22,6 +22,7 @@ What Ahmad decided, with the reason, so later sessions don't re-open it. Newest 
 - **Face detection at 15 frames a second or more**, battery cost accepted.
 - **Shaky voice is dropped as a goal** (jitter, shimmer, tremor, and the held-vowel check).
 - **"Like" and "actually" count as fillers, but as a different kind of filler** from the traditional ones (um, uh), because they depend on context. Show them separately.
+- **Deleting a recording deletes everything about it** (decided 2026-10-23): video, audio, transcript, numbers, and its rating history. Nothing is kept. Already-computed curriculum state is not recalculated, but a deleted take must not count in anything computed afterwards. Today a delete is a soft delete that keeps the transcript, analysis and scores for 30 days and keeps its `skill_events`; session 13 fixes that.
 - **No audio-only copy of deleted takes** (decided 2026-10-23). Deleting a video deletes its audio with it, by hand or by the retention cleanup. The app already keeps each month's best and toughest take as keepsakes (`src/domain/videoKeepsakes.ts`); those keep their video and audio and are the takes that can be re-analysed when the algorithms improve. Every other take keeps its transcript, its numbers and the small versioned feature track, and older numbers are labelled as measured with the older method.
 
 ### Small decisions, accepted as built
