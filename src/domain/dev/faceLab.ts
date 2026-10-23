@@ -162,6 +162,7 @@ export interface ThresholdField {
 export const THRESHOLD_FIELDS: ThresholdField[] = [
   { key: "gazeMaxOffset", label: "Eyes off the lens", hint: "Eye offset still counted as on the lens", step: 0.05, min: 0.05, max: 1, decimals: 2 },
   { key: "lookingDown", label: "Looking down", hint: "Eyes this far below the lens count as down", step: 0.05, min: -1, max: -0.05, decimals: 2 },
+  { key: "lookingUp", label: "Looking up", hint: "Eyes this far above the lens count as up", step: 0.05, min: 0.05, max: 1, decimals: 2 },
   { key: "gazeHeadMaxDeg", label: "Head turn (with gaze)", hint: "Head angle allowed while the eyes are checked", step: 1, min: 5, max: 45, decimals: 0, unit: "°" },
   { key: "eyeContactMaxDeg", label: "Head turn (head only)", hint: "Used for older takes without gaze", step: 1, min: 5, max: 45, decimals: 0, unit: "°" },
   { key: "eyesClosed", label: "Eyes closed", hint: "Openness below this is a blink", step: 0.05, min: 0.05, max: 0.7, decimals: 2 },

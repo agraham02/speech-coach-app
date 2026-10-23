@@ -76,11 +76,11 @@ export interface AudioMetricFields {
   dspStatus: DspStatus | null;
   pitchContourHz: (number | null)[] | null;
   volumeEnvelopeDbfs: number[] | null;
-  pitchAvgHz: number | null;
-  pitchMinHz: number | null;
-  pitchMaxHz: number | null;
-  volumeAvgDbfs: number | null;
-  volumeStddevDbfs: number | null;
+  pitchMedianHz: number | null;
+  pitchRangeSt: number | null;
+  pitchSdSt: number | null;
+  loudnessSpreadDb: number | null;
+  loudnessPeakSdDb: number | null;
   wpmCurve: WpmPoint[] | null;
   repeatedWordCount: number | null;
   fillerWordCount: number | null;
@@ -92,18 +92,18 @@ export async function updateAudioMetricFields(id: string, f: AudioMetricFields):
   await db.runAsync(
     `UPDATE sessions SET
        dsp_status = ?, pitch_contour_json = ?, volume_envelope_json = ?,
-       pitch_avg_hz = ?, pitch_min_hz = ?, pitch_max_hz = ?, volume_avg_dbfs = ?, volume_stddev_dbfs = ?,
+       pitch_median_hz = ?, pitch_range_st = ?, pitch_sd_st = ?, loudness_spread_db = ?, loudness_peak_sd_db = ?,
        wpm_curve_json = ?, repeated_word_count = ?, filler_word_count = ?, filler_rate_per_minute = ?
      WHERE id = ?`,
     [
       f.dspStatus,
       f.pitchContourHz ? JSON.stringify(f.pitchContourHz) : null,
       f.volumeEnvelopeDbfs ? JSON.stringify(f.volumeEnvelopeDbfs) : null,
-      f.pitchAvgHz,
-      f.pitchMinHz,
-      f.pitchMaxHz,
-      f.volumeAvgDbfs,
-      f.volumeStddevDbfs,
+      f.pitchMedianHz,
+      f.pitchRangeSt,
+      f.pitchSdSt,
+      f.loudnessSpreadDb,
+      f.loudnessPeakSdDb,
       f.wpmCurve ? JSON.stringify(f.wpmCurve) : null,
       f.repeatedWordCount,
       f.fillerWordCount,

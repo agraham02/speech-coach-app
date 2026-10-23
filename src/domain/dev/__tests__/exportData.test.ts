@@ -57,11 +57,11 @@ describe("buildTakeExport", () => {
     fillerRatePerMinute: 0,
     repeatedWordCount: 1,
     dspStatus: "complete",
-    pitchAvgHz: 180,
-    pitchMinHz: 100,
-    pitchMaxHz: 260,
-    volumeAvgDbfs: -30,
-    volumeStddevDbfs: 5,
+    pitchMedianHz: 180,
+    pitchRangeSt: 4.2,
+    pitchSdSt: 1.6,
+    loudnessSpreadDb: 11,
+    loudnessPeakSdDb: 2.9,
     pitchContourHz: [180.4, null, 200.6],
     volumeEnvelopeDbfs: [-30.123, -25.55],
   } as unknown as Session;
@@ -72,7 +72,8 @@ describe("buildTakeExport", () => {
     steps: [{ sessionId: "s1", step: "transcribe", status: "done", attempts: 1, lastError: null, updatedAt: "t" }],
     scores: null,
     artifacts: { pauses: { hesitations: 0 } },
-    presenceSamples: 300,
+    signals: { schema: 1 },
+    presenceTimeline: { tMs: [0, 50], yaw: [1.2, 0.8] },
   });
 
   it("identifies the export and the take", () => {
@@ -88,10 +89,12 @@ describe("buildTakeExport", () => {
     ]);
   });
 
-  it("rounds the voice curves and notes the omitted face timeline", () => {
+  it("rounds the voice curves and carries the feature track and face timeline", () => {
     expect(out.voice.pitchContourHz).toEqual([180, null, 201]);
     expect(out.voice.volumeEnvelopeDbfs).toEqual([-30.1, -25.6]);
-    expect(out.presenceTimeline).toEqual({ omitted: true, samples: 300 });
+    expect(out.voice.pitch).toEqual({ medianHz: 180, rangeSemitones: 4.2, sdSemitones: 1.6 });
+    expect(out.presenceTimeline).toEqual({ tMs: [0, 50], yaw: [1.2, 0.8] });
+    expect(out.signals).toEqual({ schema: 1 });
   });
 
   it("includes stored results and steps, nulls for the rest", () => {

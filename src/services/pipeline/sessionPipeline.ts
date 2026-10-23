@@ -10,11 +10,13 @@ import { audioMetricsStep } from "./steps/audioMetricsStep";
 import { cloudReviewStep } from "./steps/cloudReviewStep";
 import { presenceStep } from "./steps/presenceStep";
 import { coachStep } from "./steps/coachStep";
-import { putArtifact } from "../db/artifactsRepo";
+import { updateTakeSignals } from "../signals/signalsStore";
+import { packFaceTrack } from "../../domain/signals/faceTrack";
 import { takePresenceTimeline } from "./presenceTimelineStore";
 import { clearDecodedAudio } from "./steps/decodedAudioCache";
 import { startEarlyUpload } from "./earlyUpload";
 import { runExclusive } from "./jobQueue";
+import { scheduleShrink } from "../data/videoShrink";
 import { beginRun, type RunHandle } from "../dev/deviceMetrics";
 import { settleRepProgress } from "../sessions/repProgress";
 import { showGlobalToast } from "../../components/common/ToastProvider";
@@ -116,11 +118,11 @@ export async function createSessionFromTake(take: NewTake): Promise<string> {
     dspStatus: null,
     pitchContourHz: null,
     volumeEnvelopeDbfs: null,
-    pitchAvgHz: null,
-    pitchMinHz: null,
-    pitchMaxHz: null,
-    volumeAvgDbfs: null,
-    volumeStddevDbfs: null,
+    pitchMedianHz: null,
+    pitchRangeSt: null,
+    pitchSdSt: null,
+    loudnessSpreadDb: null,
+    loudnessPeakSdDb: null,
     geminiFileName: null,
     geminiFileUri: null,
     geminiFileUploadedAt: null,
@@ -130,7 +132,8 @@ export async function createSessionFromTake(take: NewTake): Promise<string> {
   });
 
   const timeline = takePresenceTimeline(take.previewUri);
-  if (timeline) await putArtifact(sessionId, "presence_timeline", timeline);
+  // The face track starts the take's feature track; the audio step adds to it.
+  if (timeline) await updateTakeSignals(sessionId, Math.round(take.durationSecondsLocal * 1000), (s) => ({ ...s, face: packFaceTrack(timeline) }));
 
   const initial: Record<SessionStep, StepStatus> = {
     transcribe: "pending",
@@ -152,7 +155,9 @@ export async function createSessionFromTake(take: NewTake): Promise<string> {
 
 // Runs every step currently pending or interrupted, in order. Safe to call
 // repeatedly — a second call while one is running joins the same run.
-export function runPendingSteps(sessionId: string): Promise<void> {
+// quiet: a background re-measure (services/signals/reextract.ts) — no
+// notification, toast or streak message.
+export function runPendingSteps(sessionId: string, opts: { quiet?: boolean } = {}): Promise<void> {
   return runExclusive(`${sessionId}:run`, async () => {
     let ranCloudReview = false;
     // Dev builds record the run's peaks for the Metrics screen. Started on
@@ -179,13 +184,14 @@ export function runPendingSteps(sessionId: string): Promise<void> {
     clearDecodedAudio();
     await refreshSessionStatus(sessionId);
     await settleRepProgress(sessionId);
-    await announceCompletion(sessionId, ranCloudReview);
+    if (!opts.quiet) await announceCompletion(sessionId, ranCloudReview);
+    scheduleShrink();
   });
 }
 
 // Queues one step (again) and runs it — used for "Retry", "Re-run voice
 // analysis" and "Get deep review" from the Result screen.
-export async function requestStep(sessionId: string, step: SessionStep): Promise<void> {
+export async function requestStep(sessionId: string, step: SessionStep, opts: { quiet?: boolean } = {}): Promise<void> {
   if (step === "cloud_review") await updateSessionWants(sessionId, { grading: true });
   await setStepStatus(sessionId, step, "pending");
   emitStepEvent({ sessionId, step, status: "pending" });
@@ -198,7 +204,7 @@ export async function requestStep(sessionId: string, step: SessionStep): Promise
     emitStepEvent({ sessionId, step: follower, status: "pending" });
   }
   await refreshSessionStatus(sessionId);
-  await runPendingSteps(sessionId);
+  await runPendingSteps(sessionId, opts);
 }
 
 function goToResult(sessionId: string): void {

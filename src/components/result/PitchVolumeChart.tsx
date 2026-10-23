@@ -10,7 +10,8 @@ interface PitchVolumeChartProps {
   volumeEnvelopeDbfs: number[] | null;
 }
 
-// On-device pitch contour (YIN, via pitchfinder — see domain/audioAnalysis.ts)
+// On-device pitch contour (dense YIN, domain/dsp/pitchTracker.ts; session 11
+// replaces this chart with domain/signals/audioSummary.voiceChartData)
 // and volume envelope, in 200ms buckets. Must degrade visibly, never
 // silently, when dsp_status isn't 'complete' — a muted explanatory line
 // instead of just omitting the chart, since a missing chart with no

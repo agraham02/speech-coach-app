@@ -70,7 +70,7 @@ async function buildInput(check: StoredSkillCheck, session: Session | null): Pro
     review: judged ? { cadence: judged.cadence ?? null, impromptu: judged.impromptu ?? null, confidence: judged.confidence ?? null } : null,
     talkSeconds: session.durationSeconds,
     talkWpm: voice.wpmAvg,
-    pitchRangeHz: voice.pitchRangeHz,
+    pitchRangeSt: voice.pitchRangeSt,
     fillerRatePerMinute: session.fillerRatePerMinute,
     boundaryPauseRate: pauses?.boundaryPauseRate ?? null,
     hesitations: pauses?.hesitations ?? null,

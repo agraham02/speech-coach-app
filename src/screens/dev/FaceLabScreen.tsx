@@ -202,7 +202,7 @@ export function FaceLabScreen({ navigation }: Props) {
     for (const r of results) {
       lines.push(r.step.prompt + ": " + (r.lookingPercent ?? "-") + "% on the lens (" + r.samples + " samples, expected " + (r.step.expectLooking ? "on" : "off") + ")");
     }
-    if (metrics) lines.push("Eye contact " + metrics.eyeContactPercent + "%, looking down " + (metrics.lookingDownPercent ?? "-") + "%");
+    if (metrics) lines.push("Eye contact " + metrics.eyeContactPercent + "%, looking down " + (metrics.lookingDownPercent ?? "-") + "%, up " + (metrics.lookingUpPercent ?? "-") + "%, " + (metrics.detectionRateHz ?? "-") + " detections/s, expressiveness " + metrics.expressiveness);
     if (stats) {
       lines.push("|gazeX| p50 " + stats.gazeXAbs.p50.toFixed(2) + " p90 " + stats.gazeXAbs.p90.toFixed(2));
       lines.push("gazeY p10 " + stats.gazeY.p10.toFixed(2) + " p50 " + stats.gazeY.p50.toFixed(2));
@@ -274,7 +274,7 @@ export function FaceLabScreen({ navigation }: Props) {
             <Meter label="Head up/down" value={sample?.pitch} min={-45} max={45} centered marks={[-thresholds.gazeHeadMaxDeg, thresholds.gazeHeadMaxDeg]} decimals={0} unit={"°"} alert={!!sample && Math.abs(sample.pitch) > thresholds.gazeHeadMaxDeg} />
             <Meter label="Head tilt" value={sample?.roll} min={-30} max={30} centered marks={[-thresholds.tiltedDeg, thresholds.tiltedDeg]} decimals={0} unit={"°"} alert={!!sample && Math.abs(sample.roll ?? 0) > thresholds.tiltedDeg} />
             <Meter label="Eyes side" value={sample?.gazeX} min={-1} max={1} centered marks={[-thresholds.gazeMaxOffset, thresholds.gazeMaxOffset]} alert={!!sample && Math.abs(sample.gazeX ?? 0) > thresholds.gazeMaxOffset} />
-            <Meter label="Eyes up/down" value={sample?.gazeY} min={-1} max={1} centered marks={[thresholds.lookingDown]} alert={!!sample && (sample.gazeY ?? 0) <= thresholds.lookingDown} />
+            <Meter label="Eyes up/down" value={sample?.gazeY} min={-1} max={1} centered marks={[thresholds.lookingDown, thresholds.lookingUp]} alert={!!sample && ((sample.gazeY ?? 0) <= thresholds.lookingDown || (sample.gazeY ?? 0) >= thresholds.lookingUp)} />
             <Meter label="Eyes open" value={sample?.eyesOpen} min={0} max={1} marks={[thresholds.eyesClosed]} alert={!!sample && sample.eyesOpen < thresholds.eyesClosed} />
             <View style={styles.blinkRow}>
               <Mono tone="secondary" style={styles.blinkText}>

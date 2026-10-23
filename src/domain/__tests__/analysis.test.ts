@@ -1,4 +1,4 @@
-import { detectPauses, frameLoudness } from "../dsp/pauses";
+import { detectPauses } from "../dsp/pauses";
 import { computePresenceMetrics, type PresenceSample } from "../presenceMetrics";
 import { findHedges, guessStructure, hasStrongEnding } from "../coach/structureHeuristics";
 import { ruleCoach } from "../coach/ruleCoach";
@@ -43,7 +43,6 @@ describe("detectPauses", () => {
 
   it("handles silence", () => {
     expect(detectPauses(new Float32Array(SR), SR).speechStartMs).toBeNull();
-    expect(frameLoudness(new Float32Array(320), SR)).toHaveLength(1);
   });
 });
 
@@ -114,7 +113,7 @@ describe("ruleCoach", () => {
       fillerRatePerMinute: 2,
       pauses: null,
       presence: null,
-      pitchRangeHz: 130,
+      pitchRangeSt: 5.2,
     });
     expect(out.focusSkill).toBe("cadence");
     expect(out.tip).toMatch(/190 words a minute/);
@@ -124,13 +123,13 @@ describe("ruleCoach", () => {
 
   it("talks about framing, not eye contact, when the face was mostly missing", () => {
     const presence = { samples: 50, presentPercent: 10, eyeContactPercent: 0, longestLookAwayMs: 9000, smilePercent: 0, expressiveness: 0, headMovement: 0, blinksPerMinute: 0, framedPercent: 5 };
-    const out = ruleCoach({ transcript: null, durationSeconds: 10, wpmAvg: null, fillerRatePerMinute: null, pauses: null, presence, pitchRangeHz: null });
+    const out = ruleCoach({ transcript: null, durationSeconds: 10, wpmAvg: null, fillerRatePerMinute: null, pauses: null, presence, pitchRangeSt: null });
     expect(out.tip).toMatch(/out of frame/);
     expect(out.observations.map((o) => o.label)).toEqual(["Face in frame"]);
   });
 
   it("works with no transcript", () => {
-    const out = ruleCoach({ transcript: null, durationSeconds: 30, wpmAvg: null, fillerRatePerMinute: null, pauses: null, presence: null, pitchRangeHz: null });
+    const out = ruleCoach({ transcript: null, durationSeconds: 30, wpmAvg: null, fillerRatePerMinute: null, pauses: null, presence: null, pitchRangeSt: null });
     expect(out.followUpQuestion).toBeNull();
     expect(out.tip).toBeTruthy();
   });

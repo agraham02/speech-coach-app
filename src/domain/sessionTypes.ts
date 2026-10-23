@@ -158,13 +158,20 @@ export interface Session {
   // could even start); 'failed' = attempted and failed; 'complete' = the
   // pitch/volume fields below are populated.
   dspStatus: DspStatus | null;
+  // 200 ms buckets, derived from the 10 ms feature track ("signals"
+  // artifact): median voiced Hz (null = no voice) and power-mean dBFS.
   pitchContourHz: (number | null)[] | null;
   volumeEnvelopeDbfs: number[] | null;
-  pitchAvgHz: number | null;
-  pitchMinHz: number | null;
-  pitchMaxHz: number | null;
-  volumeAvgDbfs: number | null;
-  volumeStddevDbfs: number | null;
+  // Pitch in semitones around the speaker's own median (domain/pitchRange.ts):
+  // p10 to p90 range and SD. Range is null when there was too little clear
+  // voice to score it.
+  pitchMedianHz: number | null;
+  pitchRangeSt: number | null;
+  pitchSdSt: number | null;
+  // Loudness while speaking only: p90 - p10 of 50 ms levels, and the SD of
+  // syllable-peak levels (emphasis).
+  loudnessSpreadDb: number | null;
+  loudnessPeakSdDb: number | null;
   // A successfully-uploaded-but-not-yet-(or-no-longer)-graded Gemini Files
   // API entry — set right after upload succeeds, independent of whether the
   // grading call after it succeeds. Lets a retry after a failed analysis

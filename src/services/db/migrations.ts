@@ -7,7 +7,7 @@ import type { SessionStatus } from "../../domain/sessionTypes";
 import { logger } from "../../utils/logger";
 
 // Bump this and add a new numbered migration when the schema changes.
-export const LATEST_DB_VERSION = 32;
+export const LATEST_DB_VERSION = 33;
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(
@@ -839,6 +839,24 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
       );
     `);
     currentVersion = await commitVersion(db, 32);
+  }
+
+  if (currentVersion < 33) {
+    // Signal capture (session 06): pitch in semitones from the new tracker,
+    // speech-only loudness, and the packed feature track in place of the face
+    // timeline. The old Hz and whole-take dBFS numbers came from the replaced
+    // tracker and measured mostly pausing; they are dropped, not converted
+    // (the app is unreleased). Old face timelines go with them.
+    for (const column of ["pitch_avg_hz", "pitch_min_hz", "pitch_max_hz", "volume_avg_dbfs", "volume_stddev_dbfs"]) {
+      await dropColumnIfPresent(db, "sessions", column);
+    }
+    await addColumnIfMissing(db, "sessions", "pitch_median_hz", "REAL");
+    await addColumnIfMissing(db, "sessions", "pitch_range_st", "REAL");
+    await addColumnIfMissing(db, "sessions", "pitch_sd_st", "REAL");
+    await addColumnIfMissing(db, "sessions", "loudness_spread_db", "REAL");
+    await addColumnIfMissing(db, "sessions", "loudness_peak_sd_db", "REAL");
+    await db.execAsync(`DELETE FROM session_artifacts WHERE kind = 'presence_timeline';`);
+    currentVersion = await commitVersion(db, 33);
   }
 }
 

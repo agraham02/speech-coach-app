@@ -18,7 +18,9 @@ interface Options {
   guide?: GuideGeometry | null;
 }
 
-const SAMPLE_INTERVAL_MS = 200;
+// Every detection is kept (about 15 to 20 a second): the face track stores
+// them packed, and quick glances and nods need the full rate.
+const SAMPLE_INTERVAL_MS = 0;
 
 // Turns face-landmarker frames into framing state for the recording UI, and
 // a presence timeline (on-device "video analysis") while a take records.
@@ -30,7 +32,7 @@ export function useFaceDetection({ guide = null }: Options = {}) {
   guideRef.current = guide;
   const framingRef = useRef<FramingStatus>("none");
   const lastSeenAtRef = useRef(0);
-  // Sampled ~5x/second while a take is recording. Kept in a ref — no
+  // One entry per detection while a take is recording. Kept in a ref — no
   // re-render per sample.
   const timelineRef = useRef<PresenceSample[] | null>(null);
   const timelineStartRef = useRef(0);

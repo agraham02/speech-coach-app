@@ -20,9 +20,11 @@ interface CameraPreviewProps {
   orientation?: string;
 }
 
-// ~10 detections a second is plenty for presence metrics and leaves the
-// phone headroom for recording.
-const MIN_INTERVAL_MS = 100;
+// Up to 20 detections a second (decided: 15 or more, for blinks, which last
+// 100 to 400 ms, and quick glances). A detection never queues behind
+// another (busy), so a slower phone simply runs at the rate it holds; the
+// rate it reached is stored with each take (PresenceMetrics.detectionRateHz).
+const MIN_INTERVAL_MS = 50;
 
 export function CameraPreview({ cameraRef, isActive, onFaceFrame, audio = true, orientation }: CameraPreviewProps) {
   const device = useCameraDevice("front");

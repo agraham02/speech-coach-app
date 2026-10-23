@@ -1,4 +1,5 @@
 import { getDatabase } from "../db/database";
+import { isSessionLive } from "../db/sessionsRepo";
 import { resolveVideoUri, videoExists } from "../storage/videoStorage";
 import { compressInPlace, PLAYBACK_PROFILE } from "../storage/videoTranscode";
 import { freeDiskBytes } from "../storage/diskSpace";
@@ -11,7 +12,8 @@ import { logger } from "../../utils/logger";
 // analysis can still be re-run, and 720p at 30 fps is enough to re-run face
 // analysis later. Measurements are already in the feature track by then.
 //
-// "Analysed" = every step settled (none pending, running or interrupted) and
+// "Analysed" = not deleted or in a delete's undo window, every step settled
+// (none pending, running or interrupted), and
 // the take at least SETTLE_MS old, so the Result screen you're looking at
 // right after recording still plays the original. Runs at launch and a while
 // after a pipeline run finishes; one take at a time, never twice at once.
@@ -53,6 +55,9 @@ async function run(): Promise<void> {
         logger.info("[video] low on space, shrinking waits for another time");
         return;
       }
+      // Deleted since the query (an undo window started): leave its file to
+      // the delete. Re-checked here because each re-encode takes a while.
+      if (!(await isSessionLive(row.id))) continue;
       const uri = resolveVideoUri({ videoFile: row.video_file, videoPath: row.video_path });
       if (!videoExists(uri)) continue;
       try {

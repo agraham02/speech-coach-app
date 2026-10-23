@@ -1,14 +1,13 @@
 import type { TranscriptWord } from "../sessionTypes";
+import { BREATH, extractAudioFeatures, SPEECH, type AudioFeatures } from "./audioFeatures";
 
-// On-device pause detection from the raw waveform (no transcript needed),
-// optionally classified using word timestamps. Feeds the Cadence skill and
-// the pause drills: deliberate pauses at sentence ends are good; long
-// mid-phrase silences are hesitations.
+// Pauses from the voice-activity track (audioFeatures.ts: an energy gate
+// with hysteresis, breaths tagged), optionally classified using word
+// timestamps. Feeds the Cadence skill and the pause drills: deliberate
+// pauses at sentence ends are good; long mid-phrase silences are
+// hesitations. A breath inside a silence belongs to the pause around it.
 
 export const PAUSE_MIN_MS = 300;
-const FRAME_MS = 20;
-const FLOOR_DBFS = -45;
-const NOISE_MARGIN_DB = 8;
 const HESITATION_MS = 2000;
 
 export type PauseKind = "boundary" | "mid_phrase" | "unknown";
@@ -20,13 +19,15 @@ export interface Pause {
   kind: PauseKind;
   // Index of the last word spoken before the pause, when words are known.
   afterWordIdx: number | null;
+  // Audible breaths taken inside this pause.
+  breaths: number;
 }
 
 export interface PauseAnalysis {
   pauses: Pause[];
-  speechStartMs: number | null; // time to first word (from the start)
+  speechStartMs: number | null; // time to first speech (from the start)
   speechEndMs: number | null;
-  speakingRatio: number; // voiced time / time between first and last speech
+  speakingRatio: number; // speech time / time between first and last speech
   pausesPerMinute: number;
   longestPauseMs: number;
   meanPauseMs: number;
@@ -34,78 +35,71 @@ export interface PauseAnalysis {
   hesitations: number; // mid-phrase pauses >= 2 s
   // Fraction of sentence endings followed by a real pause (>= 300 ms).
   boundaryPauseRate: number | null;
-}
-
-// Per-frame loudness in dBFS.
-export function frameLoudness(waveform: Float32Array, sampleRate: number, frameMs = FRAME_MS): number[] {
-  const frameSize = Math.max(1, Math.round((sampleRate * frameMs) / 1000));
-  const out: number[] = [];
-  for (let start = 0; start + frameSize <= waveform.length; start += frameSize) {
-    let sum = 0;
-    for (let i = start; i < start + frameSize; i++) sum += waveform[i] * waveform[i];
-    const rms = Math.sqrt(sum / frameSize);
-    out.push(rms > 0 ? Math.max(-100, 20 * Math.log10(rms)) : -100);
-  }
-  return out;
-}
-
-function percentile(values: number[], p: number): number {
-  if (!values.length) return -100;
-  const sorted = [...values].sort((a, b) => a - b);
-  return sorted[Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length))];
+  // Audible breaths between the first and last speech, and per minute of it.
+  breaths: number;
+  breathsPerMinute: number;
 }
 
 const SENTENCE_END = /[.!?]["')\]]?$/;
 
-export function detectPauses(
-  waveform: Float32Array,
-  sampleRate: number,
-  words: TranscriptWord[] | null = null,
-): PauseAnalysis {
-  const loudness = frameLoudness(waveform, sampleRate);
-  // Adaptive threshold: a little above the room's noise floor, but never
-  // below an absolute floor (a silent room would otherwise make breaths
-  // count as speech).
-  const threshold = Math.max(FLOOR_DBFS, percentile(loudness, 10) + NOISE_MARGIN_DB);
-  const voiced = loudness.map((db) => db > threshold);
+const EMPTY: PauseAnalysis = {
+  pauses: [],
+  speechStartMs: null,
+  speechEndMs: null,
+  speakingRatio: 0,
+  pausesPerMinute: 0,
+  longestPauseMs: 0,
+  meanPauseMs: 0,
+  midPhrasePauses: 0,
+  hesitations: 0,
+  boundaryPauseRate: null,
+  breaths: 0,
+  breathsPerMinute: 0,
+};
 
-  const first = voiced.indexOf(true);
-  const last = voiced.lastIndexOf(true);
-  if (first === -1) {
-    return {
-      pauses: [],
-      speechStartMs: null,
-      speechEndMs: null,
-      speakingRatio: 0,
-      pausesPerMinute: 0,
-      longestPauseMs: 0,
-      meanPauseMs: 0,
-      midPhrasePauses: 0,
-      hesitations: 0,
-      boundaryPauseRate: null,
-    };
+export function pausesFromFeatures(features: Pick<AudioFeatures, "speech" | "hopMs" | "offsetMs">, words: TranscriptWord[] | null = null): PauseAnalysis {
+  const { speech, hopMs, offsetMs } = features;
+  const at = (i: number) => Math.round(offsetMs - hopMs / 2 + i * hopMs);
+  let first = -1;
+  let last = -1;
+  for (let i = 0; i < speech.length; i++) {
+    if (speech[i] === SPEECH) {
+      if (first === -1) first = i;
+      last = i;
+    }
   }
+  if (first === -1) return { ...EMPTY };
 
   const pauses: Pause[] = [];
+  let speechFrames = 0;
+  let breaths = 0;
   let runStart = -1;
-  let voicedFrames = 0;
+  let runBreaths = 0;
   for (let i = first; i <= last; i++) {
-    if (voiced[i]) {
-      voicedFrames += 1;
+    const label = speech[i];
+    if (label === SPEECH) {
+      speechFrames += 1;
       if (runStart !== -1) {
-        const startMs = runStart * FRAME_MS;
-        const endMs = i * FRAME_MS;
-        if (endMs - startMs >= PAUSE_MIN_MS) pauses.push(classify(startMs, endMs, words));
+        const startMs = at(runStart);
+        const endMs = at(i);
+        if (endMs - startMs >= PAUSE_MIN_MS) pauses.push(classify(startMs, endMs, runBreaths, words));
         runStart = -1;
       }
-    } else if (runStart === -1) {
-      runStart = i;
+    } else {
+      if (runStart === -1) {
+        runStart = i;
+        runBreaths = 0;
+      }
+      if (label === BREATH && speech[i - 1] !== BREATH) {
+        runBreaths += 1;
+        breaths += 1;
+      }
     }
   }
 
-  const speechStartMs = first * FRAME_MS;
-  const speechEndMs = (last + 1) * FRAME_MS;
-  const spanMs = Math.max(speechEndMs - speechStartMs, FRAME_MS);
+  const speechStartMs = at(first);
+  const speechEndMs = at(last + 1);
+  const spanMs = Math.max(speechEndMs - speechStartMs, hopMs);
   const durations = pauses.map((p) => p.durationMs);
   const midPhrase = pauses.filter((p) => p.kind === "mid_phrase");
 
@@ -118,22 +112,31 @@ export function detectPauses(
     }
   }
 
+  const minutes = spanMs / 60000;
   return {
     pauses,
     speechStartMs,
     speechEndMs,
-    speakingRatio: Math.round(((voicedFrames * FRAME_MS) / spanMs) * 100) / 100,
-    pausesPerMinute: Math.round((pauses.length / (spanMs / 60000)) * 10) / 10,
+    speakingRatio: Math.round(((speechFrames * hopMs) / spanMs) * 100) / 100,
+    pausesPerMinute: Math.round((pauses.length / minutes) * 10) / 10,
     longestPauseMs: durations.length ? Math.max(...durations) : 0,
     meanPauseMs: durations.length ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0,
     midPhrasePauses: midPhrase.length,
     hesitations: midPhrase.filter((p) => p.durationMs >= HESITATION_MS).length,
     boundaryPauseRate,
+    breaths,
+    breathsPerMinute: Math.round((breaths / minutes) * 10) / 10,
   };
 }
 
-function classify(startMs: number, endMs: number, words: TranscriptWord[] | null): Pause {
-  const base = { startMs, endMs, durationMs: endMs - startMs };
+// Straight from a waveform (tests, labs). The pipeline extracts features
+// once and calls pausesFromFeatures.
+export function detectPauses(waveform: Float32Array, sampleRate: number, words: TranscriptWord[] | null = null): PauseAnalysis {
+  return pausesFromFeatures(extractAudioFeatures(waveform, sampleRate), words);
+}
+
+function classify(startMs: number, endMs: number, breaths: number, words: TranscriptWord[] | null): Pause {
+  const base = { startMs, endMs, durationMs: endMs - startMs, breaths };
   if (!words || words.length === 0) return { ...base, kind: "unknown", afterWordIdx: null };
   let afterWordIdx: number | null = null;
   for (let i = 0; i < words.length; i++) {

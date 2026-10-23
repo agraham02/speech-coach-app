@@ -1,5 +1,5 @@
 import { CUT_FROM_SCORES, METRICS, SKILL_DEFS, SUBCATEGORIES, SUBCATEGORY_ORDER, TAKE_SKILLS, subcategoriesOf } from "../scoring/taxonomy";
-import { fillerScore, paceScore, verdictFor } from "../scoring/bands";
+import { fillerScore, paceScore, pitchRangeBand, verdictFor } from "../scoring/bands";
 import { headlineSheet, judgedFromRubric, judgedSheet, measuredSheet, skillEvidence, takeScores, type MeasuredFacts } from "../scoring/takeScore";
 import { repEvidence } from "../repEvidence";
 import type { SessionScores } from "../sessionTypes";
@@ -9,7 +9,7 @@ const facts = (patch: Partial<MeasuredFacts> = {}): MeasuredFacts => ({
   durationSeconds: 60,
   wpm: 145,
   boundaryPauseRate: 0.6,
-  pitchRangeHz: 110,
+  pitchRangeSemitones: 5,
   fillers: { hesitationPerMinute: 1, contextualPerMinute: null },
   stalls: 0,
   structure: { framework: "PREP", shaped: true, targetFramework: null },
@@ -122,7 +122,7 @@ describe("the measured sheet", () => {
     const sheet = measuredSheet(facts({ presence: null, fillers: null, stalls: null }))!;
     expect(sheet.categories.map((c) => c.skill)).toEqual(["cadence", "impromptu", "confidence"]);
     expect(sheet.categories.find((c) => c.skill === "confidence")!.subscores.map((s) => s.id)).toEqual(["conviction"]);
-    expect(measuredSheet(facts({ wpm: null, boundaryPauseRate: null, pitchRangeHz: null, fillers: null, stalls: null, structure: null, hedges: null, strongEnding: null, presence: null }))).toBeNull();
+    expect(measuredSheet(facts({ wpm: null, boundaryPauseRate: null, pitchRangeSemitones: null, fillers: null, stalls: null, structure: null, hedges: null, strongEnding: null, presence: null }))).toBeNull();
   });
 
   it("scores a scripted reading without structure or conviction", () => {
@@ -133,11 +133,25 @@ describe("the measured sheet", () => {
     expect(ids).toContain("fluency");
   });
 
-  it("uses semitones when session 06's pitch range is there", () => {
+  it("scores pitch variety in semitones on the fixed band", () => {
     const sheet = measuredSheet(facts({ pitchRangeSemitones: 2.75 }))!;
     const melody = sheet.categories[0].subscores.find((s) => s.id === "melody")!;
-    expect(melody.score).toBe(5);
+    expect(melody.score).toBe(4.5);
     expect(melody.factors?.[0].value).toBe("2.8 semitones");
+  });
+
+  it("scores pitch variety on your own band after 5 takes", () => {
+    const pitchBand = pitchRangeBand([2, 2.2, 2.1, 1.9, 2.4]);
+    const melody = measuredSheet(facts({ pitchRangeSemitones: 4, pitchBand }))!.categories[0].subscores.find((s) => s.id === "melody")!;
+    expect(melody.score).toBe(10);
+    expect(melody.factors?.[0].rule).toMatch(/a little over your usual 2.1/);
+  });
+
+  it("counts contextual fillers at half and shows the two kinds apart", () => {
+    const sheet = measuredSheet(facts({ fillers: { hesitationPerMinute: 2, contextualPerMinute: 4 } }))!;
+    const fluency = sheet.categories.flatMap((c) => c.subscores).find((s) => s.id === "fluency")!;
+    expect(fluency.factors?.[0].score).toBe(fillerScore(2, 4));
+    expect(fluency.factors?.[0].value).toMatch(/2 ums a minute, 4 likes/);
   });
 });
 

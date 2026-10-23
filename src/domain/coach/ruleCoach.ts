@@ -6,7 +6,7 @@ import { ramblingMetrics } from "./ramblingMetrics";
 import type { PromptTask } from "../promptTask";
 import type { Provenance } from "../analysis/types";
 import { rulesProvenance } from "../analysis/provenance";
-import { eyeContactScore, fillerScore, hedgeCost, paceScore, pauseScore, pitchScore, verdictFor, type Verdict } from "../scoring/bands";
+import { eyeContactScore, fillerScore, hedgeCost, paceScore, pauseScore, pitchScore, PITCH_FLAT_ST, verdictFor, type Verdict } from "../scoring/bands";
 
 // Deterministic on-device coaching from measured signals. Always available
 // (no model, no network). A Tono AI review's coaching, when the take has one,
@@ -21,7 +21,8 @@ export interface CoachInput {
   fillerRatePerMinute: number | null;
   pauses: PauseAnalysis | null;
   presence: PresenceMetrics | null;
-  pitchRangeHz: number | null;
+  // p10 to p90 pitch range in semitones (domain/scoring/bands.ts).
+  pitchRangeSt: number | null;
   promptText?: string | null;
   // What the prompt asked for ("closing", "debate"), so the on-device model
   // doesn't mark a closing-only take down for lacking a beginning.
@@ -110,11 +111,12 @@ export function ruleCoach(input: CoachInput): CoachOutput {
       findings.push({ skill: "impromptu", severity: 3, tip: `It took ${Math.round(p.speechStartMs / 1000)} s to start. Open with your point in one sentence, even before you know the rest.` });
     }
   }
-  if (input.pitchRangeHz != null) {
-    const range = input.pitchRangeHz;
-    observations.push({ skill: "cadence", label: "Pitch range", value: `${range} Hz`, verdict: verdictFor(pitchScore({ hz: range }) ?? 0) });
-    if (range < 60) findings.push({ skill: "cadence", severity: 4.5, tip: "Your pitch stayed flat. Pick one key word per sentence and lift your voice on it." });
-    else if (range >= 110) wins.push({ weight: 3, text: "Lively, varied voice." });
+  if (input.pitchRangeSt != null) {
+    const range = Math.round(input.pitchRangeSt * 10) / 10;
+    const verdict = verdictFor(pitchScore(range));
+    observations.push({ skill: "cadence", label: "Pitch range", value: `${range} semitones`, verdict });
+    if (range < PITCH_FLAT_ST) findings.push({ skill: "cadence", severity: 4.5, tip: "Your pitch stayed flat. Pick one key word per sentence and lift your voice on it." });
+    else if (verdict === "good") wins.push({ weight: 3, text: "Lively, varied voice." });
   }
 
   // --- Impromptu: fillers, structure ---

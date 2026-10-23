@@ -109,6 +109,44 @@ export interface SampleOptions {
   invertGazeY?: boolean;
 }
 
+// MediaPipe's 52 blendshapes, in the model's output order. The face track
+// stores every detection's blendshapes as bytes in this order, so any
+// expression measure can be recomputed later.
+export const BLENDSHAPE_NAMES = [
+  "_neutral", "browDownLeft", "browDownRight", "browInnerUp", "browOuterUpLeft", "browOuterUpRight", "cheekPuff",
+  "cheekSquintLeft", "cheekSquintRight", "eyeBlinkLeft", "eyeBlinkRight", "eyeLookDownLeft", "eyeLookDownRight",
+  "eyeLookInLeft", "eyeLookInRight", "eyeLookOutLeft", "eyeLookOutRight", "eyeLookUpLeft", "eyeLookUpRight",
+  "eyeSquintLeft", "eyeSquintRight", "eyeWideLeft", "eyeWideRight", "jawForward", "jawLeft", "jawOpen", "jawRight",
+  "mouthClose", "mouthDimpleLeft", "mouthDimpleRight", "mouthFrownLeft", "mouthFrownRight", "mouthFunnel", "mouthLeft",
+  "mouthLowerDownLeft", "mouthLowerDownRight", "mouthPressLeft", "mouthPressRight", "mouthPucker", "mouthRight",
+  "mouthRollLower", "mouthRollUpper", "mouthShrugLower", "mouthShrugUpper", "mouthSmileLeft", "mouthSmileRight",
+  "mouthStretchLeft", "mouthStretchRight", "mouthUpperUpLeft", "mouthUpperUpRight", "noseSneerLeft", "noseSneerRight",
+] as const;
+
+export interface ExpressionFields {
+  smile: number;
+  eyesOpen: number;
+  browRaise: number;
+  browDown: number;
+  jawOpen: number;
+  mouthPress: number;
+  cheekSquint: number;
+}
+
+// The expression parts of a presence sample, from blendshapes by name.
+// Shared by live capture and by unpacking a stored face track.
+export function expressionFromBlendshapes(b: (name: string) => number): ExpressionFields {
+  return {
+    smile: avg(b("mouthSmileLeft"), b("mouthSmileRight")),
+    eyesOpen: 1 - avg(b("eyeBlinkLeft"), b("eyeBlinkRight")),
+    browRaise: Math.max(b("browInnerUp"), avg(b("browOuterUpLeft"), b("browOuterUpRight"))),
+    browDown: avg(b("browDownLeft"), b("browDownRight")),
+    jawOpen: b("jawOpen"),
+    mouthPress: avg(b("mouthPressLeft"), b("mouthPressRight")),
+    cheekSquint: avg(b("cheekSquintLeft"), b("cheekSquintRight")),
+  };
+}
+
 export function sampleFromFace(face: FaceLandmarkerFace | OrientedFace, tMs: number, framed: boolean, opts: SampleOptions = {}): PresenceSample {
   const b = (name: string) => face.blendshapes[name] ?? 0;
   const sideways = "axes" in face && !!face.axes?.swap;
@@ -119,17 +157,14 @@ export function sampleFromFace(face: FaceLandmarkerFace | OrientedFace, tMs: num
     yaw: pose.yaw,
     pitch: pose.pitch,
     roll: pose.roll,
-    smile: avg(b("mouthSmileLeft"), b("mouthSmileRight")),
-    eyesOpen: 1 - eyeClosure(face),
+    ...expressionFromBlendshapes(b),
     framed,
     // Eyes relative to the head, -1..1. Positive x = toward MediaPipe's left,
     // which on the iOS front camera (a mirrored image) is the user's physical
     // right; positive y = up (after invertGazeY, where the platform needs it).
     gazeX: avg(b("eyeLookOutLeft") - b("eyeLookInLeft"), b("eyeLookInRight") - b("eyeLookOutRight")),
     gazeY: (opts.invertGazeY ? -1 : 1) * (avg(b("eyeLookUpLeft"), b("eyeLookUpRight")) - avg(b("eyeLookDownLeft"), b("eyeLookDownRight"))) || 0,
-    browRaise: Math.max(b("browInnerUp"), avg(b("browOuterUpLeft"), b("browOuterUpRight"))),
-    browDown: avg(b("browDownLeft"), b("browDownRight")),
-    jawOpen: b("jawOpen"),
-    mouthPress: avg(b("mouthPressLeft"), b("mouthPressRight")),
+    // Every blendshape, for the stored face track.
+    bs: BLENDSHAPE_NAMES.map(b),
   };
 }

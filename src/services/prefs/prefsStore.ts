@@ -54,7 +54,6 @@ const KEYS = {
   shareProfileWithReviews: "shareProfileWithReviews",
   audioRetentionDays: "audioRetentionDays",
   scoreVersion: "scoreVersion",
-  gazeYFixed: "gazeYFixed",
   faceCalibration: "faceCalibration",
   nextEvent: "nextEvent",
   mediaBackup: "mediaBackup",
@@ -539,15 +538,6 @@ export function resetCloudCallsToday(): void {
   storage.remove(KEYS.cloudCalls);
 }
 
-// Stored iOS presence timelines had the vertical gaze upside down; set once
-// they've been flipped (services/face/gazeYRepair.ts).
-export function getGazeYFixed(): boolean {
-  return storage.getBoolean(KEYS.gazeYFixed) ?? false;
-}
-
-export function setGazeYFixed(value: boolean): void {
-  storage.set(KEYS.gazeYFixed, value);
-}
 
 // What the face check learned about this face (domain/faceCalibration.ts):
 // null until it has been done, or after Reset.

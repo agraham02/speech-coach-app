@@ -22,18 +22,65 @@ export function pauseScore(boundaryPauseRate: number): number {
   return clamp10((boundaryPauseRate / PAUSE_FULL_RATE) * 10);
 }
 
-// Pitch variety. Semitones (session 06): full marks at a 5.5 st p10-p90
-// range, from session 05's spike (monotone 2.1, normal 3.9, lively 5.5 on
-// the phone chain); 06 calibrates this against the Voice Lab takes and adds
-// the personal baseline after 5 takes. Until 06 lands, the old tracker's
-// max-minus-min in Hz is all there is (full marks at 110 Hz).
-export const PITCH_FULL_SEMITONES = 5.5;
-export const PITCH_FULL_HZ = 110;
+// Pitch variety: the p10 to p90 spread of the voice in semitones around the
+// speaker's own median (domain/dsp/pitchTracker.ts). Semitones make it fair to
+// every voice: the same musical movement is half as many Hz at 100 Hz as at
+// 200 Hz, so the old Hz scoring asked a low voice to move twice as far.
+//
+// The band starts fixed and becomes personal after 5 or more of your own
+// takes with a measured range. The fixed numbers come from session 05's
+// research, not yet from the Voice Lab takes on the phone: through a
+// simulated phone chain the tracker read a monotone voice at 2.1 st, a normal
+// one at 3.9 and a lively one at 5.5 (truth 1.9, 3.8 and 5.3); Ahmad's own
+// takes read 2.4 to 5.8. So 1 st scores 0 and 5 st full marks: monotone about
+// 3/10, ordinary 7, lively 10. Retune with the device test plan, section F.
+// A range is only measured from 8 or more voiced seconds with the voice 12 dB
+// or more over the noise (domain/signals/audioSummary.pitchRangeScorable).
 
-export function pitchScore(range: { semitones?: number | null; hz?: number | null }): number | null {
-  if (range.semitones != null) return clamp10((range.semitones / PITCH_FULL_SEMITONES) * 10);
-  if (range.hz != null) return clamp10((range.hz / PITCH_FULL_HZ) * 10);
-  return null;
+export interface PitchRangeBand {
+  // Range that scores 0, and the range that earns full marks.
+  zeroSt: number;
+  fullSt: number;
+  source: "fixed" | "personal";
+  // Your own takes the personal band was set from (0 for the fixed band).
+  takes: number;
+  // Your usual range (the median of those takes), when personal.
+  usualSt: number | null;
+}
+
+export const FIXED_PITCH_BAND: PitchRangeBand = { zeroSt: 1, fullSt: 5, source: "fixed", takes: 0, usualSt: null };
+
+export const PERSONAL_BASELINE_MIN_TAKES = 5;
+export const PERSONAL_BASELINE_MAX_TAKES = 20;
+// Full marks a little over your usual range, but never below 4 st (a habit
+// of speaking flat must not set the bar at flat) and never above 6 st (a
+// naturally lively speaker isn't asked for theatre).
+const PERSONAL_STRETCH_ST = 0.5;
+const PERSONAL_FULL_MIN_ST = 4;
+const PERSONAL_FULL_MAX_ST = 6;
+
+// Under this the coach and the skill check call the voice flat.
+export const PITCH_FLAT_ST = 2.5;
+
+// `prior`: earlier takes' ranges, newest first.
+export function pitchRangeBand(prior: number[]): PitchRangeBand {
+  const recent = prior.filter((v) => Number.isFinite(v) && v > 0).slice(0, PERSONAL_BASELINE_MAX_TAKES);
+  if (recent.length < PERSONAL_BASELINE_MIN_TAKES) return FIXED_PITCH_BAND;
+  const sorted = [...recent].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  const usual = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  const full = Math.max(PERSONAL_FULL_MIN_ST, Math.min(PERSONAL_FULL_MAX_ST, usual + PERSONAL_STRETCH_ST));
+  return {
+    zeroSt: FIXED_PITCH_BAND.zeroSt,
+    fullSt: Math.round(full * 10) / 10,
+    source: "personal",
+    takes: recent.length,
+    usualSt: Math.round(usual * 10) / 10,
+  };
+}
+
+export function pitchScore(rangeSt: number, band: PitchRangeBand = FIXED_PITCH_BAND): number {
+  return clamp10(((rangeSt - band.zeroSt) / (band.fullSt - band.zeroSt)) * 10);
 }
 
 // Emphasis (session 06's syllable-peak spread): monotone read 1.65 dB and a
@@ -73,8 +120,10 @@ export function eyeContactScore(percent: number, source: "gaze" | "head" | undef
   return clamp10((percent / eyeContactTarget(source)) * 10);
 }
 
-// Expression: full marks at 30 on the 0-100 scale. Today's metric includes
-// the jaw and saturates; session 06 removes the jaw and this bar is retuned.
+// Expression: full marks at 30 on the 0-100 scale. Since session 06 the
+// metric leaves out the jaw (it moved with every syllable and saturated);
+// its scale (presenceMetrics EXPRESSION_SCALE) was set so 30 still means a
+// face that moves with the words. Retune with the device test plan, F.
 export const EXPRESSION_FULL = 30;
 
 export function expressionScore(expressiveness: number): number {

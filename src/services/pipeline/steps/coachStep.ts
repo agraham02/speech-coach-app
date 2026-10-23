@@ -43,7 +43,7 @@ export async function coachStep(sessionId: string): Promise<void> {
     describeSessionSubject(session),
   ]);
 
-  const { wpmAvg, pitchRangeHz } = measuredVoice(session);
+  const { wpmAvg, pitchRangeSt } = measuredVoice(session);
 
   const input: CoachInput = {
     transcript: session.transcriptVerbatim,
@@ -54,7 +54,7 @@ export async function coachStep(sessionId: string): Promise<void> {
     fillerRatePerMinute: stutterMode ? null : session.fillerRatePerMinute,
     pauses: stutterMode && pauses ? { ...pauses, hesitations: 0, midPhrasePauses: 0 } : pauses,
     presence,
-    pitchRangeHz,
+    pitchRangeSt,
     promptText: session.sessionType === "free_record" ? null : subject.title,
     task: session.sessionType === "free_record" ? null : subject.task,
     targetFramework: (session.subjectExtras?.targetFramework as FrameworkId | undefined) ?? null,

@@ -24,15 +24,18 @@ export interface TakeExportInput {
   scores: SessionScores | null;
   // Stored results by kind (pauses, presence, coach, session_score, ...).
   artifacts: Record<string, unknown>;
-  // The raw face timeline is large: its size is noted, not included.
-  presenceSamples: number | null;
+  // The feature track as stored (packed), and the face timeline unpacked
+  // into columns (one entry per detection) so gaze thresholds can be tuned
+  // off the phone.
+  signals: unknown | null;
+  presenceTimeline: Record<string, unknown[]> | null;
 }
 
-export function buildTakeExport({ context, session, steps, scores, artifacts, presenceSamples }: TakeExportInput) {
+export function buildTakeExport({ context, session, steps, scores, artifacts, signals, presenceTimeline }: TakeExportInput) {
   const words = session.transcriptWords;
   return {
     kind: "tono-take-export",
-    version: 1,
+    version: 2,
     exportedAt: context.exportedAt,
     app: context.app,
     take: {
@@ -62,8 +65,8 @@ export function buildTakeExport({ context, session, steps, scores, artifacts, pr
     },
     voice: {
       dspStatus: session.dspStatus,
-      pitchHz: { avg: session.pitchAvgHz, min: session.pitchMinHz, max: session.pitchMaxHz },
-      volumeDbfs: { avg: session.volumeAvgDbfs, stddev: session.volumeStddevDbfs },
+      pitch: { medianHz: session.pitchMedianHz, rangeSemitones: session.pitchRangeSt, sdSemitones: session.pitchSdSt },
+      loudness: { spreadDb: session.loudnessSpreadDb, syllablePeakSdDb: session.loudnessPeakSdDb },
       // One value per 200 ms bucket.
       bucketMs: 200,
       pitchContourHz: session.pitchContourHz ? roundAll(session.pitchContourHz, 0) : null,
@@ -71,7 +74,10 @@ export function buildTakeExport({ context, session, steps, scores, artifacts, pr
     },
     pauses: artifacts.pauses ?? null,
     presence: artifacts.presence ?? null,
-    presenceTimeline: presenceSamples != null ? { omitted: true, samples: presenceSamples } : null,
+    presenceTimeline,
+    // Summary, audio track (base64 typed arrays: see domain/signals/types.ts)
+    // and face track.
+    signals,
     scoreBreakdown: artifacts.session_score ?? null,
     review: scores,
     coach: artifacts.coach ?? null,

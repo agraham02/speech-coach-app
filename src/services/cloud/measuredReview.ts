@@ -9,6 +9,7 @@ import type { PresenceMetrics } from "../../domain/presenceMetrics";
 import type { Session, TranscriptWord } from "../../domain/sessionTypes";
 import { measuredVoice } from "../sessions/sessionScoreService";
 import { logger } from "../../utils/logger";
+import { computeFillerStats } from "../../domain/transcriptAnnotations";
 import { CloudApiError } from "./cloudErrors";
 import { toStrictSchema, withoutProperties } from "./jsonSchema";
 import { speakerContextForReview } from "./speakerContext";
@@ -64,7 +65,9 @@ export function measurementLines({
     lines.push(`- Pace: ${wpmAvg} words per minute on average${range}`);
   }
   if (withFillers && !stutterMode && session.fillerWordCount != null) {
-    lines.push(`- Filler words: ${session.fillerWordCount}${session.fillerRatePerMinute != null ? ` (${round(session.fillerRatePerMinute, 1)} per minute)` : ""}`);
+    const typed = session.transcriptVerbatim ? computeFillerStats(session.transcriptVerbatim, session.durationSeconds) : null;
+    const split = typed ? `: ${typed.hesitation.count} um/uh sounds, ${typed.contextual.count} context fillers such as "like", "you know" or "actually" used as filler` : "";
+    lines.push(`- Filler words: ${session.fillerWordCount}${session.fillerRatePerMinute != null ? ` (${round(session.fillerRatePerMinute, 1)} per minute)` : ""}${split}`);
   }
   if (withFillers && !stutterMode && session.repeatedWordCount) lines.push(`- Repeated words (the same word twice in a row): ${session.repeatedWordCount}`);
   if (pauses) {
@@ -74,16 +77,14 @@ export function measurementLines({
     lines.push(`- Pauses: ${parts.join("; ")}`);
     if (pauses.speechStartMs != null) lines.push(`- Time before the first word: ${round(pauses.speechStartMs / 1000, 1)} s`);
   }
-  if (session.pitchMinHz != null && session.pitchMaxHz != null && session.pitchMinHz > 0) {
-    const semitones = round(12 * Math.log2(session.pitchMaxHz / session.pitchMinHz), 1);
+  if (session.pitchRangeSt != null) {
     lines.push(
-      `- Pitch: average ${Math.round(session.pitchAvgHz ?? 0)} Hz, from ${Math.round(session.pitchMinHz)} to ${Math.round(session.pitchMaxHz)} Hz — a span of ${semitones} semitones (under ~5 tends to sound monotone; 8–12 is typical lively conversation)`,
+      `- Pitch: median ${Math.round(session.pitchMedianHz ?? 0)} Hz; the middle 80% of the voice spans ${round(session.pitchRangeSt, 1)} semitones${session.pitchSdSt != null ? ` (SD ${round(session.pitchSdSt, 1)} semitones)` : ""} (under about 2.5 semitones tends to sound monotone; 4 to 6 is lively conversation)`,
     );
   }
-  if (session.volumeStddevDbfs != null) {
-    lines.push(
-      `- Loudness: average ${round(session.volumeAvgDbfs ?? 0, 1)} dBFS, varying by ${round(session.volumeStddevDbfs, 1)} dB (standard deviation; under ~3 dB reads flat, 5 dB or more is clearly varied)`,
-    );
+  if (session.loudnessSpreadDb != null) {
+    const peaks = session.loudnessPeakSdDb != null ? `; syllable peaks vary by ${round(session.loudnessPeakSdDb, 1)} dB (SD; under about 2 dB reads flat, 3 dB or more is varied emphasis)` : "";
+    lines.push(`- Loudness while speaking (pauses left out): a ${round(session.loudnessSpreadDb, 1)} dB range between quiet and loud moments${peaks}`);
   }
   if (presence && presence.samples > 0) {
     const face = [
@@ -91,6 +92,7 @@ export function measurementLines({
       `eye contact with the lens ${Math.round(presence.eyeContactPercent)}% (${presence.eyeContactSource === "head" ? "from head direction only" : "from where the eyes point"})`,
     ];
     if (presence.lookingDownPercent != null) face.push(`looking down ${Math.round(presence.lookingDownPercent)}%`);
+    if (presence.lookingUpPercent != null) face.push(`looking up ${Math.round(presence.lookingUpPercent)}%`);
     face.push(`longest look-away ${round(presence.longestLookAwayMs / 1000, 1)} s`);
     face.push(`expressiveness ${Math.round(presence.expressiveness)}/100`);
     face.push(`smiling ${Math.round(presence.smilePercent)}%`);

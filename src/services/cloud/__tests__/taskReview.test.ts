@@ -6,7 +6,7 @@ jest.mock("../../prefs/prefsStore", () => ({
   getUserProfile: () => null,
   getNextEvent: () => null,
 }));
-jest.mock("../../sessions/sessionScoreService", () => ({ measuredVoice: () => ({ wpmAvg: 140, pitchRangeHz: 100 }) }));
+jest.mock("../../sessions/sessionScoreService", () => ({ measuredVoice: () => ({ wpmAvg: 140, pitchRangeSt: 4 }) }));
 jest.mock("../../../utils/logger", () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
 jest.mock("../../gemini/transcribeSession", () => ({ parseGeminiSessionAnalysis: jest.fn() }));
 jest.mock("../../db/promptsRepo", () => ({ getPrompt: jest.fn() }));

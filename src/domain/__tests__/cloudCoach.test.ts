@@ -8,7 +8,7 @@ const rules: CoachOutput = ruleCoach({
   fillerRatePerMinute: 2,
   pauses: null,
   presence: null,
-  pitchRangeHz: null,
+  pitchRangeSt: null,
 });
 
 const judgedBy = { producer: "tono_ai" as const, provider: "Tono AI", model: "model-x", promptVersion: "p1", judged: true, input: "text" as const, at: "2026-10-23T10:00:00.000Z" };

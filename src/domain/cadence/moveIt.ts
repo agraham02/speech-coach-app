@@ -81,6 +81,8 @@ export function comparableMeasure(a: TakeRange, b: TakeRange): "pitch" | "loudne
   return null;
 }
 
+const MIN_PITCH_BASE_ST = 1.5;
+
 export interface MoveItResult {
   measure: "pitch" | "loudness";
   // ghost ÷ neutral
@@ -91,7 +93,9 @@ export interface MoveItResult {
 export function scoreMoveIt(neutral: TakeRange, ghost: TakeRange, targetLift: number): MoveItResult | null {
   const measure = comparableMeasure(neutral, ghost);
   if (!measure) return null;
-  const base = measure === "pitch" ? neutral.pitch! : neutral.loudness!;
+  // A near-flat plain take (the new tracker reads a monotone voice at about
+  // 2 semitones) must not turn a small change into a huge lift.
+  const base = measure === "pitch" ? Math.max(neutral.pitch!, MIN_PITCH_BASE_ST) : neutral.loudness!;
   const after = measure === "pitch" ? ghost.pitch! : ghost.loudness!;
   const lift = Math.round((after / base) * 100) / 100;
   const gain = lift - 1;

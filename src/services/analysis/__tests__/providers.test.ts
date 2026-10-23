@@ -17,7 +17,7 @@ jest.mock("../../prefs/prefsStore", () => ({
   getCloudCallsToday: () => mockCallsToday,
   noteCloudCall: jest.fn(),
 }));
-jest.mock("../../sessions/sessionScoreService", () => ({ measuredVoice: () => ({ wpmAvg: 142, pitchRangeHz: 120 }) }));
+jest.mock("../../sessions/sessionScoreService", () => ({ measuredVoice: () => ({ wpmAvg: 142, pitchRangeSt: 5 }) }));
 jest.mock("../../gemini/geminiClient", () => ({ generateContent: (...a: unknown[]) => mockGenerateContent(...a) }));
 jest.mock("../../cloud/textProviders", () => ({ callTextProvider: (...a: unknown[]) => mockCallTextProvider(...a) }));
 jest.mock("../providers/videoReview", () => ({ reviewFromVideo: jest.fn() }));
@@ -144,7 +144,7 @@ describe("own key", () => {
 
 describe("rules", () => {
   it("coaches from the measurements, labelled as the phone's", async () => {
-    const out = await rulesProvider.run("coaching", { transcript: "so yeah", durationSeconds: 30, wpmAvg: 190, fillerRatePerMinute: 1, pauses: null, presence: null, pitchRangeHz: null }, ctx(), { producers: ["rules"], blocked: null });
+    const out = await rulesProvider.run("coaching", { transcript: "so yeah", durationSeconds: 30, wpmAvg: 190, fillerRatePerMinute: 1, pauses: null, presence: null, pitchRangeSt: null }, ctx(), { producers: ["rules"], blocked: null });
     expect(out).toMatchObject({ ok: true, provenance: { producer: "rules", judged: false }, value: { provenance: { producer: "rules" } } });
   });
 });

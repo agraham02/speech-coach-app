@@ -13,40 +13,55 @@ import type { PauseAnalysis } from "../../domain/dsp/pauses";
 import type { PresenceMetrics } from "../../domain/presenceMetrics";
 import type { Session } from "../../domain/sessionTypes";
 import { logger } from "../../utils/logger";
+import { speakingWpm } from "../../domain/signals/audioSummary";
+import { computeFillerStats } from "../../domain/transcriptAnnotations";
+import { PERSONAL_BASELINE_MAX_TAKES, pitchRangeBand, type PitchRangeBand } from "../../domain/scoring/bands";
 
-// Words per minute and pitch range as measured on the phone — shared with
-// the coach step so both see the same numbers.
-export function measuredVoice(session: Session): { wpmAvg: number | null; pitchRangeHz: number | null } {
-  const words = session.transcriptWords;
-  return {
-    wpmAvg:
-      words && words.length > 0 && session.durationSeconds > 0
-        ? Math.round(words.length / (Math.max(session.durationSeconds, 1) / 60))
-        : null,
-    pitchRangeHz:
-      session.pitchMaxHz != null && session.pitchMinHz != null ? Math.round(session.pitchMaxHz - session.pitchMinHz) : null,
-  };
+// Words per minute (over the speaking span, first word to last) and pitch
+// range (p10 to p90 semitones; null when there wasn't enough clear voice to
+// measure it) as measured on the phone — shared with the coach step so both
+// see the same numbers.
+export function measuredVoice(session: Session): { wpmAvg: number | null; pitchRangeSt: number | null } {
+  return { wpmAvg: speakingWpm(session.transcriptWords), pitchRangeSt: session.pitchRangeSt };
+}
+
+// The pitch-range band for a take: fixed, or your own once 5 or more earlier
+// takes have a measured range (domain/scoring/bands.ts). Takes being deleted
+// (deleted_at set, in the undo window) don't count.
+export async function pitchBandFor(session: Session): Promise<PitchRangeBand> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{ pitch_range_st: number }>(
+    `SELECT pitch_range_st FROM sessions
+     WHERE pitch_range_st IS NOT NULL AND recorded_at < ? AND deleted_at IS NULL AND session_type != 'feeling'
+     ORDER BY recorded_at DESC LIMIT ?`,
+    [session.recordedAt, PERSONAL_BASELINE_MAX_TAKES],
+  );
+  return pitchRangeBand(rows.map((r) => r.pitch_range_st));
 }
 
 // Everything the phone measured about a take, flattened for the measured
 // score sheet. The phone's own counts only: the measured layer is the same
 // formula on the same kind of numbers for every take, whether or not it was
-// judged. Session 06's signals (semitones, emphasis, typed fillers) slot in
-// here when they land.
+// judged. Session 06's signals fill it: pitch range in semitones (on your
+// band), emphasis from syllable peaks, and fillers by kind, counted by the
+// phone's detector (domain/fillers.ts) on the phone's own transcript.
 export function measuredFacts(
   session: Session,
-  parts: { pauses: PauseAnalysis | null; presence: PresenceMetrics | null; coach: CoachOutput | null; stutterMode: boolean },
+  parts: { pauses: PauseAnalysis | null; presence: PresenceMetrics | null; coach: CoachOutput | null; stutterMode: boolean; pitchBand?: PitchRangeBand },
 ): MeasuredFacts {
-  const { pauses, presence, coach, stutterMode } = parts;
+  const { pauses, presence, coach, stutterMode, pitchBand } = parts;
   const voice = measuredVoice(session);
+  const typed = session.transcriptVerbatim ? computeFillerStats(session.transcriptVerbatim, session.durationSeconds) : null;
   return {
     takeKind: session.sessionType === "script_practice" ? "script" : "impromptu",
     durationSeconds: session.durationSeconds,
     wpm: voice.wpmAvg,
     boundaryPauseRate: pauses?.boundaryPauseRate ?? null,
-    pitchRangeHz: voice.pitchRangeHz,
+    pitchRangeSemitones: voice.pitchRangeSt,
+    pitchBand,
+    emphasisPeakSdDb: session.loudnessPeakSdDb,
     // Stuttering: fillers and stalls aren't measured against you.
-    fillers: !stutterMode && session.fillerRatePerMinute != null ? { hesitationPerMinute: session.fillerRatePerMinute, contextualPerMinute: null } : null,
+    fillers: !stutterMode && typed ? { hesitationPerMinute: typed.hesitation.ratePerMinute, contextualPerMinute: typed.contextual.ratePerMinute } : null,
     stalls: !stutterMode && pauses ? pauses.hesitations : null,
     structure: coach
       ? { framework: coach.structure.framework, shaped: coach.structure.framework !== "None", targetFramework: session.subjectExtras?.targetFramework ?? null }
@@ -95,7 +110,7 @@ export async function refreshSessionScore(sessionId: string): Promise<TakeScores
       getArtifact<CloudTranscriptArtifact>(sessionId, "cloud_transcript"),
       getArtifact<TakeAnalyses>(sessionId, "analysis"),
     ]);
-    const facts = measuredFacts(session, { pauses, presence, coach, stutterMode });
+    const facts = measuredFacts(session, { pauses, presence, coach, stutterMode, pitchBand: await pitchBandFor(session) });
     const scores = takeScores(facts, review ? judgedFromRubric(review, facts.takeKind) : null, review ? judgedBy(analyses, transcript) : undefined);
     if (!scores) return null;
     await putArtifact(sessionId, "session_score", scores);

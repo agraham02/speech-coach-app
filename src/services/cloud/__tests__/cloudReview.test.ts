@@ -4,7 +4,7 @@ jest.mock("../../prefs/prefsStore", () => ({
   getCloudModel: () => null,
   getCloudConsent: () => [],
 }));
-jest.mock("../../sessions/sessionScoreService", () => ({ measuredVoice: () => ({ wpmAvg: 142, pitchRangeHz: 120 }) }));
+jest.mock("../../sessions/sessionScoreService", () => ({ measuredVoice: () => ({ wpmAvg: 142, pitchRangeSt: 5 }) }));
 jest.mock("../../../utils/logger", () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
 jest.mock("../../gemini/transcribeSession", () => ({ parseGeminiSessionAnalysis: jest.fn() }));
 
@@ -66,11 +66,11 @@ describe("measurementLines", () => {
     fillerWordCount: 9,
     fillerRatePerMinute: 7.3,
     repeatedWordCount: 2,
-    pitchAvgHz: 138,
-    pitchMinHz: 92,
-    pitchMaxHz: 231,
-    volumeAvgDbfs: -24,
-    volumeStddevDbfs: 4.1,
+    pitchMedianHz: 118,
+    pitchRangeSt: 4.6,
+    pitchSdSt: 1.9,
+    loudnessSpreadDb: 11.4,
+    loudnessPeakSdDb: 2.8,
   } as unknown as Session;
   const pauses: PauseAnalysis = {
     pauses: [],
@@ -83,6 +83,8 @@ describe("measurementLines", () => {
     midPhrasePauses: 4,
     hesitations: 3,
     boundaryPauseRate: 0.64,
+    breaths: 3,
+    breathsPerMinute: 2.5,
   };
 
   it("states the numbers a reviewer needs", () => {
@@ -92,8 +94,8 @@ describe("measurementLines", () => {
     expect(text).toContain("Filler words: 9 (7.3 per minute)");
     expect(text).toContain("3 hesitations");
     expect(text).toContain("64% of sentence endings");
-    expect(text).toContain("span of 15.9 semitones");
-    expect(text).toContain("varying by 4.1 dB");
+    expect(text).toContain("spans 4.6 semitones");
+    expect(text).toContain("syllable peaks vary by 2.8 dB");
     expect(text).toContain("Face: not measured");
   });
 
