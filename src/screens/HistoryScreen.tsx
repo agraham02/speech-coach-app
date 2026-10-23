@@ -31,6 +31,25 @@ import { getScriptById } from "../services/db/scriptsRepo";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
 import { colorForScore } from "../components/result/scoreColor";
 import type { Prompt, Session } from "../domain/sessionTypes";
+import { listRewinds, type Rewind } from "../services/db/rewindRepo";
+import { confirmDeleteRewind } from "../components/rewind/confirmDeleteRewind";
+import {
+  DATE_RANGES,
+  hasFilters,
+  kindForSessionType,
+  kindOptions,
+  matchesFilters,
+  matchesQuery,
+  NO_FILTERS,
+  searchText,
+  sortNewestFirst,
+  transcriptExcerpt,
+  type DurationFilter,
+  type LibraryFilters,
+  type LibraryItem,
+  type LibraryStatus,
+  type StatusFilter,
+} from "../domain/libraryItems";
 import { formatDuration } from "../utils/dateUtils";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import type { Colors } from "../theme/theme";
@@ -42,9 +61,6 @@ const statusMeta = (colors: Colors): Record<Session["status"], { label: string; 
   error: { label: "Failed", color: colors.danger, icon: "alert-circle-outline" },
 });
 
-// "keepsake": progress videos kept when old videos are cleared.
-type StatusFilter = "all" | "keepsake" | Session["status"];
-
 const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
   { key: "all", label: "All" },
   { key: "keepsake", label: "Progress videos" },
@@ -53,9 +69,9 @@ const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
   { key: "error", label: "Failed" },
 ];
 
-type DurationFilter = "all" | "short" | "medium" | "long";
-
 const DEFAULT_OPEN_MONTHS = 2;
+// While a Rewind is still being listened back to, the list checks again.
+const REWIND_POLL_MS = 3000;
 
 const DURATION_FILTERS: { key: DurationFilter; label: string }[] = [
   { key: "all", label: "All" },
@@ -64,11 +80,9 @@ const DURATION_FILTERS: { key: DurationFilter; label: string }[] = [
   { key: "long", label: "Over 4 min" },
 ];
 
-function durationBucket(durationSeconds: number): Exclude<DurationFilter, "all"> {
-  if (durationSeconds < 120) return "short";
-  if (durationSeconds < 240) return "medium";
-  return "long";
-}
+type Item = LibraryItem<SessionWithScore, Rewind> & { haystack: string };
+
+const rewindStatus = (status: Rewind["status"]): LibraryStatus => (status === "failed" ? "error" : status);
 
 function formatSessionDate(isoDatetime: string): string {
   const date = new Date(isoDatetime);
@@ -92,12 +106,12 @@ export function HistoryScreen() {
   const showToast = useToast();
   const tabBarInset = useTabBarBottomInset();
   const [sessions, setSessions] = useState<SessionWithScore[]>([]);
+  const [rewinds, setRewinds] = useState<Rewind[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [durationFilter, setDurationFilter] = useState<DurationFilter>("all");
+  const [filters, setFilters] = useState<LibraryFilters>(NO_FILTERS);
+  const setFilter = <K extends keyof LibraryFilters>(key: K, value: LibraryFilters[K]) => setFilters((prev) => ({ ...prev, [key]: value }));
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
   // Months opened or closed by hand; everything else follows the default.
   const [toggledMonths, setToggledMonths] = useState<Record<string, boolean>>({});
@@ -108,13 +122,22 @@ export function HistoryScreen() {
   // up in the filter list immediately.
   const [categoryFilters, setCategoryFilters] = useState<string[]>(["all", FREE_RECORD_PROMPT.category]);
   const [promptsById, setPromptsById] = useState<Map<string, Prompt>>(new Map());
-  const hasSecondaryFilters = categoryFilter !== "all" || durationFilter !== "all";
+
+  // Both lists, so Rewinds sit in the Library with the takes.
+  const load = useCallback(
+    () =>
+      Promise.all([
+        getAllSessionsWithScores().then(setSessions),
+        listRewinds()
+          .then(setRewinds)
+          .catch((error) => logger.warn(`[library] couldn't load Rewinds — ${(error as Error).message}`)),
+      ]),
+    [],
+  );
 
   const refresh = useCallback(() => {
-    getAllSessionsWithScores()
-      .then(setSessions)
-      .finally(() => setLoaded(true));
-  }, []);
+    load().finally(() => setLoaded(true));
+  }, [load]);
 
   const refreshPrompts = useCallback(() => {
     getAllPrompts().then((prompts) => {
@@ -142,32 +165,99 @@ export function HistoryScreen() {
 
   useEffect(() => subscribeToAllSessions(() => refresh()), [refresh]);
 
+  // A Rewind fills in by itself after you tell it; follow it here too.
+  const rewindProcessing = rewinds.some((r) => r.status === "processing");
+  useEffect(() => {
+    if (!rewindProcessing) return;
+    const timer = setInterval(() => listRewinds().then(setRewinds).catch(() => undefined), REWIND_POLL_MS);
+    return () => clearInterval(timer);
+  }, [rewindProcessing]);
+
   async function handleRefresh() {
     setRefreshing(true);
-    await getAllSessionsWithScores().then(setSessions);
+    await load();
     setRefreshing(false);
   }
 
-  const filteredSessions = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    return sessions.filter((session) => {
-      if (statusFilter === "keepsake") {
-        if (!session.videoKeepsake || session.videoDeletedAt) return false;
-      } else if (statusFilter !== "all" && session.status !== statusFilter) return false;
-      if (durationFilter !== "all" && durationBucket(session.durationSeconds) !== durationFilter) return false;
-      const prompt = resolvePrompt(session.promptId, session);
-      if (categoryFilter !== "all" && prompt?.category !== categoryFilter) return false;
-      if (!query) return true;
-      const haystack = `${prompt?.text ?? ""} ${prompt?.category ?? ""}`.toLowerCase();
-      return haystack.includes(query);
+  // One list, newest first. The search text is built once per load, not on
+  // every keystroke.
+  const items = useMemo<Item[]>(() => {
+    const now = new Date();
+    const fromSessions = sessions.map((s): Item => {
+      const prompt = resolvePrompt(s.promptId, s);
+      const base = {
+        key: `s:${s.id}`,
+        id: s.id,
+        kind: kindForSessionType(s.sessionType),
+        recordedAt: s.recordedAt,
+        durationSeconds: s.durationSeconds,
+        title: prompt?.text ?? "Unknown prompt",
+        category: prompt?.category ?? null,
+        transcript: s.transcriptClean ?? "",
+        status: s.status,
+        overallScore: s.overallScore,
+        keepsake: !!s.videoKeepsake && !s.videoDeletedAt,
+        session: s,
+        rewind: null,
+      };
+      return { ...base, haystack: searchText(base, now) };
     });
+    const fromRewinds = rewinds.map((r): Item => {
+      const base = {
+        key: `r:${r.id}`,
+        id: r.id,
+        kind: "rewind" as const,
+        recordedAt: r.recordedAt,
+        durationSeconds: r.durationSeconds,
+        title: "Rewind",
+        category: null,
+        transcript: r.transcript,
+        status: rewindStatus(r.status),
+        overallScore: null,
+        keepsake: false,
+        session: null,
+        rewind: r,
+      };
+      return { ...base, haystack: searchText(base, now) };
+    });
+    return sortNewestFirst([...fromSessions, ...fromRewinds]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessions, searchQuery, statusFilter, categoryFilter, durationFilter, promptsById]);
+  }, [sessions, rewinds, promptsById]);
+
+  const filteredItems = useMemo(() => {
+    const now = new Date();
+    return items.filter((item) => matchesFilters(item, filters, now) && matchesQuery(item.haystack, searchQuery));
+  }, [items, filters, searchQuery]);
+
+  const typeOptions = useMemo(() => kindOptions(items), [items]);
 
   // Every session opens on Result — progress, retries and every later
-  // action (deep review, practice again) live there.
+  // action (deep review, practice again) live there. A Rewind opens on its
+  // own result.
   function openSession(session: Session) {
     navigation.navigate("Result", { sessionId: session.id });
+  }
+
+  function openItem(item: Item) {
+    if (item.rewind) navigation.navigate("RewindResult", { id: item.rewind.id });
+    else if (item.session) openSession(item.session);
+  }
+
+  function confirmDeleteItem(item: Item) {
+    if (item.session) {
+      confirmDelete(item.session);
+      return;
+    }
+    const rewind = item.rewind;
+    if (!rewind) return;
+    confirmDeleteRewind(
+      rewind,
+      () => {
+        setRewinds((prev) => prev.filter((r) => r.id !== rewind.id));
+        showToast("Rewind deleted", "success");
+      },
+      () => showToast("Couldn't delete that — try again", "error"),
+    );
   }
 
   // Both deletes are optimistic: the row changes first, and comes back if
@@ -222,10 +312,11 @@ export function HistoryScreen() {
     );
   }
 
-  const hasAnySessions = sessions.length > 0;
-  const anyFilter = statusFilter !== "all" || hasSecondaryFilters;
+  const hasAnySessions = items.length > 0;
+  const statusFilter = filters.status;
+  const anyFilter = hasFilters(filters);
   const filtersActive = searchQuery.trim() !== "" || anyFilter;
-  const groups = useMemo(() => groupByMonth(filteredSessions), [filteredSessions]);
+  const groups = useMemo(() => groupByMonth(filteredItems), [filteredItems]);
   // The two newest months start open, older ones collapse to their summary
   // line; while searching or filtering everything opens so no match hides.
   const isOpen = (key: string, index: number) => toggledMonths[key] ?? (filtersActive || index < DEFAULT_OPEN_MONTHS);
@@ -265,7 +356,7 @@ export function HistoryScreen() {
         <Txt variant="title3">Your recordings</Txt>
         {hasAnySessions ? (
           <Txt variant="footnote" tone="muted" tabular>
-            {sessions.length} take{sessions.length === 1 ? "" : "s"}
+            {items.length} take{items.length === 1 ? "" : "s"}
           </Txt>
         ) : null}
       </View>
@@ -278,10 +369,13 @@ export function HistoryScreen() {
               style={styles.searchInput}
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder="Search by prompt or category"
+              placeholder="Search what you said, prompts, dates"
               placeholderTextColor={colors.textMuted}
               returnKeyType="search"
-              accessibilityLabel="Search sessions"
+              clearButtonMode="while-editing"
+              autoCorrect={false}
+              accessibilityLabel="Search recordings"
+              accessibilityHint="Matches what you said, the prompt, the type, or a day such as Monday or Oct 12"
             />
           </View>
           <View>
@@ -304,26 +398,28 @@ export function HistoryScreen() {
       <FilterSheet
         visible={filterSheetVisible}
         onClose={() => setFilterSheetVisible(false)}
+        kindOptions={typeOptions}
+        kindValue={filters.kind}
+        onKindChange={(value) => setFilter("kind", value as LibraryFilters["kind"])}
+        dateOptions={DATE_RANGES}
+        dateValue={filters.date}
+        onDateChange={(value) => setFilter("date", value as LibraryFilters["date"])}
         statusOptions={STATUS_FILTERS}
-        statusValue={statusFilter}
-        onStatusChange={(value) => setStatusFilter(value as StatusFilter)}
+        statusValue={filters.status}
+        onStatusChange={(value) => setFilter("status", value as StatusFilter)}
         categoryOptions={categoryFilters}
-        categoryValue={categoryFilter}
-        onCategoryChange={setCategoryFilter}
+        categoryValue={filters.category}
+        onCategoryChange={(value) => setFilter("category", value)}
         durationOptions={DURATION_FILTERS}
-        durationValue={durationFilter}
-        onDurationChange={(value) => setDurationFilter(value as DurationFilter)}
-        onReset={() => {
-          setStatusFilter("all");
-          setCategoryFilter("all");
-          setDurationFilter("all");
-        }}
+        durationValue={filters.duration}
+        onDurationChange={(value) => setFilter("duration", value as DurationFilter)}
+        onReset={() => setFilters(NO_FILTERS)}
       />
 
       <SectionList
         style={styles.list}
         sections={sections}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.key}
         stickySectionHeadersEnabled
         contentContainerStyle={[styles.listContent, { paddingBottom: 32 + tabBarInset }]}
         showsVerticalScrollIndicator={false}
@@ -349,35 +445,49 @@ export function HistoryScreen() {
         }
         renderSectionHeader={({ section }) => <MonthHeader group={section} open={section.open} onToggle={() => toggleMonth(section.key, section.index)} />}
         renderItem={({ item }) => {
-          const prompt = resolvePrompt(item.promptId, item);
           const status = statusMeta(colors)[item.status];
           const score = item.overallScore;
           const scoreColor = score != null ? colorForScore(score, colors) : colors.textMuted;
+          const isRewind = item.kind === "rewind";
+          // While searching, show where the words matched.
+          const said = searchQuery.trim() ? transcriptExcerpt(item.transcript, searchQuery) : null;
+          const meta = [formatSessionDate(item.recordedAt), formatDuration(item.durationSeconds), item.category ?? (isRewind ? "Your day" : "")].filter(Boolean).join(" · ");
           return (
             <PressableScale
-              onPress={() => openSession(item)}
-              onLongPress={() => confirmDelete(item)}
+              onPress={() => openItem(item)}
+              onLongPress={() => confirmDeleteItem(item)}
               scaleTo={0.98}
               style={styles.row}
-              accessibilityLabel={`${prompt?.text ?? "Session"}, ${score != null ? `score ${score}, ` : ""}${status.label}, recorded ${formatSessionDate(item.recordedAt)}`}
+              accessibilityLabel={`${item.title}, ${score != null ? `score ${score}, ` : ""}${status.label}, recorded ${formatSessionDate(item.recordedAt)}${said ? `, you said: ${said}` : ""}`}
               accessibilityHint="Double tap to open. Long press to delete."
             >
-              <ProgressRing size={42} strokeWidth={3} progress={score != null ? score / 10 : 0} color={scoreColor}>
-                <Txt variant="subhead" weight="600" color={score != null ? colors.textPrimary : colors.textMuted} tabular>
-                  {score != null ? score : "–"}
-                </Txt>
-              </ProgressRing>
+              {isRewind ? (
+                // No score for a Rewind (it grades content, not delivery).
+                <View style={styles.kindIcon}>
+                  <Ionicons name="play-back-outline" size={18} color={colors.textPrimary} />
+                </View>
+              ) : (
+                <ProgressRing size={42} strokeWidth={3} progress={score != null ? score / 10 : 0} color={scoreColor}>
+                  <Txt variant="subhead" weight="600" color={score != null ? colors.textPrimary : colors.textMuted} tabular>
+                    {score != null ? score : "–"}
+                  </Txt>
+                </ProgressRing>
+              )}
               <View style={styles.rowText}>
                 <Txt variant="headline" numberOfLines={1}>
-                  {prompt?.text ?? "Unknown prompt"}
+                  {item.title}
                 </Txt>
                 <Txt variant="footnote" tone="muted" numberOfLines={1}>
-                  {formatSessionDate(item.recordedAt)} · {formatDuration(item.durationSeconds)}
-                  {prompt?.category ? ` · ${prompt.category}` : ""}
+                  {meta}
                 </Txt>
+                {said ? (
+                  <Txt variant="footnote" tone="secondary" numberOfLines={1}>
+                    “{said}”
+                  </Txt>
+                ) : null}
               </View>
               {item.status !== "done" ? <Ionicons name={status.icon} size={16} color={status.color} accessibilityLabel={status.label} /> : null}
-              {item.videoKeepsake && !item.videoDeletedAt ? <Ionicons name="bookmark" size={14} color={colors.warning} accessibilityLabel="Progress video" /> : null}
+              {item.keepsake ? <Ionicons name="bookmark" size={14} color={colors.warning} accessibilityLabel="Progress video" /> : null}
             </PressableScale>
           );
         }}
@@ -388,7 +498,7 @@ export function HistoryScreen() {
 }
 
 // A month's summary line; tap to collapse or expand it.
-function MonthHeader({ group, open, onToggle }: { group: MonthGroup<SessionWithScore>; open: boolean; onToggle: () => void }) {
+function MonthHeader({ group, open, onToggle }: { group: MonthGroup<unknown>; open: boolean; onToggle: () => void }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const delta = group.deltaVsPrevious;
@@ -490,4 +600,12 @@ const useStyles = makeStyles((t) => ({
     paddingVertical: t.space.sm + 2,
   },
   rowText: { flex: 1, gap: 2 },
+  kindIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: t.colors.accentMuted,
+  },
 }));

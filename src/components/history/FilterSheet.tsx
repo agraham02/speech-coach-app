@@ -13,6 +13,13 @@ interface FilterOption {
 interface FilterSheetProps {
   visible: boolean;
   onClose: () => void;
+  // Impromptu, Rewind and so on. Empty hides the section (one type only).
+  kindOptions: FilterOption[];
+  kindValue: string;
+  onKindChange: (value: string) => void;
+  dateOptions: FilterOption[];
+  dateValue: string;
+  onDateChange: (value: string) => void;
   statusOptions: FilterOption[];
   statusValue: string;
   onStatusChange: (value: string) => void;
@@ -26,11 +33,18 @@ interface FilterSheetProps {
 }
 
 // A hand-rolled slide-up sheet (RN's Modal for portal/back-button handling,
-// Reanimated for the actual motion) — holds the Show, Topic and Length
-// filters, keeping the Library itself down to a search box and the list.
+// Reanimated for the actual motion) — holds the Type, When, Show, Topic and
+// Length filters, keeping the Library itself down to a search box and the
+// list.
 export function FilterSheet({
   visible,
   onClose,
+  kindOptions,
+  kindValue,
+  onKindChange,
+  dateOptions,
+  dateValue,
+  onDateChange,
   statusOptions,
   statusValue,
   onStatusChange,
@@ -51,7 +65,7 @@ export function FilterSheet({
   }, [visible, progress]);
 
   const backdropStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
-  const panelStyle = useAnimatedStyle(() => ({ transform: [{ translateY: (1 - progress.value) * 280 }] }));
+  const panelStyle = useAnimatedStyle(() => ({ transform: [{ translateY: (1 - progress.value) * 520 }] }));
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
@@ -73,24 +87,18 @@ export function FilterSheet({
           </Pressable>
         </View>
 
-        <Text style={styles.sectionLabel}>Show</Text>
-        <View style={styles.chipRowWrap}>
-          {statusOptions.map((option) => {
-            const selected = statusValue === option.key;
-            return (
-              <Pressable
-                key={option.key}
-                onPress={() => onStatusChange(option.key)}
-                style={[styles.chip, selected && styles.chipSelected]}
-                accessibilityRole="button"
-                accessibilityLabel={`Show ${option.label}`}
-                accessibilityState={{ selected }}
-              >
-                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{option.label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        {kindOptions.length ? (
+          <>
+            <Text style={styles.sectionLabel}>Type</Text>
+            <ChipRow options={kindOptions} value={kindValue} onChange={onKindChange} labelPrefix="Show" />
+          </>
+        ) : null}
+
+        <Text style={[styles.sectionLabel, kindOptions.length ? styles.sectionSpacer : null]}>When</Text>
+        <ChipRow options={dateOptions} value={dateValue} onChange={onDateChange} labelPrefix="Recorded" />
+
+        <Text style={[styles.sectionLabel, styles.sectionSpacer]}>Show</Text>
+        <ChipRow options={statusOptions} value={statusValue} onChange={onStatusChange} labelPrefix="Show" />
 
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>Topic</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRowScroll}>
@@ -113,29 +121,36 @@ export function FilterSheet({
         </ScrollView>
 
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>Length</Text>
-        <View style={styles.chipRowWrap}>
-          {durationOptions.map((option) => {
-            const selected = durationValue === option.key;
-            return (
-              <Pressable
-                key={option.key}
-                onPress={() => onDurationChange(option.key)}
-                style={[styles.chip, selected && styles.chipSelected]}
-                accessibilityRole="button"
-                accessibilityLabel={`Filter by ${option.label}`}
-                accessibilityState={{ selected }}
-              >
-                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{option.label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <ChipRow options={durationOptions} value={durationValue} onChange={onDurationChange} labelPrefix="Filter by" />
 
         <Pressable style={styles.doneButton} onPress={onClose} accessibilityRole="button" accessibilityLabel="Apply filters">
           <Text style={styles.doneButtonText}>Done</Text>
         </Pressable>
       </Animated.View>
     </Modal>
+  );
+}
+
+function ChipRow({ options, value, onChange, labelPrefix }: { options: FilterOption[]; value: string; onChange: (value: string) => void; labelPrefix: string }) {
+  const styles = useStyles();
+  return (
+    <View style={styles.chipRowWrap}>
+      {options.map((option) => {
+        const selected = value === option.key;
+        return (
+          <Pressable
+            key={option.key}
+            onPress={() => onChange(option.key)}
+            style={[styles.chip, selected && styles.chipSelected]}
+            accessibilityRole="button"
+            accessibilityLabel={`${labelPrefix} ${option.label}`}
+            accessibilityState={{ selected }}
+          >
+            <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{option.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 
