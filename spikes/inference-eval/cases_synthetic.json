@@ -1,0 +1,95 @@
+{
+  "_about": "Synthetic evaluation cases for docs/decisions/inference-strategy.md. Written for this eval; no user data. Real takes are loaded at run time from the user's own exports (see README.md) and are never committed, because this repository is public.",
+  "rewind": [
+    {
+      "id": "rewind_morning_only",
+      "transcript": "So this morning I woke up at six thirty because the neighbour's dog was barking. I made a pour-over coffee, the kind with the paper filter, and drank it on the balcony while it was still a bit dark and cold. Then I showered, read the news on my phone for way too long, and walked my dog around the block. The grass was wet and he kept stopping to sniff every single tree. After that I answered a few emails and got dressed. That's pretty much what I remember.",
+      "gold": { "morning": "covered", "midday": "missing", "evening": "missing" }
+    },
+    {
+      "id": "rewind_thin",
+      "transcript": "Today was a normal day. I got up, went to class, had lunch, did some homework, ate dinner and then I went to sleep. Nothing really happened.",
+      "gold": { "morning": "brief", "midday": "brief", "evening": "brief" }
+    },
+    {
+      "id": "rewind_rich",
+      "transcript": "I woke up before my alarm, around five fifty, and the room was still blue. I made oatmeal with too much cinnamon and burned my tongue on the first spoonful. On the train in, a guy across from me was asleep holding a full cup of coffee and I spent the whole ride waiting for it to spill. It didn't. At work the morning was mostly a long planning meeting where nobody agreed on anything. For lunch I went to the taco truck on Fifth Street with Priya, and we sat on the steps outside the library because it was finally warm. In the afternoon I fixed a bug I'd been stuck on for two days, and I actually said yes out loud at my desk when the test passed. I left at six, picked up groceries, and cooked a stir fry while my sister called me about her wedding plans. We talked for an hour. I finished the night reading on the couch with the window open, listening to the rain start.",
+      "gold": { "morning": "covered", "midday": "covered", "evening": "covered" }
+    },
+    {
+      "id": "rewind_afternoon_evening",
+      "transcript": "I didn't do much until about two in the afternoon, honestly. Then I went to the gym and did legs, which I regret now because I can barely walk up the stairs. After the gym I stopped at my mom's house and she made me take home a giant container of rice and beans. In the evening I watched the football game with my roommate. We ordered wings, our team lost in the last minute, and he threw a pillow at the TV.",
+      "gold": { "morning": "missing", "midday": "covered", "evening": "covered" }
+    }
+  ],
+  "word_chain": [
+    {
+      "id": "chain_all_good",
+      "words": ["pen", "ink", "octopus", "aquarium", "fish", "chips", "salsa", "dance", "music", "guitar"],
+      "gold": ["strong", "strong", "strong", "strong", "strong", "strong", "strong", "strong", "strong"]
+    },
+    {
+      "id": "chain_with_breaks",
+      "words": ["dog", "bone", "skeleton", "halloween", "pumpkin", "carburetor", "engine", "refrigerator", "cold", "ice"],
+      "gold": ["strong", "strong", "strong", "strong", "none", "strong", "loose|none", "strong", "strong"]
+    },
+    {
+      "id": "chain_puns_and_breaks",
+      "words": ["sun", "beach", "sand", "glass", "window", "house", "mortgage", "bank", "river", "stone", "banana"],
+      "gold": ["strong", "strong", "strong", "strong", "strong", "strong", "strong", "strong", "strong", "none"]
+    },
+    {
+      "id": "chain_loose_and_random",
+      "words": ["coffee", "morning", "alarm", "fire", "truck", "pizza", "cheese", "moon", "astronaut", "purple", "keyboard"],
+      "gold": ["strong", "strong", "strong", "strong", "loose|strong", "strong", "loose|strong", "strong", "none", "none"]
+    }
+  ],
+  "coaching_synthetic": [
+    {
+      "id": "coach_fast_flat",
+      "promptText": "What's one habit you'd like to change, and why?",
+      "measurements": [
+        "- Duration: 62 s",
+        "- Pace: 192 words per minute on average (from 170 to 214 wpm across the take)",
+        "- Filler words: 3 (2.9 per minute)",
+        "- Pauses: 6.1 pauses per minute; longest 0.9 s; 0 hesitations (mid-phrase gaps of 2 s or more); 31% of sentence endings followed by a real pause",
+        "- Pitch: average 118 Hz, from 101 to 139 Hz — a span of 5.5 semitones (under ~5 tends to sound monotone; 8–12 is typical lively conversation)",
+        "- Loudness: average -29.5 dBFS, varying by 6.2 dB (standard deviation; under ~3 dB reads flat, 5 dB or more is clearly varied)",
+        "- Face (camera): in frame 100% of the time; eye contact with the lens 81% (from where the eyes point); looking down 5%; longest look-away 1.2 s; expressiveness 52/100; smiling 12%"
+      ],
+      "transcript": "One habit I want to change is checking my phone the second I wake up because it kind of sets the tone for the whole day and I end up reading emails before I've even brushed my teeth and then I'm already stressed and I think if I just put the phone in the kitchen at night I'd have like twenty minutes in the morning that are actually mine and I could read or stretch or just make breakfast without thinking about work and I've tried it a couple of times and it actually worked the days I did it so I want to make it a real habit.",
+      "goldFocus": ["cadence"],
+      "goldIssue": "pace too fast (192 wpm) and few pauses at sentence ends (31%); one long run-on sentence"
+    },
+    {
+      "id": "coach_filler_heavy",
+      "promptText": "Tell us about a place that matters to you.",
+      "measurements": [
+        "- Duration: 74 s",
+        "- Pace: 131 words per minute on average (from 102 to 150 wpm across the take)",
+        "- Filler words: 19 (15.4 per minute)",
+        "- Pauses: 14.2 pauses per minute; longest 3.4 s; 4 hesitations (mid-phrase gaps of 2 s or more); 58% of sentence endings followed by a real pause",
+        "- Pitch: average 205 Hz, from 160 to 290 Hz — a span of 10.3 semitones (under ~5 tends to sound monotone; 8–12 is typical lively conversation)",
+        "- Loudness: average -27.1 dBFS, varying by 7.8 dB (standard deviation; under ~3 dB reads flat, 5 dB or more is clearly varied)",
+        "- Face (camera): in frame 100% of the time; eye contact with the lens 44% (from where the eyes point); looking down 31%; longest look-away 4.8 s; expressiveness 61/100; smiling 20%"
+      ],
+      "transcript": "Um, so, a place that matters to me is, uh, my grandma's kitchen. Like, um, it's really small and, uh, there's always something on the stove. And, um, when I was a kid I would, like, sit on the counter and she'd give me, um, the spoon to taste things. Uh, and it smells like, um, garlic and cardamom, always. So, um, yeah, whenever I'm stressed I, like, think about that kitchen and, uh, I kind of feel calmer. Um, she still lives there and, uh, I try to visit, like, every month. So, yeah. That's, um, that's my place.",
+      "goldFocus": ["impromptu", "confidence"],
+      "goldIssue": "fillers 15.4/min and eye contact 44% (looking down 31%); content is vivid (garlic and cardamom, spoon)"
+    }
+  ],
+  "mark_up": [
+    {
+      "id": "mark_short_statement",
+      "text": "We didn't miss the deadline because we were lazy. We missed it because we said yes to everything."
+    },
+    {
+      "id": "mark_question_list",
+      "text": "Do you want the good news first, or the bad news? The good news is that sales are up, costs are down, and the team is growing."
+    },
+    {
+      "id": "mark_toast",
+      "text": "Ten years ago, Sam asked me to help him move a couch. I said one hour, tops. We are still friends, and the couch is still stuck in the stairwell."
+    }
+  ]
+}
