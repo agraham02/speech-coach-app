@@ -2,6 +2,8 @@
 
 Session 05 (research/signal-capture), 2026-10-22/23. Audited against `main` at 27d4b76 (includes PR #12: 48 kHz recognizer takes, the iOS audio-session module).
 
+> **Session 06 (2026-10-23) built most of section 10.** What changed, what was decided differently and what is still open is in [section 16](#16-what-session-06-built). Two corrections to this document: Rewind's saved audio is a **16 kHz** WAV (`rewindProcessor.ts` re-encodes the recognizer's 48 kHz pieces), not 48 kHz, and there is **no audio master**: Ahmad decided that deleting a video deletes its audio (keepsakes are the re-analysable set).
+
 Everything here is about the raw, on-device layer: what the phone measures from the microphone and the camera before any model, generative or not, sees it. The spike code is in `docs/research/spikes/signal-capture/` (offline, Python and Node) and in one Dev-tab lab (`src/screens/dev/VoiceLabScreen.tsx`, with the candidate tracker in `src/domain/dsp/pitchTracker.ts`).
 
 ## Contents
@@ -21,6 +23,7 @@ Everything here is about the raw, on-device layer: what the phone measures from 
 13. [Open decisions](#13-open-decisions)
 14. [Running the spikes](#14-running-the-spikes)
 15. [Sources](#15-sources)
+16. [What session 06 built](#16-what-session-06-built)
 
 ---
 
@@ -549,3 +552,30 @@ Checked 2026-10-22/23.
 - react-native-audio-api recorder docs: [docs.swmansion.com](https://docs.swmansion.com/react-native-audio-api/docs/inputs/audio-recorder); onnxruntime-react-native autolinking fix: [commit](https://app.semanticdiff.com/gh/microsoft/onnxruntime/commit/99e811d16d829ac1ad3724e2aed6eb49122bb5eb)
 - npm registry (versions as of 2026-10-22): onnxruntime-react-native 1.24.3, react-native-fast-tflite 3.0.1, react-native-vision-camera 5.2.3 (app on 4.7.3), react-native-audio-api 0.13.6 (app on 0.13.2), react-native-executorch 0.10.7
 - LibriSpeech clips via librosa example data (public-domain LibriVox recordings)
+
+---
+
+## 16. What session 06 built
+
+Branch `feature/signal-capture`, 2026-10-23. Phone checks are in `docs/testing/device-test-plan.md`, section F.
+
+| Plan item | Status | Where |
+|---|---|---|
+| 10.1 Pitch tracker swap | Built. pitchfinder (GPL) removed. Every pitch number in the app now comes from the dense YIN, searched from 60 to 600 Hz. Pitch range is scored in semitones (p10 to p90): 1 st scores 0 and 5 st full marks, and after 5 or more of your own takes the full-marks line becomes your usual range + 0.5 st, never under 4 or over 6. It is scored only from 8 or more voiced seconds with a voice-to-noise ratio of 12 dB or more. It lives in session 07's scoring layer (Cadence: Pitch variety), and `SCORE_SHEET_VERSION` is now 5. | `domain/dsp/pitchTracker.ts`, `domain/scoring/bands.ts`, `services/sessions/sessionScoreService.ts` (`measuredFacts`) |
+| 10.2 Chart data | Data built; the chart itself is session 11's. It gives semitones from the speaker's median, gaps as `null`, at most N points to fit the width, loudness relative to the speaking level on the same axis, and `enoughVoice: false` under 3 voiced seconds. The 200 ms `pitchContourHz` and `volumeEnvelopeDbfs` are derived from the 10 ms track, so the current chart keeps working. | `domain/signals/audioSummary.ts` (`voiceChartData`, `bucketSeries`) |
+| 10.3 Loudness | Built. Measured on speech only: the median, the spread (p90 - p10 of 50 ms levels), the syllable-peak SD and the voice-to-noise ratio. The syllable-peak SD feeds Cadence: Emphasis (session 07's band, full at 3 dB). The loudness numbers replace `volume_stddev_dbfs` in the reviewer prompt. | `domain/signals/audioSummary.ts` |
+| 10.4 Pauses | Built. An energy gate with hysteresis and an 80 ms hangover (given back at the pause edge), and a breath tag for short, quiet, unvoiced bursts inside a silence. `wpmAvg` is now measured over the speaking span, and articulation rate is added. | `domain/dsp/audioFeatures.ts`, `domain/dsp/pauses.ts` |
+| 10.5 Feature track | Built. One `signals` artifact per take (schema 1): the packed 10 ms audio track, the packed face track (every detection, all 52 blendshapes) and a summary. It replaces the `presence_timeline` artifact. A launch job re-measures takes whose video still exists when `AUDIO_EXTRACTOR_VERSION` changes. The Dev export includes the face timeline (as columns) and the track. | `domain/signals/*`, `services/signals/*` |
+| 10.6 Storage | Built: analysed takes shrink to 720p at 2 Mb/s (at launch and 10 minutes after analysis), deep reviews upload a 720p copy at 1 Mb/s, and Rewind audio is re-encoded to AAC (m4a, 32 kb/s) after Whisper. There is no audio master (decided). | `services/storage/videoTranscode.ts`, `services/data/videoShrink.ts`, `services/rewind/rewindStorage.ts` |
+| 10.7 Face | Built. Detection runs up to 20 times a second, with the reached rate stored per take. Expressiveness leaves out the jaw (smile, cheeks, brows). There is a looking-up class (`lookingUp` 0.25: tighter than looking down, because nothing on the screen pulls the eyes up), nods and the detection rate. The gaze cut-offs are still not tuned from data: no exported timelines existed before this branch. | `domain/presenceMetrics.ts`, `components/recording/CameraPreview.tsx` |
+| 10.8 Native models | **Not added: the iOS link spike failed.** See below. | `docs/research/spikes/signal-capture/ios_link_overlap.sh` |
+| 10.9 Held vowel | Dropped (decided). | |
+| 10.10 Sound events | Deferred (optional). | |
+| Fillers | Built, with two types: hesitation (um, uh, er) and contextual (like, actually, basically, literally, you know, I mean, kind of, sort of), counted only on positive evidence. Both are shown in the transcript card and the reviewer prompt. | `domain/fillers.ts` |
+
+**Off the JS thread.** The audio extraction runs on a background worklet runtime from react-native-worklets, which is already in the app for Reanimated, so this needs no new native code. If that fails, it falls back to the JS thread. Measured on synthetic speech (96 s): 3.2 ms per audio second in V8 and 78 ms per audio second jitless (the Hermes stand-in), which is about 4.7 s for a 60 s take. That is why it must not run on the JS thread. Memory is small: the track is about 30 KB a minute packed.
+
+**The iOS link spike (10.8).** onnxruntime-c (the pod `onnxruntime-react-native` depends on, unpinned) ships as one prelinked object that exports XNNPACK, KleidiAI, cpuinfo and pthreadpool symbols. MediaPipe's graph library, which the app must `-force_load` (`plugins/withMediaPipeLinkerFlags.js`), defines the same symbols as strong globals: 824 overlap for onnxruntime-c 1.24.3 and 1,027 for 1.30.0. The iOS link would fail with duplicate symbols. It is not the CocoaPods xcconfig merge problem from ExecuTorch, since neither pod sets `user_target_xcconfig`. It was checked with llvm-nm on the downloaded pod archives; the script is in the spikes folder. A TFLite runtime has the same exposure, because MediaPipe embeds TFLite and XNNPACK. Paths that would work, for a later session: (a) Silero VAD and SwiftF0 converted to Core ML behind a small Swift Expo module (Core ML is in the OS, so nothing to collide with), with ONNX Runtime on Android only; (b) a custom ONNX Runtime iOS build without XNNPACK and KleidiAI, or with its symbols hidden; (c) wait for the Voice Lab numbers, since the TS tracker is within a few points of SwiftF0 in the spike and the hysteresis gate found 7 of 9 pauses against Silero's 9 of 9.
+
+**Other metrics (section 6).** Built and in the feature track (not in scores): articulation rate, pace SD across phrases and the second-half drift, emphasis (strong syllable peaks, and the share of them on content words), uptalk (statements rising 2.5 st or more over the last 300 ms), trailing off (last word 6 dB or more under its sentence), possible missed fillers (voiced, flat, wordless stretches of 200 ms or more between words), breaths a minute, looking up, smile and expression without the jaw, head movement and nods, and the detection rate. Deferred: vocal fry (the tracker leaves creak unvoiced, so a creak detector needs subharmonic analysis and real takes to check it against), blink rate at the new detection rate (the counting is unchanged; it needs a phone check), and posture, gestures and sound events (they need new models).
+
