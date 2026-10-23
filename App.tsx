@@ -8,6 +8,7 @@ import { useFonts } from "expo-font";
 import { AppNavigator } from "./src/navigation";
 import { isModelDownloaded, DEFAULT_ASR_MODEL, tidyModelsFolder, subscribeModelReady } from "./src/services/asr/whisperModels";
 import { retryWaitingTakes } from "./src/services/pipeline/retryWaitingTakes";
+import { clearPrepAlert } from "./src/services/recording/prepAlert";
 import { ToastProvider } from "./src/components/common/ToastProvider";
 import { CelebrationHost } from "./src/components/celebrate/CelebrationHost";
 import { GuideProvider } from "./src/components/common/GuideTip";
@@ -37,6 +38,10 @@ export default function App() {
 
   // Old model files and abandoned partial downloads go (whisperModels.ts).
   useEffect(() => tidyModelsFolder(), []);
+
+  // A prep timer or alert left by an app that was closed mid-research: the
+  // countdown it belonged to is gone, so the timer ends and the alert goes.
+  useEffect(() => void clearPrepAlert(), []);
 
   // Takes saved while the transcription model was missing are transcribed
   // when it arrives (and on launch, if it arrived while the app was closed).
