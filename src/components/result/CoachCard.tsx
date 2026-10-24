@@ -4,23 +4,30 @@ import { Card } from "../common/Card";
 import { Txt } from "../common/Txt";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 import { SKILL_LABELS } from "../../theme/tokens";
-import type { CoachOutput, Verdict } from "../../domain/coach/ruleCoach";
+import type { CoachOutput } from "../../domain/coach/ruleCoach";
 import { provenanceLabel } from "../../domain/analysis/provenance";
 
-// The on-device coach's read on one take: what went well, the one thing to
-// change next, the measurements behind it, and a follow-up question to
-// answer out loud (the "think on your feet" rep).
-export function CoachCard({ coach, onAnswerFollowUp }: { coach: CoachOutput; onAnswerFollowUp?: (question: string) => void }) {
+// The one coaching card for a take: what went well, the one thing to change
+// next, and (on a judged take) the reviewer's summary and a drill, then a
+// follow-up question to answer out loud (the "think on your feet" rep). The
+// strength and the tip are Tono AI's words on a judged take and the rules'
+// otherwise, and the footer says which. The numbers behind it are on the
+// Scores tab, not repeated here.
+export interface ReviewCoaching {
+  summary: string;
+  drill: string;
+}
+
+export function CoachCard({ coach, review, onAnswerFollowUp }: { coach: CoachOutput; review?: ReviewCoaching | null; onAnswerFollowUp?: (question: string) => void }) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const verdictColor: Record<Verdict, string> = { good: colors.success, ok: colors.warning, work: colors.danger };
   const focus = colors.skill[coach.focusSkill];
 
   return (
     <Card style={styles.card}>
       <View style={styles.header}>
-        <Txt variant="caption2" tone="muted" uppercase>
-          Coach
+        <Txt variant="footnote" weight="600" tone="muted">
+          Coaching
         </Txt>
         <View style={[styles.focusPill, { backgroundColor: focus.bg }]}>
           <Txt variant="caption1" weight="700" color={focus.fg}>
@@ -28,6 +35,8 @@ export function CoachCard({ coach, onAnswerFollowUp }: { coach: CoachOutput; onA
           </Txt>
         </View>
       </View>
+
+      {review?.summary ? <Txt variant="callout">{review.summary}</Txt> : null}
 
       <View style={styles.line}>
         <Ionicons name="thumbs-up-outline" size={18} color={colors.success} />
@@ -42,19 +51,12 @@ export function CoachCard({ coach, onAnswerFollowUp }: { coach: CoachOutput; onA
         </Txt>
       </View>
 
-      {coach.observations.length > 0 ? (
-        <View style={styles.observations}>
-          {coach.observations.map((o) => (
-            <View key={o.label} style={styles.observation}>
-              <View style={[styles.dot, { backgroundColor: verdictColor[o.verdict] }]} />
-              <Txt variant="footnote" tone="secondary" style={styles.flex}>
-                {o.label}
-              </Txt>
-              <Txt variant="footnote" weight="600">
-                {o.value}
-              </Txt>
-            </View>
-          ))}
+      {review?.drill ? (
+        <View style={styles.drill}>
+          <Txt variant="caption1" tone="muted">
+            Next drill
+          </Txt>
+          <Txt variant="callout">{review.drill}</Txt>
         </View>
       ) : null}
 
@@ -93,9 +95,7 @@ const useStyles = makeStyles((t) => ({
   focusPill: { paddingHorizontal: t.space.sm + 2, paddingVertical: 4, borderRadius: t.radius.pill },
   line: { flexDirection: "row", gap: t.space.sm, alignItems: "flex-start" },
   flex: { flex: 1 },
-  observations: { gap: 6, paddingTop: t.space.xs, borderTopWidth: 1, borderTopColor: t.colors.separator },
-  observation: { flexDirection: "row", alignItems: "center", gap: t.space.sm, paddingTop: 6 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
+  drill: { gap: 2, padding: t.space.md, borderRadius: t.radius.md, backgroundColor: t.colors.surfaceRaised },
   followUp: { gap: t.space.xs, padding: t.space.md, borderRadius: t.radius.md, backgroundColor: t.colors.accentMuted },
   answer: {
     flexDirection: "row",

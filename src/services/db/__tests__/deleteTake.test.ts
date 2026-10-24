@@ -38,7 +38,7 @@ import { upsertScores, getPreviousOverallScore, getScoreHistoryBefore } from "..
 import { putArtifact, listArtifactsOfKind } from "../artifactsRepo";
 import { markReviewPass, getSkillEvents, getSkillMovesSince, getPracticeDates, getStreakState, getDailySessionCounts, getReviewPasses } from "../progressRepo";
 import { countImpromptuTakes } from "../curriculumRepo";
-import { getCompletedSessionDates, getScoredSessionSummaries, getSessionMetricSeries, getUsageTotals, getWeeklySummaries, getPromptComparison } from "../statsRepo";
+import { getCompletedSessionDates, getScoreSeries, getSessionMetricSeries, getUsageTotals, getWeeklySummaries, getPromptComparison } from "../statsRepo";
 import { saveSkillCheck, listSkillChecks } from "../skillChecksRepo";
 import { createRewind, updateRewind, listRewinds, getRewindDates } from "../rewindRepo";
 import { getPracticeMarkerDates } from "../practiceDaysRepo";
@@ -176,13 +176,13 @@ describeIfSqlite("deleting a take", () => {
     await addTake("keep", at(3), 60);
     await addTake("gone", at(1), 90);
     await addTake("later", at(0, 23), 70);
-    const before = await getScoredSessionSummaries();
-    expect(before.map((s) => s.overallScore)).toEqual([60, 90, 70]);
+    const before = await getScoreSeries();
+    expect(before.map((s) => s.judged?.overall)).toEqual([60, 90, 70]);
 
     await markSessionDeleted("gone");
 
     expect((await getAllSessionsWithScores()).map((s) => s.id)).toEqual(["later", "keep"]);
-    expect((await getScoredSessionSummaries()).map((s) => s.overallScore)).toEqual([60, 70]);
+    expect((await getScoreSeries()).map((s) => s.judged?.overall)).toEqual([60, 70]);
     expect(await countImpromptuTakes()).toBe(2);
     expect(await getCompletedSessionDates()).toHaveLength(2);
     expect(await getRecentlyUsedPromptIds(10)).not.toContain("prompt-gone");
@@ -312,7 +312,7 @@ describeIfSqlite("deleting a take", () => {
     expect(rows[0].videoDeletedAt).not.toBeNull();
     expect(rows[0].transcriptClean).toContain("made up words");
     expect(rows[0].overallScore).toBe(70);
-    expect((await getScoredSessionSummaries()).length).toBe(1);
+    expect((await getScoreSeries()).length).toBe(1);
     expect((await mockDb.getFirstAsync<{ g: string | null }>(`SELECT gemini_file_name AS g FROM sessions WHERE id = 'a'`))!.g).toBeNull();
   });
 });

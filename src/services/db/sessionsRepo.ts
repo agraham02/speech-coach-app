@@ -214,25 +214,35 @@ export async function getAllSessions(): Promise<Session[]> {
 
 interface SessionWithScoreRow extends SessionRow {
   overall_score: number | null;
+  score_layer: string | null;
 }
 
 export interface SessionWithScore extends Session {
+  // The take's score: the judged sheet's overall when Tono AI judged it, else
+  // the measured one (null while unscored).
   overallScore: number | null;
+  // Which layer that score is from, so a list can mark judged takes and
+  // average each layer apart.
+  scoreLayer: "judged" | "measured" | null;
 }
 
-// Same as getAllSessions, but also brings back each session's overall score
-// (null for ungraded sessions) in one query — used by the History screen so
-// it can show a score on each card without an extra fetch per row.
+// Same as getAllSessions, but also brings back each session's score and the
+// layer it is from (null for unscored sessions) in one query, so the Library
+// can show a score on each card without a fetch per row.
 export async function getAllSessionsWithScores(): Promise<SessionWithScore[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<SessionWithScoreRow>(
-    `SELECT s.*, COALESCE(s.session_score, sc.overall_score) AS overall_score
+    `SELECT s.*, s.session_score AS overall_score, json_extract(a.json, '$.headline') AS score_layer
      FROM sessions s
-     LEFT JOIN scores sc ON sc.session_id = s.id
+     LEFT JOIN session_artifacts a ON a.session_id = s.id AND a.kind = 'session_score'
      WHERE s.deleted_at IS NULL
      ORDER BY s.recorded_at DESC`,
   );
-  return rows.map((row) => ({ ...rowToSession(row), overallScore: row.overall_score }));
+  return rows.map((row) => ({
+    ...rowToSession(row),
+    overallScore: row.overall_score,
+    scoreLayer: row.overall_score == null ? null : row.score_layer === "judged" ? "judged" : "measured",
+  }));
 }
 
 // "Delete video only" — frees device storage while keeping the session fully
