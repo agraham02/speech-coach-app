@@ -1,5 +1,6 @@
 import type { EventKind, Obstacle, SpeakingContext } from "../domain/profile";
 import type { SkillCheckInput } from "../domain/skillCheck";
+import { PITCH_FLAT_ST } from "../domain/scoring/bands";
 
 // What pulls a unit forward on your path (domain/path.ts): the things you
 // said get in your way, an event coming up, where you speak, and what the
@@ -93,7 +94,7 @@ export const CHECK_SIGNALS: CheckSignal[] = [
   },
   {
     units: ["cad_pitch"],
-    test: (i) => i.pitchRangeHz != null && i.pitchRangeHz < 50,
+    test: (i) => i.pitchRangeSt != null && i.pitchRangeSt < PITCH_FLAT_ST,
     text: () => "Your skill check: your pitch stayed narrow",
   },
   {

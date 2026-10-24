@@ -93,7 +93,7 @@ Not scheduled yet. When you're ready:
 
 ## D. Signal capture: Voice Lab and tracker numbers (PR #15)
 
-These produce the data that tunes the new pitch/volume/pause code in session 06. About 15 minutes.
+These produce the data that tunes the new pitch/volume/pause code in session 06. About 15 minutes. Once session 06 (section F) is on the phone, the Voice Lab runs only the new tracker: do the Voice Lab item in F instead of the one here; the gain-control and Face Lab items still apply.
 
 - [ ] **Three takes.** Record three 45 to 60 second impromptu takes: one normal, one deliberately flat (monotone), one deliberately lively.
   Notes:
@@ -206,8 +206,67 @@ These produce the data that tunes the new pitch/volume/pause code in session 06.
 
 **Send back:** the storage sizes before and after (Dev -> Tools), and anything that reappeared after a relaunch.
 
+## F. Signal capture: new pitch, loudness, pauses, face, storage (session 06)
+
+**Needs build:** no. Everything here is JavaScript on native modules the app already has (react-native-worklets, react-native-compressor, MediaPipe), so an over-the-air update onto a 1.5.0 build is enough. The database moves to v33 on first launch; earlier takes lose their old pitch and volume numbers (expected, not converted). No ONNX models were added (the iOS link spike failed; see `docs/research/signal-capture.md`, section 16), so there's nothing native to check here.
+
+Voice:
+
+- [ ] **Analysis stays off the main thread.** Record a 60 s impromptu take and scroll the Result screen while it says it's measuring. Pass: scrolling stays smooth, and Dev → Logs has a `[dsp] features on the worklet runtime in … ms` line. If it says `on the JS thread`, the worklet runtime failed: send the `[dsp]` lines.
+  Data to send back: the `[dsp]` line (time for the take's length).
+  Notes:
+- [ ] **Voice Lab on three takes** (replaces the old tracker comparison in D). Record 45 to 60 s takes: normal, deliberately flat, deliberately lively. Dev → Pipeline → the take → Labs → Voice Lab → Run, then Copy into a file in `analysis_samples/`. Pass: flat reads under 2.5 st (p10–p90), lively over 4.5 st, and the chart line follows what you did with gaps in the pauses. "Analysis, background runtime" should say how long it took off the main thread.
+  Data to send back: the three result files. These set the pitch-range band (1 st = 0, 5 st = full marks for now).
+  Notes:
+- [ ] **A higher or lower voice.** If you can, have someone with a clearly higher (or lower) voice record one normal take and run the Voice Lab. Pass: their median is right (roughly 160 to 250 Hz for most women, 85 to 150 Hz for most men) and their range reads in the same 2 to 6 st span as yours for similar liveliness.
+  Notes:
+- [ ] **Personal pitch band.** After 5 or more takes with a pitch range, open a new take's Scores (Cadence → Pitch variety). Pass: the rule text says "a little over your usual …" with your typical range.
+  Notes:
+- [ ] **Pauses and breaths.** Read a paragraph aloud, pausing about a second at each full stop and taking an audible breath in some of the pauses. Export the take (Dev → Pipeline → Copy analysis as JSON). Pass: `pauses.pauses` has one entry per full stop you paused at (a breath doesn't split one in two), `pauses.breaths` counts roughly the breaths you took, and "Pauses at full stops" reads high.
+  Data to send back: the export.
+  Notes:
+- [ ] **Loudness reads the voice, not the pausing.** Same paragraph twice: once flat and even, once stressing key words. Pass: `voice.loudness.syllablePeakSdDb` is clearly higher for the stressed read (about 1 dB or more apart).
+  Notes:
+- [ ] **Pace over the speaking span.** Take a 60 s take where you wait 5 s before starting. Pass: the wpm shown is your speaking pace, not pulled down by the silent start.
+  Notes:
+
+Fillers:
+
+- [ ] **Two kinds, counted apart.** Record this as a take, naturally: "Um, so I was, like, thinking about it. I like this plan, and it looks like it could work. It was actually really hard, uh, but I actually disagree with them. You know, it's kind of a big deal. What kind of plan is that? I mean, we'll see." Pass: the transcript card's second line reads 2 um or uh, and 4 like, you know, actually (the filler "like", "actually really", "You know,", "I mean,"). Comparison "like", the verb "like" and the contrast "actually" are not highlighted, and "kind of" is counted as a hedge, not a filler. Whisper may drop or add commas, which changes the context fillers: note what it wrote.
+  Data to send back: the transcript as Whisper wrote it, and the two counts.
+  Notes:
+- [ ] **Stutter mode unchanged.** With the speech difference set to stutter in your profile, a take with repeated words and ums. Pass: fluency isn't scored against you and the reviewer prompt has no filler or repeated-word lines (Dev → Logs), as before.
+  Notes:
+
+Face:
+
+- [ ] **Detection rate while recording.** Record a 60 s take with the Dev → Metrics overlay on. Export it. Pass: `presence.detectionRateHz` is 15 or more and the recording itself stays at 30 fps (no stutter in playback). Also note how warm the phone gets and the thermal state in Dev → Metrics.
+  Data to send back: the rate, thermal state, and whether a 3-minute take got hot.
+  Notes:
+- [ ] **Looking up, down and at the lens.** A 45 s take: talk to the lens, glance at the ceiling 5 times (about 1 s each), look down at the floor 5 times. Export it with Copy analysis as JSON (the export now has `presenceTimeline` as columns, one entry per detection). Pass: `presence.lookingUpPercent` and `lookingDownPercent` are both above 0, and eye contact roughly matches the time you were on the lens.
+  Data to send back: the export. This is the data to tune the gaze cut-offs (`lookingUp` 0.25, `lookingDown` -0.35, `gazeMaxOffset` 0.35).
+  Notes:
+- [ ] **Head pitch and yaw signs.** Face Lab, Live: tip your chin down, then up; turn your head to your right, then left. Pass: write down which sign pitch and yaw take each way (needed before head direction can mean "looking down at notes").
+  Notes:
+- [ ] **Nods.** Nod clearly 5 times during a 30 s take. Pass: `presence.nodsPerMinute` is around 10, and a take with a still head reads near 0.
+  Notes:
+- [ ] **Expression without the jaw.** Two 30 s takes: one with a still face (talk normally, no smiling or brow movement), one animated (smile, raise your brows on key words). Pass: the still face reads under 15 expressiveness, the animated one over 30. If both are far lower or higher, send both numbers: the scale (`EXPRESSION_SCALE` 600) is a first setting.
+  Data to send back: both expressiveness numbers.
+  Notes:
+
+Storage:
+
+- [ ] **Analysed videos shrink to 720p.** Record a take, wait for analysis, then relaunch the app 10 minutes later (or leave it open for 10+ minutes). Pass: Dev → Logs has `[video] compressed X MB → Y MB` (roughly 115 MB → 15 MB a minute), the video still plays with sound, and Dev → Pipeline → Re-run voice analysis on that take gives about the same numbers as before.
+  Data to send back: the sizes, and the numbers before and after the re-run.
+  Notes:
+- [ ] **Smaller deep-review upload.** Ask for a deep review on a new take. Pass: Dev → Logs has `[video] review copy X MB → Y MB in Z s` and the review arrives as usual. Note how long the copy took and whether the whole review felt faster.
+  Data to send back: the log lines.
+  Notes:
+- [ ] **Rewind audio as AAC.** Record a Rewind. Pass: it plays back normally, tapping a word starts at that word (no lag of a tenth of a second or so), and "Write it out again" still works. Dev → Logs has `[rewind] audio kept as AAC` (not "kept as WAV"): about 0.25 MB a minute instead of 1.9. Try on Android too if you can (the encoder there is untested; if it fails the WAV is simply kept).
+  Notes:
+
 ---
 
 ## Sections to be added by later sessions
 
-Each new build session adds its own section here: 06 (signal capture), 07 (scoring and AnalysisService), 08 (trial, tiers, age range), 09 (waiting on analysis), 10 (exercise judging), 11 (impromptu results), 12 (conversation voice).
+Each new build session adds its own section here: 08 (trial, tiers, age range), 09 (waiting on analysis), 10 (exercise judging), 11 (impromptu results), 12 (conversation voice).

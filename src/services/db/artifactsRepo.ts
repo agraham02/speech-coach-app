@@ -7,7 +7,8 @@ import { logger } from "../../utils/logger";
 export type ArtifactKind =
   | "cloud_transcript"
   | "pauses"
-  | "presence_timeline"
+  // The feature track: audio and face measurements, packed (domain/signals).
+  | "signals"
   | "presence"
   | "coach"
   // The Tono AI review's own coaching, kept apart so a re-run of the phone's

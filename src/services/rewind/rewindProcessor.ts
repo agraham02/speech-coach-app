@@ -8,7 +8,7 @@ import { transcribeOnDevice, type OnDeviceTranscriptWord } from "../onDeviceAsr/
 import type { TranscriptWord } from "../../domain/sessionTypes";
 import { runHeavy } from "../pipeline/jobQueue";
 import { createRewind, getRewind, updateRewind } from "../db/rewindRepo";
-import { resolveRewindUri, rewindAudioExists, writeRewindAudio } from "./rewindStorage";
+import { compressRewindAudio, deleteRewindAudio, resolveRewindUri, rewindAudioExists, writeRewindAudio } from "./rewindStorage";
 import { syncRewindReminder } from "./rewindReminder";
 import { logger } from "../../utils/logger";
 import type { RewindTake } from "../../hooks/useRewindRecorder";
@@ -69,6 +69,16 @@ export async function processRewind(take: RewindTake): Promise<string> {
         }
       } catch (error) {
         logger.warn(`[rewind] Whisper didn't finish, using what the recognizer heard — ${(error as Error).message}`);
+      }
+      // Kept as AAC from here on: about an eighth of the WAV's size. Not for
+      // a take deleted meanwhile (it's in the undo window: getRewind hides it).
+      const compressed = (await getRewind(rewind.id)) ? await compressRewindAudio(rewind.id, audioFile) : null;
+      if (compressed) {
+        await updateRewind(rewind.id, { audioFile: compressed });
+        deleteRewindAudio(audioFile);
+        logger.info(`[rewind] audio kept as AAC (${compressed})`);
+      } else {
+        logger.info("[rewind] audio kept as WAV (the AAC encode failed or wasn't smaller)");
       }
     }
     // 3. The counts. Notes on the words are asked for from the result

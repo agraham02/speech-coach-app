@@ -39,8 +39,4 @@ describe("computePresenceMetrics blinks", () => {
     expect(computePresenceMetrics(timeline)?.blinksPerMinute).toBe(16);
   });
 
-  it("still reads older timelines from their samples", () => {
-    const timeline = Array.from({ length: 301 }, (_, i) => sample(i * 200, { eyesOpen: i % 50 === 0 ? 0.1 : 1 }));
-    expect(computePresenceMetrics(timeline)?.blinksPerMinute).toBe(6);
-  });
 });

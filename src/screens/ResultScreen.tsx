@@ -23,7 +23,7 @@ import { CoachCard } from "../components/result/CoachCard";
 import { ComparisonCard } from "../components/result/ComparisonCard";
 import { ScoreBreakdownCard } from "../components/result/ScoreBreakdownCard";
 import { headlineSheet, SCORE_SHEET_VERSION, type TakeScores } from "../domain/scoring/takeScore";
-import { refreshSessionScore } from "../services/sessions/sessionScoreService";
+import { measuredVoice, refreshSessionScore } from "../services/sessions/sessionScoreService";
 import { FeltCard, ObservedCard, useFeltObserved } from "../components/result/FeltObservedCard";
 import { CloudUsageNote } from "../components/result/CloudUsageNote";
 import { getPromptComparison } from "../services/db/statsRepo";
@@ -253,12 +253,9 @@ export function ResultScreen({ route, navigation }: Props) {
     return <FeelingResultView session={session} steps={steps} hasVideo={hasVideo} videoUri={videoUri} onDone={handleDone} onDelete={handleDelete} />;
   }
   const deepReviewBlocked = reviewBlockedReason(currentProvider(), { hasVideo, hasDeviceTranscript: !!session.transcriptVerbatim });
-  const avgWpm =
-    session.transcriptWords && session.transcriptWords.length > 0 && session.durationSeconds > 0
-      ? Math.round(session.transcriptWords.length / (session.durationSeconds / 60))
-      : null;
-  const pitchRange =
-    session.pitchMaxHz != null && session.pitchMinHz != null ? Math.round(session.pitchMaxHz - session.pitchMinHz) : null;
+  // Pace over the speaking span, and pitch range in semitones: the same
+  // numbers the score reads.
+  const { wpmAvg: avgWpm, pitchRangeSt: pitchRange } = measuredVoice(session);
   // Deep-review annotations quote Gemini's own transcript, so show that one
   // when annotating; otherwise the on-device transcript.
   // The take's score: the judged sheet's overall whenever it exists, else
@@ -353,7 +350,7 @@ export function ResultScreen({ route, navigation }: Props) {
                     value={session.fillerRatePerMinute != null ? `${session.fillerRatePerMinute}` : "—"}
                     label="fillers / min"
                   />
-                  <NumberTile value={pitchRange != null ? `${pitchRange} Hz` : "—"} label="pitch range" />
+                  <NumberTile value={pitchRange != null ? `${Math.round(pitchRange * 10) / 10} st` : "—"} label="pitch range" />
                 </View>
                 <Text style={styles.rowSubtitle}>Measured on this phone. A deep review adds structure and presence scores.</Text>
               </Card>

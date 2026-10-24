@@ -1,6 +1,6 @@
 import type { SkillId } from "../theme/tokens";
 import { SKILLS } from "./mastery";
-import { expressionScore, eyeContactScore, fillerScore, paceScore, pauseScore, pitchScore } from "./scoring/bands";
+import { expressionScore, eyeContactScore, fillerScore, paceScore, pauseScore, pitchScore, PITCH_FLAT_ST } from "./scoring/bands";
 import type { Obstacle } from "./profile";
 
 // The onboarding skill check: four short pieces that together touch all
@@ -27,7 +27,8 @@ export interface SkillCheckInput {
   fillerRatePerMinute?: number | null;
   boundaryPauseRate?: number | null;
   hesitations?: number | null;
-  pitchRangeHz?: number | null;
+  // p10 to p90 pitch range in semitones.
+  pitchRangeSt?: number | null;
   eyeContactPercent?: number | null;
   expressiveness?: number | null;
   hedgeCount?: number | null;
@@ -99,7 +100,7 @@ export function evaluateSkillCheck(input: SkillCheckInput): SkillCheckResult {
   const pace = input.talkWpm ?? input.readWpm ?? null;
   const paceS = pace != null ? paceScore(pace) : null;
   const pauseS = input.boundaryPauseRate != null ? pauseScore(input.boundaryPauseRate) : null;
-  const pitchS = pitchScore({ hz: input.pitchRangeHz });
+  const pitchS = input.pitchRangeSt != null ? pitchScore(input.pitchRangeSt) : null;
   results.cadence.score = mean([paceS, pauseS, pitchS]);
   if (pace != null) {
     if (pace > 175) add("cadence", "work", `You spoke at about ${Math.round(pace)} words a minute — fast enough that people strain to keep up.`);
@@ -109,7 +110,7 @@ export function evaluateSkillCheck(input: SkillCheckInput): SkillCheckResult {
     if (input.boundaryPauseRate >= 0.6) add("cadence", "good", "You paused at most full stops — that's rarer than you'd think.");
     else if (input.boundaryPauseRate < 0.3) add("cadence", "work", "Sentences ran into each other — a beat at each full stop lets them land.");
   }
-  if (input.pitchRangeHz != null && input.pitchRangeHz < 50) add("cadence", "work", "Your pitch stayed in a narrow band — more movement will carry more meaning.");
+  if (input.pitchRangeSt != null && input.pitchRangeSt < PITCH_FLAT_ST) add("cadence", "work", "Your pitch stayed in a narrow band — more movement will carry more meaning.");
 
   // --- impromptu: retrieval speed, fillers, stalls
   const catS = input.categoryCount != null && input.categoryTarget ? clamp10((input.categoryCount / input.categoryTarget) * 8) : null;

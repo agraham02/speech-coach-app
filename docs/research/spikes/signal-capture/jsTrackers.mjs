@@ -82,7 +82,8 @@ function mpm() {
 
 function proposed() {
   const track = trackPitch(waveform, sampleRate, process.env.PITCH_OPTS ? JSON.parse(process.env.PITCH_OPTS) : {});
-  return { t: track.frames.map((f) => f.tMs), f0: track.frames.map((f) => f.f0Hz), conf: track.frames.map((f) => f.confidence) };
+  const idx = Array.from(track.f0Hz, (_, i) => i);
+  return { t: idx.map((i) => track.offsetMs + i * track.hopMs), f0: idx.map((i) => (track.f0Hz[i] > 0 ? track.f0Hz[i] : null)), conf: Array.from(track.confidence) };
 }
 
 const runners = {

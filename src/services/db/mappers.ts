@@ -45,11 +45,11 @@ export interface SessionRow {
   dsp_status: string | null;
   pitch_contour_json: string | null;
   volume_envelope_json: string | null;
-  pitch_avg_hz: number | null;
-  pitch_min_hz: number | null;
-  pitch_max_hz: number | null;
-  volume_avg_dbfs: number | null;
-  volume_stddev_dbfs: number | null;
+  pitch_median_hz: number | null;
+  pitch_range_st: number | null;
+  pitch_sd_st: number | null;
+  loudness_spread_db: number | null;
+  loudness_peak_sd_db: number | null;
   gemini_file_name: string | null;
   gemini_file_uri: string | null;
   gemini_file_uploaded_at: string | null;
@@ -102,11 +102,11 @@ export function rowToSession(row: SessionRow): Session {
     dspStatus: row.dsp_status as DspStatus | null,
     pitchContourHz: parseNullableJson<(number | null)[]>(row.pitch_contour_json, "pitch_contour_json"),
     volumeEnvelopeDbfs: parseNullableJson<number[]>(row.volume_envelope_json, "volume_envelope_json"),
-    pitchAvgHz: row.pitch_avg_hz,
-    pitchMinHz: row.pitch_min_hz,
-    pitchMaxHz: row.pitch_max_hz,
-    volumeAvgDbfs: row.volume_avg_dbfs,
-    volumeStddevDbfs: row.volume_stddev_dbfs,
+    pitchMedianHz: row.pitch_median_hz ?? null,
+    pitchRangeSt: row.pitch_range_st ?? null,
+    pitchSdSt: row.pitch_sd_st ?? null,
+    loudnessSpreadDb: row.loudness_spread_db ?? null,
+    loudnessPeakSdDb: row.loudness_peak_sd_db ?? null,
     geminiFileName: row.gemini_file_name,
     geminiFileUri: row.gemini_file_uri,
     geminiFileUploadedAt: row.gemini_file_uploaded_at,

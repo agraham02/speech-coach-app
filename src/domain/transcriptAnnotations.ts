@@ -1,3 +1,5 @@
+import { countFillerTypes, detectTypedFillers, type FillerType } from "./fillers";
+
 // "repeated_words" is app-local only (like "filler") — Gemini never emits
 // it; see the Gemini-schema-constrained AnnotationCategory in
 // services/gemini/types.ts, which must NOT gain this value.
@@ -17,47 +19,32 @@ export interface LocatedSpan {
 
 export interface FillerMatch extends LocatedSpan {
   word: string;
+  // um/uh (always fillers) or like/actually/you know... (fillers in
+  // context); see domain/fillers.ts.
+  type: FillerType;
 }
-
-// Curated on purpose: these are near-universally filler in spontaneous speech
-// (as opposed to e.g. "so"/"well", which are too often legitimate sentence
-// starters and would generate too many false positives to be useful).
-const FILLER_WORD_PATTERNS = [
-  "um+",
-  "uhm+",
-  "uh+",
-  "erm?",
-  "you know",
-  "i mean",
-  "like",
-  "sort of",
-  "kind of",
-  "basically",
-  "actually",
-  "literally",
-] as const;
-
-const FILLER_REGEX = new RegExp(`\\b(${FILLER_WORD_PATTERNS.join("|")})\\b`, "gi");
 
 // Deterministic, on-device — never depends on whether Gemini happened to
 // notice a filler word. Runs against transcript_verbatim only; transcript_clean
 // has fillers removed by design, so there's nothing to detect there.
 export function detectFillerWords(verbatimTranscript: string): FillerMatch[] {
-  const matches: FillerMatch[] = [];
-  FILLER_REGEX.lastIndex = 0;
-  let match: RegExpExecArray | null;
-  while ((match = FILLER_REGEX.exec(verbatimTranscript)) !== null) {
-    matches.push({ start: match.index, end: match.index + match[0].length, word: match[0] });
-  }
-  return matches;
+  return detectTypedFillers(verbatimTranscript);
 }
 
 export type FillerRateLabel = "not distracting" | "noticeable" | "distracting";
 
+export interface FillerTypeStats {
+  count: number;
+  ratePerMinute: number;
+}
+
 export interface FillerStats {
+  // Both kinds together.
   count: number;
   ratePerMinute: number;
   label: FillerRateLabel;
+  hesitation: FillerTypeStats;
+  contextual: FillerTypeStats;
 }
 
 export function labelForRate(ratePerMinute: number): FillerRateLabel {
@@ -70,10 +57,18 @@ export function labelForRate(ratePerMinute: number): FillerRateLabel {
 // unnoticed, ~a dozen/min is where it starts visibly hurting perceived
 // competence. See plan notes for sources.
 export function computeFillerStats(verbatimTranscript: string, durationSeconds: number): FillerStats {
-  const count = detectFillerWords(verbatimTranscript).length;
+  const matches = detectFillerWords(verbatimTranscript);
+  const typed = countFillerTypes(matches);
   const minutes = Math.max(durationSeconds / 60, 1 / 60);
-  const ratePerMinute = Math.round((count / minutes) * 10) / 10;
-  return { count, ratePerMinute, label: labelForRate(ratePerMinute) };
+  const rate = (n: number) => Math.round((n / minutes) * 10) / 10;
+  const ratePerMinute = rate(matches.length);
+  return {
+    count: matches.length,
+    ratePerMinute,
+    label: labelForRate(ratePerMinute),
+    hesitation: { count: typed.hesitation, ratePerMinute: rate(typed.hesitation) },
+    contextual: { count: typed.contextual, ratePerMinute: rate(typed.contextual) },
+  };
 }
 
 export interface RepeatedWordMatch {

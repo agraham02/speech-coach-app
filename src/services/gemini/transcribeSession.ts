@@ -1,5 +1,6 @@
 import { checkExistingFileActive, generateContent, uploadVideoFile, waitForFileActive, type GeminiTransport, type HostedResult } from "./geminiClient";
 import type { TokenUsage } from "../../domain/cloudUsage";
+import { reviewUploadCopy } from "../storage/videoTranscode";
 import type { PromptTaskContext } from "../../domain/promptTask";
 import {
   buildResponseSchemaWithCueCompliance,
@@ -46,8 +47,16 @@ export type GradingContext =
 // can reference it.
 async function uploadAndWaitForActive(videoUri: string, onProgress?: (step: TranscribeProgressStep) => void, transport: GeminiTransport = "direct") {
   onProgress?.("uploading");
+  // A 720p copy at about 1 Mb/s gives the model the same input (it samples 1
+  // frame a second) for a tenth of the upload (services/storage/videoTranscode.ts).
+  const copy = await reviewUploadCopy(videoUri);
   logger.info(`[gemini] uploading video file (${transport})...`);
-  const uploaded = await uploadVideoFile(videoUri, "video/mp4", `session-${Date.now()}.mp4`, transport);
+  let uploaded: Awaited<ReturnType<typeof uploadVideoFile>>;
+  try {
+    uploaded = await uploadVideoFile(copy.uri, "video/mp4", `session-${Date.now()}.mp4`, transport);
+  } finally {
+    copy.cleanup();
+  }
   logger.info(`[gemini] upload complete: ${uploaded.name} (state=${uploaded.state})`);
 
   onProgress?.("processing");

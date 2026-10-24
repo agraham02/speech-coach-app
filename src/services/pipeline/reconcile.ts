@@ -1,3 +1,5 @@
+import { shrinkAnalysedVideos } from "../data/videoShrink";
+import { reextractStaleSignals } from "../signals/reextract";
 import { getStepsWithStatus, setStepStatus } from "../db/stepsRepo";
 import { getReferencedVideoFiles, getSessionById } from "../db/sessionsRepo";
 import { deleteRecording, deleteTempMedia, listSessionFiles } from "../storage/videoStorage";
@@ -8,7 +10,6 @@ import { purgeDeletedData } from "../data/dataPurge";
 import { refreshSessionStatus } from "./stepRunner";
 import { runPendingSteps } from "./sessionPipeline";
 import { backfillSessionScores } from "../sessions/sessionScoreService";
-import { repairStoredGazeY } from "../face/gazeYRepair";
 import { settleRepProgress } from "../sessions/repProgress";
 import { logger } from "../../utils/logger";
 
@@ -65,8 +66,11 @@ export async function reconcileOnLaunch(): Promise<void> {
     const temp = deleteTempMedia(TEMP_MIN_AGE_MS);
     if (temp) logger.info(`[reconcile] removed ${temp} temporary file(s) from the cache`);
     applyMediaBackup();
-    await repairStoredGazeY();
     await backfillSessionScores();
+    // Analysed takes keep a 720p copy instead of the original (in the background).
+    shrinkAnalysedVideos().catch(() => undefined);
+    // Takes measured by an older audio extractor, while their video lasts.
+    reextractStaleSignals().catch(() => undefined);
   } catch (error) {
     logger.error(`[reconcile] failed — ${(error as Error).message}`);
   }

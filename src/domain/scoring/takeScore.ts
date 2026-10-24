@@ -13,8 +13,8 @@ import {
   pauseScore,
   PAUSE_FULL_RATE,
   pitchScore,
-  PITCH_FULL_HZ,
-  PITCH_FULL_SEMITONES,
+  FIXED_PITCH_BAND,
+  type PitchRangeBand,
   stallScore,
   stallsPerMinute,
   structureScore,
@@ -34,7 +34,7 @@ import { SKILL_DEFS, SUBCATEGORIES, SUBCATEGORY_ORDER, TAKE_SKILLS, type Layer, 
 // sub-scores, with the taxonomy's weights: the summary can never disagree
 // with its breakdown. Pure.
 
-export const SCORE_SHEET_VERSION = 4;
+export const SCORE_SHEET_VERSION = 5;
 
 // What the phone measured, flattened from the take's artifacts. Fields are
 // null when not measured. Session 06's signals fill the optional ones.
@@ -43,8 +43,10 @@ export interface MeasuredFacts {
   durationSeconds: number;
   wpm: number | null;
   boundaryPauseRate: number | null;
+  // p10 to p90 semitones; null without enough clear voice (8+ voiced s).
   pitchRangeSemitones?: number | null;
-  pitchRangeHz: number | null;
+  // The fixed band, or your own after 5 takes (bands.ts pitchRangeBand).
+  pitchBand?: PitchRangeBand;
   emphasisPeakSdDb?: number | null;
   // Null: not counted against this speaker (stutter mode) or no transcript.
   fillers: { hesitationPerMinute: number; contextualPerMinute: number | null } | null;
@@ -159,26 +161,23 @@ export function measuredSubscores(f: MeasuredFacts): Measured {
     };
   }
 
-  const pitch = pitchScore({ semitones: f.pitchRangeSemitones, hz: f.pitchRangeHz });
-  if (pitch != null) {
-    const score = round1(pitch);
-    const st = f.pitchRangeSemitones;
+  if (f.pitchRangeSemitones != null) {
+    const band = f.pitchBand ?? FIXED_PITCH_BAND;
+    const st = round1(f.pitchRangeSemitones);
+    const score = round1(pitchScore(st, band));
+    const bar = band.source === "personal" ? `${band.fullSt} semitones (a little over your usual ${band.usualSt})` : `${band.fullSt} semitones`;
     out.melody = {
       score,
       factors: [
-        st != null
-          ? {
-              label: "Pitch range",
-              value: `${round1(st)} semitones`,
-              score,
-              rule: `Full marks at a ${PITCH_FULL_SEMITONES}-semitone range. A narrow range sounds flat; lift the key word in each sentence.`,
-            }
-          : {
-              label: "Pitch range",
-              value: `${Math.round(f.pitchRangeHz!)} Hz`,
-              score,
-              rule: `Full marks at a ${PITCH_FULL_HZ} Hz range. A narrow range sounds flat; lift the key word in each sentence.`,
-            },
+        {
+          label: "Pitch range",
+          value: `${st} semitones`,
+          score,
+          rule:
+            st >= band.fullSt
+              ? `Your voice moved through a wide range: full marks from ${bar} up.`
+              : `Full marks at a range of ${bar}. A narrow range sounds flat; lift the key word in each sentence.`,
+        },
       ],
     };
   }

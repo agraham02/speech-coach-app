@@ -23,7 +23,7 @@ describe("conversation attempt metrics", () => {
 });
 
 describe("rep coach rambling tips", () => {
-  const base = { durationSeconds: 60, wpmAvg: 150, fillerRatePerMinute: 1, pauses: null, presence: null, pitchRangeHz: 120 };
+  const base = { durationSeconds: 60, wpmAvg: 150, fillerRatePerMinute: 1, pauses: null, presence: null, pitchRangeSt: 5 };
 
   it("flags detours as a tip without adding observations", () => {
     const transcript =
@@ -36,7 +36,7 @@ describe("rep coach rambling tips", () => {
 
   it("doesn't praise 'led with your point' after a throat-clearing opener", () => {
     // No pace/filler/pitch inputs, so nothing outranks the point-first win.
-    const quiet = { durationSeconds: 30, wpmAvg: null, fillerRatePerMinute: null, pauses: null, presence: null, pitchRangeHz: null };
+    const quiet = { durationSeconds: 30, wpmAvg: null, fillerRatePerMinute: null, pauses: null, presence: null, pitchRangeSt: null };
     const opener = ruleCoach({ ...quiet, transcript: "Okay, so, that's a good question. Let me think. I'd pick Lisbon because the food is great." });
     expect(opener.strength).not.toMatch(/led with your point/);
     const direct = ruleCoach({ ...quiet, transcript: "I would pick Lisbon for a trip. The food is great." });
