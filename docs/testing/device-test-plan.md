@@ -325,8 +325,71 @@ On the laptop (no phone):
   Data to send back: the `--score` summary.
   Notes:
 
+## H. Waiting on analysis (session 09)
+
+**Needs build:** a normal build with the v37 migration (no native changes). Items marked (Plus) need Tono AI signed in and allowed. What was built and why: `docs/decisions/waiting-on-analysis.md`. Timings matter more than pass/fail here: the time estimates in the app are guesses for the text review until you send these back.
+
+Take analysis (record any impromptu take, 1 to 2 minutes):
+
+- [ ] **The status card.** Save a take and watch the top of the Result screen. Pass: a card reads "Step N of M: ..." with a bar of segments that fill in, and it disappears when everything is done; the numbers and coaching appear underneath as each step finishes.
+  Data to send back: seconds from "Use this take" to the measured score, and (Plus) to the judged score; the take's length. Dev, Logs lines `[pipeline] ... done in`.
+  Notes:
+- [ ] **The time sentence is honest.** Pass: it never shows a countdown; it says "A few seconds", "Usually under half a minute" or similar; if a step runs well past it, it says "Taking longer than usual".
+  Notes:
+- [ ] **Leave while it works.** Save a take, then go back to Today at once. Pass: Today shows a "Your takes" row with the step it is on; it moves on by itself; when done it turns into "Ready. Tap to see what stood out." (and a toast); opening the result removes the row.
+  Notes:
+- [ ] **Two takes at once.** Save a take, leave, record and save another straight away. Pass: two rows on Today, each with its own step; neither stalls; both finish.
+  Data to send back: time for each.
+  Notes:
+- [ ] **Background the app mid-analysis.** Save a take, then switch to another app for 10 seconds, then 60 seconds, then 3 minutes (separate takes). Pass: coming back, the take finishes (or shows a plain "didn't finish" with Try again) and nothing is stuck on a spinner. Note how far it got while away.
+  Data to send back: which step it was on when you left, how far it got after 10 s, 60 s and 3 min, and whether a notification arrived.
+  Notes:
+- [ ] **Kill the app mid-analysis.** Save a take, swipe the app away while a step runs, reopen. Pass: it picks up (the card shows a running step again, or "didn't finish" with Try again if it was older than a day), and the take ends up fully analysed. Kill it three times in a row on the same take: after the third it should stop resuming by itself and show Try again.
+  Notes:
+- [ ] **Airplane mode, review (Plus).** Turn on airplane mode, save a take with the review on. Pass: the phone's numbers and coaching appear; the card says "No connection, so the review is waiting. It sends itself when you're back online." (no Try again button). Turn airplane mode off and bring the app to the front. Pass: within about 20 seconds the review is sent and lands, with the "ready" toast; it is not sent twice.
+  Data to send back: seconds from reconnecting to the review landing.
+  Notes:
+- [ ] **A failed review that is not the network.** (Plus) Use up the allowance or sign out, save a take. Pass: the card shows the reason in a sentence and "Try again"; it does not retry by itself.
+  Notes:
+- [ ] **Airplane mode, everything else.** With airplane mode on, record and save a take without the review. Pass: all steps finish; no error.
+  Notes:
+
+Initial assessment (use Settings, Reset the app, then onboard; this erases the app's data):
+
+- [ ] **The wait screen.** Finish the skill check's talk and "See your starting point". Pass: instead of a bare spinner, a card shows steps and a time sentence, with a line on what the numbers are; with the AI coach on, once the phone's steps are done a button "Continue without the AI coach" appears.
+  Data to send back: seconds on the wait screen with and without the review; whether the review beat the 90 or 240 second limits.
+  Notes:
+- [ ] **Continue without it.** Tap "Continue without the AI coach". Pass: the starting point appears at once from the phone's measurements; later the AI read is on the talk in Library.
+  Notes:
+- [ ] **Kill during the wait.** Reset the app, get to the wait screen, swipe the app away, reopen. Pass: it goes straight back to the starting point (no "Start fresh?" question), the analysis finishes, and "Let's go" completes onboarding.
+  Notes:
+- [ ] **Backgrounding during the wait.** Switch away for a minute and come back. Pass: it carries on and finishes.
+  Notes:
+
+Rewind:
+
+- [ ] **No wait after telling.** Tell a 2-minute Rewind and tap End. Pass: the result screen opens within a second or two, showing "Step 1 of 3 ... Step 3 of 3" while it works, then fills in.
+  Data to send back: seconds from End to the transcript (about 35 expected).
+  Notes:
+- [ ] **Kill during "listening back".** Tell a Rewind, tap End, swipe the app away at once, reopen. Pass: the Rewind is processed again and ends up with its transcript and counts (not stuck on "listening back" for ever). If the audio could not be recovered it says so plainly and keeps what the phone heard live.
+  Data to send back: what you saw and how long it took.
+  Notes:
+- [ ] **Notes carry on.** (Plus) Tap "Get notes", then go back to the Rewind list and return. Pass: still "Writing your notes" or the notes are there; no second request. Check Dev, Logs for a single `[analysis] rewind_notes`.
+  Data to send back: seconds the notes took (and whether a second draft was needed).
+  Notes:
+- [ ] **Notes refused.** If notes ever show "didn't check out against what you said", pass if the message stays on the card with "Try again" (not only a toast that disappears).
+  Notes:
+- [ ] **Notes offline.** Airplane mode, "Get notes". Pass: a plain reason on the card and "Try again"; turning airplane mode off and tapping works.
+  Notes:
+
+Word and Bridge Chain:
+
+- [ ] **Skip the check.** (Plus) Finish a chain attempt and watch the bottom. Pass: it says Tono AI is reading your links; if it takes 5 seconds or more, "Count them without the check" appears; tapping it ends the wait at once with "counted, not checked".
+  Data to send back: how often you saw the button (normal checks should end in under 5 seconds).
+  Notes:
+
 ---
 
 ## Sections to be added by later sessions
 
-Each new build session adds its own section here: 08 (trial, tiers, age range), 09 (waiting on analysis), 11 (impromptu results), 12 (conversation voice).
+Each new build session adds its own section here: 08 (trial, tiers, age range), 11 (impromptu results), 12 (conversation voice).
