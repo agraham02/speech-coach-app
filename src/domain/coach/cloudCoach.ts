@@ -1,5 +1,6 @@
 import type { SkillId } from "../../theme/tokens";
 import type { CoachOutput } from "./ruleCoach";
+import type { Provenance } from "../analysis/types";
 
 // The coach's read on a take (strength, tip, focus skill, follow-up question)
 // written by the Tono AI video review in the same call as the review, so there
@@ -20,15 +21,15 @@ export interface CloudCoaching {
   // Null when the model named a skill the app doesn't have: the rules' pick stands.
   focusSkill: SkillId | null;
   followUpQuestion: string | null;
-  // The model that wrote it, for the Dev tab.
-  model?: string;
+  // Who wrote it: the review's provenance (model, prompt, what it was sent).
+  provenance?: Provenance;
 }
 
 const clean = (value: unknown): string => (typeof value === "string" ? value.trim().replace(/^["'“”]|["'“”]$/g, "").trim() : "");
 
 // The review's `quick_coach` object, or null when it isn't usable. A missing or
 // malformed one never fails the review itself; the phone's coaching stays.
-export function acceptQuickCoach(value: unknown, model?: string): CloudCoaching | null {
+export function acceptQuickCoach(value: unknown, provenance?: Provenance): CloudCoaching | null {
   if (typeof value !== "object" || value === null) return null;
   const raw = value as Record<string, unknown>;
   const strength = clean(raw.strength);
@@ -41,14 +42,14 @@ export function acceptQuickCoach(value: unknown, model?: string): CloudCoaching 
     tip,
     focusSkill: (SKILL_IDS as readonly string[]).includes(skill) ? (skill as SkillId) : null,
     followUpQuestion: question && question.length <= MAX_QUESTION ? question : null,
-    ...(model ? { model } : {}),
+    ...(provenance ? { provenance } : {}),
   };
 }
 
 export function mergeCloudCoach(rules: CoachOutput, cloud: CloudCoaching): CoachOutput {
   return {
     ...rules,
-    source: "cloud",
+    provenance: cloud.provenance ?? { producer: "tono_ai", provider: "Tono AI", promptVersion: "unknown", judged: true, at: new Date().toISOString() },
     strength: cloud.strength,
     tip: cloud.tip,
     focusSkill: cloud.focusSkill ?? rules.focusSkill,

@@ -9,7 +9,9 @@ import type { TranscriptWord } from "../../domain/sessionTypes";
 // Rewind: the end-of-day spoken recall (domain/rewind). One row per take.
 
 export type RewindStatus = "processing" | "done" | "failed";
-export type ReviewSource = "apple" | "cloud" | null;
+// Who wrote the notes, by name ("Tono AI", "OpenAI"), from the result's
+// provenance. Null: no notes.
+export type ReviewSource = string | null;
 
 export interface Rewind {
   id: string;
@@ -64,7 +66,7 @@ function fromRow(r: Row): Rewind {
     words: parse<TranscriptWord[]>(r.words_json ?? null),
     stats: parse<RewindStats>(r.stats_json),
     review: parse<RewindReview>(r.review_json),
-    reviewSource: r.review_source === "apple" || r.review_source === "cloud" ? r.review_source : null,
+    reviewSource: r.review_source || null,
     status: r.status === "done" || r.status === "failed" ? r.status : "processing",
   };
 }
@@ -105,7 +107,7 @@ export async function updateRewind(
     words: TranscriptWord[] | null;
     stats: RewindStats;
     review: RewindReview;
-    reviewSource: "apple" | "cloud";
+    reviewSource: string;
     status: RewindStatus;
   }>,
 ): Promise<void> {

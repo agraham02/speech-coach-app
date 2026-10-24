@@ -13,7 +13,7 @@ import { useToast } from "../../components/common/ToastProvider";
 import { Mono } from "../../components/dev/Mono";
 import { getLogs, subscribeLogs } from "../../services/logs/logStore";
 import { subscribeToAllSessions } from "../../services/pipeline/processingEvents";
-import { isAppleModelAvailable } from "../../services/onDeviceLlm/onDeviceCoach";
+import { isAppleModelAvailable } from "../../services/asr/appleProvider";
 import { appVersion, buildKind, countProblemSteps, osLabel, readDbVersion, transcriberLabel } from "../../services/dev/devInfo";
 import { countRecent } from "../../domain/dev/logFilter";
 import { copyText } from "../../utils/copyText";

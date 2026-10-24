@@ -15,10 +15,9 @@ import { useSessionSteps } from "../hooks/useSessionSteps";
 import { getSkillCheck, saveConfidenceCheckin, setSkillCheckResults, type StoredSkillCheck } from "../services/db/skillChecksRepo";
 import { getSessionById } from "../services/db/sessionsRepo";
 import { getArtifact } from "../services/db/artifactsRepo";
-import { cloudSourceOf, measuredVoice } from "../services/sessions/sessionScoreService";
+import { measuredVoice } from "../services/sessions/sessionScoreService";
 import { getScoresBySessionId } from "../services/db/scoresRepo";
-import { cloudRepEvidence } from "../domain/repEvidence";
-import type { CloudTranscriptArtifact } from "../services/pipeline/steps/cloudReviewStep";
+import type { TakeScores } from "../domain/scoring/takeScore";
 import type { SessionScores } from "../domain/sessionTypes";
 import { getLessonStates, getSkillStates, seedSkillRatings } from "../services/db/progressRepo";
 import { completeOnboarding, resetToTabs } from "../services/onboarding/onboarding";
@@ -57,25 +56,18 @@ async function buildInput(check: StoredSkillCheck, session: Session | null): Pro
     stutterMode: defaultsFromProfile(profile).stutterMode,
   };
   if (!session) return input;
-  const [pauses, presence, coach, scores, transcript] = await Promise.all([
+  const [pauses, presence, coach, scores] = await Promise.all([
     getArtifact<PauseAnalysis>(session.id, "pauses"),
     getArtifact<PresenceMetrics>(session.id, "presence"),
     getArtifact<CoachOutput>(session.id, "coach"),
-    getScoresBySessionId(session.id),
-    getArtifact<CloudTranscriptArtifact>(session.id, "cloud_transcript"),
+    getArtifact<TakeScores>(session.id, "session_score"),
   ]);
   const voice = measuredVoice(session);
-  const reviewed = scores ? cloudRepEvidence(scores) : null;
+  // The judged sheet's skill scores, when the talk was judged.
+  const judged = scores?.judged ? Object.fromEntries(scores.judged.categories.map((c) => [c.skill, c.score])) : null;
   return {
     ...input,
-    review: reviewed
-      ? {
-          cadence: reviewed.cadence != null ? reviewed.cadence * 10 : null,
-          impromptu: reviewed.impromptu != null ? reviewed.impromptu * 10 : null,
-          confidence: reviewed.confidence != null ? reviewed.confidence * 10 : null,
-          source: cloudSourceOf(transcript),
-        }
-      : null,
+    review: judged ? { cadence: judged.cadence ?? null, impromptu: judged.impromptu ?? null, confidence: judged.confidence ?? null } : null,
     talkSeconds: session.durationSeconds,
     talkWpm: voice.wpmAvg,
     pitchRangeHz: voice.pitchRangeHz,

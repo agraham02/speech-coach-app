@@ -16,7 +16,10 @@ export type ArtifactKind =
   | "progress"
   | "felt_observed"
   | "session_score"
-  | "cloud_usage";
+  | "cloud_usage"
+  // What each kind of analysis did on this take, with its provenance
+  // (services/analysis/store.ts).
+  | "analysis";
 
 export async function putArtifact(sessionId: string, kind: ArtifactKind, value: unknown, version = 1): Promise<void> {
   const db = await getDatabase();

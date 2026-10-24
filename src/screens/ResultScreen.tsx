@@ -22,7 +22,7 @@ import { AnalysisStepsCard } from "../components/result/AnalysisStepsCard";
 import { CoachCard } from "../components/result/CoachCard";
 import { ComparisonCard } from "../components/result/ComparisonCard";
 import { ScoreBreakdownCard } from "../components/result/ScoreBreakdownCard";
-import { SCORE_BREAKDOWN_VERSION, type SessionScoreBreakdown } from "../domain/sessionScore";
+import { headlineSheet, SCORE_SHEET_VERSION, type TakeScores } from "../domain/scoring/takeScore";
 import { refreshSessionScore } from "../services/sessions/sessionScoreService";
 import { FeltCard, ObservedCard, useFeltObserved } from "../components/result/FeltObservedCard";
 import { CloudUsageNote } from "../components/result/CloudUsageNote";
@@ -113,7 +113,7 @@ export function ResultScreen({ route, navigation }: Props) {
   const [subjectSummary, setSubjectSummary] = useState<SessionSubjectSummary | null>(null);
   const [cloudTranscript, setCloudTranscript] = useState<CloudTranscriptArtifact | null>(null);
   const [coach, setCoach] = useState<CoachOutput | null>(null);
-  const [breakdown, setBreakdown] = useState<SessionScoreBreakdown | null>(null);
+  const [takeScores, setTakeScores] = useState<TakeScores | null>(null);
   // Felt vs observed: the first question at the top, the second by the video.
   const feltObserved = useFeltObserved(sessionId);
   const [comparison, setComparison] = useState<Awaited<ReturnType<typeof getPromptComparison>>>(null);
@@ -123,18 +123,23 @@ export function ResultScreen({ route, navigation }: Props) {
     getSessionById(sessionId).then((s) => {
       setSession(s);
       if (!s) return;
-      getPreviousOverallScore(s.recordedAt).then(setPreviousOverallScore);
       if (s.sessionType !== "script_practice") getPrompt(s.promptId).then(setPrompt);
       describeSessionSubject(s).then(setSubjectSummary);
     });
     getScoresBySessionId(sessionId).then(setScores);
     getArtifact<CloudTranscriptArtifact>(sessionId, "cloud_transcript").then(setCloudTranscript);
     getArtifact<CoachOutput>(sessionId, "coach").then(setCoach);
-    // Sessions analyzed before the combined score (or before it explained
-    // itself) get it now.
-    getArtifact<SessionScoreBreakdown>(sessionId, "session_score").then((b) =>
-      b && (b.version ?? 1) >= SCORE_BREAKDOWN_VERSION ? setBreakdown(b) : refreshSessionScore(sessionId).then((fresh) => setBreakdown(fresh ?? b)),
-    );
+    // A take scored before the current rules is rescored now. The delta
+    // compares with the last take scored in the same layer (judged with
+    // judged, measured with measured), never across the two.
+    getArtifact<TakeScores>(sessionId, "session_score")
+      .then((b) => (b && b.version >= SCORE_SHEET_VERSION ? b : refreshSessionScore(sessionId)))
+      .then((fresh) => {
+        setTakeScores(fresh);
+        getSessionById(sessionId).then((s) => {
+          if (s && fresh) getPreviousOverallScore(s.recordedAt, fresh.headline).then(setPreviousOverallScore);
+        });
+      });
     getPromptComparison(sessionId).then(setComparison);
   }, [sessionId]);
 
@@ -256,9 +261,9 @@ export function ResultScreen({ route, navigation }: Props) {
     session.pitchMaxHz != null && session.pitchMinHz != null ? Math.round(session.pitchMaxHz - session.pitchMinHz) : null;
   // Deep-review annotations quote Gemini's own transcript, so show that one
   // when annotating; otherwise the on-device transcript.
-  // The combined phone + cloud score; the cloud's own score only until the
-  // combined one has been computed.
-  const overall = breakdown?.overall ?? scores?.overallScore ?? null;
+  // The take's score: the judged sheet's overall whenever it exists, else
+  // the measured one (domain/scoring/takeScore.ts).
+  const overall = takeScores ? headlineSheet(takeScores).overall : null;
   const annotatedTranscript =
     scores && scores.annotations.length > 0 && cloudTranscript ? cloudTranscript.verbatim : session.transcriptVerbatim ?? "";
 
@@ -365,9 +370,9 @@ export function ResultScreen({ route, navigation }: Props) {
           ) : null}
 
           <TourTarget id="result.breakdown">
-          {breakdown ? (
+          {takeScores ? (
             <Reveal key="breakdown">
-              <ScoreBreakdownCard breakdown={breakdown} review={scores} pending={!scoreSettled} />
+              <ScoreBreakdownCard scores={takeScores} pending={!scoreSettled} />
             </Reveal>
           ) : measuring ? (
             <SkeletonCard key="breakdown-skeleton" lines={4} />

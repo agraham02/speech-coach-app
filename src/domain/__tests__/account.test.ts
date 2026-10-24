@@ -6,7 +6,6 @@ import {
   serializeAccountCache,
   signedInLabel,
   SIGNED_OUT,
-  tonoAvailability,
   withAllowance,
   type AccountSnapshot,
 } from "../account";
@@ -52,17 +51,6 @@ describe("providerFromAuth", () => {
     expect(providerFromAuth("google")).toBe("google");
     expect(providerFromAuth("email")).toBeNull();
     expect(providerFromAuth(undefined)).toBeNull();
-  });
-});
-
-describe("tonoAvailability", () => {
-  it("reflects sign-in, consent and the server's flags", () => {
-    expect(tonoAvailability(signedIn, true)).toEqual({ signedIn: true, consent: true, allowed: ALL_ALLOWED });
-    expect(tonoAvailability(SIGNED_OUT, true).signedIn).toBe(false);
-  });
-
-  it("turns everything off when the kill switch is on", () => {
-    expect(tonoAvailability({ ...signedIn, killSwitch: true }, true).allowed).toEqual({ review: false, text: false, insight: false });
   });
 });
 

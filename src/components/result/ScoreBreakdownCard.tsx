@@ -5,22 +5,22 @@ import { Card } from "../common/Card";
 import { Reveal } from "../common/Skeleton";
 import { Txt } from "../common/Txt";
 import { colorForScore } from "./scoreColor";
-import { cloudFactors, type ScoreComponent, type ScoreFactor, type SessionScoreBreakdown } from "../../domain/sessionScore";
-import type { SessionScores } from "../../domain/sessionTypes";
+import { headlineSheet, type CategoryScore, type ScoreFactor, type SubScore, type TakeScores } from "../../domain/scoring/takeScore";
+import { producerName } from "../../domain/analysis/provenance";
 import { tick } from "../../utils/haptics";
 import { radii, spacing, typography, font } from "../../theme/theme";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
-// How the session score was put together: each category's score, what the
-// phone and the AI coach said about it, and how much it counts. Tap a
-// category to see its ingredients — each measurement, the rule that scored
-// it (what took points away, what would earn them back), and the AI
-// coach's own sub-scores and notes.
-export function ScoreBreakdownCard({ breakdown, review, pending }: { breakdown: SessionScoreBreakdown; review?: SessionScores | null; pending?: boolean }) {
+// How the take's score is built: one row per skill (the taxonomy in
+// domain/scoring/taxonomy.ts), its score, and how much it counts. Tap a skill
+// to see its sub-scores: each one says whether it was judged by Tono AI or
+// measured on the phone, with the judge's note or the measurement and the
+// rule behind it. The judged score is the take's score whenever it exists.
+export function ScoreBreakdownCard({ scores, pending }: { scores: TakeScores; pending?: boolean }) {
   const styles = useStyles();
   const [open, setOpen] = useState<string | null>(null);
-  const both = breakdown.sources.length === 2;
-  const share = Math.round((breakdown.cloudOverallShare ?? 0.15) * 100);
+  const sheet = headlineSheet(scores);
+  const judge = producerName(scores.judgedBy);
 
   return (
     <Card style={styles.card}>
@@ -30,36 +30,48 @@ export function ScoreBreakdownCard({ breakdown, review, pending }: { breakdown: 
           Tap one to see why
         </Txt>
       </View>
-      {breakdown.components.map((c) => (
-        <ComponentRow
-          key={c.key}
-          component={c}
-          review={review ?? null}
-          open={open === c.key}
+      {sheet.categories.map((c) => (
+        <CategoryRow
+          key={c.skill}
+          category={c}
+          measured={scores.measured?.categories.find((m) => m.skill === c.skill)?.score ?? null}
+          judged={scores.judged ? c.score : null}
+          judge={judge}
+          open={open === c.skill}
           onToggle={() => {
             tick();
-            setOpen((k) => (k === c.key ? null : c.key));
+            setOpen((k) => (k === c.skill ? null : c.skill));
           }}
         />
       ))}
       <Text style={styles.footnote}>
         {pending
           ? "Still measuring the rest. The total score appears when every part is in."
-          : both
-          ? `Blends what this phone measured with your AI coach's review${breakdown.cloudOverall != null ? ` (its own overall ${breakdown.cloudOverall}/10 counts for ${share}%)` : ""}.${breakdown.cloudSource === "video" ? " The coach watched the video, so it leads wherever it could see." : ""}`
-          : breakdown.sources[0] === "cloud"
-            ? "From your AI coach's review."
-            : "Measured on this phone. A deep review adds content and tone judgments, and leads the score once it's in."}
+          : scores.judged
+            ? `Judged by ${judge}, with the phone's measurements as its evidence${scores.measured ? `. Measured on the phone alone, this take scores ${scores.measured.overall}` : ""}.`
+            : "Measured on this phone. A review by Tono AI adds what the words did and how it came across, and becomes the score."}
       </Text>
     </Card>
   );
 }
 
-function ComponentRow({ component: c, review, open, onToggle }: { component: ScoreComponent; review: SessionScores | null; open: boolean; onToggle: () => void }) {
+function CategoryRow({
+  category: c,
+  measured,
+  judged,
+  judge,
+  open,
+  onToggle,
+}: {
+  category: CategoryScore;
+  measured: number | null;
+  judged: number | null;
+  judge: string;
+  open: boolean;
+  onToggle: () => void;
+}) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const reviewFactors = review ? cloudFactors(review, c.key) : [];
-  const cloudPct = c.cloudShare != null ? Math.round(c.cloudShare * 100) : null;
   return (
     <View style={styles.row}>
       <Pressable onPress={onToggle} accessibilityRole="button" accessibilityState={{ expanded: open }} accessibilityHint="Shows how this part was scored" style={styles.rowPress}>
@@ -74,59 +86,45 @@ function ComponentRow({ component: c, review, open, onToggle }: { component: Sco
           <View style={[styles.fill, { width: `${c.score * 10}%`, backgroundColor: colorForScore(c.score, colors) }]} />
         </View>
         <Text style={styles.meta}>
-          {[c.local != null ? `Phone ${c.local}` : null, c.cloud != null ? `AI coach ${c.cloud}` : null, `${Math.round(c.weight * 100)}% of total`]
+          {[judged != null ? `${judge} ${judged}` : null, measured != null ? `Phone ${measured}` : null, `${Math.round(c.weight * 100)}% of total`]
             .filter(Boolean)
             .join(" · ")}
         </Text>
       </Pressable>
       {open ? (
         <Reveal style={styles.detail}>
-          {c.local != null && c.cloud != null && cloudPct != null ? (
-            <Txt variant="footnote" tone="secondary">
-              {cloudPct === 0 ? "Measured on the phone only." : `The AI coach's ${c.cloud} counts for ${cloudPct}% here, the phone's ${c.local} for ${100 - cloudPct}%.`}
-            </Txt>
-          ) : null}
-          {c.factors?.length ? (
-            <View style={styles.group}>
-              <Txt variant="caption1" weight="600" tone="muted">
-                Measured on this phone
-              </Txt>
-              {c.factors.map((f) => (
-                <FactorRow key={f.label} factor={f} />
-              ))}
-            </View>
-          ) : null}
-          {reviewFactors.length ? (
-            <View style={styles.group}>
-              <Txt variant="caption1" weight="600" tone="muted">
-                Your AI coach
-              </Txt>
-              {reviewFactors.map((f) => (
-                <View key={f.label} style={styles.factor}>
-                  <View style={styles.factorTop}>
-                    <Txt variant="subhead" weight="600" style={styles.flex}>
-                      {f.label}
-                    </Txt>
-                    <Txt variant="subhead" weight="600" tabular color={colorForScore(f.score, colors)}>
-                      {f.score}
-                    </Txt>
-                  </View>
-                  {f.notes ? (
-                    <Txt variant="footnote" tone="secondary">
-                      {f.notes}
-                    </Txt>
-                  ) : null}
-                </View>
-              ))}
-            </View>
-          ) : null}
-          {!c.factors?.length && !reviewFactors.length ? (
-            <Txt variant="footnote" tone="secondary">
-              {c.key === "congruence" ? "Only a deep review that watches the video can judge whether your face matches your voice." : "No detail was kept for this take."}
-            </Txt>
-          ) : null}
+          {c.subscores.map((s) => (
+            <SubScoreRow key={s.id} sub={s} judge={judge} />
+          ))}
         </Reveal>
       ) : null}
+    </View>
+  );
+}
+
+function SubScoreRow({ sub: s, judge }: { sub: SubScore; judge: string }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  return (
+    <View style={styles.group}>
+      <View style={styles.factorTop}>
+        <Txt variant="subhead" weight="600" style={styles.flex}>
+          {s.label}{" "}
+          <Txt variant="footnote" tone="muted">
+            · {s.layer === "judged" ? judge : "measured on the phone"}
+            {s.rollsUp ? "" : ", not in the total"}
+          </Txt>
+        </Txt>
+        <Txt variant="subhead" weight="600" tabular color={colorForScore(s.score, colors)}>
+          {s.score}
+        </Txt>
+      </View>
+      {s.notes ? (
+        <Txt variant="footnote" tone="secondary">
+          {s.notes}
+        </Txt>
+      ) : null}
+      {s.factors?.map((f) => <FactorRow key={f.label} factor={f} />)}
     </View>
   );
 }
@@ -143,11 +141,11 @@ function FactorRow({ factor: f }: { factor: ScoreFactor }) {
   return (
     <View style={styles.factor}>
       <View style={styles.factorTop}>
-        <Txt variant="subhead" weight="600" style={styles.flex}>
+        <Txt variant="footnote" weight="600" style={styles.flex}>
           {f.label} <Txt variant="footnote" tone="muted">· {f.value}</Txt>
         </Txt>
         {badge ? (
-          <Txt variant="subhead" weight="600" tabular color={badge.color}>
+          <Txt variant="footnote" weight="600" tabular color={badge.color}>
             {badge.text}
           </Txt>
         ) : null}
@@ -173,8 +171,8 @@ const useStyles = makeStyles(({ colors }) => ({
   fill: { height: 6, borderRadius: radii.pill },
   meta: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
   detail: { gap: spacing.md, padding: spacing.md, borderRadius: radii.md, backgroundColor: colors.surfaceRaised, marginBottom: spacing.xs },
-  group: { gap: spacing.sm },
-  factor: { gap: 2 },
+  group: { gap: spacing.xs },
+  factor: { gap: 2, paddingLeft: spacing.sm },
   factorTop: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },
   flex: { flex: 1 },
   footnote: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },

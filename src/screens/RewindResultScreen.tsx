@@ -15,7 +15,8 @@ import { partsCovered } from "../domain/rewind/stats";
 import { getRewind, updateRewind, type Rewind } from "../services/db/rewindRepo";
 import { stopClip } from "../services/audio/clipPlayer";
 import { rewindAudioExists, resolveRewindUri } from "../services/rewind/rewindStorage";
-import { canReviewOnDevice, reviewInCloud } from "../services/rewind/rewindReview";
+import { reviewInCloud } from "../services/rewind/rewindReview";
+import { producerName } from "../domain/analysis/provenance";
 import { RewindPlayer } from "../components/rewind/RewindPlayer";
 import { confirmDeleteRewind } from "../components/rewind/confirmDeleteRewind";
 import { retranscribeRewind } from "../services/rewind/rewindProcessor";
@@ -100,9 +101,9 @@ export function RewindResultScreen({ route }: Props) {
     const result = await reviewInCloud(rewind.transcript, () => navigation.navigate("Settings", { section: "deepReviews" }));
     setAsking(false);
     if (result.ok) {
-      await updateRewind(rewind.id, { review: result.review, reviewSource: "cloud" });
+      await updateRewind(rewind.id, { review: result.review, reviewSource: producerName(result.provenance) });
       load();
-    } else if (result.message !== "Not sent." && result.message !== "No API key set.") {
+    } else if (result.message) {
       showGlobalToast(result.message, "error");
     }
   }
@@ -188,20 +189,18 @@ export function RewindResultScreen({ route }: Props) {
             <Txt variant="callout">{rewind.review.tryTomorrow}</Txt>
           </View>
           <Txt variant="caption1" tone="muted">
-            {rewind.reviewSource === "cloud" ? `Written by ${provider.name} from your transcript.` : "Written on your phone from your transcript. Not a score."}
+            {`Written by ${rewind.reviewSource ?? provider.name} from your transcript. Not a score.`}
           </Txt>
         </Card>
       ) : !processing && rewind.transcript ? (
         <Card style={styles.notes}>
           <Txt variant="headline">Notes</Txt>
           <Txt variant="subhead" tone="secondary">
-            {canReviewOnDevice()
-              ? "There wasn't enough here to write notes on yet — try a little longer next time."
-              : provider.id === "tono"
+            {provider.id === "tono"
               ? "This phone can't write notes on its own. Tono AI can: only the words of this take are sent."
               : "This phone can't write notes on its own. You can ask for them with your own AI key — only the words of this take are sent."}
           </Txt>
-          {!canReviewOnDevice() ? <PrimaryButton label={`Get notes from ${provider.name}`} variant="secondary" size="md" icon="cloud-outline" onPress={askCloud} loading={asking} /> : null}
+          <PrimaryButton label={`Get notes from ${provider.name}`} variant="secondary" size="md" icon="cloud-outline" onPress={askCloud} loading={asking} />
         </Card>
       ) : null}
 

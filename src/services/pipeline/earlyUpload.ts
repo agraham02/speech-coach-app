@@ -2,7 +2,8 @@ import { File } from "expo-file-system";
 import { uploadVideoForGrading } from "../gemini/transcribeSession";
 import { getSessionById, isSessionLive, updateSessionGeminiFile } from "../db/sessionsRepo";
 import { tonoDeleteFile } from "../tono/tonoApi";
-import { providerFor } from "../cloud/routing";
+import { analysisContext } from "../cloud/routing";
+import { routeAnalysis } from "../../domain/analysis/routing";
 import { MAX_REVIEW_VIDEO_BYTES, reviewsLeft } from "../cloud/inputGuards";
 import { getCloudCallsToday } from "../prefs/prefsStore";
 import { resolveVideoUri, videoExists } from "../storage/videoStorage";
@@ -22,18 +23,24 @@ export function startEarlyUpload(sessionId: string): void {
   if (inFlight.has(sessionId)) return;
 
   const task = (async () => {
-    // Only a video-watching route is worth an early upload, and only when the
-    // review would not be refused anyway (the person's own key has a daily cap;
-    // Tono AI's server says no by itself).
-    const resolved = await providerFor("video_review", { hasVideo: true, cloudReviewOn: true });
-    if (!resolved || resolved.provider.input !== "video") return;
-    if (resolved.transport === "direct" && reviewsLeft(getCloudCallsToday(todayISODate())) === 0) return;
+    // Only a review that will watch the video is worth an early upload: Tono
+    // AI judges from the transcript by default, so this is the "video"
+    // setting or a person's own Gemini key. And only when the review would
+    // not be refused anyway (an own key has a daily cap; Tono AI's server
+    // says no by itself). The transcript doesn't exist yet at save time, so
+    // a text review is assumed to find one.
+    const ctx = await analysisContext({ hasVideo: true, hasTranscript: true, takeOptIn: true });
+    const route = routeAnalysis("take_review", ctx);
+    const first = route.producers[0];
+    const transport = first === "tono_ai" && route.tonoInput === "video" ? "hosted" : first === "own_key" && ctx.ownKey === "gemini" ? "direct" : null;
+    if (!transport) return;
+    if (transport === "direct" && reviewsLeft(getCloudCallsToday(todayISODate())) === 0) return;
     const session = await getSessionById(sessionId);
     if (!session || session.geminiFileName || session.videoDeletedAt) return;
     const videoUri = resolveVideoUri(session);
     if (!videoExists(videoUri) || (new File(videoUri).size ?? 0) > MAX_REVIEW_VIDEO_BYTES) return;
     const started = Date.now();
-    const uploaded = await uploadVideoForGrading(videoUri, undefined, resolved.transport === "hosted" ? "hosted" : "direct");
+    const uploaded = await uploadVideoForGrading(videoUri, undefined, transport);
     // Deleted while it uploaded: don't leave the video at Google.
     if (!(await isSessionLive(sessionId))) {
       await tonoDeleteFile(uploaded.name).catch(() => undefined);

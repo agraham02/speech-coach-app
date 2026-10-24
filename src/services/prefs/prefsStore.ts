@@ -36,6 +36,7 @@ const KEYS = {
   userProfile: "userProfile",
   skillCheckPending: "skillCheckPending",
   cloudReviewDefault: "cloudReviewDefault",
+  judgeInput: "judgeInput",
   cloudProvider: "cloudProvider",
   accountCache: "accountCache",
   cloudModels: "cloudModels",
@@ -289,6 +290,18 @@ export function getCloudReviewDefault(): boolean {
 
 export function setCloudReviewDefault(value: boolean): void {
   storage.set(KEYS.cloudReviewDefault, value);
+}
+
+// What a Tono AI take review sends: the transcript and the phone's
+// measurements ("text", the default: cheaper, and the phone measures the
+// voice and face better than a model sampling 1 frame a second), or the
+// video too ("video"). See docs/decisions/scoring-taxonomy.md.
+export function getJudgeInput(): "text" | "video" {
+  return storage.getString(KEYS.judgeInput) === "video" ? "video" : "text";
+}
+
+export function setJudgeInput(value: "text" | "video"): void {
+  storage.set(KEYS.judgeInput, value);
 }
 
 const PROVIDER_IDS: ProviderId[] = ["tono", "gemini", "openai", "anthropic", "openrouter"];

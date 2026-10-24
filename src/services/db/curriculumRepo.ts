@@ -2,14 +2,11 @@ import { getDatabase } from "./database";
 import { getDrillLevel } from "./progressRepo";
 import { legacyLevelFromDifficulty } from "../../domain/mastery";
 import { rowToCurriculumState, type CurriculumStateRow } from "./mappers";
-import { getRecentDrillCompletions } from "./drillsRepo";
 import {
-  computeRichDeliveryScore,
   DEFAULT_CURRICULUM_LEVEL,
   type CurriculumComponent,
   type CurriculumDecision,
   type CurriculumLevel,
-  type CurriculumSessionSignal,
 } from "../../domain/curriculum";
 import {
   getCurriculumAutoLevel,
@@ -17,58 +14,16 @@ import {
   setCurriculumAutoLevel,
   setCurriculumOverride,
 } from "../prefs/prefsStore";
-import type { CurriculumStateEntry, DspStatus, SessionType } from "../../domain/sessionTypes";
+import type { CurriculumStateEntry } from "../../domain/sessionTypes";
 
-interface CurriculumSessionSummaryRow {
-  session_type: string;
-  overall_score: number;
-  rate_score: number;
-  volume_score: number;
-  pitch_melody_score: number;
-  tonality_score: number;
-  pausing_score: number;
-  content_coherence_score: number;
-  content_coherence_notes: string;
-  dsp_status: string | null;
-  pitch_avg_hz: number | null;
-  pitch_min_hz: number | null;
-  pitch_max_hz: number | null;
-  volume_stddev_dbfs: number | null;
-}
-
-// All eligible (status='done', non-script_practice) spontaneous sessions'
-// curriculum signal, oldest first — a separate query from statsRepo.ts's
-// getScoredSessionSummaries() so that Trends-chart consumer stays
-// undisturbed. Deleted sessions are excluded — deleting a bad take
-// removes it from your stats.
-export async function getCurriculumSessionSummaries(): Promise<CurriculumSessionSignal[]> {
+// Finished impromptu takes (not scripts or feeling reps), for the checkpoint
+// each curriculum_state row keeps. Deleted takes don't count.
+export async function countImpromptuTakes(): Promise<number> {
   const db = await getDatabase();
-  const rows = await db.getAllAsync<CurriculumSessionSummaryRow>(
-    `SELECT s.session_type, sc.overall_score, sc.rate_score, sc.volume_score, sc.pitch_melody_score,
-            sc.tonality_score, sc.pausing_score, sc.content_coherence_score, sc.content_coherence_notes,
-            s.dsp_status, s.pitch_avg_hz, s.pitch_min_hz, s.pitch_max_hz, s.volume_stddev_dbfs
-     FROM sessions s
-     JOIN scores sc ON sc.session_id = s.id
-     WHERE s.status = 'done' AND s.deleted_at IS NULL AND s.session_type NOT IN ('script_practice', 'feeling')
-     ORDER BY s.recorded_at ASC`,
+  const row = await db.getFirstAsync<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM sessions WHERE status = 'done' AND deleted_at IS NULL AND session_type NOT IN ('script_practice', 'feeling')`,
   );
-  return rows.map((row) => ({
-    sessionType: row.session_type as SessionType,
-    overallScore: row.overall_score,
-    deliveryAvgScore:
-      Math.round(
-        ((row.rate_score + row.volume_score + row.pitch_melody_score + row.tonality_score + row.pausing_score) / 5) * 10,
-      ) / 10,
-    contentCoherenceScore: row.content_coherence_score,
-    contentCoherenceNotes: row.content_coherence_notes,
-    richDeliveryScore: computeRichDeliveryScore({
-      dspStatus: row.dsp_status as DspStatus | null,
-      pitchAvgHz: row.pitch_avg_hz,
-      pitchMinHz: row.pitch_min_hz,
-      pitchMaxHz: row.pitch_max_hz,
-      volumeStddevDbfs: row.volume_stddev_dbfs,
-    }),
-  }));
+  return row?.n ?? 0;
 }
 
 export async function getCurrentCurriculumState(): Promise<CurriculumStateEntry | null> {
@@ -106,9 +61,9 @@ export interface CurriculumEvaluationResult extends CurriculumDecision {
   changed: boolean;
 }
 
-// THE single entry point that keeps the curriculum current: reads recent
-// session/drill history, runs the pure evaluateCurriculum() decision, and —
-// only on an actual level change — writes a new curriculum_state row.
+// THE single entry point that keeps the practice step current: reads the
+// impromptu rep staircase and, only on an actual change, writes a new
+// curriculum_state row.
 // Always refreshes the cheap sync-readable cache (prefsStore's
 // curriculumAutoLevel) regardless of whether an override is active, so the
 // auto value stays current for whenever the override is cleared (see
@@ -116,16 +71,12 @@ export interface CurriculumEvaluationResult extends CurriculumDecision {
 // effect (Home, Trends, Curriculum) — cheap enough to call on every focus,
 // and idempotent when nothing has changed.
 export async function recomputeCurriculumLevel(): Promise<CurriculumEvaluationResult> {
-  const [currentState, sessions, recentDrills] = await Promise.all([
-    getCurrentCurriculumState(),
-    getCurriculumSessionSummaries(),
-    getRecentDrillCompletions(50),
-  ]);
+  const [currentState, totalTakes] = await Promise.all([getCurrentCurriculumState(), countImpromptuTakes()]);
 
   // First-ever run — lazily seed a baseline row at the default level so
   // future cooldown counting has a checkpoint to count new sessions from.
   if (!currentState) {
-    const totalSpontaneous = sessions.filter((s) => s.sessionType !== "script_practice").length;
+    const totalSpontaneous = totalTakes;
     await insertCurriculumStateChange({
       level: DEFAULT_CURRICULUM_LEVEL,
       direction: "initial",
@@ -162,7 +113,7 @@ export async function recomputeCurriculumLevel(): Promise<CurriculumEvaluationRe
     reason: repLevel !== current ? "changed" : "stable",
     spontaneousComposite: null,
     drillComposite: null,
-    spontaneousSessionCount: sessions.length,
+    spontaneousSessionCount: totalTakes,
   };
 
   setCurriculumAutoLevel(decision.level);
@@ -187,18 +138,15 @@ export async function recomputeCurriculumLevel(): Promise<CurriculumEvaluationRe
 // the level itself needs to go back to the start (e.g. DEFAULT_CURRICULUM_LEVEL
 // changed, or someone just wants a clean slate), as opposed to
 // recomputeCurriculumLevel()'s normal "only seed if nothing exists yet"
-// behavior. The new checkpoint is today's *actual* total eligible session
-// count, not 0 — so COOLDOWN_SESSIONS counts from now, and pre-existing
-// practice history can't make the very next evaluation read as "6+ sessions
-// since last change" and immediately move the level again. Also clears any
+// behavior. The new checkpoint is today's total impromptu take count. Also
+// clears any
 // manual override, since a stale pin at the old level would otherwise
 // silently defeat the reset. Deliberately never touches `sessions` or
 // `drill_completions` — this resets the curriculum *level*, not practice
 // history or scores.
 export async function resetCurriculumProgress(): Promise<void> {
   const db = await getDatabase();
-  const sessions = await getCurriculumSessionSummaries();
-  const totalSpontaneous = sessions.filter((s) => s.sessionType !== "script_practice").length;
+  const totalSpontaneous = await countImpromptuTakes();
 
   await db.runAsync("DELETE FROM curriculum_state");
   await insertCurriculumStateChange({

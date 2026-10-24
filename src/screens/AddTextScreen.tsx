@@ -9,7 +9,7 @@ import { Card } from "../components/common/Card";
 import { Txt } from "../components/common/Txt";
 import { PrimaryButton } from "../components/common/PrimaryButton";
 import { splitSentences } from "../domain/cadence/sentences";
-import { autoMarkText } from "../services/onDeviceLlm/autoMarkText";
+import { autoMarkText } from "../services/cadence/autoMarkText";
 import { saveMarkedText } from "../services/db/markedTextsRepo";
 import { showGlobalToast } from "../components/common/ToastProvider";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
@@ -55,7 +55,7 @@ export function AddTextScreen({ navigation }: Props) {
         autoMarked: true,
       });
       showGlobalToast(
-        by === "tono" ? "Marked by Tono AI — check it over." : by === "model" ? "Marked by the on-device model — check it over." : "Marked — check it over and change anything.",
+        by === "tono" ? "Marked by Tono AI — check it over." : "Marked — check it over and change anything.",
         "info",
       );
       navigation.replace("MarkEdit", { id });

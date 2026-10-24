@@ -1,9 +1,7 @@
 import type { SkillId } from "../theme/tokens";
 import { SKILLS } from "./mastery";
-import { paceScore, fillerScore } from "./sessionScore";
+import { expressionScore, eyeContactScore, fillerScore, paceScore, pauseScore, pitchScore } from "./scoring/bands";
 import type { Obstacle } from "./profile";
-import { REVIEW_SHARE } from "./repEvidence";
-import type { CloudSource } from "./sessionScore";
 
 // The onboarding skill check: four short pieces that together touch all
 // five skills, turned into a starting rating per skill (15-45 on the
@@ -35,10 +33,10 @@ export interface SkillCheckInput {
   hedgeCount?: number | null;
   strongEnding?: boolean | null;
   structured?: boolean | null;
-  // A deep review of the topic recording, 0-10 per skill it can judge (see
-  // domain/repEvidence.ts). It leads where it exists, by more when the
-  // reviewer watched the video.
-  review?: { cadence?: number | null; impromptu?: number | null; confidence?: number | null; source: CloudSource } | null;
+  // A judged review of the topic recording: the judged score sheet's 0-10
+  // per skill (domain/scoring/takeScore.ts). Where it exists it is the
+  // score for that skill, as on every other take.
+  review?: { cadence?: number | null; impromptu?: number | null; confidence?: number | null } | null;
   // Self-report from onboarding (blended in where measurement is thin)
   obstacles?: Obstacle[];
   // Stuttering: fillers and hesitations aren't measured against you.
@@ -100,8 +98,8 @@ export function evaluateSkillCheck(input: SkillCheckInput): SkillCheckResult {
   // --- cadence: pace, pauses at sentence ends, pitch movement
   const pace = input.talkWpm ?? input.readWpm ?? null;
   const paceS = pace != null ? paceScore(pace) : null;
-  const pauseS = input.boundaryPauseRate != null ? clamp10((input.boundaryPauseRate / 0.6) * 10) : null;
-  const pitchS = input.pitchRangeHz != null ? clamp10((input.pitchRangeHz / 110) * 10) : null;
+  const pauseS = input.boundaryPauseRate != null ? pauseScore(input.boundaryPauseRate) : null;
+  const pitchS = pitchScore({ hz: input.pitchRangeHz });
   results.cadence.score = mean([paceS, pauseS, pitchS]);
   if (pace != null) {
     if (pace > 175) add("cadence", "work", `You spoke at about ${Math.round(pace)} words a minute — fast enough that people strain to keep up.`);
@@ -130,8 +128,8 @@ export function evaluateSkillCheck(input: SkillCheckInput): SkillCheckResult {
   if (input.structured === true) add("impromptu", "good", "Your answer had a clear shape.");
 
   // --- confidence: eye contact, a moving face, hedges, a clean ending
-  const eyeS = input.eyeContactPercent != null ? clamp10((input.eyeContactPercent / 70) * 10) : null;
-  const faceS = input.expressiveness != null ? clamp10(input.expressiveness / 6) : null;
+  const eyeS = input.eyeContactPercent != null ? eyeContactScore(input.eyeContactPercent, "gaze") : null;
+  const faceS = input.expressiveness != null ? expressionScore(input.expressiveness) : null;
   const hedgeS = input.hedgeCount != null && input.talkSeconds ? clamp10(10 - (input.hedgeCount / Math.max(1, input.talkSeconds / 60)) * 2) : null;
   const endS = input.strongEnding == null ? null : input.strongEnding ? 8 : 5;
   results.confidence.score = mean([eyeS, faceS, hedgeS, endS]);
@@ -152,15 +150,13 @@ export function evaluateSkillCheck(input: SkillCheckInput): SkillCheckResult {
   if (input.askedBack) add("conversation", "good", "You asked something back — that's what keeps a conversation going.");
   if (input.replyLatencyMs != null && input.replyLatencyMs > 4000) add("conversation", "work", "The reply took a while to start — that gap is exactly what the conversation drills shrink.");
 
-  // --- the deep review leads where it judged something. Its line goes
+  // --- a judged review is the score for the skills it judged. Its line goes
   // first, so it's the one shown when the skill makes the short lists.
   if (input.review) {
-    const share = REVIEW_SHARE[input.review.source];
     for (const { skill, what } of REVIEWED) {
       const reviewed = input.review[skill];
       if (reviewed == null || !Number.isFinite(reviewed)) continue;
-      const local = results[skill].score;
-      results[skill].score = local == null ? clamp10(reviewed) : local * (1 - share) + clamp10(reviewed) * share;
+      results[skill].score = clamp10(reviewed);
       const shown = Math.round(reviewed * 10) / 10;
       if (reviewed >= 7) results[skill].good.unshift(`Your AI coach scored ${what} ${shown} out of 10.`);
       else if (reviewed <= 4.5) results[skill].work.unshift(`Your AI coach scored ${what} ${shown} out of 10 — the clearest place to start.`);

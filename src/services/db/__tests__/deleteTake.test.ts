@@ -37,7 +37,7 @@ import { insertSession, getAllSessionsWithScores, getRecentlyUsedPromptIds, getT
 import { upsertScores, getPreviousOverallScore, getScoreHistoryBefore } from "../scoresRepo";
 import { putArtifact, listArtifactsOfKind } from "../artifactsRepo";
 import { markReviewPass, getSkillEvents, getSkillMovesSince, getPracticeDates, getStreakState, getDailySessionCounts, getReviewPasses } from "../progressRepo";
-import { getCurriculumSessionSummaries } from "../curriculumRepo";
+import { countImpromptuTakes } from "../curriculumRepo";
 import { getCompletedSessionDates, getScoredSessionSummaries, getSessionMetricSeries, getUsageTotals, getWeeklySummaries, getPromptComparison } from "../statsRepo";
 import { saveSkillCheck, listSkillChecks } from "../skillChecksRepo";
 import { createRewind, updateRewind, listRewinds, getRewindDates } from "../rewindRepo";
@@ -123,6 +123,9 @@ async function addTake(id: string, recordedAt: string, overall: number, extra: P
   await insertSession(session(id, recordedAt, extra));
   await mockDb.runAsync(`UPDATE sessions SET filler_rate_per_minute = 3, gemini_file_name = ? WHERE id = ?`, [extra.geminiFileName ?? null, id]);
   await upsertScores(scores(id, overall));
+  // The take's score sheets (session 07): judged, since it has a review.
+  await mockDb.runAsync(`UPDATE sessions SET session_score = ? WHERE id = ?`, [overall, id]);
+  await putArtifact(id, "session_score", { version: 4, measured: null, judged: { layer: "judged", overall, categories: [] }, headline: "judged" });
   await putArtifact(id, "presence", { eyeContactSource: "gaze", eyeContactPercent: 50 });
   await putArtifact(id, "cloud_usage", { calls: [{ at: recordedAt, provider: "tono", model: "m" }] });
   await putArtifact(id, "pauses", [{ at: 1 }]);
@@ -180,7 +183,7 @@ describeIfSqlite("deleting a take", () => {
 
     expect((await getAllSessionsWithScores()).map((s) => s.id)).toEqual(["later", "keep"]);
     expect((await getScoredSessionSummaries()).map((s) => s.overallScore)).toEqual([60, 70]);
-    expect(await getCurriculumSessionSummaries()).toHaveLength(2);
+    expect(await countImpromptuTakes()).toBe(2);
     expect(await getCompletedSessionDates()).toHaveLength(2);
     expect(await getRecentlyUsedPromptIds(10)).not.toContain("prompt-gone");
     expect((await getUsageTotals()).reps).toBe(2);
@@ -189,8 +192,8 @@ describeIfSqlite("deleting a take", () => {
     expect(await getSkillMovesSince(at(10))).toHaveLength(1);
     expect(await listArtifactsOfKind("cloud_usage")).toHaveLength(2);
     // The best previous score no longer includes the deleted 90.
-    expect((await getScoreHistoryBefore(at(0, 23).replace(/.$/, "Z"))).best).toBe(60);
-    expect(await getPreviousOverallScore(at(0, 23))).toBe(60);
+    expect((await getScoreHistoryBefore(at(0, 23).replace(/.$/, "Z"), "judged")).best).toBe(60);
+    expect(await getPreviousOverallScore(at(0, 23), "judged")).toBe(60);
     const week = await getWeeklySummaries();
     expect(week.thisWeek.reps + week.lastWeek.reps).toBeLessThanOrEqual(2);
   });

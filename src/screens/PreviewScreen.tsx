@@ -14,7 +14,7 @@ import { logger } from "../utils/logger";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { getCloudReviewDefault } from "../services/prefs/prefsStore";
 import { currentProvider, hasConsent } from "../services/cloud/providers";
-import { providerFor } from "../services/cloud/routing";
+import { showLevelFor } from "../services/analysis";
 import { getAccount, useAccount } from "../services/account/accountStore";
 import { usesOneLine } from "../domain/aiAllowance";
 import { readyForDeepReview } from "../services/cloud/consent";
@@ -117,7 +117,7 @@ export function PreviewScreen({ route, navigation }: Props) {
         durationSecondsLocal,
         // A key removed, or Tono AI signed out of, since the switch went on:
         // save without the review.
-        wantsCloudReview: wantsCloudReview && (await providerFor("video_review", { hasVideo: true, cloudReviewOn: true })) !== null,
+        wantsCloudReview: wantsCloudReview && (await showLevelFor("take_review", { hasVideo: true, hasTranscript: true, takeOptIn: true })) === "judged",
       });
       // A lesson / daily-plan rep counts as done once the take is kept.
       if (subject.kind === "prompt") completePracticeStep(subject.practice, null, sessionId);

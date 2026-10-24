@@ -136,36 +136,33 @@ export async function getScoresBySessionId(sessionId: string): Promise<SessionSc
 // Result screen's "vs your last session" delta — the combined session score,
 // or the cloud score for sessions from before it existed. Null if this is
 // the first scored session.
-export async function getPreviousOverallScore(recordedAt: string): Promise<number | null> {
+// The score of the last take before this one scored in the same layer: a
+// judged score is only set against a judged one, a measured against a
+// measured (docs/decisions/scoring-taxonomy.md). The layer is read from the
+// take's score sheets.
+export async function getPreviousOverallScore(recordedAt: string, layer: "measured" | "judged"): Promise<number | null> {
   const db = await getDatabase();
   const row = await db.getFirstAsync<{ overall_score: number }>(
-    `SELECT COALESCE(s.session_score, sc.overall_score) AS overall_score
-     FROM sessions s LEFT JOIN scores sc ON sc.session_id = s.id
+    `SELECT s.session_score AS overall_score
+     FROM sessions s JOIN session_artifacts a ON a.session_id = s.id AND a.kind = 'session_score'
      WHERE s.status = 'done' AND s.deleted_at IS NULL AND s.recorded_at < ?
-       AND COALESCE(s.session_score, sc.overall_score) IS NOT NULL
+       AND s.session_score IS NOT NULL AND json_extract(a.json, '$.headline') = ?
      ORDER BY s.recorded_at DESC LIMIT 1`,
-    [recordedAt],
+    [recordedAt, layer],
   );
   return row ? row.overall_score : null;
 }
 
 // Overall scores of the takes before this one, most recent first, and the
 // best of them all — what a take's progress moment measures against.
-export async function getScoreHistoryBefore(recordedAt: string, limit = 5): Promise<{ previous: number[]; best: number | null }> {
+export async function getScoreHistoryBefore(recordedAt: string, layer: "measured" | "judged", limit = 5): Promise<{ previous: number[]; best: number | null }> {
   const db = await getDatabase();
-  const where = `s.status = 'done' AND s.deleted_at IS NULL AND s.recorded_at < ? AND COALESCE(s.session_score, sc.overall_score) IS NOT NULL`;
+  // Same layer only, as for the delta above.
+  const from = `FROM sessions s JOIN session_artifacts a ON a.session_id = s.id AND a.kind = 'session_score'`;
+  const where = `s.status = 'done' AND s.deleted_at IS NULL AND s.recorded_at < ? AND s.session_score IS NOT NULL AND json_extract(a.json, '$.headline') = ?`;
   const [rows, best] = await Promise.all([
-    db.getAllAsync<{ overall_score: number }>(
-      `SELECT COALESCE(s.session_score, sc.overall_score) AS overall_score
-       FROM sessions s LEFT JOIN scores sc ON sc.session_id = s.id
-       WHERE ${where} ORDER BY s.recorded_at DESC LIMIT ?`,
-      [recordedAt, limit],
-    ),
-    db.getFirstAsync<{ best: number | null }>(
-      `SELECT MAX(COALESCE(s.session_score, sc.overall_score)) AS best
-       FROM sessions s LEFT JOIN scores sc ON sc.session_id = s.id WHERE ${where}`,
-      [recordedAt],
-    ),
+    db.getAllAsync<{ overall_score: number }>(`SELECT s.session_score AS overall_score ${from} WHERE ${where} ORDER BY s.recorded_at DESC LIMIT ?`, [recordedAt, layer, limit]),
+    db.getFirstAsync<{ best: number | null }>(`SELECT MAX(s.session_score) AS best ${from} WHERE ${where}`, [recordedAt, layer]),
   ]);
   return { previous: rows.map((r) => r.overall_score), best: best?.best ?? null };
 }
