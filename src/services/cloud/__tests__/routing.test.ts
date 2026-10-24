@@ -108,11 +108,12 @@ describe("the take review route, from the live facts", () => {
     expect((await route("summary_notes", { hasVideo: false, hasTranscript: true })).producers).toEqual(["tono_ai"]);
   });
 
-  it("lets a Rewind's own consent stand for an own key", async () => {
-    mockPrefs = { ...mockPrefs, provider: "anthropic", consent: [], rewindConsent: ["anthropic"] };
+  it("judges the exercises with Tono AI only, whatever key is saved", async () => {
+    mockPrefs = { ...mockPrefs, provider: "anthropic", consent: ["anthropic"] };
     mockKeys = { anthropic: "sk-ant-key" };
-    expect((await route("rewind_notes", { hasVideo: false, hasTranscript: true, takeOptIn: true })).producers).toEqual(["own_key"]);
-    expect((await route("take_review")).producers).toEqual([]);
+    for (const kind of ["rewind_notes", "word_chain", "bridge_chain"] as const) {
+      expect(await route(kind, { hasVideo: false, hasTranscript: true, takeOptIn: true })).toMatchObject({ producers: [], blocked: "unsupported" });
+    }
   });
 });
 

@@ -371,8 +371,8 @@ export const LESSONS: Lesson[] = [
     title: "Keep the thread",
     minutes: 4,
     teach: {
-      why: "In conversation every reply has to connect to what was just said — that's where blanks happen. A word chain trains exactly that jump: from this word to the next related one, fast, without editing.",
-      how: ["Say the first link that comes — weird ones count", "If you blank, take the fresh word and keep going", "Then say why each link connects"],
+      why: "In conversation every reply has to connect to what was just said — that's where blanks happen. A word chain trains exactly that jump: from this word to the next related one, fast, without editing. The bridge chain then adds what a conversation needs most: saying why one thing leads to the next.",
+      how: ["Say the first link that comes — surprising ones are fine if you could explain them", "If you blank, take the fresh word and keep going", "In the bridge chain, slow down and say why each link connects"],
       source: "Verbal-fluency and free-association training",
     },
     steps: [{ kind: "drill", drill: "word_chain" }, { kind: "drill", drill: "chain_bridge" }, { kind: "rep", focus: "Make every sentence connect to the one before it." }],

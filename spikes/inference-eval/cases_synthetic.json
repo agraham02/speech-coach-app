@@ -20,6 +20,12 @@
       "id": "rewind_afternoon_evening",
       "transcript": "I didn't do much until about two in the afternoon, honestly. Then I went to the gym and did legs, which I regret now because I can barely walk up the stairs. After the gym I stopped at my mom's house and she made me take home a giant container of rice and beans. In the evening I watched the football game with my roommate. We ordered wings, our team lost in the last minute, and he threw a pillow at the TV.",
       "gold": { "morning": "missing", "midday": "covered", "evening": "covered" }
+    },
+    {
+      "id": "rewind_day_with_nap",
+      "note": "Regression: the full day that an earlier prompt reported as 'only the morning'. A made-up lookalike of the real transcript (same shape: a morning routine, an office day with meetings, an evening nap told at night, a clock time with no am or pm); the real one is read from the session 10 prompt file at run time.",
+      "transcript": "Today I woke up around seven o'clock and got out of bed right away. I said my morning prayer, brushed my teeth, and then sat down in the living room to check whether the build of my side project had finished. It built successfully, so I spent a while changing the logo and a few other small things. Then I made breakfast: two strips of bacon in the air fryer and scrambled eggs that I accidentally overcooked, but the breakfast was still good, and I had apple juice with it. After that I headed to the office, where honestly I didn't do much. I mostly kept working on the same project and wrote up a request for the backend after some feedback from a friend. I only had three meetings, and I accidentally missed the second one because I was too busy working. I left work at about four o'clock because I was extremely tired, so I drove home and got in my bed at around five, and it's now nine nineteen and I'm still in bed after that four or five hour nap. I'm going to eat something right now and then call it a day and go back to bed.",
+      "gold": { "morning": "covered", "midday": "covered", "evening": "covered" }
     }
   ],
   "word_chain": [
@@ -42,6 +48,28 @@
       "id": "chain_loose_and_random",
       "words": ["coffee", "morning", "alarm", "fire", "truck", "pizza", "cheese", "moon", "astronaut", "purple", "keyboard"],
       "gold": ["strong", "strong", "strong", "strong", "loose|strong", "strong", "loose|strong", "strong", "none", "none"]
+    }
+  ],
+  "bridge_chain": [
+    {
+      "id": "bridge_all_explained",
+      "segments": [{ "seed": "pen", "said": "ink because pens write with ink octopus because an octopus squirts ink aquarium because octopuses live in aquariums at the zoo" }],
+      "gold": ["explained", "explained", "explained"]
+    },
+    {
+      "id": "bridge_no_reasons",
+      "segments": [{ "seed": "pen", "said": "ink octopus aquarium fish chips" }],
+      "gold": ["unexplained", "unexplained", "unexplained", "unexplained", "unexplained"]
+    },
+    {
+      "id": "bridge_mixed",
+      "segments": [{ "seed": "coffee", "said": "morning because I drink it every morning alarm because they go together bell because it is related" }, { "seed": "ocean", "said": "salt because seawater is salty chips" }],
+      "gold": ["explained", "thin", "thin", "explained", "unexplained"]
+    },
+    {
+      "id": "bridge_because_gaming",
+      "segments": [{ "seed": "pen", "said": "ink because octopus because river because banana because" }],
+      "gold": ["unexplained", "unexplained", "unexplained", "unexplained"]
     }
   ],
   "coaching_synthetic": [

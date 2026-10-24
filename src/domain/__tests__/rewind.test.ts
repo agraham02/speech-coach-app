@@ -1,7 +1,6 @@
 import { concatWaveforms } from "../rewind/wav";
 import { countDetails, cueForSeconds, dayCoverage, partsCovered, rewindStats } from "../rewind/stats";
 import { BAR_MS, barForVolume, barX, followLevel, MIN_BAR, newWave, RING, stepWave } from "../rewind/waveform";
-import { acceptReview } from "../rewind/reviewPrompt";
 import { rewindReminderDates } from "../rewind/reminder";
 import { dayLabel, rewindCardVisible } from "../rewind/labels";
 
@@ -131,31 +130,6 @@ describe("waveform", () => {
     // A new bar starts off the right edge, and the row moves left.
     expect(barX(0, 0, width, step)).toBeGreaterThan(width);
     expect(barX(0, 35, width, step)).toBeLessThan(barX(0, 0, width, step));
-  });
-});
-
-describe("the review's notes", () => {
-  const good = {
-    specificity: "You named Maria and the 8 am train, which made it real.",
-    storytelling: "The platform moment told a small story, not a list.",
-    flow: "You went morning to evening in order.",
-    coverage: "Midday got only one line.",
-    vividDetail: "the train had twelve carriages",
-    tryTomorrow: "Add one thing you heard.",
-  };
-
-  it("keeps a review whose notes all say something", () => {
-    expect(acceptReview(good)).toEqual(good);
-  });
-
-  it("drops one with an empty note", () => {
-    expect(acceptReview({ ...good, flow: "  " })).toBeNull();
-  });
-
-  it("drops one that turns into a score", () => {
-    expect(acceptReview({ ...good, specificity: "Solid, around 7/10 for detail." })).toBeNull();
-    expect(acceptReview({ ...good, flow: "You scored well on order." })).toBeNull();
-    expect(acceptReview({ ...good, coverage: "About 80% of the day." })).toBeNull();
   });
 });
 

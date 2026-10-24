@@ -346,15 +346,34 @@ export function scoreStory(wordsUsed: number, wordsRequired: number, spokeRatio:
 // picking the chain back up is the point, so it's never a big penalty.
 const RESET_COST = 0.05;
 
+function freshStarts(resets: number): string {
+  return resets === 1 ? " · 1 fresh start" : resets > 1 ? ` · ${resets} fresh starts` : "";
+}
+
+// Without a judge the phone can only count the words that were said. It says
+// so: it can't tell a link that makes sense from one that doesn't.
 export function scoreChain(links: number, target: number, resets: number, penalizeResets = true): DrillOutcome {
   const cost = penalizeResets ? Math.max(0, resets - 1) * RESET_COST : 0;
-  const starts = resets === 1 ? " · 1 fresh start" : resets > 1 ? ` · ${resets} fresh starts` : "";
-  return outcome(Math.min(1, links / Math.max(target, 1)) - cost, `${links} links (target ${target})${starts}`);
+  return outcome(Math.min(1, links / Math.max(target, 1)) - cost, `${links} words in a row (target ${target}) · counted, not checked${freshStarts(resets)}`);
 }
 
 export function scoreBridges(bridges: number, target: number, resets: number, penalizeResets = true): DrillOutcome {
   const cost = penalizeResets ? Math.max(0, resets - 1) * RESET_COST : 0;
-  return outcome(Math.min(1, bridges / Math.max(target, 1)) - cost, `${bridges} links explained (target ${target})`);
+  return outcome(Math.min(1, bridges / Math.max(target, 1)) - cost, `${bridges} reasons said (target ${target}) · counted, not checked`);
+}
+
+// Judged: a clear link counts fully, a stretch half, a missing link nothing
+// (chainJudging.ts). The summary says what happened to the links.
+export function scoreChainJudged(tally: { strong: number; loose: number; none: number; credit: number }, target: number, resets: number, penalizeResets = true): DrillOutcome {
+  const cost = penalizeResets ? Math.max(0, resets - 1) * RESET_COST : 0;
+  const parts = [`${tally.strong} clear`, tally.loose ? `${tally.loose} a stretch` : "", tally.none ? `${tally.none} didn't connect` : ""].filter(Boolean);
+  return outcome(Math.min(1, tally.credit / Math.max(target, 1)) - cost, `${parts.join(", ")} (target ${target})${freshStarts(resets)}`);
+}
+
+export function scoreBridgesJudged(tally: { explained: number; thin: number; unexplained: number; credit: number }, target: number, resets: number, penalizeResets = true): DrillOutcome {
+  const cost = penalizeResets ? Math.max(0, resets - 1) * RESET_COST : 0;
+  const parts = [`${tally.explained} explained`, tally.thin ? `${tally.thin} vague` : "", tally.unexplained ? `${tally.unexplained} with no reason` : ""].filter(Boolean);
+  return outcome(Math.min(1, tally.credit / Math.max(target, 1)) - cost, `${parts.join(", ")} (target ${target})${freshStarts(resets)}`);
 }
 
 export function scoreJustAMinute(hesitations: number, fillers: number, allowed: number, spokeRatio: number): DrillOutcome {

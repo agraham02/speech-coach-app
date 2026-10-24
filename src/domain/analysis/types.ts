@@ -5,14 +5,15 @@ import type { KeyProviderId } from "../../services/cloud/providers";
 // rules, for now the person's own key) produce it; the UI knows only the shape
 // and its provenance, never which model or prompt made it.
 
-// The kinds built so far. Later sessions add theirs here (session 10:
-// "word_chain", "bridge_chain"; session 12: "conversation_turn",
-// "conversation_debrief", "tts"; insights: "insight") with an input and an
-// output type in services/analysis/kinds.ts.
+// The kinds built so far. Later sessions add theirs here (session 12:
+// "conversation_turn", "conversation_debrief", "tts"; insights: "insight")
+// with an input and an output type in services/analysis/kinds.ts.
 export type AnalysisKind =
   | "take_review" // the judged layer of a recorded take: sub-scores, notes, coaching
   | "coaching" // the coach card for a take: strength, tip, focus skill, follow-up
   | "rewind_notes" // notes on a Rewind's words
+  | "word_chain" // each link of a Word Chain attempt: does it make sense
+  | "bridge_chain" // each step of a Bridge Chain attempt: was the link explained
   | "summary_notes" // Say it short
   | "mark_up"; // delivery marks for a text to read aloud
 

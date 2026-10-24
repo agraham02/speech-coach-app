@@ -1,5 +1,6 @@
 import type { AnalysisKind } from "../../domain/analysis/types";
 import type { CoachInput, CoachOutput } from "../../domain/coach/ruleCoach";
+import type { BridgeChainJudgement, BridgeSegment, ChainSegment, WordChainJudgement } from "../../domain/drills/chainJudging";
 import type { MarkedText } from "../../domain/cadence/marks";
 import type { PauseAnalysis } from "../../domain/dsp/pauses";
 import type { PresenceMetrics } from "../../domain/presenceMetrics";
@@ -43,6 +44,16 @@ export interface RewindNotesInput {
   transcript: string;
 }
 
+// A Word Chain attempt, split into the runs between start words (the phone's
+// own split: domain/drills/chainJudging.ts). Only these words are sent.
+export interface WordChainInput {
+  segments: ChainSegment[];
+}
+
+export interface BridgeChainInput {
+  segments: BridgeSegment[];
+}
+
 export interface SummaryNotesInput {
   setup: SummarySetup;
   transcripts: string[];
@@ -56,6 +67,8 @@ export interface InputMap {
   take_review: TakeReviewInput;
   coaching: CoachInput;
   rewind_notes: RewindNotesInput;
+  word_chain: WordChainInput;
+  bridge_chain: BridgeChainInput;
   summary_notes: SummaryNotesInput;
   mark_up: MarkUpInput;
 }
@@ -64,6 +77,8 @@ export interface OutputMap {
   take_review: TakeReviewOutput;
   coaching: CoachOutput;
   rewind_notes: RewindReview;
+  word_chain: WordChainJudgement;
+  bridge_chain: BridgeChainJudgement;
   summary_notes: SummaryReview;
   mark_up: MarkedText;
 }
@@ -77,7 +92,9 @@ export type OutputFor<K extends AnalysisKind> = OutputMap[K];
 export const PROMPT_VERSIONS = {
   take_review_text: "take-review-text/2026-10-23",
   take_review_video: "take-review-video/2026-10-23",
-  rewind_notes: "rewind-notes/2026-10-18",
+  rewind_notes: "rewind-notes/2026-10-23",
+  word_chain: "word-chain/2026-10-23",
+  bridge_chain: "bridge-chain/2026-10-23",
   summary_notes: "summary-notes/2026-10-17",
   mark_up: "mark-up/2026-10-19",
   rules: "rules/2026-10-23",
