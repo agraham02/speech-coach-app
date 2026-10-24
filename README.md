@@ -1,6 +1,10 @@
 # Tono
 
-Personal, unpublished daily speaking-practice app. Full product spec, phase-by-phase status, and changelog are in [docs/history/plan.md](./docs/history/plan.md). Phases 1, 3, 4, 5, plus unplanned Phases 6 (UI/UX pass), 7 (daily reminder), and 8 (Free Record + preview/discard + per-session opt-in grading) are built; Phase 2 (on-device transcription toggle) is deferred.
+Tono is a speaking-practice app for iPhone: record a take, and your phone measures pace, pauses, fillers, pitch, loudness and eye contact, turns them into scores and a next step, and runs a curriculum of lessons and drills around them. All of that is free, runs on the phone, and needs no account.
+
+**Tono AI** (optional) judges a take the way a coach would, from the phone's transcript and measurements, through a small Supabase backend that holds the Gemini key, writes the prompts and counts the allowance. Everyone gets one judged take a month free; **Tono Plus** ($4.99 a month or $49.99 a year, with a 14-day free trial on both) gives 60 a month, plus notes on drills and AI mark-ups. Purchases go through the App Store and RevenueCat, against an anonymous account made behind the scenes, so nobody has to sign in; Sign in with Apple or Google is optional and only links that account.
+
+Status: in TestFlight, not yet on the App Store. Decisions are in [docs/decisions](./docs/decisions/) (start with `decisions-log.md` and `tiers-and-trial.md`), the backend in [supabase/README.md](./supabase/README.md), the launch steps in [app-store-launch-checklist.md](./app-store-launch-checklist.md), and the history in [docs/history](./docs/history/).
 
 ## Setup
 
@@ -10,11 +14,9 @@ Personal, unpublished daily speaking-practice app. Full product spec, phase-by-p
    - `eas build:configure` (populates `extra.eas.projectId` in your EAS project)
    - `eas build --profile development --platform ios`
    - Install the resulting build on your iPhone, then `npx expo start --dev-client` to load JS.
-3. Optional: deep reviews are bring-your-own-key, so the app stays free. In **Settings → Deep reviews**, pick a provider — Google Gemini (watches the video), OpenAI, Anthropic Claude or OpenRouter (these read the on-device transcript and the phone's measurements) — paste your key, and optionally a model ID. "Check key" confirms it works. Before the first review with a provider, the app asks permission to send to that company.
+3. Tono AI needs nothing set up in the app: the backend's public URL and publishable key are in `src/config/backend.ts`. The backend itself (secrets, migrations, functions, the launch switch) is described in `supabase/README.md`. There are no API keys in the app, and nothing to paste.
 
-   Keys are stored via `expo-secure-store` (Keychain/Keystore) on-device only — never baked into the build. Everything else runs on the phone; nothing is gated on a key.
-
-To start over (old data from an earlier version, or a clean test run): **Settings → Your data → Reset app** deletes every recording, video, score and bit of progress, clears your profile and settings, and starts onboarding again. API keys are kept.
+To start over (old data from an earlier version, or a clean test run): **Settings → Your data → Reset app** deletes every recording, video, score and bit of progress, clears your profile and settings, and starts onboarding again. The Tono account on the phone is kept.
 
 ## What's checkable without a device build (this repo was developed on Windows, no local Mac)
 
@@ -22,7 +24,7 @@ To start over (old data from an earlier version, or a clean test run): **Setting
 - `npx expo export --platform ios` — bundles the JS, catches import/babel errors.
 - `npx expo prebuild --platform android --no-install` — cheap pre-flight for config-plugin misconfiguration (iOS native project generation itself requires macOS/Linux).
 
-None of the above exercise the actual native camera, face detection, haptics, or a real Gemini round-trip — that only happens on the physical iPhone via an EAS development build.
+None of the above exercise the actual native camera, face detection, haptics, or a real Tono AI round-trip — that only happens on the physical iPhone via an EAS development build. `npx jest` runs the unit tests, including the server's pure rules (`supabase/functions/_shared`).
 
 ## Known risk: camera/face-detection package versions
 
@@ -40,18 +42,19 @@ If a future need arises to move to the v5 Nitro pair, re-check `visioncamera.mar
 
 ## Architecture notes
 
-- `src/services/gemini/` — hand-rolled `fetch`-based Gemini client (Files API resumable upload + `generateContent` with a `responseSchema`), not the `@google/genai` SDK, which has reported RN/Hermes friction. The rubric schema now covers transcripts + structure + delivery + presence + combined + coaching (Phases 1/3/4) in one call.
+- `src/services/analysis/` — the AnalysisService: one door for every kind of AI analysis (take review, coaching, Rewind notes, Word Chain and Bridge Chain judging, Say it short, mark-up). Routing (`src/domain/analysis/routing.ts`) is one pure function over the tier, the consent, the age answer and the allowance; `inputs.ts` builds the structured inputs the phone sends; the phone checks every answer (`src/domain/analysis/judgedReview.ts` and the exercise checks) before anything is stored.
+- `supabase/functions/` — the Tono AI backend. `_shared/prompts/` writes every prompt and answer schema (the take review answers in the scoring taxonomy's terms); `_shared/allowance.ts` holds the tier rules (free, beta, trial, Plus); `ai-generate` runs a task. See `supabase/README.md`.
 - `src/services/db/` — `expo-sqlite`, with `mappers.ts` kept pure (row↔object) and separate from native calls so it's unit-testable in plain Jest. `scores` is a separate table joined to `sessions`; `statsRepo.ts` joins them for Trends.
 - `src/services/pipeline/` — `sessionPipeline.ts` runs each saved take's analysis as independent, resumable steps (transcribe → voice analysis → video analysis → coaching → optional deep review) without any mounted screen; each step can be retried on its own from the Result screen. `processingEvents.ts` is a small pub-sub that screens subscribe to for live status instead of driving the pipeline themselves.
 - `src/screens/PreviewScreen.tsx` — sits between Recording and Processing. Nothing is written to the DB or uploaded anywhere until the user chooses "Save" here (vs. "Discard", which just deletes the temp video file) — recording no longer auto-saves/auto-processes the instant it stops.
 - `src/components/common/ToastProvider.tsx` — a small Reanimated-based toast, plus a module-level `showGlobalToast()` escape hatch so non-component code (the background pipeline) can surface feedback (e.g. "session graded", streak milestones) regardless of which screen is open.
-- `src/services/secrets/secretsStore.ts` — one key per deep-review provider, entered via Settings and stored with `expo-secure-store` (Keychain/Keystore), never embedded in the build (see `docs/history/plan.md` §12).
-- `src/services/cloud/` — bring-your-own-key deep reviews. `providers.ts` lists the providers and their defaults; `measuredReview.ts` builds the review for providers that can't take video (the verbatim transcript, a timed transcript with pauses in brackets, and the phone's voice and face measurements) and validates the reply against the same rubric as Gemini's; `textProviders.ts` calls OpenAI (Responses API), Anthropic (Messages API) and OpenRouter (chat completions) with strict JSON-schema output; `consent.ts` asks once per provider before anything is sent (App Review 5.1.2(i)); `cloudErrors.ts` turns failures into fixable messages.
-- `src/services/data/resetApp.ts` — Settings' "Reset app": drops every table and reruns the migrations (like a fresh install), deletes every video, clears preferences and logs, cancels reminders, and sends you back to onboarding. API keys survive.
+- `src/services/account/`, `src/services/purchases/` — the optional account (anonymous by default, linked to Apple or Google on request) and Tono Plus through RevenueCat, with the trial read from the App Store's introductory offer.
+- `src/services/secrets/secretsStore.ts` — deletes keychain items for removed features at launch, including the API keys testers pasted when Tono had bring-your-own-key.
+- `src/services/data/resetApp.ts` — Settings' "Reset app": drops every table and reruns the migrations (like a fresh install), deletes every video, clears preferences and logs, cancels reminders, and sends you back to onboarding. The Tono account survives.
 
 ## Native dependencies requiring an EAS rebuild
 
-Beyond the original camera/face-detection stack: `expo-video` (Result screen video playback), `react-native-gifted-charts` + `react-native-svg` (Trends chart, Phase 6), `expo-notifications` (daily reminder, Phase 7), `expo-secure-store` (on-device API keys, Settings). None of these need extra config beyond what's already in `app.config.ts`'s `plugins` array. As always on this Windows-only dev setup, a JS-only change just needs a dev-client reload; anything that adds/updates a native module needs `eas build --profile development --platform ios` first.
+Beyond the original camera/face-detection stack: `expo-video` (Result screen video playback), `react-native-gifted-charts` + `react-native-svg` (Trends chart, Phase 6), `expo-notifications` (daily reminder, Phase 7), `expo-secure-store` (the key to the encrypted sign-in session), `react-native-purchases` (Tono Plus), `expo-apple-authentication` and `expo-web-browser` (optional sign-in). None of these need extra config beyond what's already in `app.config.ts`'s `plugins` array. As always on this Windows-only dev setup, a JS-only change just needs a dev-client reload; anything that adds/updates a native module needs `eas build --profile development --platform ios` first.
 
 
 ## Versions, builds and over-the-air updates

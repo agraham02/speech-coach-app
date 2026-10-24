@@ -9,14 +9,15 @@ through the edge functions below; the database is closed to direct access
 
 | Path | What it is |
 |---|---|
-| `migrations/` | The schema. `20261019000000_tono_ai.sql` is applied to the live project; run `20261020000000_plus_sync.sql` (one column) in the SQL editor before deploying the Plus functions. |
-| `functions/_shared/` | Rules and helpers. The pure ones (allowance, pricing, config, request checks) are tested with jest; the Deno-only ones (ledger, gemini, secrets, apple, http, auth) with `deno test`. |
+| `migrations/` | The schema, in order. `20261019000000_tono_ai.sql` and the `entitlement_synced_at` column from `20261020000000_plus_sync.sql` are on the live project. **Run `20261023000000_tiers_and_trial.sql` in the SQL editor before deploying this branch's functions** (tiers, the trial, the retired starter pack, a new config row). |
+| `functions/_shared/` | Rules and helpers. The pure ones (allowance, pricing, config, request checks, prompts) are tested with jest; the Deno-only ones (ledger, gemini, secrets, apple, http, auth) with `deno test`. |
+| `functions/_shared/prompts/` | **Every prompt Tono AI uses, and the JSON schema of each answer.** The phone names a task (`take_review`, `rewind_notes`, `word_chain`, `bridge_chain`, `summary_notes`, `mark_up`) and sends structured inputs; it never sends prompt text. Change a prompt here and redeploy: no app update. A change to an answer's *shape* needs a new `schemaVersion` and an app update, since the phone checks every answer. |
 | `functions/ai-upload-start` | Asks Google for an upload URL (key stays server-side) and returns only the URL. |
 | `functions/ai-file` | Poll a file's state; proves the file belongs to the caller. |
-| `functions/ai-generate` | The one place a model runs: reserve, call Gemini, record real cost, refund on failure. |
-| `functions/me` | The caller's allowance and which kinds of call would be accepted. |
+| `functions/ai-generate` | The one place a model runs: check the task's inputs, write the prompt, reserve, call Gemini, record real cost, refund on failure, return the answer as JSON. |
+| `functions/me` | The caller's plan (free, trial or Plus), what they have left, which kinds of call would be accepted, and the switches the app follows (kill switch, Plus on sale, minors policy). |
 | `functions/apple-token` | Trades a Sign in with Apple code for a refresh token, kept encrypted so it can be revoked. |
-| `functions/delete-account` | Revokes the Apple grant, writes the starter tombstone, removes the person from RevenueCat, deletes the account. |
+| `functions/delete-account` | Revokes the Apple grant, removes the person from RevenueCat, deletes the account. Works for an anonymous account too. |
 | `functions/revenuecat-webhook` | RevenueCat calls this when a subscription changes. It only learns who changed, then asks RevenueCat for the truth and writes `entitlements`. |
 
 ## Function secrets (Dashboard -> Edge Functions -> Secrets)
@@ -24,7 +25,7 @@ through the edge functions below; the database is closed to direct access
 | Name | Value |
 |---|---|
 | `GEMINI_API_KEY` | The `tono-server` key from the `tono-ai` Google Cloud project (paid tier). |
-| `TONO_SECRET` | 32 random bytes, base64. Make one with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. Keys the identity hash and encrypts the Apple token. Losing it means stored Apple tokens cannot be revoked. |
+| `TONO_SECRET` | 32 random bytes, base64. Make one with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. Encrypts the Apple token. Losing it means stored Apple tokens cannot be revoked. |
 | `APPLE_PRIVATE_KEY` | The text of the `AuthKey_MFDU2QKLAT.p8` file (key id `MFDU2QKLAT`, team `23NQ9ZTT2W`). |
 | `REVENUECAT_SECRET_KEY` | RevenueCat → Project settings → API keys → a **secret** v1 key (starts `sk_`). Lets the server read and delete subscribers. Never goes in the app. |
 | `REVENUECAT_WEBHOOK_SECRET` | Any long random string. Enter the same value as the Authorization header in RevenueCat's webhook settings. |
@@ -45,8 +46,8 @@ each function checks the caller itself (`auth.getUser`).
 ## Changing things without an app update
 
 Everything lives in one row, `public.config`: mode (`beta` or `launch`), the
-kill switch, every limit, the model for each role, and the token prices. Edit
-it in the SQL editor, for example:
+kill switch, the launch switch, the minors policy, every limit, the model for
+each role, and the token prices. Edit it in the SQL editor, for example:
 
 ```sql
 -- stop all hosted AI spend at once
@@ -57,7 +58,31 @@ update public.config set value = jsonb_set(value, '{models,review_video,primary}
 
 -- go from beta to launch rules
 update public.config set value = jsonb_set(value, '{mode}', '"launch"') where id = 1;
+
+-- the free taste: judged takes a month for someone with no trial and no Plus
+update public.config set value = jsonb_set(value, '{limits,freeMonthlyJudgedTakes}', '2') where id = 1;
+
+-- try the cheaper text model on 10% of people (judged takes and exercises)
+update public.config set value = jsonb_set(value, '{models,text,candidate,rolloutPercent}', '10') where id = 1;
+
+-- let people who said they are under 18 use Tono AI (see docs/decisions/tiers-and-trial.md first)
+update public.config set value = jsonb_set(value, '{minorsMayUseAi}', 'true') where id = 1;
 ```
+
+### The tiers (`_shared/allowance.ts`)
+
+| | Judged takes | Exercise notes, mark-ups | Insights | Window | Spend limit |
+|---|---|---|---|---|---|
+| free (launch mode) | `freeMonthlyJudgedTakes` (1) | none (Plus) | none | UTC month | shared `freeBudgetUsd` |
+| beta (beta mode, not paying) | `betaMonthlyJudgedTakes` (15) | `betaMonthlyTextCalls` (100) | 4 | UTC month | shared `freeBudgetUsd` |
+| trial | `trialJudgedTakes` (20) | `trialTextCalls` (60) | 4 | the trial (from its start) | `paidCostCapUsd` |
+| plus | `plusMonthlyJudgedTakes` (60) | `plusMonthlyTextCalls` (300) | 12 | UTC month | `paidCostCapUsd` ($2.50) |
+
+A judged take is one count whatever the judge was sent (words, or the video
+too). Every judged take also has a daily ceiling (`dailyJudgedTakes`). The
+conversation-minute limits (`trialConversationMinutes`, `plusMonthlyConversationMinutes`)
+are set but not enforced yet: the live conversation partner (session 12) adds
+its own count.
 
 A change reaches every running function within 30 seconds. A model with no
 price row is refused, so spend stays accurate.
@@ -84,9 +109,13 @@ docker run --rm --network <net> -e SUPABASE_DB_URL=postgres://postgres:test@<pg>
   --allow-env --allow-net --no-check supabase/functions/_shared/ledger_deno_test.ts
 ```
 
-It checks the reservation under concurrency (five calls at once with one review
-left: exactly one wins), refunds, idempotency, the starter pack, the Plus cost
-cap, the shared free budget and the daily ceiling.
+It checks the reservation under concurrency (five calls at once with one judged
+take left: exactly one wins), refunds, idempotency, the free monthly take, the
+trial window across a month boundary, the cost cap, the shared free budget and
+the daily ceiling. Last run 2026-10-23 against postgres:16 with all three
+migrations: 10 of 10 steps pass. The stand-in schemas are just
+`auth.users (id uuid default gen_random_uuid(), email)`, `auth.uid()`,
+`storage.buckets (id, name, public)` and the `anon` and `authenticated` roles.
 
 ## Sign-in setup (already done in the dashboards)
 
@@ -94,7 +123,8 @@ cap, the shared free budget and the daily ceiling.
 - Google: web client `928705319351-pblphc4tr60qdnpcis4r3bhlgjnc6hjh.apps.googleusercontent.com`,
   used by Supabase's browser-based flow (full nonce checks, no "skip nonce" setting).
   The provider also needs that client's secret, entered by hand.
-- Email provider is off. Anonymous sign-ins are off.
+- Email provider is off.
+- **Anonymous sign-ins: turn ON** (Authentication → Sign In / Providers → "Allow anonymous sign-ins"), and **manual linking: ON** ("Allow manual linking"), so the app can make an account without a sign-in and later link Apple or Google to it. Without these, Tono AI and purchases fail for anyone who hasn't signed in.
 - Allowed redirect URL: `tono://auth/callback`.
 
 ## Tono Plus (RevenueCat)
@@ -113,6 +143,10 @@ Setup, once, in the dashboards:
    auto-renewing subscriptions: `com.ahmadgraham.tono.plus.monthly` ($4.99) and
    `com.ahmadgraham.tono.plus.annual` ($49.99). Needs the Paid Apps agreement and
    banking/tax done, and the Small Business Program for the 15% rate.
+   **The 14-day trial:** on each product, Subscription Prices → Introductory
+   Offers → **Free**, duration **2 weeks**, all territories, no end date. Apple
+   gives each Apple ID one introductory offer per subscription group, so
+   someone who had the trial on one plan doesn't get it again on the other.
 2. **RevenueCat.** New project, iOS app with bundle ID `com.ahmadgraham.tono`
    (add the App Store Connect in-app purchase key). Import the two products.
    Entitlement `plus` containing both. Offering `default` (set as current) with
@@ -128,8 +162,10 @@ Setup, once, in the dashboards:
    `npx supabase functions deploy --use-api`.
 
 Testing: TestFlight purchases are Apple sandbox purchases (free, and they renew
-every few minutes). The server accepts them as Plus, marked `sandbox` in
-`entitlements.environment`. Deleting an account removes the RevenueCat record
+every few minutes; a 2-week trial lasts about 3 minutes in sandbox). The server
+accepts them, marked `sandbox` in `entitlements.environment`. During the trial
+`entitlements.plan` is `trial` (from RevenueCat's `period_type`), and
+`period_started_at` is when it began. Deleting an account removes the RevenueCat record
 but cannot cancel the Apple subscription, which the person cancels in iOS
 Settings.
 
@@ -137,8 +173,8 @@ Settings.
 
 The purchase code ships in the app, but Tono Plus is only shown when the server
 says it is for sale (`plusPurchasable` in the `config` row, returned by `me`).
-During the beta it is off and `mode` is `beta` (15 free reviews a month). To go
-live, in the SQL editor:
+During the beta it is off and `mode` is `beta` (15 judged takes a month for
+testers). To go live, in the SQL editor:
 
 ```sql
 update public.config
@@ -146,9 +182,9 @@ set value = value || '{"mode": "launch", "plusPurchasable": true}'::jsonb
 where id = 1;
 ```
 
-That turns on, within about 30 seconds and with no app update: the Get Tono Plus
-rows, the paywall, and the launch allowance (5 free reviews once, then Plus, an
-own key, or the phone). To go back:
+That turns on, within about 30 seconds and with no app update: the Tono Plus
+rows, the paywall, and the launch allowance (one free judged take a month, then
+the trial or Plus; the phone's measurements are always free). To go back:
 
 ```sql
 update public.config

@@ -327,6 +327,105 @@ On the laptop (no phone):
 
 ---
 
+## J. Tiers, the trial, the optional account and the age question (session 08)
+
+**Needs build** (a new version: the sign-in and purchase native code), plus the backend steps in `supabase/README.md`: migration `20261023000000_tiers_and_trial.sql`, functions deployed, **anonymous sign-ins and manual linking turned on** in Supabase, the free introductory offer (2 weeks) on both products in App Store Connect, and `plusPurchasable` on while you test purchases. Use a fresh install, or Settings → Your data → Reset app, before each part. For the sandbox parts, sign in to a Sandbox Apple Account on the iPhone (Settings → Developer, or the App Store's sandbox sign-in).
+
+The free path (no account, nothing bought):
+
+- [ ] **Onboarding to a first take with Tono AI skipped.** Answer the age question with an adult range, tap **Not now** on "Meet Tono AI, your coach", finish, record a 30 s take, save it with the switch off.
+  Pass: no sign-in screen anywhere; the save screen switch reads "Have Tono AI judge this take" and is off; the result shows the measured score, the breakdown, the coach card and one quiet line "Measured on this phone. Tono AI would judge..." with at most a small "See Tono Plus" button (only when Plus is on sale). Nothing looks broken or empty.
+  Data to send back: screenshots of the save screen and the result, and whether anything read as a dead end or nagging.
+  Notes:
+- [ ] **No account is made by the free path.** After the take above, open Settings → Account & Plus.
+  Pass: "Sign in (optional)" with Apple and Google, no account line, no Delete account. In Supabase, Authentication → Users has no new user from this phone.
+  Data to send back: the Users count before and after.
+  Notes:
+- [ ] **Exercises without Plus.** Do a Rewind and a Word Chain.
+  Pass: the Rewind result shows the counts and a calm "Notes on what you said come with Tono Plus" card (no error, no spinner); Word Chain shows the counted result with "With Tono Plus, Tono AI checks that each link makes sense"; Mark it up still marks a text (the rules).
+  Notes:
+
+The free judged take (one a month):
+
+- [ ] **Allow Tono AI and use the free judged take.** In Settings → Tono AI tap **Allow Tono AI** (or allow it on a save screen), then record and save a take with the switch on.
+  Pass: the save screen says "Uses your free judged take for this month."; the take is judged (the Scores tab fills, the label says Tono AI from your words and your phone's measurements); Supabase now has one anonymous user, and `ai_calls` has one row with kind `take` and tier `free` (or `beta` in beta mode).
+  Data to send back: the `ai_calls` row (kind, tier, model, input/output tokens, cost_usd) and the time from save to judged.
+  Notes:
+- [ ] **When it's used up.** Record a second take in the same month (launch mode, so the free tier applies).
+  Pass: the save screen switch is off and says "You've used this month's free judged take. The next one comes on 1 <next month>." Turning it on shows one alert with "See Tono Plus" (or just the explanation when Plus isn't on sale). The take is measured as normal.
+  Notes:
+- [ ] **The monthly count is a server setting.** In the SQL editor set `limits.freeMonthlyJudgedTakes` to 2, wait 30 s, reopen the app.
+  Pass: the second take can now be judged, with no app update. Set it back to 1.
+  Notes:
+- [ ] **One take, one count with the video setting.** Dev → App tools → Judge from → Video. Judge one take.
+  Pass: it counts as one judged take (one `ai_calls` row, kind `take`), the request carries the phone transcript (the judged notes quote the on-device words, including any "um"), and the output tokens are well under the old video reviews (about 2,000 to 3,500 before).
+  Data to send back: that row's tokens and cost, next to a text-judged take's.
+  Notes:
+
+The trial and Plus (sandbox):
+
+- [ ] **Paywall without signing in.** Settings → Account & Plus → Tono Plus.
+  Pass: both plans show "14 days free, then $49.99 a year" / "14 days free, then $4.99 a month", the button reads "Start 14-day free trial", the notice under it names the trial length, the price after it and when the first charge is, and Restore, Terms and Privacy are there. No sign-in prompt.
+  Data to send back: a screenshot (it doubles as the App Store review screenshot).
+  Notes:
+- [ ] **Start the trial on the yearly plan.** Buy with the sandbox account.
+  Pass: "Your free trial has started."; the consent alert follows if Tono AI wasn't allowed; Account & Plus shows "20 of 20 judged takes left in your trial · free until <date>". In Supabase: `entitlements.plan` = `trial`, `environment` = `sandbox`, `period_started_at` set; the RevenueCat customer id is the anonymous user's id.
+  Data to send back: the `entitlements` row and the RevenueCat customer page (id, period type).
+  Notes:
+- [ ] **The trial ends and renews.** Sandbox shortens 2 weeks to a few minutes. Wait for the renewal, then reopen the app.
+  Pass: `entitlements.plan` turns to `plus`, Account & Plus shows "60 of 60 judged takes left this month" (judged takes from the trial don't carry over), and the RevenueCat webhook delivered events with 200.
+  Notes:
+- [ ] **No second trial.** Cancel in iOS Settings → Subscriptions (sandbox), let it lapse, then open the paywall again.
+  Pass: no trial line; the buttons read "Subscribe for $49.99 / year" and "$4.99 a month"; the monthly plan doesn't offer a trial either (one trial per subscription group).
+  Notes:
+- [ ] **Reinstall and restore.** With an active sandbox subscription, delete the app, reinstall, skip onboarding questions quickly, and tap Restore purchases.
+  Pass: Plus comes back on a new anonymous account (RevenueCat transfers it); the old anonymous account has no entitlement afterwards. No new trial is offered.
+  Data to send back: what Restore said, and the two users' `entitlements` rows.
+  Notes:
+- [ ] **Exercise judging with the trial.** During a trial, ask for Rewind notes and judge a Word Chain.
+  Pass: both are judged; `ai_calls` rows have kind `text` (they don't use judged takes).
+  Notes:
+
+The optional account:
+
+- [ ] **Link Apple to the anonymous account.** After the free judged take (so an anonymous account exists), Settings → Account & Plus → Sign in with Apple.
+  Pass: the account line shows your Apple email or "Signed in with Apple"; Supabase shows the same user id now with an Apple identity (not a second user); the allowance didn't reset.
+  Notes:
+- [ ] **Apple ID already used on another phone.** On a second phone (or after Reset app), make an anonymous account (allow Tono AI and judge a take), then sign in with the same Apple ID.
+  Pass: the phone switches to the existing account (its plan and allowance show) rather than failing.
+  Notes:
+- [ ] **Google linking** the same way (browser sheet).
+  Notes:
+- [ ] **Delete account** from an anonymous account and from a linked one.
+  Pass: both delete (Supabase user gone, RevenueCat customer gone), the phone keeps its takes, and Tono AI asks for consent again next time.
+  Notes:
+
+Bring-your-own-key is gone:
+
+- [ ] **A tester phone that had a key.** Update a phone that had a Gemini or other key saved.
+  Pass: no key fields anywhere in Settings or onboarding; the key is gone from the keychain (Dev export or a debugger shows no `geminiApiKey`/`openaiApiKey`); no message about it.
+  Notes:
+
+The age question:
+
+- [ ] **Under 18.** Reset app, answer "13 to 17".
+  Pass: the Tono AI onboarding step says "Everything stays on your phone" with only Continue; the save screen has no Tono AI switch; Settings → Tono AI explains it is for 18 and over; the paywall says Plus is Tono AI, 18 and over; Rewind and Word Chain show their counts with no upsell; nothing is sent (no Supabase user is made).
+  Notes:
+- [ ] **Prefer not to say, and skipping.** Reset app, skip the age question once and choose "Prefer not to say" once.
+  Pass: Tono AI is offered as for an adult (an unanswered question never blocks).
+  Notes:
+- [ ] **The server switch for minors.** With "13 to 17" set, flip `minorsMayUseAi` to true in the config row, wait 30 s and reopen.
+  Pass: Tono AI is offered again with no app update. Set it back.
+  Notes:
+
+On the laptop:
+
+- [ ] **Text-model candidate.** After the hosted eval, if Gemini 3.1 Flash-Lite judges as well, set `models.text.candidate.rolloutPercent` to 10 and compare a week of `ai_calls` cost and the judged notes.
+  Data to send back: average cost per `take` and per `text` call, by model.
+  Notes:
+
+---
+
 ## Sections to be added by later sessions
 
-Each new build session adds its own section here: 08 (trial, tiers, age range), 09 (waiting on analysis), 11 (impromptu results), 12 (conversation voice).
+Each new build session adds its own section here: 09 (waiting on analysis), 11 (impromptu results), 12 (conversation voice). Session 08 is section J.
