@@ -5,7 +5,9 @@ import {
   scoreAccuracy,
   scoreBreathCount,
   scoreBridges,
+  scoreBridgesJudged,
   scoreChain,
+  scoreChainJudged,
   scoreCount,
   scoreJustAMinute,
   scorePace,
@@ -16,6 +18,20 @@ import {
 } from "./drillSpecs";
 import type { DrillSetup } from "./prepareDrill";
 import { chainWords, countBridges } from "./wordChain";
+import {
+  bridgeSegments,
+  chainPairs,
+  chainSegments,
+  tallyBridges,
+  tallyLinks,
+  type BridgeChainJudgement,
+  type BridgeSegment,
+  type BridgeStep,
+  type ChainPair,
+  type ChainSegment,
+  type JudgedLink,
+  type WordChainJudgement,
+} from "./chainJudging";
 import { countRate, countReached } from "./breathCount";
 
 // Scores one live drill attempt from what the screen measured. Pure.
@@ -27,6 +43,12 @@ export interface DrillMeasurements {
   volume: VolumeReading[];
   // Word chain: every seed word shown (the first plus one per fresh start).
   seedWords?: string[];
+  // Word chain: where in the heard words each start word's run begins.
+  chainStarts?: number[];
+  // Tono AI's verdict on each link (Word Chain) or reason (Bridge Chain),
+  // when it was available. Without it the phone only counts.
+  wordChainJudgement?: WordChainJudgement;
+  bridgeChainJudgement?: BridgeChainJudgement;
   // Word chain: off for people who stutter, so blocks never cost points.
   penalizeResets?: boolean;
   // Stuttering: hesitations and fillers never count as slips (Just a Minute).
@@ -48,6 +70,9 @@ export interface DrillDetails {
   fractionAtTarget?: number;
   resets?: number;
   bridges?: number;
+  // Judged by Tono AI: each link, or each explained step.
+  links?: JudgedLink[];
+  steps?: BridgeStep[];
   // One-breath count: how far, and how fast.
   count?: number;
   perSecond?: number | null;
@@ -106,8 +131,16 @@ export function evaluateDrill(setup: DrillSetup, m: DrillMeasurements): { outcom
       const counted = chainWords(rawTokens, seeds);
       const target = setup.params.target ?? 8;
       if (setup.type === "chain_bridge") {
+        if (m.bridgeChainJudgement) {
+          const steps = m.bridgeChainJudgement.steps;
+          return { outcome: scoreBridgesJudged(tallyBridges(steps), target, resets, m.penalizeResets), details: { counted, steps, resets } };
+        }
         const bridges = countBridges(m.transcript);
         return { outcome: scoreBridges(bridges, target, resets, m.penalizeResets), details: { counted, bridges, resets } };
+      }
+      if (m.wordChainJudgement) {
+        const links = m.wordChainJudgement.links;
+        return { outcome: scoreChainJudged(tallyLinks(links), target, resets, m.penalizeResets), details: { counted, links, resets } };
       }
       return { outcome: scoreChain(counted.length, target, resets, m.penalizeResets), details: { counted, resets } };
     }
@@ -122,4 +155,26 @@ export function evaluateDrill(setup: DrillSetup, m: DrillMeasurements): { outcom
       return { outcome: scoreProjection(fraction), details: { fractionAtTarget: Math.round(fraction * 100) / 100 } };
     }
   }
+}
+
+// What a judge is asked about after a chain attempt: the words split into the
+// runs between start words. Null when there is too little to judge.
+export type ChainJudgeRequest =
+  | { kind: "word_chain"; input: { segments: ChainSegment[] }; pairs: ChainPair[] }
+  | { kind: "bridge_chain"; input: { segments: BridgeSegment[] } };
+
+const MIN_BRIDGE_WORDS = 4;
+
+export function chainJudgeRequest(setup: DrillSetup, m: Pick<DrillMeasurements, "transcript" | "seedWords" | "chainStarts">): ChainJudgeRequest | null {
+  if (setup.live !== "chain") return null;
+  const tokens = tokenizeHeard(m.transcript).tokens.map((t) => t.raw);
+  const seeds = m.seedWords ?? setup.words ?? [];
+  const starts = m.chainStarts ?? [0];
+  if (setup.type === "chain_bridge") {
+    const segments = bridgeSegments(tokens, starts, seeds);
+    return segments.reduce((n, s) => n + s.said.split(" ").length, 0) >= MIN_BRIDGE_WORDS ? { kind: "bridge_chain", input: { segments } } : null;
+  }
+  const segments = chainSegments(tokens, starts, seeds);
+  const pairs = chainPairs(segments);
+  return pairs.length ? { kind: "word_chain", input: { segments }, pairs } : null;
 }

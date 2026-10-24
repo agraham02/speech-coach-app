@@ -65,11 +65,11 @@ describe("AnalysisService", () => {
   });
 
   it("tries the own key after Tono AI fails, and keeps the first reason when both fail", async () => {
-    const tono = fake("tono_ai", ["rewind_notes"], async () => ({ ok: false as const, reason: "error" as const, message: "Tono AI didn't send back usable notes." }));
-    const own = fake("own_key", ["rewind_notes"], async () => {
+    const tono = fake("tono_ai", ["summary_notes"], async () => ({ ok: false as const, reason: "error" as const, message: "Tono AI didn't send back usable notes." }));
+    const own = fake("own_key", ["summary_notes"], async () => {
       throw new TypeError("Network request failed");
     });
-    const result = await createAnalysisService({ providers: [tono, own], record: async () => undefined }).request("rewind_notes", { transcript: "t" }, ctx({ ownKey: "openai" }));
+    const result = await createAnalysisService({ providers: [tono, own], record: async () => undefined }).request("summary_notes", {} as never, ctx({ ownKey: "openai" }));
     expect(own.calls).toBe(1);
     expect(result).toEqual({ status: "unavailable", reason: "error", message: "Tono AI didn't send back usable notes." });
   });

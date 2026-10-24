@@ -118,6 +118,10 @@ export function RewindResultScreen({ route }: Props) {
   if (!rewind) return <Screen title="Rewind" onBack={() => navigation.goBack()} />;
 
   const stats = rewind.stats;
+  // The judge's checked read of the day beats the phone's keyword guess.
+  // (`?.`: a take reviewed before notes carried `parts` has none.)
+  const aiParts = rewind.review?.parts;
+  const coverage = aiParts ? { morning: aiParts.morning.status !== "missing", midday: aiParts.midday.status !== "missing", evening: aiParts.evening.status !== "missing" } : stats?.coverage;
   const processing = rewind.status === "processing";
   const details = stats?.details;
   const provider = currentProvider();
@@ -134,7 +138,7 @@ export function RewindResultScreen({ route }: Props) {
         </Card>
       ) : null}
 
-      {stats ? (
+      {stats && coverage ? (
         <HeroCard accent={colors.skill.conversation.fg} contentStyle={styles.hero}>
           <Txt variant="footnote" tone="secondary">
             The day you covered
@@ -142,15 +146,16 @@ export function RewindResultScreen({ route }: Props) {
           <View style={styles.parts}>
             {(["morning", "midday", "evening"] as const).map((part) => (
               <View key={part} style={styles.part}>
-                <Ionicons name={stats.coverage[part] ? "checkmark-circle" : "ellipse-outline"} size={22} color={stats.coverage[part] ? colors.success : colors.textMuted} />
-                <Txt variant="subhead" weight="600" color={stats.coverage[part] ? colors.textPrimary : colors.textMuted}>
+                <Ionicons name={coverage[part] ? "checkmark-circle" : "ellipse-outline"} size={22} color={coverage[part] ? colors.success : colors.textMuted} />
+                <Txt variant="subhead" weight="600" color={coverage[part] ? colors.textPrimary : colors.textMuted}>
                   {part[0].toUpperCase() + part.slice(1)}
                 </Txt>
               </View>
             ))}
           </View>
           <Txt variant="footnote" tone="secondary">
-            {partsCovered(stats.coverage) === 3 ? "All three parts of the day came up." : `${partsCovered(stats.coverage)} of 3 parts of the day came up.`}
+            {partsCovered(coverage) === 3 ? "All three parts of the day came up." : `${partsCovered(coverage)} of 3 parts of the day came up.`}
+            {aiParts ? ` Read by ${rewind.reviewSource ?? "Tono AI"}.` : ""}
           </Txt>
         </HeroCard>
       ) : null}
@@ -174,14 +179,16 @@ export function RewindResultScreen({ route }: Props) {
               <Txt variant="callout">{rewind.review![key]}</Txt>
             </View>
           ))}
-          <View style={styles.note}>
-            <Txt variant="footnote" weight="600" tone="secondary">
-              Most vivid
-            </Txt>
-            <Txt variant="callout" italic>
-              “{rewind.review.vividDetail}”
-            </Txt>
-          </View>
+          {rewind.review.vividDetail ? (
+            <View style={styles.note}>
+              <Txt variant="footnote" weight="600" tone="secondary">
+                Most vivid
+              </Txt>
+              <Txt variant="callout" italic>
+                “{rewind.review.vividDetail}”
+              </Txt>
+            </View>
+          ) : null}
           <View style={styles.note}>
             <Txt variant="footnote" weight="600" tone="secondary">
               Try tomorrow
@@ -189,7 +196,7 @@ export function RewindResultScreen({ route }: Props) {
             <Txt variant="callout">{rewind.review.tryTomorrow}</Txt>
           </View>
           <Txt variant="caption1" tone="muted">
-            {`Written by ${rewind.reviewSource ?? provider.name} from your transcript. Not a score.`}
+            {`Written by ${rewind.reviewSource ?? provider.name} from your transcript, with every quote checked against your words. Not a score.`}
           </Txt>
         </Card>
       ) : !processing && rewind.transcript ? (

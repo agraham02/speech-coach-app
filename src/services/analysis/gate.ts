@@ -33,9 +33,20 @@ function askRewindCloudConsent(provider: CloudProvider): Promise<boolean> {
   });
 }
 
+// The exercise judges (session 10) are Tono AI only; they were never built
+// for a person's own key.
+const TONO_ONLY: AnalysisKind[] = ["rewind_notes", "word_chain", "bridge_chain"];
+
 export async function prepareFor(kind: AnalysisKind, openSettings: () => void): Promise<boolean> {
   if (kind === "take_review") return readyForDeepReview(openSettings);
   const provider = currentProvider();
+  if (TONO_ONLY.includes(kind) && provider.id !== "tono") {
+    Alert.alert("This one is Tono AI only", "Checking your Rewind, and your word chains, is done by Tono AI. Switch to Tono AI in Settings → Deep reviews to use it.", [
+      { text: "Not now", style: "cancel" },
+      { text: "Open Settings", onPress: openSettings },
+    ]);
+    return false;
+  }
   if (provider.id === "tono") {
     if (getAccount().status !== "signedIn") {
       Alert.alert("Sign in to use Tono AI", "Notes from Tono AI need an account. Sign in with Apple or Google in Settings → Deep reviews.", [

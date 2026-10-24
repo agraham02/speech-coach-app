@@ -35,8 +35,9 @@ export interface RewindStats {
 
 const WORDS: Record<DayPart, string[]> = {
   morning: ["morning", "woke", "wake", "woken", "alarm", "breakfast", "coffee", "tea", "shower", "commute", "sunrise", "got up", "out of bed", "before work", "brushed"],
-  midday: ["lunch", "afternoon", "noon", "midday", "midafternoon", "after lunch", "in the middle of the day"],
-  evening: ["evening", "tonight", "dinner", "supper", "after work", "night", "bedtime", "got home", "on my way home", "this evening", "later on", "winding down"],
+  // A day at work or school is the middle of the day for most people.
+  midday: ["lunch", "afternoon", "noon", "midday", "midafternoon", "after lunch", "in the middle of the day", "office", "meeting", "meetings", "at work", "left work", "class", "classes", "errands"],
+  evening: ["evening", "tonight", "dinner", "supper", "after work", "night", "bedtime", "got home", "on my way home", "this evening", "later on", "winding down", "drove home", "came home", "headed home", "in bed", "to bed", "nap"],
 };
 
 const SENSES = [

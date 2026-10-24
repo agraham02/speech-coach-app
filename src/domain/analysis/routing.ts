@@ -20,7 +20,11 @@ export interface Route {
 export const SUPPORTED: Record<AnalysisKind, Producer[]> = {
   take_review: ["tono_ai", "own_key"],
   coaching: ["rules"],
-  rewind_notes: ["tono_ai", "own_key"],
+  // The exercise judges are Tono AI only: judging them is part of Plus, and
+  // they were never built for a person's own key.
+  rewind_notes: ["tono_ai"],
+  word_chain: ["tono_ai"],
+  bridge_chain: ["tono_ai"],
   summary_notes: ["tono_ai", "own_key"],
   mark_up: ["tono_ai", "rules"],
 };
@@ -45,7 +49,7 @@ function tonoBlock(ctx: AnalysisContext, allowance: "review" | "text"): Unavaila
 function ownKeyCan(kind: AnalysisKind, ctx: AnalysisContext): boolean {
   if (!ctx.ownKey) return false;
   if (kind === "take_review") return ctx.ownKey === "gemini" ? ctx.hasVideo : ctx.hasTranscript;
-  return kind === "rewind_notes" || kind === "summary_notes";
+  return kind === "summary_notes";
 }
 
 export function routeAnalysis(kind: AnalysisKind, ctx: AnalysisContext): Route {

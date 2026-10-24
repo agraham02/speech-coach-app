@@ -44,7 +44,13 @@ describe("routeAnalysis", () => {
   });
 
   it("puts an own key after Tono AI, and only where it can work", () => {
-    expect(routeAnalysis("rewind_notes", ctx({ ownKey: "openai" })).producers).toEqual(["tono_ai", "own_key"]);
+    expect(routeAnalysis("summary_notes", ctx({ ownKey: "openai" })).producers).toEqual(["tono_ai", "own_key"]);
+    // The exercise judges are Tono AI only.
+    for (const kind of ["rewind_notes", "word_chain", "bridge_chain"] as const) {
+      expect(routeAnalysis(kind, ctx({ ownKey: "openai" })).producers).toEqual(["tono_ai"]);
+      expect(routeAnalysis(kind, ctx({ wantsTono: false, ownKey: "openai" }))).toMatchObject({ producers: [], blocked: "unsupported" });
+      expect(whatCanShow(kind, ctx({ tono: tono({ signedIn: false }) }))).toBe("locked");
+    }
     expect(routeAnalysis("take_review", ctx({ tono: tono({ signedIn: false }), ownKey: "gemini", hasVideo: false })).producers).toEqual([]);
     expect(routeAnalysis("take_review", ctx({ tono: tono({ signedIn: false }), ownKey: "openai" })).producers).toEqual(["own_key"]);
     expect(routeAnalysis("mark_up", ctx({ wantsTono: false, ownKey: "openai" })).producers).toEqual(["rules"]);

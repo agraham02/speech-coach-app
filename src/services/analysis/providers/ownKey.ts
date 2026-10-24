@@ -1,6 +1,5 @@
 import type { AnalysisContext, AnalysisKind } from "../../../domain/analysis/types";
 import type { Route } from "../../../domain/analysis/routing";
-import { acceptReview, rewindReviewSchema } from "../../../domain/rewind/reviewPrompt";
 import { acceptSummaryReview } from "../../../domain/summary/summaryReviewPrompt";
 import type { TokenUsage } from "../../../domain/cloudUsage";
 import { generateContent } from "../../gemini/geminiClient";
@@ -13,7 +12,7 @@ import { getCloudCallsToday, noteCloudCall } from "../../prefs/prefsStore";
 import { todayISODate } from "../../../utils/dateUtils";
 import { withDeadline } from "../../../utils/fetchWithTimeout";
 import { PROMPT_VERSIONS, type InputFor, type OutputFor } from "../kinds";
-import { rewindNotesRequest, summaryNotesRequest, type TextRequest } from "../prompts";
+import { summaryNotesRequest, type TextRequest } from "../prompts";
 import { provenance, type AnalysisProvider, type ProviderOutcome } from "../provider";
 import { reviewFromVideo } from "./videoReview";
 
@@ -37,7 +36,7 @@ async function directText(id: KeyProviderId, request: TextRequest, schemaName: s
 
 export const ownKeyProvider: AnalysisProvider = {
   id: "own_key",
-  supports: (kind: AnalysisKind) => kind === "take_review" || kind === "rewind_notes" || kind === "summary_notes",
+  supports: (kind: AnalysisKind) => kind === "take_review" || kind === "summary_notes",
   async run<K extends AnalysisKind>(kind: K, input: InputFor<K>, ctx: AnalysisContext, _route: Route): Promise<ProviderOutcome<OutputFor<K>>> {
     type Out = ProviderOutcome<OutputFor<K>>;
     const id = ctx.ownKey;
@@ -70,17 +69,6 @@ export const ownKeyProvider: AnalysisProvider = {
           value: { analysis, quickCoach: null, heardAudio: false, usage: seen.usage ?? null, elapsedMs: Date.now() - started, videoBytes: null, providerId: id },
           provenance: meta(PROMPT_VERSIONS.take_review_text, "text"),
         } as Out;
-      }
-
-      case "rewind_notes": {
-        const { transcript } = input as InputFor<"rewind_notes">;
-        if (wordCount(transcript) > MAX_REVIEW_WORDS) return { ok: false, reason: "too_long", message: "That take is too long to send." };
-        noteCloudCall(today);
-        const raw = await directText(id, rewindNotesRequest({ transcript }), "rewind_review");
-        const parsed = rewindReviewSchema.safeParse(JSON.parse(raw));
-        const accepted = parsed.success ? acceptReview(parsed.data) : null;
-        if (!accepted) return { ok: false, reason: "error", message: `${name} didn't send back usable notes. Try again.` };
-        return { ok: true, value: accepted as OutputFor<K>, provenance: meta(PROMPT_VERSIONS.rewind_notes, "text") };
       }
 
       case "summary_notes": {
