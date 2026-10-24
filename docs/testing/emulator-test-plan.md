@@ -2,7 +2,7 @@
 
 A plan for an AI agent (with the `android-emulator` MCP tools) to run against Tono on the Pixel_10a emulator. It covers everything the emulator can check. What it cannot check is listed in section 9 and lives in `device-test-plan.md`, the human phone checklist.
 
-Written 2026-10-24 against `staging` after PRs #21 to #23 (sessions 07, 09, 11, 13 and 08 merged). Session 12 (live conversation, branch `feature/conversation-voice`) is not merged: its tests are in section 8.
+Written 2026-10-24 against `staging` at version 1.6.0, after PRs #21 to #25 (sessions 07, 08, 09, 11, 12 and 13 merged). Session 12 (live conversation with a voice) is Plus-only, so on this emulator only its locked state, intro, offline and error states and the Dev partner voices lab screen can be checked: section 8.
 
 ## Contents
 
@@ -13,7 +13,7 @@ Written 2026-10-24 against `staging` after PRs #21 to #23 (sessions 07, 09, 11, 
 5. [Suggested prerequisites (not built)](#5-suggested-prerequisites-not-built)
 6. [Smoke test (10 minutes, run first)](#6-smoke-test-10-minutes-run-first)
 7. [Test cases by area](#7-test-cases-by-area)
-8. [Add after session 12 merges](#8-add-after-session-12-merges)
+8. [Live conversation (session 12)](#8-live-conversation-session-12)
 9. [Not testable here](#9-not-testable-here)
 10. [Maintenance](#10-maintenance)
 11. [Appendix: templates, label cheat sheet, expected emulator results](#11-appendix)
@@ -65,7 +65,7 @@ Written 2026-10-24 against `staging` after PRs #21 to #23 (sessions 07, 09, 11, 
 
 ## 2. Environment setup (Windows, exact commands)
 
-Use Git Bash for the commands below (the Bash tool). `adb` is on PATH (`%LOCALAPPDATA%\Android\Sdk\platform-tools`). Package: `com.ahmadgraham.tono`. App version 1.5.0 (`app.config.ts`).
+Use Git Bash for the commands below (the Bash tool). `adb` is on PATH (`%LOCALAPPDATA%\Android\Sdk\platform-tools`). Package: `com.ahmadgraham.tono`. App version 1.6.0 (`app.config.ts`).
 
 Two Git Bash habits that matter:
 
@@ -93,7 +93,7 @@ adb devices
 adb shell pm list packages | grep com.ahmadgraham.tono
 ```
 
-If the package is missing the run is **blocked**: the dev client needs a native build (`npx expo run:android`, 10 minutes or more, needs the JDK and Android SDK). Report it and stop unless the human tells you to build. The installed build's runtime version must equal the app version (1.5.0), or the bundle will refuse to load.
+If the package is missing the run is **blocked**: the dev client needs a native build (`npx expo run:android`, 10 minutes or more, needs the JDK and Android SDK). Report it and stop unless the human tells you to build. The installed build's runtime version must equal the app version (1.6.0), or the bundle will refuse to load.
 
 ### 2.3 Boot the AVD
 
@@ -381,7 +381,7 @@ Format: **ID - title.** Pre: state. Steps (numbered). **Expect:** result. **Evid
 **Expect:** the picker (Time row with two dropdowns, hour and AM/PM) appears only for yes; picking yes may show the Android notification permission dialog if not granted (allow it).
 
 **ONB-11 - Permissions in the setup check.** Pre: S0 with all permissions revoked (`pm revoke` all three).
-1. Reach "Camera and mic". Read the rows (expected Camera, Microphone, Speech recognition, Notifications; verify which rows Android lists) and their state words.
+1. Reach "Camera and mic". Read the rows (on Android: Camera, Microphone, Notifications; the Speech recognition row is iOS only, per `PERMISSION_KEYS`) and their state words.
 2. Tap **Allow access**; on each system dialog choose **While using the app** / **Allow**; repeat once denying the camera.
 **Expect:** rows show "Not asked yet" before and "On" after; a denied permission shows "Off" and the warning "Recording needs the camera and mic. Tap a row that says Off to turn it on in your phone's Settings, or carry on and do it later."; **Next** always available.
 **Evidence:** row states before and after.
@@ -444,7 +444,7 @@ Pre: S1. After each screen, `get_all_text` for the title, then BACK and confirm 
 
 **NAV-6 - Progress and Trends.** Progress -> **Score trends** -> "Score trends" screen; Progress -> **Your level**. **Expect:** open; empty-state text instead of blank charts.
 
-**NAV-7 - Practice screen.** "Free practice": dice (label "Get a different prompt"), level chip ("... prompts", opens "Practice difficulty"), "Concise · 30s" chip (toggle), **Session options** (sheet), **Or free record, no prompt**, shelf cards **Mark it up**, **Prompt Library**, **Tongue-Twister Drills**. **Expect:** each works; the dice changes the prompt text; toggling Concise changes the button to "Start Recording · Concise 30s".
+**NAV-7 - Practice screen.** "Free practice": dice (label "Get a different prompt"), level chip ("... prompts", opens "Practice difficulty"), "Concise · 45s" chip (toggle), **Session options** (sheet), **Or free record, no prompt**, shelf cards **Mark it up**, **Prompt Library**, **Tongue-Twister Drills**. **Expect:** each works; the dice changes the prompt text; toggling Concise changes the button to "Start Recording · Concise 45s".
 
 **NAV-8 - Android BACK everywhere.** On at least 10 different screens press BACK once. **Expect:** returns one level; never closes the app unless on a tab root; on a tab root BACK leaves the app to the launcher (standard).
 
@@ -476,7 +476,7 @@ Pre: S1. Open via You -> Settings rows.
 **Expect:** the hour menu is a small anchored dropdown under its pill (not a full-screen modal), whole hours **1 to 12 only** (12 listed last), no minutes anywhere, no sliders, no grid; the AM/PM menu has AM and PM; sessions are strictly increasing: hours at or before the previous session are disabled (greyed) with the hint "Must be after session 1" (Session 1 hint: "Leaves no room for the later sessions"); picking a late Session 1 moves later sessions after it or disables impossible choices; the trigger shows an open chevron while open. A dropdown closes on outside tap.
 **Evidence:** quote the options list of one hour menu and a disabled-hint string.
 
-**SET-9 - Permissions section.** Rows Camera ("Video takes, and the face check for eye contact and expression"), Microphone ("Every recording and drill"), Speech recognition ("Follows your words live in drills"), Notifications ("Practice reminders and event check-ins") with values On / Not asked yet / Off. Revoke Camera (`pm revoke`) and return. **Expect:** state words update after returning (the list refreshes when you come back); footnote switches between "Everything is on. To turn one off, use your phone's Settings." and "Recording needs the camera and microphone. Anything that's off can be turned on in your phone's Settings, and this list updates when you come back."; tapping an Off row opens Android system settings (press BACK to return).
+**SET-9 - Permissions section.** Rows (Android has no Speech recognition row) Camera ("Video takes, and the face check for eye contact and expression"), Microphone ("Every recording and drill"), Notifications ("Practice reminders and event check-ins") with values On / Not asked yet / Off. Revoke Camera (`pm revoke`) and return. **Expect:** state words update after returning (the list refreshes when you come back); footnote switches between "Everything is on. To turn one off, use your phone's Settings." and "Recording needs the camera and microphone. Anything that's off can be turned on in your phone's Settings, and this list updates when you come back."; tapping an Off row opens Android system settings (press BACK to return).
 
 **SET-10 - Coaching & AI section.** Status lines "Coaching: Built-in rules" and "Live recognition: ..."; "Transcription: Whisper large-v3-turbo · N MB" rows; with the model missing a row "Download the transcription model" ("... 574 MB, best over Wi-Fi."). **Expect:** content readable; starting the download shows "Downloading the transcription model" with percent; pause shows "Download paused at N%".
 
@@ -531,7 +531,7 @@ Pre: S1, camera and mic granted.
 
 **REC-2 - Stages: warm-up, prep, idle.** Depending on settings the screen starts at the warm-up ("Step N of M · ...", **Next**/**Finish**, **Skip warm-up**, **Close**), or prep ("Get ready", a countdown number, **+30 s**, **Research**, **No prep**, **Start now**), or idle. To see the warm-up: Practice -> **Session options** -> turn warm-up on. **Expect:** **Skip warm-up** goes to prep or idle; **No prep** returns to idle; **Start now** starts recording; the prompt text is shown; no stuck countdown at 0.
 
-**REC-3 - Idle controls.** Idle shows the prompt banner (with task label), the framing oval with a hint (the emulator has no face, so "Can't find your face" style hint, verify), the toggle for preview hiding, "Prepare first" chips (labels "Prepare for 30 s", "1 min", "2 min", "5 min"; with a new-topic prompt "New topic? Prepare first"), **Close**, and the red **Start recording** button with hint "Tap to start" (or "One point. 30s." in Concise mode). **Expect:** all present; **Close** returns to the previous screen.
+**REC-3 - Idle controls.** Idle shows the prompt banner (with task label), the framing oval with a hint (the emulator has no face, so "Can't find your face" style hint, verify), the toggle for preview hiding, "Prepare first" chips (labels "Prepare for 30 s", "1 min", "2 min", "5 min"; with a new-topic prompt "New topic? Prepare first"), **Close**, and the red **Start recording** button with hint "Tap to start" (or "One point. 45s." in Concise mode). **Expect:** all present; **Close** returns to the previous screen.
 
 **REC-4 - Record, timer, stop.** Tap **Start recording**; wait 10 s; `get_all_text` twice 3 s apart; tap **Stop recording**.
 **Expect:** while recording the hint reads "M:SS left · tap to stop" and counts down (or "Tap to stop" when the preview is hidden); the countdown ring is visible unless "blind"; a **Restart** button and the eye icon ("Hide preview"/"Show preview") are present; Stop shows "Saving…" then the Preview screen "Review your take". No crash.
@@ -541,7 +541,7 @@ Pre: S1, camera and mic granted.
 
 **REC-6 - Hide the preview.** Tap the eye ("Hide preview") while recording. **Expect:** the blind overlay shows the prompt and the time left; tapping the eye again ("Show preview") brings the camera back.
 
-**REC-7 - Auto-stop at the target length.** Concise mode (30 s): toggle "Concise · 30s" on Practice, start, wait. **Expect:** recording stops itself at 30 s and goes to Preview. (Takes 30 s of waiting.)
+**REC-7 - Auto-stop at the target length.** Concise mode (default 45 s): toggle "Concise · 45s" on Practice, start, wait. **Expect:** recording stops itself at 45 s and goes to Preview. (Takes 45 s of waiting.)
 
 **REC-8 - Very short take.** Start and stop within 1 second. **Expect (observed, not specified):** either the Preview opens for a near-zero-length take, or an alert "Recording error" appears; no crash, no stuck "Saving…". Report exactly what happened and the duration shown. There is no explicit minimum-length rule in the code (verify).
 
@@ -757,7 +757,7 @@ All speech drills share the same shape here: the screen works up to listening; n
 
 ### 7.16 DEV - The Dev tab
 
-**DEV-1 - Visible in the dev client.** Tab bar has five tabs including **Dev** (bug icon). Header "Developer tools" eyebrow, title "Dev", copy icon (label "Copy status"), a status card with Build ("Dev · v1.5.0"), Device, Database ("v N"; no "(expected v N)" warning), Transcriber, Apple Intelligence ("Off"), counters "Errors in 24 h" and "Problem steps", groups Inspect (Pipeline, Logs, Metrics), Labs (Face Lab, ASR Lab), Tools (App tools), footnote "These tools exist only in development and preview builds." **Expect:** all present; "Problem steps" is above 0 after Failed takes (tap it -> Pipeline filtered to Problems).
+**DEV-1 - Visible in the dev client.** Tab bar has five tabs including **Dev** (bug icon). Header "Developer tools" eyebrow, title "Dev", copy icon (label "Copy status"), a status card with Build ("Dev · v1.6.0"), Device, Database ("v N"; no "(expected v N)" warning), Transcriber, Apple Intelligence ("Off"), counters "Errors in 24 h" and "Problem steps", groups Inspect (Pipeline, Logs, Metrics), Labs (Face Lab, ASR Lab, Partner voices), Tools (App tools), footnote "These tools exist only in development and preview builds." **Expect:** all present; "Problem steps" is above 0 after Failed takes (tap it -> Pipeline filtered to Problems).
 
 **DEV-2 - Logs.** Dev -> Logs: filter by level and tag chips, search "Search", **Clear filters**, share (label "Share logs"), clear (label "Clear logs" -> alert "Clear all logs?"), "Jump to newest". After a failed take expect `[pipeline]` and `[transcribe]` error lines. **Expect:** filters narrow the list; tapping a tag chip filters. Do not share.
 
@@ -857,25 +857,40 @@ Run alongside other suites: every screenshot is also a DSN check. Reference: the
 
 ---
 
-## 8. Add after session 12 merges
+## 8. Live conversation (session 12)
 
-Session 12 (live conversation with a voice, branch `feature/conversation-voice`) is being built in parallel and is **not merged**. Do not run this section until it is in the branch under test.
+Merged (PR #24). Design and decisions: `docs/decisions/conversation-voice.md`; the human checks are `docs/testing/device-test-plan.md`, **section K, "Live conversation with a voice (session 12)"**. Read both first. Live conversation is **Plus-only** (and beta/trial): a conversation needs the real server (partner text and voice), the real mic, and an account. So on this emulator you can check only: the lesson card and the locked screen for a free user, the free-path guarantees (no alert, no account), the offline gate, the age gate, the Dev partner voices lab screen (without playing), and design checks. Everything in the "A live conversation" and "Tiers and minutes" parts of section K that runs a conversation stays on the human list.
 
-First, **read the device test plan's section K** (`docs/testing/device-test-plan.md`, "K. Live conversation with a voice (session 12)", added by that branch) and the design doc `docs/decisions/conversation-voice.md`. Then fill in the placeholders below from the merged code. The live conversation, its streaming partner voice and the Partner voices lab are server- and audio-bound: most of section K stays on the human list.
+Which state you see depends on the server's public switches (read at launch without an account): in `launch` mode a free user sees the **locked** state (below). If the server is in `beta` mode, the card reads **Talk it through** and the screen shows a **Start the conversation** button; in that case do NOT tap Start online (it makes an account, then calls the server; stop list). Record which mode you saw (Settings -> Account & Plus shows the note "Tono AI is free while Tono is in beta. A monthly allowance keeps it fair for everyone." when the server reports beta mode; its presence tells you the mode).
 
-Placeholders (verify every label after the merge):
+Lessons with a live conversation card (from `LESSON_FOCUS`): every Conversation lesson, for example "Ask about the last thing" (`conv_7_thread`). Reach one via Learn -> **All skills** -> **Conversation** tab -> a lesson. The card sits under the lesson's practice steps; it is not a step, so a lesson never waits on it.
 
-| ID | Intent | Likely emulator-testable part |
-|---|---|---|
-| CONV-1 | Conversation lesson shows the card "Try it in a live conversation" with a "Tono Plus" badge and **See what it is** for a free user | The card and the locked screen: one calm Plus card, no alert, no sign-in, no account made. On Android Plus is not on sale, so check there is no buy button. |
-| CONV-2 | The locked/sample screen explains the feature without a dead end | Text and BACK only. |
-| CONV-3 | Starting a live conversation offline shows "Live conversation needs a connection" | Airplane mode on, open a Conversation lesson, try to start: safe, nothing is sent. |
-| CONV-4 | Conversation drills still behave as before | PRAC-9 again. |
-| CONV-5 | Dev -> Labs -> **Partner voices** exists and loads (only after P1/P2-style gating decided) | Screen loads; the play buttons call the server (stop list). |
-| CONV-6 | The minutes display in Account & Plus / Tono AI for conversation (30 in the trial, 120 for Plus) | Needs P2 (mock account). Blocked now. |
-| CONV-7 | Pause on leaving the app, "Carry on" | Needs a started conversation: server. Blocked. |
+**CONV-1 - The free card.** Pre: S1 (adult, Tono AI skipped), online, airplane off. Open "Ask about the last thing". Scroll under the **Practice** steps.
+**Expect:** the lesson and its drill steps are unchanged; one card headed "Try it in a live conversation" with a "Tono Plus" badge, the text "A partner who talks back in a natural voice and answers what you actually said, for a few turns, then a short look at your moves. The drills above are yours either way.", and a ghost button **See what it is**. No alert appears on opening the lesson. No minutes line.
+**Evidence:** quote the card text.
 
-Update 7.1 to 7.21 where the merge changes labels (Dev hub rows, lesson steps, Today card), and update section 9 with what stays on the human list.
+**CONV-2 - The locked screen.** Tap **See what it is**.
+**Expect:** screen eyebrow "Live conversation", title "Just talk" or the lesson's move title; the instructions line; a card "What it sounds like" with a short sample (lines starting "You: " and "Them: "); a card "Live conversation is part of Tono Plus" with "A partner who talks back in a natural voice and answers what you actually said, then a short look at the moves you made. The lesson and its drills are here for you either way."; **no** **See Tono Plus** button on Android (Plus is not on sale, `purchasesEnabled()` false); **no** **Start the conversation** button; no alert; BACK returns to the lesson. Then check `adb logcat -d -s ReactNativeJS:V | grep "\[account\]" | tail`: no sign-in line (no account is made by looking). A calm dead end is not a bug here, but a blank screen or a spinner is.
+**Evidence:** quote the two card titles; the log result.
+
+**CONV-3 - The drills are untouched.** From the same lesson start its first drill step (for example a Conversation drill) to its intro and back out.
+**Expect:** same as PRAC-9. Header "<Drill> · level N", **Start**, listening, "Didn't catch a reply.", **Again**/**Done**.
+
+**CONV-4 - Under 18: no card at all.** Pre: S1 built with age **13 to 17**. Open a Conversation lesson.
+**Expect:** no "Try it in a live conversation" card (the card returns nothing for the age gate), no text about it; the lesson is complete without it.
+
+**CONV-5 - Offline gate (only if the card reads "Talk it through", i.e. the server is in beta mode).** Pre: airplane mode on (verify it with the ping check, 2.8). Tap **Talk it through**, then **Start the conversation**.
+**Expect:** starting fails before anything is sent (no account can be made offline): an alert "Live conversation" with "Live conversation needs a connection. The drills in this lesson work offline." Tap OK. If the card says **See what it is** (launch mode), mark this test **skipped (locked state)**: there is no Start button to press.
+
+**CONV-6 - Kill switch / quota wording.** Needs a server state (kill switch on, minutes used up). Skipped; reference strings for a mocked account (P2): "Live conversation is switched off for a moment. Try again soon." and the minutes line from `conversationMinutesLine`; in the running screen: "Lost the connection", "That didn't come through", "That's this month's conversation minutes. You can still see how this one went.".
+
+**CONV-7 - Dev -> Labs -> Partner voices (screen only).** Dev -> **Partner voices** ("Hear the conversation voices, time them, rate them").
+**Expect:** screen eyebrow "Dev", title "Partner voices"; voice chips (`<id> · <description>`), mood chips for the test lines, speed chips (`<speed>×`), session chips **Conversation (record + play)** and **Playback only**; buttons **Play line**, **Partner turn**, **Same line, phone's own voice**, rating chips (`<voice>: 1..5`), **Copy results**, **Clear runs**. Select a few chips and confirm the selection state changes. **Do not tap Play line or Partner turn** (server calls, stop list; with airplane mode on they should fail with a message, which you may check). **Same line, phone's own voice** uses the device speech engine and needs no server: you may tap it once (it may be silent on the emulator; no crash expected).
+**Evidence:** the list of controls seen.
+
+**CONV-8 - Design check.** Take screenshots of the card, the locked screen and the lab in light and dark mode and at font scale 1.5. **Expect:** DSN-1 to DSN-3 and FONT-1 hold; the locked screen text wraps, nothing clipped.
+
+**Stays on the human list (section K):** the partner's voice and timing, a whole conversation, thinking pauses, blanking, rambling, tap-to-cut-in, headphones, silent mode, interruptions, safety, the voice threshold, minutes counted by the server, running out of minutes, the free sample, real cost per minute, barge-in.
 
 ---
 
@@ -900,7 +915,7 @@ Everything below stays on the human list in `docs/testing/device-test-plan.md` (
 | Waiting-on-analysis timings, background and kill survival with a working pipeline, airplane-mode review that sends itself, failed review (not network), the initial assessment wait screen with a review | Needs a pipeline that succeeds, and the server | Section I |
 | Impromptu results screens: overview vs scores, layer switch, charts and gestures, pitch honesty, Play from here, no-voice charts, transcript marks, Library/Trends with judged layers, dark mode/large text on the Scores tab | Needs scored takes (P1) | Section H (run as RES-B1 to RES-B6 once P1 exists) |
 | Tiers, trial and account: free judged take, used-up state, server-set count, one-take-one-count, paywall with real prices, trial start/renew/no second trial, reinstall and restore, Apple/Google linking, account deletion, age question server switch, key removal | iOS purchases, sign-in, the server | Section J (the age question UI and free-path UI run here as ONB-5 to ONB-8, FREE-1 to FREE-5) |
-| Live conversation with a voice | Server, real audio | Section K (after session 12 merges; see section 8) |
+| Live conversation with a voice: the partner's voice and timing, a full conversation, interruptions, safety, minutes, cost (the locked card, locked screen, offline gate and lab screen run here as CONV-1 to CONV-8) | Server, Plus-only, real audio | Section K |
 | Haptics, accessibility screen readers, real Android devices' vendor quirks, AAC recording on a real Android phone | No hardware | Various |
 
 ---
@@ -911,7 +926,7 @@ Update this plan when:
 
 - a screen, route, button label or alert text changes (labels are quoted from the code on the date above; a label test failing after a copy change is a plan bug, fix the plan);
 - a session adds a feature: add a test group in section 7 and, if the feature is phone-only, add the item to `device-test-plan.md` and a line in section 9;
-- session 12 merges: fill section 8, then move its rows into 7.x and delete section 8's placeholders;
+- session 12's live conversation changes (labels in `LiveConversationScreen.tsx`, `LiveConversationCard.tsx`, the gate in `liveGate.ts`): update section 8;
 - any item in section 5 is built: delete the matching "blocked" notes, turn the `RES-B*`, `DEL-B`, `TRD-B` and `PAY-2/3` items into full tests, and rewrite section 4;
 - the AVD changes (a new system image that records AAC would unblock real transcription: rewrite 4.1);
 - the onboarding questions change (update 11.1 and ONB-4);
@@ -992,7 +1007,7 @@ Logs: <filtered logcat lines, no keys>
 | Learn | Your path, All skills, Frameworks; skills Articulation, Cadence, Impromptu, Confidence, Conversation |
 | Library | collections Free practice, Prompts, Mark it up, Twisters, Frameworks; Your recordings; Search recordings; Filters |
 | You | Speaker level N, Rewind, Three things, Talk back, Phrasebook, See all progress, Settings sections |
-| Practice ("Free practice") | Start Recording / Practice Again, Or free record, no prompt, Get a different prompt, Session options, Concise · 30s, Mark it up, Prompt Library, Tongue-Twister Drills |
+| Practice ("Free practice") | Start Recording / Practice Again, Or free record, no prompt, Get a different prompt, Session options, Concise · 45s, Mark it up, Prompt Library, Tongue-Twister Drills |
 | Recording | Start recording / Stop recording, Restart take, Hide preview / Show preview, Close, Prepare for 30 s / 1 min / 2 min / 5 min, Skip warm-up, Get ready, +30 s, Research, No prep, Start now, Search the web, I'm ready — record, Grant Camera Access, Grant Microphone Access, Open Settings |
 | Preview | Review your take, Have Tono AI judge this take, Use this take, Retake, Discard, Keep reviewing |
 | Result | Overview, Scores, Transcript, Try again, Retry, Run, Get, Run again, Practice this prompt again, Done, Delete session, Keep as a progress video |
