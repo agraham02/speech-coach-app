@@ -7,9 +7,10 @@ jest.mock("../../db/artifactsRepo", () => ({ getArtifact: jest.fn(), putArtifact
 jest.mock("../../../utils/logger", () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
 
 const ctx = (patch: Partial<AnalysisContext> = {}): AnalysisContext => ({
-  wantsTono: true,
-  tono: { signedIn: true, consent: true, allowed: { review: true, text: true, insight: true }, killSwitch: false },
-  ownKey: null,
+  tier: "plus",
+  tono: { consent: true, allowed: { take: true, text: true, insight: true }, killSwitch: false },
+  isAdult: true,
+  minorsMayUseAi: false,
   takeOptIn: true,
   judgeInput: "text",
   hasVideo: true,
@@ -59,26 +60,16 @@ describe("AnalysisService", () => {
   it("is plainly done with the rules when no judge was meant to run", async () => {
     const tono = fake("tono_ai", ["mark_up"], ok("tono marks", "tono_ai"));
     const rules = fake("rules", ["mark_up"], ok("rule marks", "rules"));
-    const result = await createAnalysisService({ providers: [tono, rules], record: async () => undefined }).request("mark_up", { text: "x" }, ctx({ tono: { ...ctx().tono, signedIn: false } }));
+    const result = await createAnalysisService({ providers: [tono, rules], record: async () => undefined }).request("mark_up", { text: "x" }, ctx({ tono: { ...ctx().tono, consent: false } }));
     expect(result).toMatchObject({ status: "done", provenance: { producer: "rules" } });
     expect(tono.calls).toBe(0);
   });
 
-  it("tries the own key after Tono AI fails, and keeps the first reason when both fail", async () => {
-    const tono = fake("tono_ai", ["summary_notes"], async () => ({ ok: false as const, reason: "error" as const, message: "Tono AI didn't send back usable notes." }));
-    const own = fake("own_key", ["summary_notes"], async () => {
-      throw new TypeError("Network request failed");
-    });
-    const result = await createAnalysisService({ providers: [tono, own], record: async () => undefined }).request("summary_notes", {} as never, ctx({ ownKey: "openai" }));
-    expect(own.calls).toBe(1);
-    expect(result).toEqual({ status: "unavailable", reason: "error", message: "Tono AI didn't send back usable notes." });
-  });
-
-  it("says why when nothing may run: opted out, signed out", async () => {
+  it("says why when nothing may run: opted out, no consent", async () => {
     const tono = fake("tono_ai", ["take_review"], ok("review", "tono_ai"));
     const service = createAnalysisService({ providers: [tono], record: async () => undefined });
     expect(await service.request("take_review", {} as never, ctx({ takeOptIn: false }))).toEqual({ status: "unavailable", reason: "opted_out" });
-    expect(await service.request("take_review", {} as never, ctx({ tono: { ...ctx().tono, signedIn: false } }))).toEqual({ status: "unavailable", reason: "signed_out" });
+    expect(await service.request("take_review", {} as never, ctx({ tono: { ...ctx().tono, consent: false } }))).toEqual({ status: "unavailable", reason: "no_consent" });
     expect(tono.calls).toBe(0);
   });
 

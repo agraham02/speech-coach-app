@@ -10,6 +10,8 @@ const mockDelete = jest.fn();
 const mockClear = jest.fn();
 const mockRefresh = jest.fn();
 const mockSetConsent = jest.fn();
+const mockLinkIdentity = jest.fn();
+let mockAnonymous = false;
 
 jest.mock("expo-apple-authentication", () => ({
   signInAsync: (...a: unknown[]) => mockSignInAsync(...a),
@@ -28,16 +30,17 @@ jest.mock("../supabaseClient", () => ({
       signInWithOAuth: (...a: unknown[]) => mockSignInWithOAuth(...a),
       exchangeCodeForSession: (...a: unknown[]) => mockExchange(...a),
       signOut: (...a: unknown[]) => mockSignOut(...a),
+      linkIdentity: (...a: unknown[]) => mockLinkIdentity(...a),
     },
   }),
 }));
-jest.mock("../accountStore", () => ({ clearAccount: () => mockClear(), refreshAccount: () => mockRefresh() }));
+jest.mock("../accountStore", () => ({ clearAccount: () => mockClear(), refreshAccount: () => mockRefresh(), getAccount: () => ({ anonymous: mockAnonymous }) }));
 jest.mock("../../tono/tonoApi", () => ({
   tonoAppleToken: (...a: unknown[]) => mockAppleToken(...a),
   tonoDeleteAccount: () => mockDelete(),
 }));
 jest.mock("../../../utils/logger", () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
-jest.mock("../../prefs/prefsStore", () => ({ setCloudConsent: (...a: unknown[]) => mockSetConsent(...a) }));
+jest.mock("../../prefs/prefsStore", () => ({ setTonoConsent: (...a: unknown[]) => mockSetConsent(...a) }));
 
 import { AUTH_REDIRECT, deleteAccount, signInWithApple, signInWithGoogle, signOut, SignInError } from "../signIn";
 
@@ -45,6 +48,7 @@ const NONCE = "ab".repeat(16);
 
 beforeEach(() => {
   jest.resetAllMocks();
+  mockAnonymous = false;
   mockDigest.mockResolvedValue("hashed-nonce");
   mockSignInWithIdToken.mockResolvedValue({ error: null });
   mockAppleToken.mockResolvedValue({ ok: true });
@@ -82,6 +86,35 @@ describe("signInWithApple", () => {
     mockSignInAsync.mockResolvedValue({ identityToken: "t" });
     mockSignInWithIdToken.mockResolvedValue({ error: { message: "bad nonce" } });
     await expect(signInWithApple()).rejects.toThrow(/couldn't verify/);
+  });
+});
+
+describe("linking the behind-the-scenes account", () => {
+  it("links Apple to the anonymous account instead of making a new one", async () => {
+    mockAnonymous = true;
+    mockSignInAsync.mockResolvedValue({ identityToken: "id-token", authorizationCode: "c" });
+    mockLinkIdentity.mockResolvedValue({ error: null });
+    await expect(signInWithApple()).resolves.toBe("signedIn");
+    expect(mockLinkIdentity).toHaveBeenCalledWith({ provider: "apple", token: "id-token", nonce: NONCE });
+    expect(mockSignInWithIdToken).not.toHaveBeenCalled();
+  });
+
+  it("switches to the existing account when that Apple ID already has one", async () => {
+    mockAnonymous = true;
+    mockSignInAsync.mockResolvedValue({ identityToken: "id-token", authorizationCode: "c" });
+    mockLinkIdentity.mockResolvedValue({ error: { code: "identity_already_exists", message: "Identity is already linked" } });
+    await expect(signInWithApple()).resolves.toBe("signedIn");
+    expect(mockSignInWithIdToken).toHaveBeenCalledWith({ provider: "apple", token: "id-token", nonce: NONCE });
+  });
+
+  it("links Google through the browser sheet too", async () => {
+    mockAnonymous = true;
+    mockLinkIdentity.mockResolvedValue({ data: { url: "https://supabase.example/link" }, error: null });
+    mockOpenAuthSession.mockResolvedValue({ type: "success", url: `${AUTH_REDIRECT}?code=abc` });
+    mockExchange.mockResolvedValue({ error: null });
+    await expect(signInWithGoogle()).resolves.toBe("signedIn");
+    expect(mockLinkIdentity.mock.calls[0][0]).toMatchObject({ provider: "google" });
+    expect(mockSignInWithOAuth).not.toHaveBeenCalled();
   });
 });
 
@@ -139,7 +172,7 @@ describe("signOut and deleteAccount", () => {
     mockDelete.mockResolvedValue({ ok: true });
     await deleteAccount();
     expect(mockDelete).toHaveBeenCalled();
-    expect(mockSetConsent).toHaveBeenCalledWith("tono", false);
+    expect(mockSetConsent).toHaveBeenCalledWith(false);
     expect(mockClear).toHaveBeenCalled();
   });
 

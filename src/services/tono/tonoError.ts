@@ -24,7 +24,7 @@ export function isDenyCode(code: string): code is DenyReason {
 }
 
 // True when retrying by itself would change nothing and the person has to act
-// (sign in, wait for the refill, switch to their own key).
+// (wait for the refill, or start Tono Plus).
 export function needsPersonToAct(error: TonoApiError): boolean {
   if (error.code === "signed_out") return true;
   return isDenyCode(error.code) && isActionNeeded(error.code);
@@ -32,19 +32,19 @@ export function needsPersonToAct(error: TonoApiError): boolean {
 
 // A failed Tono AI call, worded for the person who has to fix it.
 export function describeTonoError(error: TonoApiError): string {
-  if (error.code === "signed_out") return "You're signed out of Tono AI. Sign in again in Settings → Deep reviews.";
+  if (error.code === "signed_out") return "Couldn't reach your Tono account. Check your connection and try again.";
   if (isDenyCode(error.code)) {
     const base = denialMessage(error.code, error.allowance ?? null);
     if (error.code === "quota_exhausted" || error.code === "plus_cost_cap" || error.code === "budget_paused") {
-      return `${base} You can still use your own key in Settings → Deep reviews, or keep going with the feedback on your phone.`;
+      return `${base} Your phone's measurements and tips are here as always.`;
     }
     return base;
   }
   switch (error.code) {
     case "in_flight":
-      return "This review is already running. Give it a minute.";
+      return "Tono AI is already on it. Give it a minute.";
     case "already_done":
-      return "This review already finished.";
+      return "This one is already done.";
     case "file_not_found":
     case "file_not_ready":
       return "The uploaded video wasn't ready. Retry and Tono will upload it again.";
@@ -53,8 +53,10 @@ export function describeTonoError(error: TonoApiError): string {
       return "Tono AI's servers had a temporary problem. This usually works on retry.";
     case "too_large":
     case "bad_request":
-      return "This take couldn't be sent for a review. It may be too long.";
+      return "This take couldn't be sent to Tono AI. It may be too long.";
+    case "unsupported_schema":
+      return "This version of Tono is out of date for Tono AI. Update the app to keep getting judged takes.";
   }
   if (error.status >= 500) return "Tono AI had a temporary problem. This usually works on retry.";
-  return "Tono AI couldn't run this review. Try again.";
+  return "Tono AI couldn't judge this. Try again.";
 }

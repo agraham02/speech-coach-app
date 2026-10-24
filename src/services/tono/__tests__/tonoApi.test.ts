@@ -9,13 +9,13 @@ jest.mock("../../../utils/fetchWithTimeout", () => ({ fetchWithTimeout: (...args
 
 import { isDenyCode, onAllowance, tonoGenerate, tonoMe, TonoApiError } from "../tonoApi";
 
-const allowance: TonoAllowance = { plan: "free", tier: "starter", reviewsLeft: 4, reviewsTotal: 5, resetsAt: null };
+const allowance: TonoAllowance = { plan: "free", tier: "free", takesLeft: 1, takesTotal: 1, resetsAt: "2026-12-01T00:00:00.000Z", trialEndsAt: null };
 
 function reply(status: number, body: unknown) {
   return { ok: status >= 200 && status < 300, status, text: async () => JSON.stringify(body) };
 }
 
-const REQUEST = { kind: "text" as const, systemPrompt: "hi", schema: {}, idempotencyKey: "key-12345678" };
+const REQUEST = { task: "mark_up" as const, schemaVersion: 1, inputs: { text: "hi" }, idempotencyKey: "key-12345678" };
 
 beforeEach(() => {
   jest.resetAllMocks();
@@ -36,7 +36,7 @@ describe("tonoApi", () => {
   it("passes every returned allowance to the listener", async () => {
     const seen: TonoAllowance[] = [];
     onAllowance((a) => seen.push(a));
-    mockFetch.mockResolvedValue(reply(200, { gemini: {}, model: "m", usedFallback: false, allowance }));
+    mockFetch.mockResolvedValue(reply(200, { output: {}, model: "m", usedFallback: false, promptVersion: "p", schemaVersion: 1, usage: null, allowance }));
     await tonoGenerate(REQUEST);
     expect(seen).toEqual([allowance]);
   });

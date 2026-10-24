@@ -1,8 +1,7 @@
-import { CUT_FROM_SCORES, METRICS, SKILL_DEFS, SUBCATEGORIES, SUBCATEGORY_ORDER, TAKE_SKILLS, subcategoriesOf } from "../scoring/taxonomy";
+import { CUT_FROM_SCORES, METRICS, SKILL_DEFS, SUBCATEGORIES, SUBCATEGORY_ORDER, TAKE_SKILLS, subcategoriesOf, type SubcategoryId } from "../scoring/taxonomy";
 import { fillerScore, paceScore, pitchRangeBand, verdictFor } from "../scoring/bands";
-import { headlineSheet, judgedFromRubric, judgedSheet, measuredSheet, skillEvidence, takeScores, type MeasuredFacts } from "../scoring/takeScore";
+import { headlineSheet, judgedFromReview, judgedSheet, measuredSheet, skillEvidence, takeScores, type MeasuredFacts } from "../scoring/takeScore";
 import { repEvidence } from "../repEvidence";
-import type { SessionScores } from "../sessionTypes";
 
 const facts = (patch: Partial<MeasuredFacts> = {}): MeasuredFacts => ({
   takeKind: "impromptu",
@@ -19,41 +18,22 @@ const facts = (patch: Partial<MeasuredFacts> = {}): MeasuredFacts => ({
   ...patch,
 });
 
-const rubric = (patch: Partial<SessionScores> = {}): SessionScores => ({
-  sessionId: "s1",
-  structureScore: 5,
-  structureUsed: "what/why/how",
-  structureNotes: "Point came late.",
-  relevanceScore: 6,
-  relevanceNotes: "",
-  coherenceScore: 6,
-  coherenceNotes: "",
-  rateScore: 6,
-  rateWpmAvg: 150,
-  rateNotes: "",
-  volumeScore: 5,
-  volumeNotes: "",
-  pitchMelodyScore: 5,
-  pitchMelodyNotes: "",
-  tonalityScore: 2,
-  tonalityNotes: "Flat for a happy story.",
-  pausingScore: 6,
-  pausingNotes: "",
-  eyeContactScore: 6,
-  facialExpressivenessScore: 5,
-  bodyLanguageNotes: "",
-  faceVoiceCongruenceScore: 1,
-  archetypeDetected: "Friend",
-  archetypeFitForTopic: "",
-  overallScore: 9,
-  coachingSummary: "",
-  topStrength: "",
-  topFocusArea: "",
-  recommendedDrill: "",
-  annotations: [],
-  cueComplianceScore: null,
-  cueComplianceNotes: null,
-  ...patch,
+type Sub = { score: number; notes: string };
+// Tono AI's judgement, by subcategory (domain/analysis/judgedReview.ts).
+const review = (patch: Partial<Record<SubcategoryId, Sub>> = {}) => ({
+  subscores: {
+    structure: { score: 5, notes: "Point came late." },
+    relevance: { score: 6, notes: "" },
+    clarity: { score: 6, notes: "" },
+    pace: { score: 6, notes: "" },
+    emphasis: { score: 5, notes: "" },
+    melody: { score: 5, notes: "" },
+    tone: { score: 2, notes: "Flat for a happy story." },
+    pauses: { score: 6, notes: "" },
+    eye_contact: { score: 6, notes: "" },
+    expression: { score: 5, notes: "" },
+    ...patch,
+  } as Partial<Record<SubcategoryId, Sub>>,
 });
 
 describe("the taxonomy", () => {
@@ -157,27 +137,28 @@ describe("the measured sheet", () => {
 
 describe("the judged sheet", () => {
   it("is the ground truth where the judge scored, and fills the rest from the phone", () => {
-    const sheet = judgedSheet(judgedFromRubric(rubric(), "impromptu"), facts())!;
+    const sheet = judgedSheet(judgedFromReview(review(), "impromptu"), facts())!;
     const impromptu = sheet.categories.find((c) => c.skill === "impromptu")!;
     expect(impromptu.subscores.find((s) => s.id === "structure")).toMatchObject({ score: 5, layer: "judged", notes: "Point came late." });
     expect(impromptu.subscores.find((s) => s.id === "fluency")).toMatchObject({ layer: "measured" });
   });
 
-  it("ignores the judge's own overall, the face-voice match and the archetype", () => {
-    const a = judgedSheet(judgedFromRubric(rubric({ overallScore: 9, faceVoiceCongruenceScore: 1 }), "impromptu"), facts())!;
-    const b = judgedSheet(judgedFromRubric(rubric({ overallScore: 2, faceVoiceCongruenceScore: 10, archetypeDetected: "Coach" }), "impromptu"), facts())!;
-    expect(a.overall).toBe(b.overall);
+  it("scores conviction when the judge did, and ignores ids that aren't subcategories", () => {
+    const withConviction = judgedFromReview(review({ conviction: { score: 3, notes: "Trailed off." } }), "impromptu");
+    expect(withConviction.conviction).toEqual({ score: 3, notes: "Trailed off." });
+    const junk = judgedFromReview({ subscores: { ...review().subscores, congruence: { score: 1, notes: "" } } as never }, "impromptu");
+    expect(judgedSheet(junk, facts())!.overall).toBe(judgedSheet(judgedFromReview(review(), "impromptu"), facts())!.overall);
   });
 
   it("shows tone fit but keeps it out of the total", () => {
-    const low = judgedSheet(judgedFromRubric(rubric({ tonalityScore: 1 }), "impromptu"), facts())!;
-    const high = judgedSheet(judgedFromRubric(rubric({ tonalityScore: 10 }), "impromptu"), facts())!;
+    const low = judgedSheet(judgedFromReview(review({ tone: { score: 1, notes: "" } }), "impromptu"), facts())!;
+    const high = judgedSheet(judgedFromReview(review({ tone: { score: 10, notes: "" } }), "impromptu"), facts())!;
     expect(low.overall).toBe(high.overall);
     expect(low.categories[0].subscores.find((s) => s.id === "tone")).toMatchObject({ score: 1, rollsUp: false });
   });
 
   it("drops structure, relevance and clarity for a scripted reading, and counts the marks", () => {
-    const judged = judgedFromRubric(rubric({ cueComplianceScore: 8, cueComplianceNotes: "Held the long pauses." }), "script");
+    const judged = judgedFromReview(review({ cues: { score: 8, notes: "Held the long pauses." } }), "script");
     expect(judged.structure).toBeUndefined();
     const sheet = judgedSheet(judged, facts({ takeKind: "script" }))!;
     expect(sheet.categories[0].subscores.find((s) => s.id === "cues")).toMatchObject({ score: 8, rollsUp: true });
@@ -186,7 +167,7 @@ describe("the judged sheet", () => {
 
 describe("a take's two layers", () => {
   it("leads with the judged sheet whenever there is one", () => {
-    const both = takeScores(facts(), judgedFromRubric(rubric(), "impromptu"))!;
+    const both = takeScores(facts(), judgedFromReview(review(), "impromptu"))!;
     expect(both.headline).toBe("judged");
     expect(headlineSheet(both)).toBe(both.judged);
     expect(both.measured!.overall).toBeGreaterThan(both.judged!.overall);
@@ -196,7 +177,7 @@ describe("a take's two layers", () => {
   });
 
   it("moves mastery by the headline sheet's skill scores, keeping both layers for the record", () => {
-    const scores = takeScores(facts(), judgedFromRubric(rubric(), "impromptu"))!;
+    const scores = takeScores(facts(), judgedFromReview(review(), "impromptu"))!;
     const { evidence, measured, judged } = repEvidence(scores);
     expect(evidence).toEqual(skillEvidence(scores.judged!));
     expect(evidence.impromptu).toBeLessThan(measured.impromptu!);
