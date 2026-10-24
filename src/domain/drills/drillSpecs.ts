@@ -39,6 +39,10 @@ export type DrillType =
   | "squeeze"
   | "callback"
   | "conv_react"
+  // Conversation, live (Tono Plus): a partner who answers what you said, in a
+  // natural voice, for a few turns (see domain/conversation/live). Its own
+  // staircase; not one of the scripted drills above.
+  | "conv_live"
   // Say it short: summarize, then stop (see domain/summary).
   | "sum_up"
   | "relay"
@@ -104,6 +108,7 @@ export const DRILL_SKILL: Record<DrillType, SkillId> = {
   squeeze: "conversation",
   callback: "conversation",
   conv_react: "conversation",
+  conv_live: "conversation",
   sum_up: "impromptu",
   relay: "impromptu",
   explain_simple: "impromptu",
@@ -140,6 +145,7 @@ export const DRILL_TITLES: Record<DrillType, string> = {
   squeeze: "Squeeze it",
   callback: "Call it back",
   conv_react: "React",
+  conv_live: "Live conversation",
   sum_up: "Sum it up",
   relay: "Rolling summary",
   explain_simple: "Explain it simply",

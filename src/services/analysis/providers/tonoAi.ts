@@ -7,6 +7,7 @@ import { acceptModelMarks } from "../../../domain/cadence/autoMarkPrompt";
 import { acceptBridgeChain, acceptWordChain, chainPairs } from "../../../domain/drills/chainJudging";
 import { checkRewindReview } from "../../../domain/rewind/reviewPrompt";
 import { acceptSummaryReview } from "../../../domain/summary/summaryReviewPrompt";
+import { acceptDebrief } from "../../../domain/conversation/live/debrief";
 import { usageFromGemini } from "../../../domain/cloudUsage";
 import { MAX_REVIEW_VIDEO_BYTES, MAX_REVIEW_WORDS, wordCount } from "../../cloud/inputGuards";
 import { ensureAccount } from "../../account/accountStore";
@@ -16,7 +17,7 @@ import { resolveVideoUri, videoExists } from "../../storage/videoStorage";
 import { tonoGenerate, type GenerateResponse, type TonoTask } from "../../tono/tonoApi";
 import { resolveUploadForGrading } from "../../tono/upload";
 import type { InputFor, OutputFor, TakeReviewInput, TakeReviewOutput } from "../kinds";
-import { bridgeChainInputs, markUpInputs, rewindNotesInputs, summaryNotesInputs, takeReviewInputs, wordChainInputs } from "../inputs";
+import { bridgeChainInputs, conversationDebriefInputs, markUpInputs, rewindNotesInputs, summaryNotesInputs, takeReviewInputs, wordChainInputs } from "../inputs";
 import { provenance, type AnalysisProvider, type ProviderOutcome } from "../provider";
 
 // Tono AI: the judge of record, through Tono's server, which holds the key,
@@ -40,6 +41,7 @@ const SCHEMA_VERSIONS: Record<TonoTask, number> = {
   bridge_chain: 1,
   summary_notes: 1,
   mark_up: 1,
+  conversation_debrief: 1,
 };
 
 async function call(task: TonoTask, inputs: object, extra: { media?: { fileName: string; videoSeconds: number }; timeoutMs?: number } = {}): Promise<GenerateResponse> {
@@ -128,7 +130,14 @@ async function takeReview(input: TakeReviewInput, route: Route): Promise<Provide
 
 export const tonoAiProvider: AnalysisProvider = {
   id: "tono_ai",
-  supports: (kind: AnalysisKind) => kind === "take_review" || kind === "rewind_notes" || kind === "word_chain" || kind === "bridge_chain" || kind === "summary_notes" || kind === "mark_up",
+  supports: (kind: AnalysisKind) =>
+    kind === "take_review" ||
+    kind === "rewind_notes" ||
+    kind === "word_chain" ||
+    kind === "bridge_chain" ||
+    kind === "summary_notes" ||
+    kind === "mark_up" ||
+    kind === "conversation_debrief",
   async run<K extends AnalysisKind>(kind: K, input: InputFor<K>, _ctx: AnalysisContext, route: Route): Promise<ProviderOutcome<OutputFor<K>>> {
     type Out = ProviderOutcome<OutputFor<K>>;
     switch (kind) {
@@ -182,6 +191,15 @@ export const tonoAiProvider: AnalysisProvider = {
         // The words must come back exactly as given, or it isn't used.
         const accepted = typeof marked === "string" ? acceptModelMarks(source, marked) : null;
         if (!accepted) return { ok: false, reason: "error", message: "Tono AI changed the words or marked nothing." };
+        return { ok: true, value: accepted as OutputFor<K>, provenance: meta(response, "text") };
+      }
+
+      case "conversation_debrief": {
+        const debrief = input as InputFor<"conversation_debrief">;
+        if (!debrief.turns.some((t) => t.reply.trim())) return { ok: false, reason: "no_input", message: "Nothing was said to look at." };
+        const response = await call("conversation_debrief", conversationDebriefInputs(debrief), { timeoutMs: QUICK_TIMEOUT_MS });
+        const accepted = acceptDebrief(response.output, debrief.turns.map((t) => t.reply));
+        if (!accepted) return { ok: false, reason: "error", message: "Tono AI's notes on this conversation weren't usable." };
         return { ok: true, value: accepted as OutputFor<K>, provenance: meta(response, "text") };
       }
     }

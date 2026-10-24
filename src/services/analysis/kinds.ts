@@ -11,6 +11,9 @@ import type { SummarySetup } from "../../domain/summary/prepareSummary";
 import type { SummaryReview } from "../../domain/summary/summaryReviewPrompt";
 import type { TokenUsage } from "../../domain/cloudUsage";
 import type { GradingContext } from "../sessions/sessionSubject";
+import type { LiveDebrief } from "../../domain/conversation/live/debrief";
+import type { LiveDetails } from "../../domain/conversation/live/evaluateLive";
+import type { LiveFocus } from "../../domain/conversation/live/prepareLive";
 
 // One typed input and one typed result shape per kind. A screen or step only
 // ever sees these; how a provider gets there (which model, which prompt,
@@ -60,6 +63,16 @@ export interface MarkUpInput {
   text: string;
 }
 
+// A live conversation, after it: what each side said, and the phone's own
+// process measurements (the rules' version reads those).
+export interface ConversationDebriefInput {
+  setting: string;
+  partnerName: string;
+  focus: LiveFocus;
+  turns: { partner: string; reply: string; cutOff: boolean; latencyMs: number | null; speakingSeconds: number | null }[];
+  details: LiveDetails;
+}
+
 export interface InputMap {
   take_review: TakeReviewInput;
   coaching: CoachInput;
@@ -68,6 +81,7 @@ export interface InputMap {
   bridge_chain: BridgeChainInput;
   summary_notes: SummaryNotesInput;
   mark_up: MarkUpInput;
+  conversation_debrief: ConversationDebriefInput;
 }
 
 export interface OutputMap {
@@ -78,6 +92,7 @@ export interface OutputMap {
   bridge_chain: BridgeChainJudgement;
   summary_notes: SummaryReview;
   mark_up: MarkedText;
+  conversation_debrief: LiveDebrief;
 }
 
 export type InputFor<K extends AnalysisKind> = InputMap[K];

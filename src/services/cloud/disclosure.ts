@@ -13,7 +13,9 @@ export function whatGetsSent(): string {
     ? " A short note on your goals and what gets in your way (from setup) goes with it, so the feedback fits you. You can see it and turn it off in Settings."
     : "";
   const exercises = " When you ask for notes on a Rewind or Say it short, or for marks in Mark it up, those words go the same way, as text.";
+  const conversation =
+    " In a live conversation (Tono Plus), what you say is turned into words on your phone, and only the words go the same way, so your partner can answer; your voice itself stays on your phone.";
   const keeping =
     " It's used only to judge it. Tono keeps the token counts and cost, never the content. Google keeps a short-lived log for abuse checks and doesn't use it to improve its products.";
-  return `${take}${about}${exercises}${keeping}`;
+  return `${take}${about}${exercises}${conversation}${keeping}`;
 }

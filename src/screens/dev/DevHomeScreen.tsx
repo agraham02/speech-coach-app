@@ -140,6 +140,13 @@ export function DevHomeScreen() {
           chevron
           onPress={() => navigation.navigate("AsrLab")}
         />
+        <ListRow
+          icon="chatbubbles-outline"
+          title="Partner voices"
+          subtitle="Hear the conversation voices, time them, rate them"
+          chevron
+          onPress={() => navigation.navigate("PartnerVoicesLab")}
+        />
       </ListGroup>
 
       <ListGroup title="Tools">

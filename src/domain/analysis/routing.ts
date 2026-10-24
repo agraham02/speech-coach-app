@@ -30,6 +30,7 @@ export const SUPPORTED: Record<AnalysisKind, Producer[]> = {
   bridge_chain: ["tono_ai"],
   summary_notes: ["tono_ai"],
   mark_up: ["tono_ai", "rules"],
+  conversation_debrief: ["tono_ai", "rules"],
 };
 
 // What a take review sends to Tono AI: the transcript and measurements by
@@ -53,6 +54,9 @@ function tonoBlock(kind: AnalysisKind, ctx: AnalysisContext): Unavailable | null
   // Exercise notes and mark-ups are Plus (and trial, and beta) features.
   if (kind !== "take_review" && ctx.tier === "free") return "not_entitled";
   if (!ctx.tono.consent) return "no_consent";
+  // The debrief belongs to the conversation it follows, so it never needs
+  // minutes left (the server lets it finish too).
+  if (kind === "conversation_debrief") return null;
   // One take, one count, whatever the judge is sent.
   const count = kind === "take_review" ? "take" : "text";
   if (!ctx.tono.allowed[count]) return "quota";
@@ -94,4 +98,26 @@ export function whatCanShow(kind: AnalysisKind, ctx: AnalysisContext): ShowLevel
   if (route.producers[0] === "tono_ai") return "judged";
   const paying = ctx.tier === "plus" || ctx.tier === "trial";
   return route.blocked && LOCKED.includes(route.blocked) && !paying ? "locked" : "facts";
+}
+
+// Whether the live conversation (Tono Plus) can run now, or why not. Not an
+// analysis kind (it is the conversation itself), but the same gate: the kill
+// switch, the age policy, the tier, consent and minutes left.
+// `minutes` is what the server last said (null before it has said anything).
+// locked: Plus or the trial would open it, so the screen shows the lesson
+// content and one quiet line. Otherwise it says why and offers nothing to buy.
+export function liveConversationGate(
+  ctx: Pick<AnalysisContext, "tier" | "tono" | "isAdult" | "minorsMayUseAi">,
+  minutes: { total: number | null; left: number | null },
+): { open: true } | { open: false; reason: Unavailable; locked: boolean } {
+  if (ctx.tono.killSwitch) return { open: false, reason: "kill_switch", locked: false };
+  if (ageGated(ctx)) return { open: false, reason: "age_gate", locked: false };
+  const paying = ctx.tier === "plus" || ctx.tier === "trial";
+  // A free account has no minutes unless the server says it has (a sample).
+  const hasMinutes = minutes.total == null ? ctx.tier !== "free" : minutes.total > 0;
+  if (!hasMinutes) return { open: false, reason: paying ? "quota" : "not_entitled", locked: !paying };
+  const left = minutes.left == null ? ctx.tono.allowed.conversation !== false : minutes.left > 0 && ctx.tono.allowed.conversation !== false;
+  if (!left) return { open: false, reason: "quota", locked: ctx.tier === "free" };
+  if (!ctx.tono.consent) return { open: false, reason: "no_consent", locked: false };
+  return { open: true };
 }

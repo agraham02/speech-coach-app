@@ -17,6 +17,10 @@ export interface TonoAllowance {
   tier: AllowanceTier;
   takesLeft: number;
   takesTotal: number;
+  // Live conversation minutes (Plus 120 a month, the trial 30, free none).
+  // Absent from a server that predates them.
+  conversationMinutesLeft?: number;
+  conversationMinutesTotal?: number;
   // When the counts refill (ISO): the 1st of next month (UTC), or a trial's end.
   resetsAt: string;
   // The trial's end, for "free until 6 November". Null outside a trial.
@@ -89,6 +93,16 @@ export function usedUpLine(a: TonoAllowance): string {
   }
   if (a.tier === "trial") return "You've used the judged takes in your trial. Your phone's measurements and tips are here as always.";
   return `You've used this month's judged takes. More come on ${dayLabel(a.resetsAt)}. Your phone's measurements and tips are here as always.`;
+}
+
+// The live conversation's line: minutes left, or when more come. Empty when
+// the tier has no conversation minutes (the lesson screen says it's Plus).
+export function conversationMinutesLine(a: TonoAllowance | null | undefined): string {
+  if (!a || !a.conversationMinutesTotal) return "";
+  const left = a.conversationMinutesLeft ?? 0;
+  if (left <= 0) return a.tier === "trial" ? "You've used the conversation minutes in your trial." : `No conversation minutes left this month · more on ${dayLabel(a.resetsAt)}`;
+  const where = a.tier === "trial" ? "in your trial" : "this month";
+  return `${left} of ${a.conversationMinutesTotal} conversation ${plural(a.conversationMinutesTotal, "minute", "minutes")} left ${where}`;
 }
 
 export function denialMessage(reason: DenyReason, a: TonoAllowance | null): string {

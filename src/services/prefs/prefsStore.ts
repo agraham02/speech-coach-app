@@ -18,6 +18,8 @@ import type { UpcomingEvent } from "../../domain/events";
 const storage = createMMKV({ id: "speech-coach-prefs" });
 
 const KEYS = {
+  partnerVoice: "partnerVoice",
+  partnerSpeed: "partnerSpeed",
   recordBlind: "recordBlind",
   recordingDurationSettings: "recordingDurationSettings",
   prepPhaseSettings: "prepPhaseSettings",
@@ -60,6 +62,24 @@ const KEYS = {
 // The session-score rules every stored score was last computed with (see
 // SCORE_BREAKDOWN_VERSION); older scores are recomputed once on launch so a
 // trend never mixes two sets of rules.
+// The live conversation partner's voice: "persona" (each person their own)
+// or one Gemini voice name; and the playback speed (0.85 to 1.15).
+export function getPartnerVoicePref(): string {
+  return storage.getString(KEYS.partnerVoice) ?? "persona";
+}
+
+export function setPartnerVoicePref(value: string): void {
+  storage.set(KEYS.partnerVoice, value);
+}
+
+export function getPartnerSpeed(): number {
+  return storage.getNumber(KEYS.partnerSpeed) ?? 1;
+}
+
+export function setPartnerSpeed(value: number): void {
+  storage.set(KEYS.partnerSpeed, value);
+}
+
 export function getScoreVersion(): number {
   return storage.getNumber(KEYS.scoreVersion) ?? 1;
 }

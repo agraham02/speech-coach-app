@@ -86,7 +86,7 @@ export async function refreshAccount(options?: { syncPurchases?: boolean }): Pro
       if (state.status !== "signedIn") return;
       commit({
         ...withAllowance(state, me.allowance),
-        allowed: me.allowed,
+        allowed: { conversation: (me.allowance.conversationMinutesLeft ?? 0) > 0, ...me.allowed },
         mode: me.mode,
         killSwitch: me.killSwitch,
         plusPurchasable: me.plusPurchasable === true,

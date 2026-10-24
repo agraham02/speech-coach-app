@@ -84,7 +84,9 @@ export type LiveEvent =
   | { type: "RETRY"; now: number }
   | { type: "INTERRUPT"; now: number }
   | { type: "RESUME"; now: number }
-  | { type: "END"; now: number };
+  | { type: "END"; now: number }
+  // Back to the start, for another conversation.
+  | { type: "RESET" };
 
 export const BLANKS_TO_END = 3;
 
@@ -137,6 +139,7 @@ function endReply(state: LiveState, now: number, endReason: EndReason): LiveStat
 }
 
 export function liveReducer(setup: Pick<LiveSetup, "maxReplies" | "maxConversationMs" | "timing">, state: LiveState, event: LiveEvent): LiveState {
+  if (event.type === "RESET") return initialLiveState();
   if (state.phase === "finished") return state;
 
   switch (event.type) {

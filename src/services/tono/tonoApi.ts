@@ -1,6 +1,6 @@
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "../../config/backend";
 import type { TonoAllowance } from "../../domain/aiAllowance";
-import { fetchWithTimeout } from "../../utils/fetchWithTimeout";
+import { fetchWithTimeout, TimeoutError } from "../../utils/fetchWithTimeout";
 import { getSupabase } from "../account/supabaseClient";
 import { TonoApiError } from "./tonoError";
 
@@ -70,10 +70,84 @@ async function call<T>(fn: string, body: unknown, timeoutMs: number): Promise<T>
   }
 }
 
+// A function whose answer streams (ai-converse): hands each piece of the body
+// to `onText` as it arrives. Where the fetch can't stream, the whole body
+// arrives as one piece at the end, which still works, only later. A refusal
+// (a non-2xx status) throws TonoApiError as call() does. `idleMs`: give up
+// when nothing has arrived for that long; `signal` cancels (the person ended
+// the conversation).
+export async function tonoStream(fn: string, body: unknown, onText: (text: string) => void, options: { idleMs: number; signal?: AbortSignal }): Promise<void> {
+  for (let attempt = 0; ; attempt++) {
+    const token = await accessToken();
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    options.signal?.addEventListener("abort", abort);
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const arm = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => controller.abort(), options.idleMs);
+    };
+    arm();
+    try {
+      // On iOS and Android the global fetch is expo/fetch, which streams.
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/${fn}`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, apikey: SUPABASE_PUBLISHABLE_KEY, "content-type": "application/json", accept: "application/x-ndjson" },
+        body: JSON.stringify(body ?? {}),
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        if (response.status === 401 && attempt === 0) {
+          await getSupabase().auth.refreshSession().catch(() => undefined);
+          continue;
+        }
+        const text = await response.text().catch(() => "");
+        let error: NonNullable<ErrorBody["error"]> = {};
+        try {
+          error = ((text ? JSON.parse(text) : null) as ErrorBody | null)?.error ?? {};
+        } catch {
+          error = {};
+        }
+        if (error.allowance) allowanceListener?.(error.allowance);
+        throw new TonoApiError(
+          response.status,
+          typeof error.code === "string" ? error.code : `http_${response.status}`,
+          typeof error.message === "string" ? error.message : undefined,
+          error.allowance,
+        );
+      }
+      const reader = (response.body as ReadableStream<Uint8Array> | null)?.getReader?.();
+      if (!reader) {
+        onText(await response.text());
+        return;
+      }
+      const decoder = new TextDecoder();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        arm();
+        if (value?.length) onText(decoder.decode(value, { stream: true }));
+      }
+      return;
+    } catch (error) {
+      if (controller.signal.aborted && !options.signal?.aborted) throw new TimeoutError("Tono AI", options.idleMs);
+      throw error;
+    } finally {
+      if (timer) clearTimeout(timer);
+      options.signal?.removeEventListener("abort", abort);
+    }
+  }
+}
+
+// An allowance learned some other way (a streamed answer's last event).
+export function reportAllowance(allowance: TonoAllowance): void {
+  allowanceListener?.(allowance);
+}
+
 export interface MeResponse {
   allowance: TonoAllowance;
   mode: "beta" | "launch";
-  allowed: { take: boolean; text: boolean; insight: boolean };
+  allowed: { take: boolean; text: boolean; insight: boolean; conversation?: boolean };
   killSwitch: boolean;
   // The launch switch (server config): whether Tono Plus is for sale.
   plusPurchasable: boolean;
@@ -95,7 +169,7 @@ export interface FileStatusResponse {
 
 // The tasks the server runs (supabase/functions/_shared/prompts). The phone
 // names one and sends its structured inputs; the server writes the prompt.
-export type TonoTask = "take_review" | "rewind_notes" | "word_chain" | "bridge_chain" | "summary_notes" | "mark_up";
+export type TonoTask = "take_review" | "rewind_notes" | "word_chain" | "bridge_chain" | "summary_notes" | "mark_up" | "conversation_debrief";
 
 export interface GenerateRequest {
   task: TonoTask;

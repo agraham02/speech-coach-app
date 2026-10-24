@@ -20,6 +20,8 @@ export interface AccountAllowed {
   take: boolean;
   text: boolean;
   insight: boolean;
+  // Live conversation minutes left (Plus and the trial).
+  conversation: boolean;
 }
 
 export interface AccountSnapshot {
@@ -43,7 +45,7 @@ export interface AccountSnapshot {
 
 // Until the server says otherwise a call is assumed possible, so a stale or
 // missing answer never blocks someone who has takes left.
-export const ALL_ALLOWED: AccountAllowed = { take: true, text: true, insight: true };
+export const ALL_ALLOWED: AccountAllowed = { take: true, text: true, insight: true, conversation: true };
 
 export const SIGNED_OUT: AccountSnapshot = {
   status: "signedOut",
@@ -100,6 +102,7 @@ export function parseAccountCache(raw: string | null | undefined): AccountSnapsh
         take: allowed?.take !== false,
         text: allowed?.text !== false,
         insight: allowed?.insight !== false,
+        conversation: allowed?.conversation !== false,
       },
       mode: v.mode === "beta" || v.mode === "launch" ? v.mode : null,
       killSwitch: v.killSwitch === true,
@@ -119,7 +122,8 @@ export function serializeAccountCache(a: AccountSnapshot): string | null {
 // A new allowance arrived (with a response or from `me`): the flags follow it.
 // Judged takes are the metered kind; text and insights keep the server's word.
 export function withAllowance(a: AccountSnapshot, allowance: TonoAllowance): AccountSnapshot {
-  return { ...a, allowance, allowed: { ...a.allowed, take: allowance.takesLeft > 0 } };
+  const conversation = typeof allowance.conversationMinutesLeft === "number" ? allowance.conversationMinutesLeft > 0 : a.allowed.conversation;
+  return { ...a, allowance, allowed: { ...a.allowed, take: allowance.takesLeft > 0, conversation } };
 }
 
 // A short line for Settings: who this is, or that nothing is linked.

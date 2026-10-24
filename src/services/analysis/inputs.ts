@@ -9,7 +9,7 @@ import { todayISODate } from "../../utils/dateUtils";
 import { getNextEvent, getShareProfileWithReviews, getUserProfile } from "../prefs/prefsStore";
 import { measuredVoice } from "../sessions/sessionScoreService";
 import { chainPairs } from "../../domain/drills/chainJudging";
-import type { BridgeChainInput, MarkUpInput, RewindNotesInput, SummaryNotesInput, TakeReviewInput, WordChainInput } from "./kinds";
+import type { BridgeChainInput, ConversationDebriefInput, MarkUpInput, RewindNotesInput, SummaryNotesInput, TakeReviewInput, WordChainInput } from "./kinds";
 
 // What the phone sends Tono AI for each task: structured facts, never a
 // prompt. The server writes the prompt from these
@@ -144,4 +144,24 @@ export function summaryNotesInputs(input: SummaryNotesInput) {
 
 export function markUpInputs(input: MarkUpInput) {
   return { text: input.text };
+}
+
+// The conversation's turns, for the server's conversation_debrief task: the
+// words each side said and the phone's timings (as facts the debrief may
+// mention, never judge).
+export function conversationDebriefInputs(input: ConversationDebriefInput) {
+  const round1 = (n: number) => Math.round(n * 10) / 10;
+  return {
+    scene: { setting: input.setting.slice(0, 200), partnerName: input.partnerName.slice(0, 40) },
+    focus: input.focus,
+    turns: input.turns.slice(0, 20).map((t) => ({
+      partner: t.partner.slice(0, 800),
+      reply: t.reply.slice(0, 4000),
+      blank: !t.reply.trim(),
+      cutOff: t.cutOff,
+      latencySeconds: t.latencyMs == null ? null : round1(Math.min(120, t.latencyMs / 1000)),
+      speakingSeconds: t.speakingSeconds == null ? null : round1(Math.min(600, t.speakingSeconds)),
+    })),
+    stutterMode: stutterMode(),
+  };
 }
