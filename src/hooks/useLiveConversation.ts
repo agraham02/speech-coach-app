@@ -35,6 +35,10 @@ import { useLiveSpeech } from "./useLiveSpeech";
 // for the end-of-reply decision. Untuned: the test plan (K) checks it.
 const VOICE_LEVEL = 1;
 const TICK_MS = 100;
+// How long stopping the recognizer may wait for its last words. Shorter than
+// the drills' default: the reply already ended on a pause, so the words are
+// in, and every millisecond here is the partner's silence.
+const STOP_GRACE_MS = 500;
 
 export interface LiveOptions {
   voice: string;
@@ -208,7 +212,7 @@ export function useLiveConversation(setup: LiveSetup | null, options: LiveOption
           lastResultAt: null,
         };
         try {
-          const transcript = await speech.session.stop();
+          const transcript = await speech.session.stop(STOP_GRACE_MS);
           measurement = {
             ...measurement,
             transcript: fullText(transcript),

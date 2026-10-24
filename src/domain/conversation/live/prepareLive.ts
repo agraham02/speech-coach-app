@@ -143,8 +143,10 @@ export function timingFor(focus: LiveFocus, level: number): LiveTiming {
   const l = clampLevel(level);
   return {
     micOpenDelayMs: 300,
-    // People pause mid-answer when they're asked for a point and a reason.
-    endSilenceMs: focus === "land" ? 2000 : 1500,
+    // 1.2 s after the last word, stretched after a connecting word or a
+    // short start (endpoint.ts). People pause mid-answer when they're asked
+    // for a point and a reason, so longer there.
+    endSilenceMs: focus === "land" ? 1800 : 1200,
     // 10 s at level 1, 6.4 s at level 10.
     blankWaitMs: Math.round(10_000 - (l - 1) * 400),
     maxReplyMs: focus === "land" ? 45_000 : 60_000,
