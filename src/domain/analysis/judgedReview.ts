@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { SUBCATEGORIES, type SubcategoryId, type TakeKind } from "../scoring/taxonomy";
-import type { AnnotationCategory, GeminiQuoteAnnotation } from "../transcriptAnnotations";
+import type { GeminiQuoteAnnotation } from "../transcriptAnnotations";
 
 // Tono AI's judgement of a take, in the scoring taxonomy's own terms: one
 // sub-score per subcategory id, each with notes and the evidence it rests on
@@ -61,7 +61,7 @@ const DISPLAY: Partial<Record<SubcategoryId, GeminiQuoteAnnotation["category"]>>
   body: "presence",
 };
 
-export function annotationCategoryFor(subcategory: string): Exclude<AnnotationCategory, "filler" | "repeated_words"> | null {
+export function annotationCategoryFor(subcategory: string): GeminiQuoteAnnotation["category"] | null {
   if (subcategory === "restated_point") return "restated_point";
   return DISPLAY[subcategory as SubcategoryId] ?? null;
 }

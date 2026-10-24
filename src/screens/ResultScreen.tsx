@@ -14,14 +14,13 @@ import { IconButton } from "../components/common/IconButton";
 import { Txt } from "../components/common/Txt";
 import { ProgressRing } from "../components/common/ProgressRing";
 import { SegmentedControl } from "../components/common/SegmentedControl";
-import { ScoreBar } from "../components/result/ScoreBar";
-import { AccordionSection } from "../components/result/AccordionSection";
 import { colorForScore } from "../components/result/scoreColor";
 import { ThreePassPlayer } from "../components/review/ThreePassPlayer";
 import { AnalysisStepsCard } from "../components/result/AnalysisStepsCard";
 import { CoachCard } from "../components/result/CoachCard";
 import { ComparisonCard } from "../components/result/ComparisonCard";
-import { ScoreBreakdownCard } from "../components/result/ScoreBreakdownCard";
+import { ScoreSummaryCard } from "../components/result/ScoreSummaryCard";
+import { ScoresTab } from "../components/result/ScoresTab";
 import { headlineSheet, SCORE_SHEET_VERSION, type TakeScores } from "../domain/scoring/takeScore";
 import { measuredVoice, refreshSessionScore } from "../services/sessions/sessionScoreService";
 import { FeltCard, ObservedCard, useFeltObserved } from "../components/result/FeltObservedCard";
@@ -29,9 +28,8 @@ import { CloudUsageNote } from "../components/result/CloudUsageNote";
 import { getPromptComparison } from "../services/db/statsRepo";
 import type { CoachOutput } from "../domain/coach/ruleCoach";
 import { AnnotatedTranscript } from "../components/result/AnnotatedTranscript";
-import { ScoreRadarChart } from "../components/result/ScoreRadarChart";
-import { WpmSparkline } from "../components/result/WpmSparkline";
-import { PitchVolumeChart } from "../components/result/PitchVolumeChart";
+import { groundAiMarks } from "../domain/results/aiMarks";
+import { producerName } from "../domain/analysis/provenance";
 import { useToast } from "../components/common/ToastProvider";
 import { getSessionById } from "../services/db/sessionsRepo";
 import { confirmDeleteTake } from "../components/common/confirmDeleteTake";
@@ -51,7 +49,6 @@ import { useSessionSteps } from "../hooks/useSessionSteps";
 import { useProgressMoment } from "../hooks/useProgressMoment";
 import { ProgressPending, ProgressReveal } from "../components/celebrate/ProgressReveal";
 import { FeelingResultView } from "../components/feelings/FeelingResultView";
-import type { CloudTranscriptArtifact } from "../services/pipeline/steps/cloudReviewStep";
 import type { SessionStep } from "../domain/sessionSteps";
 import { logger } from "../utils/logger";
 import { completePracticeStep } from "../services/practice/practiceEvents";
@@ -64,13 +61,6 @@ import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Result">;
 type ResultTab = "overview" | "scores" | "transcript";
-
-// Rounds to 1 decimal — used for an accordion category's collapsed-header
-// summary number, averaged from that category's individual ScoreBars since
-// the grading model doesn't emit a per-category composite score itself.
-function avgScore(...scores: number[]): number {
-  return Math.round((scores.reduce((sum, s) => sum + s, 0) / scores.length) * 10) / 10;
-}
 
 function ScoreDelta({ current, previous }: { current: number; previous: number | null }) {
   const styles = useStyles();
@@ -114,9 +104,10 @@ export function ResultScreen({ route, navigation }: Props) {
   const [tab, setTab] = useState<ResultTab>("overview");
   const [showClean, setShowClean] = useState(false);
   const [subjectSummary, setSubjectSummary] = useState<SessionSubjectSummary | null>(null);
-  const [cloudTranscript, setCloudTranscript] = useState<CloudTranscriptArtifact | null>(null);
   const [coach, setCoach] = useState<CoachOutput | null>(null);
   const [takeScores, setTakeScores] = useState<TakeScores | null>(null);
+  // A moment picked on a Scores chart, for the Overview player to start at.
+  const [startAt, setStartAt] = useState<{ ms: number; nonce: number } | null>(null);
   // Felt vs observed: the first question at the top, the second by the video.
   const feltObserved = useFeltObserved(sessionId);
   const [comparison, setComparison] = useState<Awaited<ReturnType<typeof getPromptComparison>>>(null);
@@ -130,7 +121,6 @@ export function ResultScreen({ route, navigation }: Props) {
       describeSessionSubject(s).then(setSubjectSummary);
     });
     getScoresBySessionId(sessionId).then(setScores);
-    getArtifact<CloudTranscriptArtifact>(sessionId, "cloud_transcript").then(setCloudTranscript);
     getArtifact<CoachOutput>(sessionId, "coach").then(setCoach);
     // A take scored before the current rules is rescored now. The delta
     // compares with the last take scored in the same layer (judged with
@@ -174,11 +164,10 @@ export function ResultScreen({ route, navigation }: Props) {
 
   const script = session.sessionType === "script_practice" && session.scriptId ? getScriptById(session.scriptId) : undefined;
 
-  // The Scores tab is only meaningful once grading has happened — the
-  // transcript exists regardless of whether grading was requested (see
-  // sessionProcessor.ts's non-grading path), so Transcript stays available
-  // either way.
-  const tabs: { key: ResultTab; label: string }[] = scores
+  // The Scores tab reads the take's score sheets, so it is there for every
+  // scored take (measured on the phone, or judged too); the transcript exists
+  // regardless, so Transcript stays available either way.
+  const tabs: { key: ResultTab; label: string }[] = takeScores
     ? [
         { key: "overview", label: "Overview" },
         { key: "scores", label: "Scores" },
@@ -263,13 +252,13 @@ export function ResultScreen({ route, navigation }: Props) {
   // Pace over the speaking span, and pitch range in semitones: the same
   // numbers the score reads.
   const { wpmAvg: avgWpm, pitchRangeSt: pitchRange } = measuredVoice(session);
-  // Deep-review annotations quote Gemini's own transcript, so show that one
-  // when annotating; otherwise the on-device transcript.
   // The take's score: the judged sheet's overall whenever it exists, else
   // the measured one (domain/scoring/takeScore.ts).
   const overall = takeScores ? headlineSheet(takeScores).overall : null;
-  const annotatedTranscript =
-    scores && scores.annotations.length > 0 && cloudTranscript ? cloudTranscript.verbatim : session.transcriptVerbatim ?? "";
+  // The transcript shown is always the phone's own. Tono AI's marks are kept
+  // only where their quote is found in it (domain/results/aiMarks.ts).
+  const shownTranscript = session.transcriptVerbatim ?? "";
+  const aiMarks = scores ? groundAiMarks(shownTranscript, scores.annotations) : [];
 
   // What's still being worked out, so each section can hold its place with
   // a skeleton instead of popping in when its step finishes.
@@ -331,13 +320,10 @@ export function ResultScreen({ route, navigation }: Props) {
                   </Txt>
                   <Text style={styles.scoreHeroOutOf}>out of 10</Text>
                 </ProgressRing>
-                {scores?.archetypeFitForTopic ? (
-                  <Text style={[styles.scoreHeroArchetype, { color: colorForScore(overall, colors) }]}>
-                    {scores.archetypeDetected}
-                  </Text>
-                ) : null}
+                <Text style={styles.scoreHeroLayer}>
+                  {takeScores?.headline === "judged" ? `Judged by ${producerName(takeScores.judgedBy)}` : "Measured on this phone"}
+                </Text>
                 {movesSkills ? null : <ScoreDelta current={overall} previous={previousOverallScore} />}
-                {scores?.archetypeFitForTopic ? <Text style={styles.scoreHeroFit}>{scores.archetypeFitForTopic}</Text> : null}
                 {reviewing ? (
                   <View style={styles.reviewingRow}>
                     <ActivityIndicator size="small" color={colors.textMuted} />
@@ -379,7 +365,7 @@ export function ResultScreen({ route, navigation }: Props) {
           <TourTarget id="result.breakdown">
           {takeScores ? (
             <Reveal key="breakdown">
-              <ScoreBreakdownCard scores={takeScores} pending={!scoreSettled} />
+              <ScoreSummaryCard scores={takeScores} pending={!scoreSettled} onSeeScores={() => setTab("scores")} />
               {judgedLocked ? (
                 <View style={styles.lockedLine}>
                   <Txt variant="footnote" tone="muted">
@@ -398,7 +384,11 @@ export function ResultScreen({ route, navigation }: Props) {
 
           {coach ? (
             <Reveal key="coach">
-              <CoachCard coach={coach} onAnswerFollowUp={handleAnswerFollowUp} />
+              <CoachCard
+                coach={coach}
+                review={scores && takeScores?.headline === "judged" ? { summary: scores.coachingSummary, drill: scores.recommendedDrill } : null}
+                onAnswerFollowUp={handleAnswerFollowUp}
+              />
             </Reveal>
           ) : measuring ? (
             <SkeletonCard key="coach-skeleton" lines={3} />
@@ -437,6 +427,7 @@ export function ResultScreen({ route, navigation }: Props) {
                 videoUri={videoUri}
                 transcriptWords={session.transcriptWords}
                 transcriptText={session.transcriptClean}
+                startAt={startAt}
               />
               <ObservedCard state={feltObserved} />
             </>
@@ -454,105 +445,26 @@ export function ResultScreen({ route, navigation }: Props) {
           {scores ? <CloudUsageNote sessionId={sessionId} refreshKey={reviewing} /> : null}
 
           {!scores && reviewing ? <SkeletonCard key="coaching-skeleton" lines={4} /> : null}
-          {scores ? (
-            <Reveal key="coaching">
-              <Card style={styles.coachingCard}>
-                <Text style={styles.sectionLabel}>Coaching</Text>
-                <Text style={styles.coachingSummary}>{scores.coachingSummary}</Text>
-                <View style={styles.coachingRow}>
-                  <Ionicons name="thumbs-up-outline" size={16} color={colors.success} />
-                  <Text style={styles.coachingRowText}>
-                    <Text style={styles.coachingRowLabel}>Strength: </Text>
-                    {scores.topStrength}
-                  </Text>
-                </View>
-                <View style={styles.coachingRow}>
-                  <Ionicons name="build-outline" size={16} color={colors.warning} />
-                  <Text style={styles.coachingRowText}>
-                    <Text style={styles.coachingRowLabel}>Focus on: </Text>
-                    {scores.topFocusArea}
-                  </Text>
-                </View>
-                <View style={styles.drillBox}>
-                  <Text style={styles.drillLabel}>Next drill</Text>
-                  <Text style={styles.drillText}>{scores.recommendedDrill}</Text>
-                </View>
-              </Card>
-            </Reveal>
-          ) : null}
-
           <PrimaryButton label="Practice this prompt again" variant="secondary" onPress={handlePracticeAgain} />
         </ScrollView>
         </TourScrollContext.Provider>
       ) : null}
 
-      {tab === "scores" && scores ? (
+      {tab === "scores" && takeScores ? (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <Card style={styles.radarCard}>
-            <ScoreRadarChart scores={scores} />
-          </Card>
-
-          {/* Structure starts open since it's the first thing most people read;
-              every other category starts collapsed — the radar chart above
-              already gives the at-a-glance summary, so this replaces what used
-              to be all ~9 factors expanded in one long scroll (confirmed live). */}
-          {/* A 0 is a subcategory the judge didn't score on this take (a
-              scripted reading has no Structure; Tone fit needs the video). */}
-          {scores.structureScore > 0 ? (
-            <AccordionSection title="Structure" scoreLabel={`${scores.structureScore}/10`} defaultOpen>
-              <ScoreBar
-                label={scores.structureUsed === "none detected" ? "No clear structure" : scores.structureUsed}
-                score={scores.structureScore}
-                notes={scores.structureNotes}
-              />
-            </AccordionSection>
-          ) : null}
-
-          {scores.relevanceScore > 0 ? (
-            <AccordionSection title="Content" scoreLabel={`${avgScore(scores.relevanceScore, scores.coherenceScore)}/10`}>
-              <ScoreBar label="Relevance to prompt" score={scores.relevanceScore} notes={scores.relevanceNotes} />
-              <ScoreBar label="Coherence & storytelling" score={scores.coherenceScore} notes={scores.coherenceNotes} />
-            </AccordionSection>
-          ) : null}
-
-          <AccordionSection
-            title="Delivery"
-            scoreLabel={`${avgScore(...[scores.rateScore, scores.volumeScore, scores.pitchMelodyScore, scores.tonalityScore, scores.pausingScore].filter((n) => n > 0))}/10`}
-          >
-            <ScoreBar label="Rate" score={scores.rateScore} notes={scores.rateNotes} suffix={`${scores.rateWpmAvg} wpm`} />
-            <WpmSparkline wpmCurve={session.wpmCurve} />
-            <ScoreBar label="Volume" score={scores.volumeScore} notes={scores.volumeNotes} />
-            <ScoreBar label="Pitch & Melody" score={scores.pitchMelodyScore} notes={scores.pitchMelodyNotes} />
-            {scores.tonalityScore > 0 ? <ScoreBar label="Tonality" score={scores.tonalityScore} notes={scores.tonalityNotes} /> : null}
-            <ScoreBar label="Pausing" score={scores.pausingScore} notes={scores.pausingNotes} />
-            <PitchVolumeChart
-              dspStatus={session.dspStatus}
-              pitchContourHz={session.pitchContourHz}
-              volumeEnvelopeDbfs={session.volumeEnvelopeDbfs}
-            />
-          </AccordionSection>
-
-          <AccordionSection title="Presence" scoreLabel={`${avgScore(scores.eyeContactScore, scores.facialExpressivenessScore)}/10`}>
-            <ScoreBar label="Eye Contact" score={scores.eyeContactScore} />
-            <ScoreBar label="Facial Expressiveness" score={scores.facialExpressivenessScore} />
-            {scores.bodyLanguageNotes ? <Text style={styles.bodyLanguageNotes}>{scores.bodyLanguageNotes}</Text> : null}
-          </AccordionSection>
-
-          {scores.faceVoiceCongruenceScore > 0 ? (
-            <AccordionSection title="Face-Voice Congruence" scoreLabel={`${scores.faceVoiceCongruenceScore}/10`}>
-              <ScoreBar label="Congruence" score={scores.faceVoiceCongruenceScore} />
-            </AccordionSection>
-          ) : null}
-
-          {scores.cueComplianceScore !== null ? (
-            <AccordionSection title="Cue Compliance" scoreLabel={`${scores.cueComplianceScore}/10`}>
-              <ScoreBar
-                label="Followed the on-screen cues"
-                score={scores.cueComplianceScore}
-                notes={scores.cueComplianceNotes ?? undefined}
-              />
-            </AccordionSection>
-          ) : null}
+          <ScoresTab
+            scores={takeScores}
+            rubric={scores}
+            session={session}
+            onPlayFrom={
+              hasVideo
+                ? (ms) => {
+                    setStartAt({ ms, nonce: Date.now() });
+                    setTab("overview");
+                  }
+                : undefined
+            }
+          />
         </ScrollView>
       ) : null}
 
@@ -564,13 +476,14 @@ export function ResultScreen({ route, navigation }: Props) {
           </View>
           <Card>
             <AnnotatedTranscript
-              transcriptVerbatim={annotatedTranscript}
+              transcriptVerbatim={shownTranscript}
               durationSeconds={session.durationSeconds}
               fillerWordCount={session.fillerWordCount}
               fillerRatePerMinute={session.fillerRatePerMinute}
               transcriptWords={session.transcriptWords}
               repeatedWordCount={session.repeatedWordCount}
-              annotations={scores?.annotations ?? []}
+              aiMarks={aiMarks}
+              aiBy={takeScores?.headline === "judged" ? producerName(takeScores.judgedBy) : null}
             />
           </Card>
 
@@ -593,6 +506,7 @@ export function ResultScreen({ route, navigation }: Props) {
 }
 
 const useStyles = makeStyles(({ colors }) => ({
+  lockedLine: { gap: spacing.xs, marginTop: spacing.sm, alignItems: "flex-start" },
   container: { gap: spacing.md },
   flex: { flex: 1 },
   skeleton: { gap: 16, paddingTop: 24 },
@@ -619,9 +533,7 @@ const useStyles = makeStyles(({ colors }) => ({
   scoreHeroContent: { alignItems: "center", gap: spacing.sm, paddingVertical: spacing.xl },
   scoreHeroNumber: { fontSize: 60, lineHeight: 66, letterSpacing: -2.4 },
   scoreHeroOutOf: { ...font("400"), color: colors.textMuted, fontSize: 13, marginTop: 2 },
-  scoreHeroArchetype: { fontSize: 15, ...font("600"), marginTop: spacing.sm },
-  lockedLine: { gap: spacing.xs, marginTop: spacing.sm, alignItems: "flex-start" },
-  scoreHeroFit: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17, textAlign: "center", marginTop: spacing.xs },
+  scoreHeroLayer: { ...font("500"), color: colors.textSecondary, fontSize: typography.caption, marginTop: spacing.sm },
   reviewingRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.sm },
   deltaRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   deltaText: { fontSize: typography.caption, ...font("600") },
@@ -639,14 +551,4 @@ const useStyles = makeStyles(({ colors }) => ({
   videoRemovedRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, paddingVertical: spacing.sm },
   videoRemovedText: { ...font("400"), color: colors.textMuted, fontSize: typography.body },
   verbatimCard: { backgroundColor: colors.surfaceRaised },
-  coachingCard: { gap: spacing.sm },
-  coachingSummary: { ...font("400"), color: colors.textPrimary, fontSize: typography.body, lineHeight: 21 },
-  coachingRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
-  coachingRowText: { ...font("400"), flex: 1, color: colors.textSecondary, fontSize: typography.body, lineHeight: 20 },
-  coachingRowLabel: { color: colors.textPrimary, ...font("700") },
-  drillBox: { backgroundColor: colors.surfaceRaised, borderRadius: radii.md, padding: spacing.md, gap: spacing.xs, marginTop: spacing.xs },
-  drillLabel: { color: colors.textSecondary, fontSize: 13, ...font("600") },
-  drillText: { ...font("400"), color: colors.textPrimary, fontSize: typography.body, lineHeight: 20 },
-  radarCard: { alignItems: "center" },
-  bodyLanguageNotes: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },
 }));

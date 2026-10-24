@@ -194,6 +194,7 @@ export function HistoryScreen() {
         transcript: s.transcriptClean ?? "",
         status: s.status,
         overallScore: s.overallScore,
+        scoreLayer: s.scoreLayer,
         keepsake: !!s.videoKeepsake && !s.videoDeletedAt,
         session: s,
         rewind: null,
@@ -411,7 +412,7 @@ export function HistoryScreen() {
           const isRewind = item.kind === "rewind";
           // While searching, show where the words matched.
           const said = searchQuery.trim() ? transcriptExcerpt(item.transcript, searchQuery) : null;
-          const meta = [formatSessionDate(item.recordedAt), formatDuration(item.durationSeconds), item.category ?? (isRewind ? "Your day" : "")].filter(Boolean).join(" · ");
+          const meta = [formatSessionDate(item.recordedAt), formatDuration(item.durationSeconds), item.category ?? (isRewind ? "Your day" : ""), item.scoreLayer === "judged" ? "Judged by Tono AI" : ""].filter(Boolean).join(" · ");
           return (
             <PressableScale
               onPress={() => openItem(item)}
@@ -469,7 +470,7 @@ function MonthHeader({ group, open, onToggle }: { group: MonthGroup<unknown>; op
       style={styles.monthHeader}
       accessibilityRole="button"
       accessibilityState={{ expanded: open }}
-      accessibilityLabel={`${group.title}, ${takes}${group.avgScore != null ? `, average score ${group.avgScore}` : ""}`}
+      accessibilityLabel={`${group.title}, ${takes}${group.avgScore != null ? `, average ${group.avgLayer === "judged" ? "judged " : ""}score ${group.avgScore}` : ""}`}
     >
       <Txt variant="title3">{group.title}</Txt>
       <Txt variant="footnote" tone="muted">
@@ -479,6 +480,7 @@ function MonthHeader({ group, open, onToggle }: { group: MonthGroup<unknown>; op
       {group.avgScore != null ? (
         <Txt variant="footnote" weight="600" color={colorForScore(group.avgScore, colors)} tabular>
           avg {group.avgScore}
+          {group.avgLayer === "judged" ? " · Tono AI" : ""}
         </Txt>
       ) : null}
       {delta != null && delta !== 0 ? (

@@ -11,7 +11,11 @@ export interface MonthGroup<T> {
   data: T[];
   count: number;
   avgScore: number | null;
-  // Versus the next older month that has scores.
+  // Which layer the average is of: Tono AI's judged scores when the month has
+  // any, else the phone's measured ones. The two are never averaged together
+  // (docs/decisions/scoring-taxonomy.md).
+  avgLayer: "judged" | "measured" | null;
+  // Versus the next older month whose average is of the same layer.
   deltaVsPrevious: number | null;
 }
 
@@ -19,7 +23,7 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
 
 // `sessions` newest first (as the Library loads them); groups come out
 // newest first too.
-export function groupByMonth<T extends { recordedAt: string; overallScore: number | null }>(
+export function groupByMonth<T extends { recordedAt: string; overallScore: number | null; scoreLayer?: "judged" | "measured" | null }>(
   sessions: T[],
   now: Date = new Date(),
 ): MonthGroup<T>[] {
@@ -32,7 +36,7 @@ export function groupByMonth<T extends { recordedAt: string; overallScore: numbe
     if (!group) {
       const sameYear = date.getFullYear() === now.getFullYear();
       const title = date.toLocaleDateString("en-US", sameYear ? { month: "long" } : { month: "long", year: "numeric" });
-      group = { key, title, data: [], count: 0, avgScore: null, deltaVsPrevious: null };
+      group = { key, title, data: [], count: 0, avgScore: null, avgLayer: null, deltaVsPrevious: null };
       byKey.set(key, group);
       groups.push(group);
     }
@@ -42,11 +46,14 @@ export function groupByMonth<T extends { recordedAt: string; overallScore: numbe
   groups.sort((a, b) => b.key.localeCompare(a.key));
 
   for (const group of groups) {
-    const scores = group.data.map((s) => s.overallScore).filter((s): s is number => s != null);
+    const scored = group.data.filter((s) => s.overallScore != null);
+    const layer = scored.some((s) => s.scoreLayer === "judged") ? "judged" : "measured";
+    const scores = scored.filter((s) => (s.scoreLayer === "judged") === (layer === "judged")).map((s) => s.overallScore as number);
     group.avgScore = scores.length ? round1(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+    group.avgLayer = scores.length ? layer : null;
   }
   groups.forEach((group, i) => {
-    const older = groups.slice(i + 1).find((g) => g.avgScore != null);
+    const older = groups.slice(i + 1).find((g) => g.avgScore != null && g.avgLayer === group.avgLayer);
     if (group.avgScore != null && older?.avgScore != null) group.deltaVsPrevious = round1(group.avgScore - older.avgScore);
   });
   return groups;

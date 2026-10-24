@@ -31,3 +31,27 @@ describe("groupByMonth", () => {
     expect(groups[0].deltaVsPrevious).toBe(2);
   });
 });
+
+describe("groupByMonth by layer", () => {
+  const now = new Date("2026-10-15T12:00:00Z");
+  const scored = (recordedAt: string, overallScore: number | null, scoreLayer: "judged" | "measured" | null) => ({ recordedAt, overallScore, scoreLayer });
+
+  it("averages the judged takes alone when a month has any, never mixed with measured ones", () => {
+    const groups = groupByMonth([scored("2026-10-12T12:00:00Z", 8, "judged"), scored("2026-10-10T12:00:00Z", 4, "measured"), scored("2026-10-08T12:00:00Z", 6, "judged")], now);
+    expect(groups[0]).toMatchObject({ avgScore: 7, avgLayer: "judged" });
+  });
+
+  it("averages measured takes when none were judged", () => {
+    const groups = groupByMonth([scored("2026-10-12T12:00:00Z", 5, "measured"), scored("2026-10-10T12:00:00Z", 7, "measured")], now);
+    expect(groups[0]).toMatchObject({ avgScore: 6, avgLayer: "measured" });
+  });
+
+  it("only compares a month with an earlier month of the same layer", () => {
+    const groups = groupByMonth(
+      [scored("2026-10-12T12:00:00Z", 8, "judged"), scored("2026-09-12T12:00:00Z", 5, "measured"), scored("2026-08-12T12:00:00Z", 6, "judged")],
+      now,
+    );
+    expect(groups[0].deltaVsPrevious).toBe(2);
+    expect(groups[1].deltaVsPrevious).toBeNull();
+  });
+});

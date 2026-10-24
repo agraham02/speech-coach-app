@@ -1,29 +1,43 @@
 import { dateFromISODate, daysBetween } from "../utils/dateUtils";
-import type { Archetype } from "./sessionTypes";
+import type { SkillId } from "../theme/tokens";
+import type { Layer } from "./scoring/taxonomy";
+import type { TakeScores } from "./scoring/takeScore";
 
-export interface ScoredSessionSummary {
+// Score trends, from the take score sheets (domain/scoring/takeScore.ts).
+// The two layers are never put on one line or averaged together: the measured
+// score is on every take, the judged one only on takes Tono AI judged, so a
+// judged take adds a point to the judged line and the measured line still has
+// one for it. A take without a judgement is a gap in the judged line, never a
+// zero. Pure.
+
+export interface LayerNumbers {
+  overall: number;
+  bySkill: Partial<Record<SkillId, number>>;
+}
+
+export interface ScorePoint {
   recordedAt: string; // ISO datetime
-  overallScore: number;
-  structureScore: number;
-  deliveryAvgScore: number;
-  archetype: Archetype;
-  coherenceScore: number;
-  // "Restated point" rate — the content-level idea-repetition signal (making
-  // the same point again, reworded). Deliberately named unambiguously:
-  // literal word-level repetition ("I I think") is a separate, later signal
-  // and must never be confused with this one.
-  restatedPointCount: number;
-  restatedPointRatePerMinute: number;
+  measured: LayerNumbers | null;
+  judged: LayerNumbers | null;
+}
+
+export const TREND_SKILLS: SkillId[] = ["cadence", "impromptu", "confidence"];
+
+function numbersOf(sheet: TakeScores["measured"]): LayerNumbers | null {
+  if (!sheet) return null;
+  const bySkill: Partial<Record<SkillId, number>> = {};
+  for (const c of sheet.categories) bySkill[c.skill] = c.score;
+  return { overall: sheet.overall, bySkill };
+}
+
+export function scorePointOf(recordedAt: string, scores: TakeScores): ScorePoint {
+  return { recordedAt, measured: numbersOf(scores.measured), judged: numbersOf(scores.judged) };
 }
 
 export interface WeekStats {
   sessionCount: number;
-  avgOverall: number | null;
-  avgStructure: number | null;
-  avgDelivery: number | null;
-  avgCoherence: number | null;
-  avgRestatedPointRate: number | null;
-  topArchetype: Archetype | null;
+  overall: number | null;
+  bySkill: Partial<Record<SkillId, number | null>>;
 }
 
 function average(nums: number[]): number | null {
@@ -31,43 +45,18 @@ function average(nums: number[]): number | null {
   return Math.round((nums.reduce((sum, n) => sum + n, 0) / nums.length) * 10) / 10;
 }
 
-function mostFrequent<T extends string>(items: T[]): T | null {
-  if (items.length === 0) return null;
-  const counts = new Map<T, number>();
-  for (const item of items) counts.set(item, (counts.get(item) ?? 0) + 1);
-  let best: T | null = null;
-  let bestCount = 0;
-  for (const [item, count] of counts) {
-    if (count > bestCount) {
-      best = item;
-      bestCount = count;
-    }
-  }
-  return best;
-}
-
-// daysAgoRange is [inclusive, exclusive) — e.g. [0, 7) means "the last 7 days
-// including today", [7, 14) means "the 7 days before that".
-function statsForWindow(
-  sessions: ScoredSessionSummary[],
-  today: Date,
-  daysAgoRange: [number, number],
-): WeekStats {
+// daysAgoRange is [inclusive, exclusive): [0, 7) is the last 7 days including
+// today, [7, 14) the 7 days before that.
+function statsForWindow(points: ScorePoint[], layer: Layer, today: Date, daysAgoRange: [number, number]): WeekStats {
   const [startInclusive, endExclusive] = daysAgoRange;
-  const windowSessions = sessions.filter((s) => {
-    const daysAgo = daysBetween(dateFromISODate(s.recordedAt), today);
-    return daysAgo >= startInclusive && daysAgo < endExclusive;
+  const inWindow = points.filter((p) => {
+    const daysAgo = daysBetween(dateFromISODate(p.recordedAt), today);
+    return daysAgo >= startInclusive && daysAgo < endExclusive && p[layer] != null;
   });
-
-  return {
-    sessionCount: windowSessions.length,
-    avgOverall: average(windowSessions.map((s) => s.overallScore)),
-    avgStructure: average(windowSessions.map((s) => s.structureScore)),
-    avgDelivery: average(windowSessions.map((s) => s.deliveryAvgScore)),
-    avgCoherence: average(windowSessions.map((s) => s.coherenceScore)),
-    avgRestatedPointRate: average(windowSessions.map((s) => s.restatedPointRatePerMinute)),
-    topArchetype: mostFrequent(windowSessions.map((s) => s.archetype)),
-  };
+  const numbers = inWindow.map((p) => p[layer]!);
+  const bySkill: WeekStats["bySkill"] = {};
+  for (const skill of TREND_SKILLS) bySkill[skill] = average(numbers.map((n) => n.bySkill[skill]).filter((v): v is number => v != null));
+  return { sessionCount: inWindow.length, overall: average(numbers.map((n) => n.overall)), bySkill };
 }
 
 export interface WeeklyComparison {
@@ -75,12 +64,15 @@ export interface WeeklyComparison {
   lastWeek: WeekStats;
 }
 
-export function computeThisWeekVsLastWeek(
-  sessions: ScoredSessionSummary[],
-  today: Date = new Date(),
-): WeeklyComparison {
+// One layer's week against the week before, using only the takes that have
+// that layer.
+export function computeThisWeekVsLastWeek(points: ScorePoint[], layer: Layer, today: Date = new Date()): WeeklyComparison {
   return {
-    thisWeek: statsForWindow(sessions, today, [0, 7]),
-    lastWeek: statsForWindow(sessions, today, [7, 14]),
+    thisWeek: statsForWindow(points, layer, today, [0, 7]),
+    lastWeek: statsForWindow(points, layer, today, [7, 14]),
   };
+}
+
+export function hasLayer(points: ScorePoint[], layer: Layer): boolean {
+  return points.some((p) => p[layer] != null);
 }

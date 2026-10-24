@@ -366,6 +366,11 @@ export function headlineSheet(scores: TakeScores): ScoreSheet {
   return (scores.headline === "judged" ? scores.judged : scores.measured) ?? (scores.judged ?? scores.measured)!;
 }
 
+// One layer's sheet, for the Scores tab's switch; the headline when that layer is absent.
+export function sheetFor(scores: TakeScores, layer: Layer): ScoreSheet {
+  return (layer === "judged" ? scores.judged : scores.measured) ?? headlineSheet(scores);
+}
+
 // What Tono AI's judgement says, by subcategory (domain/analysis/judgedReview.ts).
 // Only subcategories that apply to this kind of take count.
 export function judgedFromReview(review: { subscores: Partial<Record<SubcategoryId, { score: number; notes: string }>> }, kind: TakeKind): JudgedSubscores {

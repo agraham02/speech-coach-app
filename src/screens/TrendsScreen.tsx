@@ -8,11 +8,14 @@ import { ScreenContainer } from "../components/common/ScreenContainer";
 import { Header } from "../components/common/Header";
 import { Card } from "../components/common/Card";
 import { Badge } from "../components/common/Badge";
+import { SKILL_DEFS } from "../domain/scoring/taxonomy";
+import type { Layer } from "../domain/scoring/taxonomy";
 import { HeroCard } from "../components/common/HeroCard";
 import { ScoreTrendChart, type TrendPoint } from "../components/trends/ScoreTrendChart";
+import { ScoreLinesChart } from "../components/trends/ScoreLinesChart";
 import { highestStreakMilestone } from "../domain/streaks";
 import { getStreakState } from "../services/db/progressRepo";
-import { computeThisWeekVsLastWeek, type ScoredSessionSummary, type WeekStats } from "../domain/trends";
+import { computeThisWeekVsLastWeek, hasLayer, TREND_SKILLS, type ScorePoint } from "../domain/trends";
 import {
   DEFAULT_CURRICULUM_LEVEL,
   difficultyTierLabel,
@@ -20,7 +23,7 @@ import {
   levelToDifficultyTier,
   type CurriculumLevel,
 } from "../domain/curriculum";
-import { getCompletedSessionDates, getScoredSessionSummaries } from "../services/db/statsRepo";
+import { getCompletedSessionDates, getScoreSeries } from "../services/db/statsRepo";
 import { getCurriculumHistory, recomputeCurriculumLevel } from "../services/db/curriculumRepo";
 import { getCurriculumOverride } from "../services/prefs/prefsStore";
 import { subscribeToAllSessions } from "../services/pipeline/processingEvents";
@@ -29,22 +32,10 @@ import { fontDisplay, spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 const RECENT_COUNT = 10;
+const CHART_TAKES = 20;
 
 function shortDate(isoDatetime: string): string {
   return new Date(isoDatetime).toLocaleDateString(undefined, { month: "numeric", day: "numeric" });
-}
-
-// Blanks out a date label when it's the same as the point right before it, so
-// two same-day sessions don't render as visually-duplicate axis labels (e.g.
-// "7/25  7/25") that read as a bug rather than two distinct points.
-function buildTrendPoints(summaries: ScoredSessionSummary[]): TrendPoint[] {
-  let lastLabel: string | null = null;
-  return summaries.map((s) => {
-    const label = shortDate(s.recordedAt);
-    const point: TrendPoint = { value: s.overallScore, label: label === lastLabel ? "" : label };
-    lastLabel = label;
-    return point;
-  });
 }
 
 // invert flips "up is good" to "down is good" — for metrics where less is
@@ -86,6 +77,32 @@ function DeltaIndicator({
   );
 }
 
+// One layer's week against the week before, by skill. Only takes that have
+// the layer are in it, so a judged week and a measured week are never mixed.
+function LayerWeek({ layer, points }: { layer: Layer; points: ScorePoint[] }) {
+  const styles = useStyles();
+  const { thisWeek, lastWeek } = computeThisWeekVsLastWeek(points, layer);
+  return (
+    <Card style={styles.weekCard}>
+      <Text style={styles.sectionLabel}>{layer === "judged" ? "This week, judged by Tono AI" : "This week, measured on this phone"}</Text>
+      <Text style={styles.weekSessionCount}>
+        {thisWeek.sessionCount} take{thisWeek.sessionCount === 1 ? "" : "s"}
+      </Text>
+      <View style={styles.weekStatRow}>
+        <Text style={styles.weekStatLabel}>Overall</Text>
+        <Text style={styles.weekStatValue}>{thisWeek.overall ?? "—"}/10</Text>
+      </View>
+      <DeltaIndicator current={thisWeek.overall} previous={lastWeek.overall} />
+      {TREND_SKILLS.map((skill) => (
+        <View key={skill} style={styles.weekStatRow}>
+          <Text style={styles.weekStatLabel}>{SKILL_DEFS[skill].label}</Text>
+          <Text style={styles.weekStatValue}>{thisWeek.bySkill[skill] ?? "—"}/10</Text>
+        </View>
+      ))}
+    </Card>
+  );
+}
+
 export function TrendsScreen() {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -93,8 +110,7 @@ export function TrendsScreen() {
   const tabBarInset = useTabBarBottomInset();
   const [totalSessions, setTotalSessions] = useState(0);
   const [streaks, setStreaks] = useState({ currentStreak: 0, longestStreak: 0 });
-  const [weekly, setWeekly] = useState<{ thisWeek: WeekStats; lastWeek: WeekStats } | null>(null);
-  const [recentPoints, setRecentPoints] = useState<TrendPoint[]>([]);
+  const [points, setPoints] = useState<ScorePoint[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [curriculumLevel, setCurriculumLevel] = useState<CurriculumLevel>(DEFAULT_CURRICULUM_LEVEL);
   const [curriculumExplanation, setCurriculumExplanation] = useState("");
@@ -105,9 +121,7 @@ export function TrendsScreen() {
     setTotalSessions(dates.length);
     setStreaks(await getStreakState());
 
-    const summaries = await getScoredSessionSummaries();
-    setWeekly(computeThisWeekVsLastWeek(summaries));
-    setRecentPoints(buildTrendPoints(summaries.slice(-RECENT_COUNT)));
+    setPoints(await getScoreSeries());
 
     // Folds into this screen's existing refresh() (already wired to both
     // focus and the pipeline event bus below) rather than a separate
@@ -142,11 +156,12 @@ export function TrendsScreen() {
     setRefreshing(false);
   }
 
-  const hasScoredSessions = recentPoints.length > 0;
+  const hasScoredSessions = points.length > 0;
+  const layersShown = (["judged", "measured"] as Layer[]).filter((l) => hasLayer(points, l));
 
   return (
     <ScreenContainer style={styles.container}>
-      <Header title="Judged trends" onBack={() => navigation.goBack()} backIcon="chevron-back"
+      <Header title="Score trends" onBack={() => navigation.goBack()} backIcon="chevron-back"
       />
       <ScrollView
         style={styles.scroll}
@@ -197,59 +212,17 @@ export function TrendsScreen() {
         {!hasScoredSessions ? (
           <View style={styles.empty}>
             <Ionicons name="trending-up-outline" size={40} color={colors.textMuted} />
-            <Text style={styles.emptyText}>
-              Score trends will show up here once you have a few graded sessions.
-            </Text>
+            <Text style={styles.emptyText}>Score trends will show up here once you have a few scored takes.</Text>
           </View>
         ) : (
           <>
-            <Card style={styles.weekCard}>
-              <Text style={styles.sectionLabel}>This week</Text>
-              <View style={styles.weekHeaderRow}>
-                <Text style={styles.weekSessionCount}>
-                  {weekly?.thisWeek.sessionCount ?? 0} session{weekly?.thisWeek.sessionCount === 1 ? "" : "s"}
-                </Text>
-                {weekly?.thisWeek.topArchetype ? <Badge label={weekly.thisWeek.topArchetype} /> : null}
-              </View>
-
-              <View style={styles.weekStatRow}>
-                <Text style={styles.weekStatLabel}>Overall</Text>
-                <Text style={styles.weekStatValue}>{weekly?.thisWeek.avgOverall ?? "—"}/10</Text>
-              </View>
-              <DeltaIndicator current={weekly?.thisWeek.avgOverall ?? null} previous={weekly?.lastWeek.avgOverall ?? null} />
-
-              <View style={styles.weekStatRow}>
-                <Text style={styles.weekStatLabel}>Structure</Text>
-                <Text style={styles.weekStatValue}>{weekly?.thisWeek.avgStructure ?? "—"}/10</Text>
-              </View>
-              <View style={styles.weekStatRow}>
-                <Text style={styles.weekStatLabel}>Delivery</Text>
-                <Text style={styles.weekStatValue}>{weekly?.thisWeek.avgDelivery ?? "—"}/10</Text>
-              </View>
-              <View style={styles.weekStatRow}>
-                <Text style={styles.weekStatLabel}>Coherence</Text>
-                <Text style={styles.weekStatValue}>{weekly?.thisWeek.avgCoherence ?? "—"}/10</Text>
-              </View>
-              <DeltaIndicator
-                current={weekly?.thisWeek.avgCoherence ?? null}
-                previous={weekly?.lastWeek.avgCoherence ?? null}
-              />
-
-              <View style={styles.weekStatRow}>
-                <Text style={styles.weekStatLabel}>Repeated ideas</Text>
-                <Text style={styles.weekStatValue}>{weekly?.thisWeek.avgRestatedPointRate ?? "—"}/min</Text>
-              </View>
-              <DeltaIndicator
-                current={weekly?.thisWeek.avgRestatedPointRate ?? null}
-                previous={weekly?.lastWeek.avgRestatedPointRate ?? null}
-                invert
-              />
-            </Card>
-
             <Card style={styles.recentCard}>
-              <Text style={styles.sectionLabel}>LAST {recentPoints.length} GRADED SESSIONS</Text>
-              <ScoreTrendChart data={recentPoints} />
+              <Text style={styles.sectionLabel}>Last {Math.min(points.length, CHART_TAKES)} scored takes</Text>
+              <ScoreLinesChart points={points.slice(-CHART_TAKES)} />
             </Card>
+            {layersShown.map((layer) => (
+              <LayerWeek key={layer} layer={layer} points={points} />
+            ))}
           </>
         )}
       </ScrollView>

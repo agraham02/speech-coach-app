@@ -4,8 +4,8 @@ import { Card } from "../common/Card";
 import { Txt } from "../common/Txt";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 import type { SessionMetricPoint } from "../../services/db/statsRepo";
+import { paceScore } from "../../domain/scoring/bands";
 
-const TARGET_WPM = 145;
 
 interface MetricRow {
   label: string;
@@ -26,7 +26,8 @@ export function ComparisonCard({ current, previous }: { current: SessionMetricPo
       now: current.wpm,
       before: previous.wpm,
       unit: "wpm",
-      better: (n, b) => Math.abs(n - TARGET_WPM) < Math.abs(b - TARGET_WPM),
+      // Closer to the 130 to 160 band that scores full marks (domain/scoring/bands.ts).
+      better: (n, b) => paceScore(n) > paceScore(b),
     },
     { label: "Fillers", now: current.fillerRate, before: previous.fillerRate, unit: "/min", better: (n, b) => n < b },
     { label: "Eye contact", now: current.eyeContact, before: previous.eyeContact, unit: "%", better: (n, b) => n > b },

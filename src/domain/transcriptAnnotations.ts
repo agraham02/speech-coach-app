@@ -5,6 +5,7 @@ import { countFillerTypes, detectTypedFillers, type FillerType } from "./fillers
 // domain/analysis/judgedReview.ts.
 export type AnnotationCategory =
   | "filler"
+  | "filler_contextual"
   | "structure"
   | "delivery"
   | "presence"
@@ -121,7 +122,7 @@ export interface GeminiQuoteAnnotation {
   quote: string;
   // Gemini can never emit "filler" or "repeated_words" — both are on-device-
   // only categories (see the naming note on AnnotationCategory above).
-  category: Exclude<AnnotationCategory, "filler" | "repeated_words">;
+  category: Exclude<AnnotationCategory, "filler" | "filler_contextual" | "repeated_words">;
   note: string;
 }
 
@@ -168,7 +169,7 @@ export function buildHighlightSegments(transcript: string, annotations: LocatedA
   // characters before Gemini's quote-based annotations, so a Gemini quote
   // that happens to overlap a filler word or a repeated run doesn't fight it
   // for color — the deterministic signal always wins the overlap.
-  const isDeterministic = (category: AnnotationCategory) => category === "filler" || category === "repeated_words";
+  const isDeterministic = (category: AnnotationCategory) => category === "filler" || category === "filler_contextual" || category === "repeated_words";
   const sorted = [...annotations].sort((a, b) => {
     if (isDeterministic(a.category) && !isDeterministic(b.category)) return -1;
     if (isDeterministic(b.category) && !isDeterministic(a.category)) return 1;
