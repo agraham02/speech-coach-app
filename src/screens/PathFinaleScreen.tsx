@@ -10,11 +10,17 @@ import { PrimaryButton } from "../components/common/PrimaryButton";
 import { Txt } from "../components/common/Txt";
 import { Confetti } from "../components/celebrate/Confetti";
 import { FURTHER_READING, FURTHER_READING_NOTE, type FurtherReading } from "../content/furtherReading";
+import { StatTile } from "../components/common/StatTile";
 import { describeFinale, FINALE_QUOTE, type FinaleFacts } from "../domain/pathFinale";
+import { biggestMover, describeJourney, EMPTY_JOURNEY, scoreStory, skillsThatGrew, type JourneyFacts } from "../domain/journey";
+import { stageName } from "../domain/levels";
+import { SKILL_LABELS } from "../theme/tokens";
+import { loadJourney } from "../services/path/journey";
 import { getPathView } from "../services/path/pathService";
 import { getSkillStates, speakerLevelOf } from "../services/db/progressRepo";
 import { getPathFinaleSeenAt, setPathFinaleSeenAt } from "../services/prefs/prefsStore";
 import { SKILLS } from "../domain/mastery";
+import { dateFromISODate } from "../utils/dateUtils";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import { success } from "../utils/haptics";
 
@@ -35,6 +41,7 @@ export function PathFinaleScreen({ navigation, route }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
   const [facts, setFacts] = useState<FinaleFacts | null>(null);
+  const [journey, setJourney] = useState<JourneyFacts>(EMPTY_JOURNEY);
   const confettiColors = useMemo(() => [...SKILLS.map((s) => colors.skill[s].fg), colors.textPrimary], [colors]);
 
   useEffect(() => {
@@ -52,6 +59,9 @@ export function PathFinaleScreen({ navigation, route }: Props) {
         });
       })
       .catch(() => setFacts(null));
+    loadJourney()
+      .then(setJourney)
+      .catch(() => undefined);
     return () => clearTimeout(haptic);
   }, [route.params?.preview]);
 
@@ -74,6 +84,8 @@ export function PathFinaleScreen({ navigation, route }: Props) {
             : "That's the whole curriculum, start to finish."}
           {facts?.speakerLevel != null ? ` You're at speaker level ${facts.speakerLevel}.` : ""}
         </Txt>
+
+        <JourneySection journey={journey} onOpenTake={(sessionId) => navigation.navigate("Result", { sessionId })} />
 
         <Card style={styles.quote}>
           <Txt variant="title3" weight="500">
@@ -126,8 +138,121 @@ export function PathFinaleScreen({ navigation, route }: Props) {
   );
 }
 
+const shortDate = (iso: string) => dateFromISODate(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+
+// How far you came, from the phone's own records: what you did, how each
+// skill's stage moved from the skill check to now, and your first take
+// beside your latest. Whatever there is no record of is left out.
+function JourneySection({ journey, onOpenTake }: { journey: JourneyFacts; onOpenTake: (sessionId: string) => void }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const summary = describeJourney(journey);
+  const grew = skillsThatGrew(journey);
+  const mover = biggestMover(journey);
+  const story = scoreStory(journey);
+  const tiles = [
+    { value: journey.takes, label: journey.takes === 1 ? "take recorded" : "takes recorded" },
+    { value: journey.speakingMinutes, label: "minutes of speaking" },
+    { value: journey.practiceDays, label: "days practiced" },
+    { value: journey.longestStreak, label: "day best streak" },
+  ].filter((t) => t.value > 0);
+  if (!summary && journey.skills.length === 0) return null;
+  const stageRows = journey.skills.filter((s) => s.nowStage > 1 || s.startStage > 1 || s.nowRating !== s.startRating);
+
+  return (
+    <View style={styles.section}>
+      <Txt variant="headline">Your journey</Txt>
+      {summary ? (
+        <Txt variant="subhead" tone="secondary">
+          {summary}
+        </Txt>
+      ) : null}
+      {tiles.length > 0 ? (
+        <View style={styles.tiles}>
+          {tiles.slice(0, 4).map((t) => (
+            <StatTile key={t.label} value={String(t.value)} label={t.label} />
+          ))}
+        </View>
+      ) : null}
+
+      {stageRows.length > 0 ? (
+        <Card style={styles.journeyCard}>
+          <Txt variant="subhead" weight="600">
+            Where you started, and where you are
+          </Txt>
+          {journey.speakerLevelStart != null && journey.speakerLevelNow != null && journey.speakerLevelNow > journey.speakerLevelStart ? (
+            <Txt variant="footnote" tone="secondary">
+              {`Speaker level ${journey.speakerLevelStart} to ${journey.speakerLevelNow}${grew.length ? `, with ${grew.length} ${grew.length === 1 ? "skill" : "skills"} up a stage` : ""}.`}
+            </Txt>
+          ) : null}
+          {stageRows.map((s) => {
+            const c = colors.skill[s.skill];
+            const grewHere = s.nowStage > s.startStage;
+            return (
+              <View key={s.skill} style={styles.skillRow}>
+                <View style={[styles.dot, { backgroundColor: c.fg }]} />
+                <Txt variant="subhead" style={styles.flex}>
+                  {SKILL_LABELS[s.skill]}
+                </Txt>
+                <Txt variant="footnote" tone={grewHere ? "primary" : "muted"}>
+                  {grewHere ? `${stageName(s.startStage)} to ${stageName(s.nowStage)}` : stageName(s.nowStage)}
+                </Txt>
+              </View>
+            );
+          })}
+          {mover ? (
+            <Txt variant="footnote" tone="secondary">
+              {`${SKILL_LABELS[mover.skill]} moved the most.`}
+            </Txt>
+          ) : null}
+        </Card>
+      ) : null}
+
+      {story || journey.firstTake ? (
+        <Card style={styles.journeyCard}>
+          <Txt variant="subhead" weight="600">
+            Your voice, take by take
+          </Txt>
+          {story ? (
+            <Txt variant="footnote" tone="secondary">
+              {`Your first scored take measured ${story.first} out of 10. Your latest ${story.over} average ${story.now}${story.change > 0 ? `, up ${story.change}` : story.change < 0 ? `, ${Math.abs(story.change)} lower` : ", level"}. The same formula scores every take, so they compare fairly.`}
+            </Txt>
+          ) : null}
+        </Card>
+      ) : null}
+      {journey.firstTake || journey.bestTake ? (
+        <ListGroup>
+          {journey.firstTake ? (
+            <ListRow
+              icon="play-circle-outline"
+              title="Your first take"
+              subtitle={shortDate(journey.firstTake.date) + (journey.firstTake.score != null ? ` · ${journey.firstTake.score} out of 10` : "")}
+              chevron
+              onPress={() => onOpenTake(journey.firstTake!.sessionId)}
+            />
+          ) : null}
+          {journey.bestTake && journey.bestTake.sessionId !== journey.firstTake?.sessionId ? (
+            <ListRow
+              icon="trophy-outline"
+              title="Your best take"
+              subtitle={shortDate(journey.bestTake.date) + ` · ${journey.bestTake.score} out of 10`}
+              chevron
+              onPress={() => onOpenTake(journey.bestTake!.sessionId)}
+            />
+          ) : null}
+        </ListGroup>
+      ) : null}
+    </View>
+  );
+}
+
 const useStyles = makeStyles((t) => ({
   root: { flex: 1, backgroundColor: t.colors.background },
+  tiles: { flexDirection: "row", gap: t.space.sm },
+  journeyCard: { gap: t.space.sm },
+  skillRow: { flexDirection: "row", alignItems: "center", gap: t.space.sm },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  flex: { flex: 1 },
   quote: { gap: t.space.sm },
   section: { gap: t.space.sm },
   inline: { alignSelf: "flex-start" },

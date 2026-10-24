@@ -1,0 +1,80 @@
+import { getDatabase } from "../db/database";
+import { getSkillStates, getStreakDates, getStreakState } from "../db/progressRepo";
+import { listSkillChecks } from "../db/skillChecksRepo";
+import { getUserProfile } from "../prefs/prefsStore";
+import { INITIAL_RATING, SKILLS } from "../../domain/mastery";
+import { placementStage, speakerLevel, type Stage } from "../../domain/levels";
+import { EMPTY_JOURNEY, takeFacts, type JourneyFacts, type JourneySkill } from "../../domain/journey";
+import { scorePointOf } from "../../domain/trends";
+import type { TakeScores } from "../../domain/scoring/takeScore";
+import { isoDateFromDate } from "../../utils/dateUtils";
+import { logger } from "../../utils/logger";
+import type { SkillId } from "../../theme/tokens";
+
+// Gathers a person's journey (domain/journey.ts) from the phone's own records:
+// the takes and drills, the streak, the skill check at the start and the
+// stages now. Nothing leaves the phone. A part that can't be read is left
+// empty rather than failing the whole finale.
+
+async function readTakes(): Promise<{ sessionId: string; date: string; score: number | null }[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{ id: string; recorded_at: string; json: string | null }>(
+    `SELECT s.id, s.recorded_at, a.json
+     FROM sessions s LEFT JOIN session_artifacts a ON a.session_id = s.id AND a.kind = 'session_score'
+     WHERE s.status = 'done' AND s.deleted_at IS NULL AND s.session_type NOT IN ('script_practice', 'feeling')
+     ORDER BY s.recorded_at ASC`,
+  );
+  return rows.map((r) => {
+    let score: number | null = null;
+    try {
+      // The measured layer is on every take and uses one formula, so first and latest compare fairly.
+      if (r.json) score = scorePointOf(r.recorded_at, JSON.parse(r.json) as TakeScores).measured?.overall ?? null;
+    } catch {
+      score = null;
+    }
+    return { sessionId: r.id, date: isoDateFromDate(new Date(r.recorded_at)), score };
+  });
+}
+
+export async function loadJourney(): Promise<JourneyFacts> {
+  const facts: JourneyFacts = { ...EMPTY_JOURNEY };
+  try {
+    const db = await getDatabase();
+    const [takes, totals, firstDrill, skills, checks, streak, days] = await Promise.all([
+      readTakes(),
+      db.getFirstAsync<{ n: number; seconds: number | null }>(`SELECT COUNT(*) AS n, SUM(duration_seconds) AS seconds FROM sessions WHERE status = 'done' AND deleted_at IS NULL`),
+      db.getFirstAsync<{ n: number; first: string | null }>(`SELECT COUNT(*) AS n, MIN(started_at) AS first FROM drill_attempts`),
+      getSkillStates(),
+      listSkillChecks(),
+      getStreakState(),
+      getStreakDates(),
+    ]);
+
+    Object.assign(facts, takeFacts(takes));
+    facts.takes = totals?.n ?? 0;
+    facts.speakingMinutes = Math.round((totals?.seconds ?? 0) / 60);
+    facts.drills = firstDrill?.n ?? 0;
+    facts.longestStreak = streak.longestStreak;
+    facts.practiceDays = new Set(days.map((d) => isoDateFromDate(new Date(d)))).size;
+
+    const starts = [getUserProfile()?.startedAt, takes[0]?.date, firstDrill?.first ? isoDateFromDate(new Date(firstDrill.first)) : null].filter((d): d is string => !!d);
+    facts.startedOn = starts.length ? starts.sort()[0] : null;
+
+    // Where they started: the earliest skill check's placement (checks come
+    // newest first). Without one, everyone started at the first stage.
+    const first = [...checks].reverse().find((c) => c.results);
+    const startStages = {} as Record<SkillId, Stage>;
+    facts.skills = SKILLS.map((skill): JourneySkill => {
+      const placed = first?.results?.skills[skill]?.rating ?? null;
+      const startRating = placed ?? INITIAL_RATING;
+      const startStage: Stage = placed != null ? placementStage(placed) : 1;
+      startStages[skill] = startStage;
+      return { skill, startStage, nowStage: skills[skill].stage, startRating, nowRating: skills[skill].rating };
+    });
+    facts.speakerLevelStart = speakerLevel(startStages);
+    facts.speakerLevelNow = speakerLevel(Object.fromEntries(SKILLS.map((s) => [s, skills[s].stage])) as Record<SkillId, Stage>);
+  } catch (error) {
+    logger.warn(`[journey] could not gather it all — ${(error as Error).message}`);
+  }
+  return facts;
+}
