@@ -1,29 +1,28 @@
 import { Alert } from "react-native";
-import { denialMessage, nextSteps } from "../../domain/aiAllowance";
+import { denialMessage, usedUpLine } from "../../domain/aiAllowance";
 import { navigationRef } from "../../navigation/navigationRef";
 import { purchasesEnabled } from "../purchases/purchases";
-import { getAccount, refreshAccount } from "../account/accountStore";
-import { setCloudConsent } from "../prefs/prefsStore";
-import { currentProvider, hasConsent, hasProviderKey, PROVIDERS, whatGetsSent, type CloudProvider } from "./providers";
+import { ensureAccount, getAccount, refreshAccount } from "../account/accountStore";
+import { hasTonoConsent, setTonoConsent } from "../prefs/prefsStore";
+import { whatGetsSent } from "./disclosure";
+import { tonoAgeGated } from "./routing";
 
-// Asks once per provider before anything is sent to it — App Review
-// 5.1.2(i): say where personal data goes (including third-party AI) and get
-// explicit permission first.
-export function askCloudConsent(provider: CloudProvider): Promise<boolean> {
-  const body =
-    provider.id === "tono"
-      ? `${whatGetsSent(provider)} Tono's Google account is on Google's paid tier, where what you send isn't used to improve Google's products. You can turn this off any time in Settings → Deep reviews.`
-      : `${whatGetsSent(provider)} It's billed to your own ${provider.name} key, and ${provider.company}'s terms and privacy policy cover what you send. It doesn't go through any server of ours.`;
+// Asks once before anything is sent to Tono AI: App Review 5.1.2(i) wants the
+// app to say where personal data goes (including a third-party AI) and get
+// explicit permission first. Allowing it also makes the behind-the-scenes
+// account (no sign-in), so the free judged take can be counted.
+export function askTonoConsent(): Promise<boolean> {
   return new Promise((resolve) => {
     Alert.alert(
-      provider.id === "tono" ? "Send your takes to Tono AI?" : `Send your take to ${provider.company}?`,
-      body,
+      "Let Tono AI judge your takes?",
+      `${whatGetsSent()} You can turn it off any time in Settings → Tono AI, or for one take on its save screen.`,
       [
         { text: "Not now", style: "cancel", onPress: () => resolve(false) },
         {
           text: "Allow",
           onPress: () => {
-            setCloudConsent(provider.id, true);
+            setTonoConsent(true);
+            void ensureAccount().catch(() => undefined);
             resolve(true);
           },
         },
@@ -33,60 +32,54 @@ export function askCloudConsent(provider: CloudProvider): Promise<boolean> {
   });
 }
 
-// Tono AI needs an account with something left, then the person's permission.
-async function readyForTono(openSettings: () => void): Promise<boolean> {
-  const account = getAccount();
-  if (account.status !== "signedIn") {
-    Alert.alert("Sign in to use Tono AI", "Tono AI reviews your takes and fits your plan to them. Sign in with Apple or Google in Settings. It takes a few seconds, and you can use your own key instead.", [
-      { text: "Not now", style: "cancel" },
-      { text: "Open Settings", onPress: openSettings },
-    ]);
-    return false;
-  }
-  // A "no reviews left" from earlier may be out of date (a new month began):
-  // ask the server once before saying no.
-  if (!account.allowed.review) await refreshAccount();
-  if (!getAccount().allowed.review) {
-    const steps = nextSteps("quota_exhausted", getAccount().allowance?.plan ?? "free").filter((s) => purchasesEnabled() || s !== "get_plus");
-    const buttons = [
-      { text: "Not now", style: "cancel" as const },
-      ...(steps.includes("get_plus") ? [{ text: "Get Tono Plus", onPress: () => {
-            if (navigationRef.isReady()) navigationRef.navigate("Paywall");
-          } }] : []),
-      ...(steps.includes("own_key") ? [{ text: steps.includes("get_plus") ? "Use my own key" : "Open Settings", onPress: openSettings }] : []),
-    ];
-    Alert.alert(
-      denialMessage("quota_exhausted", getAccount().allowance),
-      steps.includes("get_plus")
-        ? "Everything on your phone still works. For more AI reviews, get Tono Plus or add your own key."
-        : steps.includes("own_key")
-          ? "Everything on your phone still works. To keep getting AI reviews, add your own key in Settings."
-          : "Everything on your phone still works.",
-      buttons,
-    );
-    return false;
-  }
-  if (hasConsent("tono")) return true;
-  return askCloudConsent(PROVIDERS.tono);
+export function openPaywall(): void {
+  if (navigationRef.isReady()) navigationRef.navigate("Paywall");
 }
 
-// Every deep-review entry point calls this first: the chosen provider must be
-// ready (Tono AI: signed in with reviews left; otherwise a key), then consent.
-// Resolves true when it's OK to go ahead.
-export async function readyForDeepReview(openSettings: () => void): Promise<boolean> {
-  const provider = currentProvider();
-  if (provider.id === "tono") return readyForTono(openSettings);
-  if (!(await hasProviderKey(provider.id))) {
-    Alert.alert(
-      "Add an API key first",
-      `Deep reviews with ${provider.name} use your own AI key. Add a ${provider.name} key — or choose another provider — in Settings.`,
-      [
-        { text: "Not now", style: "cancel" },
-        { text: "Open Settings", onPress: openSettings },
-      ],
-    );
+// A quiet offer of Plus, only where Plus is actually for sale. Otherwise just
+// the explanation: the free path is never a dead end.
+export function offerPlus(title: string, message: string): void {
+  if (!purchasesEnabled()) {
+    Alert.alert(title, message);
+    return;
+  }
+  Alert.alert(title, message, [
+    { text: "Not now", style: "cancel" },
+    { text: "See Tono Plus", onPress: openPaywall },
+  ]);
+}
+
+// What has to be true before a judged analysis is asked for on someone's
+// behalf, asked in the moment when it isn't. `exercise`: notes on a Rewind or
+// Say it short, or AI marks, which are Plus (and trial) features. Resolves
+// true when it's fine to go ahead.
+export async function readyForTono(options: { exercise: boolean }): Promise<boolean> {
+  if (tonoAgeGated()) {
+    Alert.alert("Tono AI is for 18 and over", "Everything your phone measures, and its tips, work as always.");
     return false;
   }
-  if (hasConsent(provider.id)) return true;
-  return askCloudConsent(provider);
+  const account = getAccount();
+  if (getAccount().killSwitch) {
+    Alert.alert(denialMessage("disabled", null), "Your phone's measurements and tips still work.");
+    return false;
+  }
+  if (options.exercise && (account.allowance?.tier ?? "free") === "free") {
+    offerPlus("Notes from Tono AI are part of Plus", "Your counts and tips from the phone are here as always. Tono Plus adds notes on what you said.");
+    return false;
+  }
+  // A "nothing left" from earlier may be out of date (a new month began):
+  // ask the server once before saying no.
+  const count = options.exercise ? "text" : "take";
+  if (!account.allowed[count]) await refreshAccount();
+  const now = getAccount();
+  if (!now.allowed[count]) {
+    const allowance = now.allowance;
+    const paying = allowance?.plan === "plus" || allowance?.plan === "trial";
+    const message = allowance ? usedUpLine(allowance) : "Your phone's measurements and tips are here as always.";
+    if (paying) Alert.alert(denialMessage("quota_exhausted", allowance), message);
+    else offerPlus(denialMessage("quota_exhausted", allowance), message);
+    return false;
+  }
+  if (hasTonoConsent()) return true;
+  return askTonoConsent();
 }

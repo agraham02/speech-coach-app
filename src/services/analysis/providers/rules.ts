@@ -2,7 +2,7 @@ import type { AnalysisContext, AnalysisKind } from "../../../domain/analysis/typ
 import type { Route } from "../../../domain/analysis/routing";
 import { autoMark } from "../../../domain/cadence/autoMark";
 import { ruleCoach } from "../../../domain/coach/ruleCoach";
-import { PROMPT_VERSIONS, type InputFor, type OutputFor } from "../kinds";
+import { RULES_PROMPT_VERSION, type InputFor, type OutputFor } from "../kinds";
 import { provenance, type AnalysisProvider, type ProviderOutcome } from "../provider";
 
 // The rules: deterministic, on the phone, free, always there. They never
@@ -13,7 +13,7 @@ export const rulesProvider: AnalysisProvider = {
   id: "rules",
   supports: (kind: AnalysisKind) => kind === "coaching" || kind === "mark_up",
   async run<K extends AnalysisKind>(kind: K, input: InputFor<K>, _ctx: AnalysisContext, _route: Route): Promise<ProviderOutcome<OutputFor<K>>> {
-    const made = provenance({ producer: "rules", promptVersion: PROMPT_VERSIONS.rules, judged: false });
+    const made = provenance({ producer: "rules", promptVersion: RULES_PROMPT_VERSION, judged: false });
     if (kind === "coaching") {
       const coach = ruleCoach(input as InputFor<"coaching">);
       return { ok: true, value: { ...coach, provenance: made } as OutputFor<K>, provenance: made };

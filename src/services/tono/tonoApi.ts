@@ -11,7 +11,7 @@ export { isDenyCode, TonoApiError } from "./tonoError";
 // here knows a model name or holds a key.
 
 // Told every time a response carries the person's allowance, so the screens
-// that show "3 of 5 free reviews left" never need a second request.
+// that show "49 of 60 judged takes left" never need a second request.
 let allowanceListener: ((allowance: TonoAllowance) => void) | null = null;
 export function onAllowance(listener: ((allowance: TonoAllowance) => void) | null): void {
   allowanceListener = listener;
@@ -73,10 +73,12 @@ async function call<T>(fn: string, body: unknown, timeoutMs: number): Promise<T>
 export interface MeResponse {
   allowance: TonoAllowance;
   mode: "beta" | "launch";
-  allowed: { review: boolean; text: boolean; insight: boolean };
+  allowed: { take: boolean; text: boolean; insight: boolean };
   killSwitch: boolean;
   // The launch switch (server config): whether Tono Plus is for sale.
-  plusPurchasable?: boolean;
+  plusPurchasable: boolean;
+  // Whether someone who said they are under 18 may use Tono AI.
+  minorsMayUseAi: boolean;
 }
 
 export interface UploadStartResponse {
@@ -91,22 +93,30 @@ export interface FileStatusResponse {
   state: string;
 }
 
+// The tasks the server runs (supabase/functions/_shared/prompts). The phone
+// names one and sends its structured inputs; the server writes the prompt.
+export type TonoTask = "take_review" | "rewind_notes" | "summary_notes" | "mark_up";
+
 export interface GenerateRequest {
-  kind: "review" | "text" | "insight";
-  systemPrompt: string;
-  schema: object;
-  // A review only.
-  fileName?: string;
-  videoSeconds?: number;
+  task: TonoTask;
+  // The answer format this app reads; the server refuses any other.
+  schemaVersion: number;
+  inputs: object;
+  // A take review that should watch the video: its uploaded file.
+  media?: { fileName: string; videoSeconds: number };
   // One per attempt, so a retried request cannot be counted twice.
   idempotencyKey: string;
 }
 
 export interface GenerateResponse {
-  // Gemini's own answer, parsed and checked by the app exactly as before.
-  gemini: unknown;
+  // The answer as JSON, in the task's format. The app checks it.
+  output: unknown;
   model: string;
   usedFallback: boolean;
+  promptVersion: string;
+  schemaVersion: number;
+  // Gemini's token counts (usageMetadata), for the app's usage record.
+  usage: unknown;
   allowance: TonoAllowance;
 }
 
@@ -121,8 +131,8 @@ export const tonoFileStatus = (fileName: string) => call<FileStatusResponse>("ai
 // Removes a take's uploaded video from Google (when the take is deleted).
 export const tonoDeleteFile = (fileName: string) => call<{ ok: true }>("ai-file", { fileName, delete: true }, 20_000);
 
-// A video review waits for Google to watch the video; text is quick.
-export const tonoGenerate = (request: GenerateRequest) => call<GenerateResponse>("ai-generate", request, request.kind === "review" ? 190_000 : 70_000);
+// A take judged from its video waits for Google to watch it; text is quick.
+export const tonoGenerate = (request: GenerateRequest, timeoutMs = request.media ? 190_000 : 70_000) => call<GenerateResponse>("ai-generate", request, timeoutMs);
 
 export const tonoAppleToken = (authorizationCode: string) => call<{ ok: true }>("apple-token", { authorizationCode }, 30_000);
 

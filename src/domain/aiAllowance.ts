@@ -1,89 +1,133 @@
-// What the user is told about their Tono AI allowance, in plain words, and
+// What the person is told about their Tono AI allowance, in plain words, and
 // what they are offered when a call is refused. Pure.
+//
+// The rules live on the server (supabase/functions/_shared/allowance.ts):
+// - free: one judged take a month (a server setting), nothing else judged;
+// - trial: the 14-day free trial, with its own counts over the trial;
+// - plus: 60 judged takes a month;
+// - beta: what TestFlight testers get without paying.
+// A judged take is one count whatever the judge was sent: one take, one count.
 
-export type AllowanceTier = "starter" | "beta" | "plus";
+export type AllowancePlan = "free" | "trial" | "plus";
+export type AllowanceTier = "free" | "beta" | "trial" | "plus";
 
 // The server reports this from `me` and with every successful call.
 export interface TonoAllowance {
-  plan: "free" | "plus";
+  plan: AllowancePlan;
   tier: AllowanceTier;
-  reviewsLeft: number;
-  reviewsTotal: number;
-  // When a monthly allowance refills (ISO). Null for the one-off starter pack.
-  resetsAt: string | null;
+  takesLeft: number;
+  takesTotal: number;
+  // When the counts refill (ISO): the 1st of next month (UTC), or a trial's end.
+  resetsAt: string;
+  // The trial's end, for "free until 6 November". Null outside a trial.
+  trialEndsAt: string | null;
 }
 
-export type DenyReason =
-  | "quota_exhausted"
-  | "plus_required"
-  | "plus_cost_cap"
-  | "budget_paused"
-  | "rate_limited"
-  | "disabled";
+export type DenyReason = "quota_exhausted" | "plus_required" | "plus_cost_cap" | "budget_paused" | "rate_limited" | "disabled";
 
-// What can be done next. The sheet shows these, in this order.
-export type NextStep = "get_plus" | "own_key" | "on_device" | "wait";
+// What can be done next. Shown in this order.
+export type NextStep = "start_trial" | "get_plus" | "wait";
+
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+// "1 November". UTC, because the counts refill at midnight UTC on the 1st.
+export function dayLabel(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+}
 
 function plural(n: number, one: string, many: string): string {
   return n === 1 ? one : many;
 }
 
-// The line shown under a review button and in Settings.
-export function allowanceLine(a: TonoAllowance): string {
-  const left = a.reviewsLeft;
-  if (a.tier === "starter") {
-    if (left <= 0) return "No free AI reviews left";
-    return `${left} of ${a.reviewsTotal} free AI ${plural(left, "review", "reviews")} left`;
-  }
-  if (left <= 0) return "No AI reviews left this month";
-  return `${left} AI ${plural(left, "review", "reviews")} left this month`;
+export function isPaidPlan(a: TonoAllowance | null | undefined): boolean {
+  return a?.plan === "trial" || a?.plan === "plus";
 }
 
-// A short note for the save screen when this review will use one.
+// The line under the Tono AI row in Settings and on the account card.
+export function allowanceLine(a: TonoAllowance): string {
+  const left = a.takesLeft;
+  switch (a.tier) {
+    case "free":
+      if (a.takesTotal <= 0) return "Judged takes are part of Tono Plus";
+      if (left <= 0) return `Free judged take used · the next one comes on ${dayLabel(a.resetsAt)}`;
+      return a.takesTotal === 1 ? "Your free judged take this month is ready" : `${left} of ${a.takesTotal} free judged takes left this month`;
+    case "trial": {
+      const until = a.trialEndsAt ? ` · free until ${dayLabel(a.trialEndsAt)}` : "";
+      return `${left} of ${a.takesTotal} judged ${plural(a.takesTotal, "take", "takes")} left in your trial${until}`;
+    }
+    case "beta":
+    case "plus":
+      if (left <= 0) return `No judged takes left this month · more on ${dayLabel(a.resetsAt)}`;
+      return `${left} of ${a.takesTotal} judged ${plural(a.takesTotal, "take", "takes")} left this month`;
+  }
+}
+
+// The save screen, under "Have Tono AI judge this take". Empty when nothing
+// is left (the switch is off then, and usedUpLine says why).
 export function usesOneLine(a: TonoAllowance): string {
-  if (a.reviewsLeft <= 0) return "";
-  return a.tier === "starter"
-    ? `Uses 1 of your ${a.reviewsLeft} free ${plural(a.reviewsLeft, "review", "reviews")}`
-    : `Uses 1 of your ${a.reviewsLeft} ${plural(a.reviewsLeft, "review", "reviews")} this month`;
+  if (a.takesLeft <= 0) return "";
+  switch (a.tier) {
+    case "free":
+      return a.takesTotal === 1 ? "Uses your free judged take for this month." : `Uses 1 of your ${a.takesLeft} free judged takes this month.`;
+    case "trial":
+      return `Counts as 1 of the ${a.takesLeft} judged ${plural(a.takesLeft, "take", "takes")} left in your trial.`;
+    case "beta":
+    case "plus":
+      return `Counts as 1 of the ${a.takesLeft} judged ${plural(a.takesLeft, "take", "takes")} left this month.`;
+  }
+}
+
+// When the free judged take (or a month's count) is used: what happened and
+// when it comes back. Never a dead end: the measured layer is still there.
+export function usedUpLine(a: TonoAllowance): string {
+  if (a.tier === "free") {
+    return a.takesTotal > 0
+      ? `You've used this month's free judged take. The next one comes on ${dayLabel(a.resetsAt)}. Your phone's measurements and tips are here as always.`
+      : "Judged takes are part of Tono Plus. Your phone's measurements and tips are here as always.";
+  }
+  if (a.tier === "trial") return "You've used the judged takes in your trial. Your phone's measurements and tips are here as always.";
+  return `You've used this month's judged takes. More come on ${dayLabel(a.resetsAt)}. Your phone's measurements and tips are here as always.`;
 }
 
 export function denialMessage(reason: DenyReason, a: TonoAllowance | null): string {
   switch (reason) {
     case "quota_exhausted":
-      return a?.tier === "starter" ? "You have used your free AI reviews." : "You have used this month's AI reviews.";
+      if (a?.tier === "free") return "You've used this month's free judged take.";
+      if (a?.tier === "trial") return "You've used the judged takes in your trial.";
+      return "You've used this month's judged takes.";
     case "plus_required":
       return "This is part of Tono Plus.";
     case "plus_cost_cap":
-      return "You have used this month's AI allowance. It refills on the 1st.";
+      return `You've reached this month's Tono AI limit. It refills on ${a ? dayLabel(a.resetsAt) : "the 1st"}.`;
     case "budget_paused":
-      return "Free AI reviews are paused for now. They are back on the 1st.";
+      return "Free Tono AI is paused for now. It's back on the 1st.";
     case "rate_limited":
-      return "That is a lot of reviews for one day. Try again tomorrow.";
+      return "That's a lot of judged takes for one day. Try again tomorrow.";
     case "disabled":
-      return "AI reviews are switched off for a moment. Try again soon.";
+      return "Tono AI is switched off for a moment. Try again soon.";
   }
 }
 
-// What to offer. Free users can buy Plus; Plus users cannot buy more, so they
-// are pointed at their own key or the phone.
-export function nextSteps(reason: DenyReason, plan: "free" | "plus"): NextStep[] {
-  const upgrade: NextStep[] = plan === "free" ? ["get_plus"] : [];
+// What to offer after a refusal. Someone without Plus can start the trial
+// (when the App Store says they still can) or buy Plus; a subscriber can only
+// wait for the refill.
+export function nextSteps(reason: DenyReason, plan: AllowancePlan, trialAvailable: boolean): NextStep[] {
+  const upgrade: NextStep[] = plan === "free" ? [trialAvailable ? "start_trial" : "get_plus"] : [];
   switch (reason) {
     case "quota_exhausted":
-    case "budget_paused":
-      return [...upgrade, "own_key", "on_device"];
     case "plus_required":
-      return ["get_plus", "on_device"];
+    case "budget_paused":
+      return upgrade;
     case "plus_cost_cap":
-      return ["own_key", "on_device"];
     case "rate_limited":
-      return ["wait"];
     case "disabled":
-      return ["own_key", "on_device"];
+      return ["wait"];
   }
 }
 
-// A refused call needs the user to act, so it is not retried by itself.
+// A refused call needs the person to act, so it is not retried by itself.
 export function isActionNeeded(reason: DenyReason): boolean {
   return reason !== "disabled";
 }

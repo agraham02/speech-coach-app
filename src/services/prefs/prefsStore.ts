@@ -12,7 +12,6 @@ import { DEFAULT_CURRICULUM_LEVEL } from "../../domain/curriculum";
 import type { DailyGoal } from "../../domain/dailyGoal";
 import type { UserProfile } from "../../domain/profile";
 import { DEFAULT_RUN, type RunState } from "../../domain/innerVoice/run";
-import type { ProviderId } from "../cloud/providers";
 import { parseCalibration, type FaceCalibration } from "../../domain/faceCalibration";
 import type { UpcomingEvent } from "../../domain/events";
 
@@ -37,19 +36,15 @@ const KEYS = {
   skillCheckPending: "skillCheckPending",
   cloudReviewDefault: "cloudReviewDefault",
   judgeInput: "judgeInput",
-  cloudProvider: "cloudProvider",
   accountCache: "accountCache",
-  cloudModels: "cloudModels",
-  cloudConsent: "cloudConsent",
+  tonoConsent: "tonoConsent",
   videoRetentionDays: "videoRetentionDays",
   lastAutoCleanup: "lastAutoCleanup",
   guideSeen: "guideSeen",
   guideOff: "guideOff",
-  cloudCalls: "cloudCalls",
   freezeAnnouncedThrough: "freezeAnnouncedThrough",
   selfLikesRun: "selfLikesRun",
   rewindReminder: "rewindReminder",
-  rewindCloudConsent: "rewindCloudConsent",
   rewindNotificationsAsked: "rewindNotificationsAsked",
   shareProfileWithReviews: "shareProfileWithReviews",
   audioRetentionDays: "audioRetentionDays",
@@ -303,20 +298,6 @@ export function setJudgeInput(value: "text" | "video"): void {
   storage.set(KEYS.judgeInput, value);
 }
 
-const PROVIDER_IDS: ProviderId[] = ["tono", "gemini", "openai", "anthropic", "openrouter"];
-
-// Which provider runs deep reviews: Tono AI until one is chosen. (Phones that
-// already had a Gemini key are moved to Gemini once, at launch, by
-// services/account/accountStore.ts, so their key keeps working.)
-export function getCloudProvider(): ProviderId {
-  const id = storage.getString(KEYS.cloudProvider);
-  return id && (PROVIDER_IDS as string[]).includes(id) ? (id as ProviderId) : "tono";
-}
-
-export function hasChosenCloudProvider(): boolean {
-  return storage.getString(KEYS.cloudProvider) !== undefined;
-}
-
 // The last known signed-in account, as JSON (domain/account.ts). Kept so the
 // app knows who you are and what you have left before the network answers.
 export function getAccountCacheRaw(): string | null {
@@ -326,10 +307,6 @@ export function getAccountCacheRaw(): string | null {
 export function setAccountCacheRaw(raw: string | null): void {
   if (raw) storage.set(KEYS.accountCache, raw);
   else storage.remove(KEYS.accountCache);
-}
-
-export function setCloudProvider(id: ProviderId): void {
-  storage.set(KEYS.cloudProvider, id);
 }
 
 function readJson<T>(key: string, fallback: T): T {
@@ -342,31 +319,16 @@ function readJson<T>(key: string, fallback: T): T {
   }
 }
 
-// A model ID typed in Settings for a provider; null means its default.
-export function getCloudModel(id: ProviderId): string | null {
-  return readJson<Partial<Record<ProviderId, string>>>(KEYS.cloudModels, {})[id]?.trim() || null;
+// The one Tono AI consent (App Review 5.1.2(i): say where personal data goes,
+// including to a third-party AI, and get permission first). Asked once, before
+// the first judged take or the first exercise notes; Settings turns it off.
+export function hasTonoConsent(): boolean {
+  return storage.getBoolean(KEYS.tonoConsent) ?? false;
 }
 
-export function setCloudModel(id: ProviderId, model: string): void {
-  const models = readJson<Partial<Record<ProviderId, string>>>(KEYS.cloudModels, {});
-  if (model.trim()) models[id] = model.trim();
-  else delete models[id];
-  storage.set(KEYS.cloudModels, JSON.stringify(models));
+export function setTonoConsent(allowed: boolean): void {
+  storage.set(KEYS.tonoConsent, allowed);
 }
-
-// Providers the user has explicitly allowed to receive their data — asked
-// once per provider before the first deep review (App Review 5.1.2(i):
-// say where personal data goes, including third-party AI, and get
-// permission first).
-export function getCloudConsent(): ProviderId[] {
-  return readJson<ProviderId[]>(KEYS.cloudConsent, []);
-}
-
-export function setCloudConsent(id: ProviderId, allowed: boolean): void {
-  const current = getCloudConsent().filter((p) => p !== id);
-  storage.set(KEYS.cloudConsent, JSON.stringify(allowed ? [...current, id] : current));
-}
-
 
 // Days to keep full videos before the monthly-keepsake cleanup runs on its
 // own (onboarding 3.8). 0 = keep forever; null = never chosen (cleanup only
@@ -387,24 +349,14 @@ export function setLastAutoCleanup(date: string): void {
   storage.set(KEYS.lastAutoCleanup, date);
 }
 
-// Prefs for features that no longer exist (both removed 2026-10-12): the
-// Notion journal's default and the AssemblyAI cloud-transcription switch.
-const REMOVED_KEYS = ["notionDefault", "assemblyAiEnabled"];
+// Prefs for features that no longer exist: the Notion journal's default and
+// the AssemblyAI switch (removed 2026-10-12), and bring-your-own-key's
+// provider, models, per-provider consents and daily call count (removed
+// 2026-10-23: Tono AI is the only judge).
+const REMOVED_KEYS = ["notionDefault", "assemblyAiEnabled", "cloudProvider", "cloudModels", "cloudConsent", "rewindCloudConsent", "cloudCalls"];
 
 export function removeObsoletePrefs(): void {
   for (const key of REMOVED_KEYS) storage.remove(key);
-}
-
-// Every preference, gone (Reset app): the profile, onboarding, goals,
-// reminders, recording settings — back to first-launch defaults.
-// Deep-review calls made today (local date), for the daily limit.
-export function getCloudCallsToday(today: string): number {
-  const stored = readJson<{ date: string; count: number }>(KEYS.cloudCalls, { date: today, count: 0 });
-  return stored.date === today ? stored.count : 0;
-}
-
-export function noteCloudCall(today: string): void {
-  storage.set(KEYS.cloudCalls, JSON.stringify({ date: today, count: getCloudCallsToday(today) + 1 }));
 }
 
 // The app guide: a tip the first time you reach each tab or feature.
@@ -480,18 +432,6 @@ export function setRewindReminder(value: RewindReminder): void {
   storage.set(KEYS.rewindReminder, JSON.stringify(value));
 }
 
-// Providers you've said may read a Rewind transcript. Separate from the
-// deep-review consent, which for Gemini also covers uploading video — a
-// transcript-only OK must not stretch to that.
-export function getRewindCloudConsent(): string[] {
-  return readJson<string[]>(KEYS.rewindCloudConsent, []);
-}
-
-export function setRewindCloudConsent(provider: string): void {
-  const current = getRewindCloudConsent();
-  if (!current.includes(provider)) storage.set(KEYS.rewindCloudConsent, JSON.stringify([...current, provider]));
-}
-
 // The first finished Rewind asks about notifications once, so the evening
 // nudge can work; never again if the answer was no.
 export function wasRewindNotificationAsked(): boolean {
@@ -525,18 +465,17 @@ export function setAudioRetentionDays(days: number): void {
   storage.set(KEYS.audioRetentionDays, days);
 }
 
+// Every preference, gone (Reset app): the profile, onboarding, goals,
+// reminders, recording settings — back to first-launch defaults.
 export function clearAllPrefs(): void {
   storage.clearAll();
 }
 
-// Dev tab: show one tip again, or start today's deep-review count over.
+// Dev tab: show one tip again.
 export function unmarkGuideSeen(id: string): void {
   storage.set(KEYS.guideSeen, JSON.stringify(getGuideSeen().filter((seen) => seen !== id)));
 }
 
-export function resetCloudCallsToday(): void {
-  storage.remove(KEYS.cloudCalls);
-}
 
 
 // What the face check learned about this face (domain/faceCalibration.ts):

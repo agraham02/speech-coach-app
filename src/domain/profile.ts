@@ -22,8 +22,21 @@ export type Obstacle =
 export type EventKind = "interview" | "talk" | "toast" | "pitch" | "date" | "other";
 export type PracticePlace = "private" | "car" | "shared" | "walking";
 
+// The age question in onboarding. Ranges, not a birthday: only "under 18 or
+// not" changes anything (whether Tono AI may be used: the Gemini API terms
+// ask for 18 or older; docs/decisions/tiers-and-trial.md). "unsaid" never
+// blocks anything.
+export type AgeRange = "under_13" | "13_17" | "18_24" | "25_34" | "35_49" | "50_plus" | "unsaid";
+
+// True for 18 or older, false under 18, null when it wasn't answered.
+export function isAdultFromAge(range: AgeRange | undefined | null): boolean | null {
+  if (!range || range === "unsaid") return null;
+  return range !== "under_13" && range !== "13_17";
+}
+
 export interface UserProfile {
   name?: string;
+  ageRange?: AgeRange;
   contexts: SpeakingContext[];
   obstacles: Obstacle[];
   // Legacy: the one event onboarding used to keep here. Events live in the

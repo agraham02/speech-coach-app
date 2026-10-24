@@ -1,10 +1,16 @@
-import type { GradingContext } from "../gemini/transcribeSession";
 import { getPrompt } from "../db/promptsRepo";
 import { getScriptById } from "../db/scriptsRepo";
 import type { PlanText } from "../../domain/planYourPoint";
+import type { MarkLevel, Script } from "../../domain/scriptTypes";
 import { taskOf, type PromptTask, type PromptTaskContext } from "../../domain/promptTask";
 import { FRAMEWORK_LABELS, type FrameworkId } from "../../domain/coach/structureHeuristics";
 import { ADHOC_PROMPT_PREFIX, type Prompt, type RecordingSubject, type Session } from "../../domain/sessionTypes";
+
+// What a take was answering, for the judge: a prompt (with what it asked them
+// to do and their plan) or a script (with the marks they were shown).
+export type GradingContext =
+  | { kind: "prompt"; promptText: string; planText?: PlanText; taskContext?: PromptTaskContext }
+  | { kind: "script"; script: Script; cuesEnabled: boolean; markLevel?: MarkLevel };
 
 // Rebuilds everything about what a saved session was "about" from its DB
 // row, in one place. History, Result, Retake/"Practice again" and

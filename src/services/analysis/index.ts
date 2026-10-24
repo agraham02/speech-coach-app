@@ -2,7 +2,6 @@ import type { AnalysisKind, AnalysisResult, ShowLevel } from "../../domain/analy
 import { whatCanShow } from "../../domain/analysis/routing";
 import { analysisContext, type ContextArgs } from "../cloud/routing";
 import type { InputFor, OutputFor } from "./kinds";
-import { ownKeyProvider } from "./providers/ownKey";
 import { rulesProvider } from "./providers/rules";
 import { tonoAiProvider } from "./providers/tonoAi";
 import { createAnalysisService, type RequestOptions } from "./service";
@@ -11,7 +10,7 @@ import { createAnalysisService, type RequestOptions } from "./service";
 // requestAnalysis; they get one result shape back and label it from its
 // provenance (domain/analysis/provenance.ts).
 
-export const analysis = createAnalysisService({ providers: [tonoAiProvider, ownKeyProvider, rulesProvider] });
+export const analysis = createAnalysisService({ providers: [tonoAiProvider, rulesProvider] });
 
 export async function requestAnalysis<K extends AnalysisKind>(
   kind: K,
