@@ -20,7 +20,8 @@ import { tokenizeHeard } from "../domain/speech/normalize";
 import { buildTarget, followLive, type WordStatus } from "../domain/speech/speechAlignment";
 import { prepareDrill, type DrillSetup } from "../domain/drills/prepareDrill";
 import { chainJudgeRequest, evaluateDrill, type DrillDetails } from "../domain/drills/evaluateDrill";
-import { judgeChain } from "../services/drills/chainJudge";
+import { judgeChain, type ChainJudged } from "../services/drills/chainJudge";
+import { useElapsed } from "../hooks/useElapsed";
 import { ChainVerdicts } from "../components/drills/ChainVerdicts";
 import type { Provenance } from "../domain/analysis/types";
 import { DRILL_TITLES, type DrillOutcome } from "../domain/drills/drillSpecs";
@@ -56,6 +57,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
   const speech = useLiveSpeech();
   const [setup, setSetup] = useState<DrillSetup | null>(null);
   const [stage, setStage] = useState<Stage>("intro");
+  const checkingFor = useElapsed(stage === "finalizing");
   const [elapsedMs, setElapsedMs] = useState(0);
   const [prepLeft, setPrepLeft] = useState(0);
   const [result, setResult] = useState<{ outcome: DrillOutcome; details: DrillDetails } | null>(null);
@@ -204,6 +206,8 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
     setStage("listening");
   }
 
+  const skipCheckRef = useRef<(() => void) | null>(null);
+
   async function finish() {
     if (!setup || finishingRef.current) return;
     finishingRef.current = true;
@@ -240,7 +244,13 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
       let check: { by: Provenance | null; note: string | null } | null = null;
       const chainRequest = chainJudgeRequest(setup, measured);
       if (chainRequest) {
-        const judged = await judgeChain(chainRequest);
+        // The wait is short (Tono AI has 15 s), but the person may not want
+        // it: "count without the check" ends it and scores by counting.
+        const skipped = new Promise<ChainJudged>((resolve) => {
+          skipCheckRef.current = () => resolve({ ok: false, reason: "error", message: "You chose to count your words without the check." });
+        });
+        const judged = await Promise.race([judgeChain(chainRequest), skipped]);
+        skipCheckRef.current = null;
         if (judged.ok) {
           judgement = judged.request === "word_chain" ? { wordChainJudgement: judged.judgement } : { bridgeChainJudgement: judged.judgement };
           check = { by: judged.provenance, note: null };
@@ -343,7 +353,17 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
           onPress={finish}
         />
       ) : null}
-      {stage === "finalizing" ? <PrimaryButton label={setup.live === "chain" ? "Checking your links…" : "Scoring…"} onPress={() => undefined} loading /> : null}
+      {stage === "finalizing" ? (
+        <>
+          {setup.live === "chain" ? (
+            <Txt variant="footnote" tone="muted" align="center">
+              {checkingFor >= 5 ? "Tono AI is still reading your links. It gives up after 15 seconds." : "Tono AI is reading your links. Usually a few seconds."}
+            </Txt>
+          ) : null}
+          <PrimaryButton label={setup.live === "chain" ? "Checking your links…" : "Scoring…"} onPress={() => undefined} loading />
+          {setup.live === "chain" && checkingFor >= 5 ? <PrimaryButton label="Count them without the check" variant="ghost" onPress={() => skipCheckRef.current?.()} /> : null}
+        </>
+      ) : null}
       {stage === "result" ? (
         <View style={styles.row}>
           <PrimaryButton label="Try again" variant="secondary" onPress={tryAgain} style={styles.flex} />

@@ -47,6 +47,7 @@ import { PressableScale } from "../components/common/PressableScale";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import { success } from "../utils/haptics";
 import { TranscriptionBanner } from "../components/common/TranscriptionBanner";
+import { ActiveTakesCard } from "../components/work/ActiveTakesCard";
 import { EventTodayCard } from "../components/events/EventTodayCard";
 import { FeedbackPrompt } from "../components/feedback/FeedbackPrompt";
 import { NewProgressCard } from "../components/celebrate/NewProgressCard";
@@ -140,6 +141,7 @@ export function TodayScreen() {
       title="Today"
     >
       <TranscriptionBanner />
+      <ActiveTakesCard />
       <View style={styles.meta}>
         <Txt variant="subhead" tone="secondary">
           {todayLabel()}

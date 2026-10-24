@@ -77,6 +77,15 @@ export async function getSkillCheck(id: string): Promise<StoredSkillCheck | null
   return row ? fromRow(row) : null;
 }
 
+// The first (not a retake) skill check, newest, if there is one: while
+// onboarding is unfinished it means the starting point was being put together
+// when the app was closed.
+export async function getFirstSkillCheckId(): Promise<string | null> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ id: string }>(`SELECT id FROM skill_checks WHERE retake_of IS NULL ORDER BY taken_at DESC LIMIT 1`);
+  return row?.id ?? null;
+}
+
 // Most recent first.
 export async function listSkillChecks(): Promise<StoredSkillCheck[]> {
   const db = await getDatabase();

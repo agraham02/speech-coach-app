@@ -10,6 +10,10 @@ import { Txt } from "../components/common/Txt";
 import { PrimaryButton } from "../components/common/PrimaryButton";
 import { ScaleSlider } from "../components/common/ScaleSlider";
 import { LoadingSpinner } from "../components/common/LoadingSpinner";
+import { WorkStatusCard } from "../components/work/WorkStatusCard";
+import { useTakeWork } from "../hooks/useTakeWork";
+import { STARTING_POINT } from "../domain/analysis/workCopy";
+import { getJudgeInput } from "../services/prefs/prefsStore";
 import { VideoPlayback } from "../components/result/VideoPlayback";
 import { useSessionSteps } from "../hooks/useSessionSteps";
 import { getSkillCheck, saveConfidenceCheckin, setSkillCheckResults, type StoredSkillCheck } from "../services/db/skillChecksRepo";
@@ -118,8 +122,18 @@ export function StartingPointScreen({ route, navigation }: Props) {
     return () => clearInterval(t);
   }, [result]);
   const waitedOut = waited >= (reviewComing ? 240 : 90);
+  const { work, elapsed } = useTakeWork(check?.sessionId ?? "", steps);
+  // Only the AI coach's read is outstanding: the phone's own analysis is in,
+  // so the person may go on without it rather than wait for it.
+  const [skippedReview, setSkippedReview] = useState(false);
+  const onlyReviewLeft = reviewComing && work.onDevice === "done";
+  const [talkSeconds, setTalkSeconds] = useState(120);
+  useEffect(() => {
+    if (check?.sessionId) getSessionById(check.sessionId).then((s) => s && setTalkSeconds(s.durationSeconds));
+  }, [check?.sessionId]);
   const analysisDone =
     waitedOut ||
+    (skippedReview && onlyReviewLeft) ||
     !check?.sessionId ||
     (steps.length > 0 &&
       steps.filter((s) => ANALYSIS_STEPS.includes(s.step)).every((s) => s.status !== "pending" && s.status !== "running" && s.status !== "interrupted"));
@@ -183,16 +197,34 @@ export function StartingPointScreen({ route, navigation }: Props) {
   }
 
   if (!check || !result) {
+    const waiting = !!check?.sessionId && !analysisDone;
+    if (!waiting) {
+      return (
+        <ScreenContainer style={styles.centered}>
+          <LoadingSpinner />
+          <Txt variant="callout" tone="secondary" align="center">
+            Putting it together…
+          </Txt>
+        </ScreenContainer>
+      );
+    }
     return (
-      <ScreenContainer style={styles.centered}>
-        <LoadingSpinner />
-        <Txt variant="callout" tone="secondary" align="center">
-          {check?.sessionId && !analysisDone
-            ? reviewComing
-              ? "Your AI coach is watching your talk — usually a minute or two."
-              : "Listening back to your recording — on this phone, about a minute."
-            : "Putting it together…"}
-        </Txt>
+      <ScreenContainer style={styles.container}>
+        <Header eyebrow={check?.retakeOf ? "30 days on" : "Your starting point"} title={STARTING_POINT.title} />
+        <View style={styles.waiting}>
+          <WorkStatusCard work={work} elapsed={elapsed} eta={{ takeSeconds: talkSeconds, reviewInput: reviewComing ? getJudgeInput() : null }} />
+          <Txt variant="footnote" tone="secondary">
+            {STARTING_POINT.detail}
+          </Txt>
+        </View>
+        {onlyReviewLeft ? (
+          <View style={styles.waiting}>
+            <Txt variant="footnote" tone="muted">
+              {STARTING_POINT.skipDetail}
+            </Txt>
+            <PrimaryButton label={STARTING_POINT.skip} variant="secondary" onPress={() => setSkippedReview(true)} />
+          </View>
+        ) : null}
       </ScreenContainer>
     );
   }
@@ -406,6 +438,7 @@ function PathStart({ path }: { path: StoredPathUnit[] }) {
 
 const useStyles = makeStyles((t) => ({
   container: { gap: t.space.md },
+  waiting: { gap: t.space.md },
   centered: { justifyContent: "center", alignItems: "center", gap: t.space.md },
   scroll: { gap: t.space.md, paddingBottom: t.space.lg },
   card: { gap: t.space.sm },

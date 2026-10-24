@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp, NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -12,11 +12,13 @@ import { PrimaryButton } from "../components/common/PrimaryButton";
 import { Txt } from "../components/common/Txt";
 import { showGlobalToast } from "../components/common/ToastProvider";
 import { partsCovered } from "../domain/rewind/stats";
-import { getRewind, updateRewind, type Rewind } from "../services/db/rewindRepo";
+import { getRewind, type Rewind } from "../services/db/rewindRepo";
 import { stopClip } from "../services/audio/clipPlayer";
 import { rewindAudioExists, resolveRewindUri } from "../services/rewind/rewindStorage";
-import { reviewInCloud } from "../services/rewind/rewindReview";
-import { producerName } from "../domain/analysis/provenance";
+import { getNotesState, requestNotes, subscribeNotes } from "../services/rewind/rewindNotes";
+import { getRewindStage, isRewindProcessing } from "../services/rewind/rewindProcessor";
+import { NotesWorkCard, RewindWorkCard } from "../components/work/RewindWorkCard";
+import { useElapsed } from "../hooks/useElapsed";
 import { RewindPlayer } from "../components/rewind/RewindPlayer";
 import { confirmDeleteRewind } from "../components/rewind/confirmDeleteRewind";
 import { retranscribeRewind } from "../services/rewind/rewindProcessor";
@@ -45,7 +47,7 @@ export function RewindResultScreen({ route }: Props) {
   const [rewind, setRewind] = useState<Rewind | null>(null);
   const [missing, setMissing] = useState(false);
   const [showText, setShowText] = useState(false);
-  const [asking, setAsking] = useState(false);
+  const [, redraw] = useState(0);
   const [retrying, setRetrying] = useState(false);
   const audioDays = getAudioRetentionDays();
   const alive = useRef(true);
@@ -73,6 +75,20 @@ export function RewindResultScreen({ route }: Props) {
     return () => clearInterval(timer);
   }, [rewind?.status, load]);
 
+  // The notes being written: shown here, and carried on if you leave.
+  const notes = getNotesState(route.params.id);
+  const notesRunning = notes.status === "running";
+  useEffect(
+    () =>
+      subscribeNotes(() => {
+        redraw((n) => n + 1);
+        load();
+      }),
+    [load],
+  );
+  const notesElapsed = useElapsed(notesRunning);
+  const listenElapsed = useElapsed(rewind?.status === "processing");
+
   function confirmDelete() {
     if (!rewind) return;
     confirmDeleteRewind(rewind, {
@@ -95,17 +111,9 @@ export function RewindResultScreen({ route }: Props) {
     else showGlobalToast("Couldn't write it out again. Check your connection and try later.", "error");
   }
 
-  async function askCloud() {
-    if (!rewind || asking) return;
-    setAsking(true);
-    const result = await reviewInCloud(rewind.transcript, () => navigation.navigate("Settings", { section: "deepReviews" }));
-    setAsking(false);
-    if (result.ok) {
-      await updateRewind(rewind.id, { review: result.review, reviewSource: producerName(result.provenance) });
-      load();
-    } else if (result.message) {
-      showGlobalToast(result.message, "error");
-    }
+  function askCloud() {
+    if (!rewind || notesRunning) return;
+    requestNotes(rewind, () => navigation.navigate("Settings", { section: "deepReviews" })).catch(() => undefined);
   }
 
   if (missing) {
@@ -129,14 +137,7 @@ export function RewindResultScreen({ route }: Props) {
 
   return (
     <Screen title={dayLabel(rewind.date)} eyebrow="Rewind" onBack={() => navigation.goBack()} contentStyle={styles.content}>
-      {processing ? (
-        <Card style={styles.row}>
-          <ActivityIndicator color={colors.textPrimary} />
-          <Txt variant="subhead" tone="secondary">
-            Listening back to your day…
-          </Txt>
-        </Card>
-      ) : null}
+      {processing ? <RewindWorkCard stage={isRewindProcessing(rewind.id) ? getRewindStage(rewind.id) : null} talkSeconds={rewind.durationSeconds} elapsed={listenElapsed} /> : null}
 
       {stats && coverage ? (
         <HeroCard accent={colors.skill.conversation.fg} contentStyle={styles.hero}>
@@ -202,12 +203,30 @@ export function RewindResultScreen({ route }: Props) {
       ) : !processing && rewind.transcript ? (
         <Card style={styles.notes}>
           <Txt variant="headline">Notes</Txt>
-          <Txt variant="subhead" tone="secondary">
-            {provider.id === "tono"
-              ? "This phone can't write notes on its own. Tono AI can: only the words of this take are sent."
-              : "This phone can't write notes on its own. You can ask for them with your own AI key — only the words of this take are sent."}
-          </Txt>
-          <PrimaryButton label={`Get notes from ${provider.name}`} variant="secondary" size="md" icon="cloud-outline" onPress={askCloud} loading={asking} />
+          {notesRunning ? (
+            <NotesWorkCard elapsed={notesElapsed} />
+          ) : (
+            <>
+              {notes.status === "failed" ? (
+                <Txt variant="subhead" tone="danger">
+                  {notes.message}
+                </Txt>
+              ) : (
+                <Txt variant="subhead" tone="secondary">
+                  {provider.id === "tono"
+                    ? "This phone can't write notes on its own. Tono AI can: only the words of this take are sent."
+                    : "This phone can't write notes on its own. You can ask for them with your own AI key — only the words of this take are sent."}
+                </Txt>
+              )}
+              <PrimaryButton
+                label={notes.status === "failed" ? "Try again" : `Get notes from ${provider.name}`}
+                variant="secondary"
+                size="md"
+                icon="cloud-outline"
+                onPress={askCloud}
+              />
+            </>
+          )}
         </Card>
       ) : null}
 
@@ -215,7 +234,9 @@ export function RewindResultScreen({ route }: Props) {
         <Card style={styles.notes}>
           <Txt variant="headline">No words came through</Txt>
           <Txt variant="subhead" tone="secondary">
-            Nothing was picked up this time. Check that the microphone isn't blocked or muted, and try again somewhere quieter.
+            {rewind.status === "failed"
+              ? "The app was closed before your words were written out, and what the microphone heard live wasn't enough to keep. Check that the microphone isn't blocked or muted, and try again somewhere quieter."
+              : "Nothing was picked up this time. Check that the microphone isn't blocked or muted, and try again somewhere quieter."}
           </Txt>
         </Card>
       ) : null}

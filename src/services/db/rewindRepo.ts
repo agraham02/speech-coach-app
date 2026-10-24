@@ -5,8 +5,21 @@ import { markPracticeDay } from "./practiceDaysRepo";
 import type { RewindStats } from "../../domain/rewind/stats";
 import type { RewindReview } from "../../domain/rewind/reviewPrompt";
 import type { TranscriptWord } from "../../domain/sessionTypes";
+import type { VolumeSample } from "../speech/liveSpeechSession";
 
 // Rewind: the end-of-day spoken recall (domain/rewind). One row per take.
+
+// What a Rewind still being processed keeps so it can start again if the app
+// is closed first (cleared when it finishes): the recognizer's audio files in
+// order, what it heard, the volume readings, and how many times it has been
+// resumed (so a take that crashes the app can't loop).
+export interface RewindPending {
+  segments: string[];
+  liveText: string;
+  volume: VolumeSample[];
+  durationMs: number;
+  resumes: number;
+}
 
 export type RewindStatus = "processing" | "done" | "failed";
 // Who wrote the notes, by name ("Tono AI", "OpenAI"), from the result's
@@ -43,6 +56,7 @@ interface Row {
   review_json: string | null;
   review_source: string | null;
   status: string;
+  pending_json?: string | null;
 }
 
 function parse<T>(json: string | null): T | null {
@@ -73,7 +87,7 @@ function fromRow(r: Row): Rewind {
 
 // Starts a take's row, before any of the slow work (joining audio, Whisper,
 // the coach), so a take is never lost to a failure partway.
-export async function createRewind(durationSeconds: number): Promise<Rewind> {
+export async function createRewind(durationSeconds: number, pending?: RewindPending): Promise<Rewind> {
   const db = await getDatabase();
   const rewind: Rewind = {
     id: generateId(),
@@ -89,11 +103,12 @@ export async function createRewind(durationSeconds: number): Promise<Rewind> {
     reviewSource: null,
     status: "processing",
   };
-  await db.runAsync(`INSERT INTO day_recalls (id, date, recorded_at, duration_seconds, status) VALUES (?, ?, ?, ?, 'processing')`, [
+  await db.runAsync(`INSERT INTO day_recalls (id, date, recorded_at, duration_seconds, status, pending_json) VALUES (?, ?, ?, ?, 'processing', ?)`, [
     rewind.id,
     rewind.date,
     rewind.recordedAt,
     rewind.durationSeconds,
+    pending ? JSON.stringify(pending) : null,
   ]);
   return rewind;
 }
@@ -125,7 +140,11 @@ export async function updateRewind(
   if (patch.stats) add("stats_json", JSON.stringify(patch.stats));
   if (patch.review) add("review_json", JSON.stringify(patch.review));
   if (patch.reviewSource) add("review_source", patch.reviewSource);
-  if (patch.status) add("status", patch.status);
+  if (patch.status) {
+    add("status", patch.status);
+    // Nothing left to start again once it has finished or failed.
+    if (patch.status !== "processing") add("pending_json", null);
+  }
   if (!sets.length) return;
   await db.runAsync(`UPDATE day_recalls SET ${sets.join(", ")} WHERE id = ?`, [...values, id]);
 }
@@ -207,4 +226,17 @@ export async function hasRewindToday(): Promise<boolean> {
   const db = await getDatabase();
   const row = await db.getFirstAsync<{ n: number }>(`SELECT COUNT(*) AS n FROM day_recalls WHERE deleted_at IS NULL AND date = ?`, [todayISODate()]);
   return (row?.n ?? 0) > 0;
+}
+
+// Rewinds that were being processed when the app was closed, with what they
+// need to start again (null: nothing was kept).
+export async function listProcessingRewinds(): Promise<{ id: string; pending: RewindPending | null }[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{ id: string; pending_json: string | null }>(`SELECT id, pending_json FROM day_recalls WHERE status = 'processing' AND deleted_at IS NULL`);
+  return rows.map((r) => ({ id: r.id, pending: parse<RewindPending>(r.pending_json) }));
+}
+
+export async function setRewindPending(id: string, pending: RewindPending): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(`UPDATE day_recalls SET pending_json = ? WHERE id = ?`, [JSON.stringify(pending), id]);
 }
