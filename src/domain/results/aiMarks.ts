@@ -69,7 +69,10 @@ export function locateUniqueQuote(transcript: string, quote: string): { start: n
     }
     if (!ok) continue;
     if (found) return null;
-    found = { start: hay[i].start, end: hay[i + words.length - 1].end };
+    const last = hay[i + words.length - 1];
+    // The highlight stops at the last letter, not at the full stop after it.
+    const trail = transcript.slice(last.start, last.end).match(/[^\p{L}\p{N}']+$/u);
+    found = { start: hay[i].start, end: last.end - (trail ? trail[0].length : 0) };
   }
   return found;
 }
