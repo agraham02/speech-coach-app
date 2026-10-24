@@ -625,6 +625,21 @@ On the laptop, after a week:
 
 ---
 
+## L. Dev test helpers on a phone (dev-test-helpers branch)
+
+The helpers (demo takes, mock account, state presets) are built for the Android emulator but live in every build that has the Dev tab, which includes the EAS `preview` and `testflight` profiles (`EXPO_PUBLIC_DEV_TOOLS=1`). Only these items need a phone. How to use them: `docs/testing/emulator-test-plan.md`, sections 5 and 7.22 to 7.24.
+
+- [ ] **Production has none of it.** On a build from the `production` profile open the You tab and the tab bar. Pass: no Dev tab, so no App tools, no Mock account, no demo takes, no "Dev: skip onboarding" pill on the onboarding screens, no "Mock account" label anywhere.
+  Notes:
+- [ ] **Mock Plus on an iPhone never touches the App Store.** On a TestFlight build: Dev, App tools, Mock account, tier Free trial, "Show Tono Plus as for sale" on, Open the paywall. Pass: made-up prices ($49.99 and $4.99), the subscribe button shows "Dev: no purchase is made while the mock account shows Plus." and no StoreKit sheet appears. Clear overrides, then Settings, Account & Plus shows your real state and the real paywall (Tono Plus on sale only if the server says so) loads the App Store prices again.
+  Notes:
+- [ ] **Theme preset follows on iOS.** State presets, Theme, Dark then Follow the phone. Pass: the app changes with the chip and goes back to the phone setting.
+  Notes:
+- [ ] **Demo takes on a phone with a real take.** Add demo takes next to a take you recorded, then Remove demo takes. Pass: your recording, its video and its scores are untouched, and the streak shows only your real days afterwards.
+  Notes:
+
+---
+
 ## Sections to be added by later sessions
 
-Each new build session adds its own section here. Session 08 is section J, session 09 section I, session 11 section H, session 12 section K.
+Each new build session adds its own section here. Session 08 is section J, session 09 section I, session 11 section H, session 12 section K, the dev test helpers section L.

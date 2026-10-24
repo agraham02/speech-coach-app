@@ -18,6 +18,7 @@ import { CelebrationHost } from "./src/components/celebrate/CelebrationHost";
 import { GuideProvider } from "./src/components/common/GuideTip";
 import { MetricsOverlay } from "./src/components/dev/MetricsOverlay";
 import { MockAccountBanner } from "./src/components/dev/MockAccountBanner";
+import { OnboardingShortcut } from "./src/components/dev/OnboardingShortcut";
 import { SHOW_DEV_TOOLS } from "./src/config/devTools";
 import { ThemeProvider, useTheme } from "./src/theme/ThemeProvider";
 
@@ -86,6 +87,8 @@ export default function App() {
                 {SHOW_DEV_TOOLS ? <MetricsOverlay /> : null}
                 {/* Dev builds: a label while the mock account (Dev, App tools) is set. */}
                 {SHOW_DEV_TOOLS ? <MockAccountBanner /> : null}
+                {/* Dev builds: a pill on the onboarding screens that skips them. */}
+                {SHOW_DEV_TOOLS ? <OnboardingShortcut /> : null}
               </GuideProvider>
             </ToastProvider>
           </AppErrorBoundary>

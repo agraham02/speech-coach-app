@@ -49,12 +49,15 @@ describe("dev-only routes", () => {
     }
   });
 
-  it("shows the mock-account banner only behind the flag", () => {
+  it("shows the mock-account banner and the onboarding shortcut only behind the flag", () => {
     const app = read("App.tsx");
     expect(app).toContain("{SHOW_DEV_TOOLS ? <MockAccountBanner /> : null}");
     expect(app.match(/<MockAccountBanner/g) ?? []).toHaveLength(1);
     const banner = read("src", "components", "dev", "MockAccountBanner.tsx");
     expect(banner).toContain("if (!SHOW_DEV_TOOLS) return null;");
+    expect(app).toContain("{SHOW_DEV_TOOLS ? <OnboardingShortcut /> : null}");
+    expect(app.match(/<OnboardingShortcut/g) ?? []).toHaveLength(1);
+    expect(read("src", "components", "dev", "OnboardingShortcut.tsx")).toContain("if (!SHOW_DEV_TOOLS) return null;");
   });
 
   it("guards every helper service on the flag", () => {
