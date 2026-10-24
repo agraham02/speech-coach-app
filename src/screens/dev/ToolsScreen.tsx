@@ -154,6 +154,32 @@ export function ToolsScreen({ navigation }: Props) {
 
   return (
     <Screen title="App tools" eyebrow="Dev" onBack={navigation.goBack}>
+      <ListGroup title="Test helpers (development and preview builds only)">
+        <ListRow
+          icon="albums-outline"
+          title="Add demo takes"
+          subtitle="Made-up takes with scores, charts, a judged one, Rewinds and a streak, to test Result, Library and Trends"
+          chevron
+          onPress={() => navigation.navigate("DevDemoTakes")}
+          testID="dev-tools-demo-takes"
+        />
+        <ListRow
+          icon="person-circle-outline"
+          title="Mock account state"
+          subtitle="Free, trial, Plus or beta, allowances, kill switch, server unreachable; no calls to Tono's server"
+          chevron
+          onPress={() => navigation.navigate("DevMockAccount")}
+          testID="dev-tools-mock-account"
+        />
+        <ListRow
+          icon="flash-outline"
+          title="State presets"
+          subtitle="Onboarded in one tap, age answer, consent, tips, theme, skip the model download, reset to a fresh install"
+          chevron
+          onPress={() => navigation.navigate("DevPresets")}
+          testID="dev-tools-presets"
+        />
+      </ListGroup>
       <ListGroup title="Tono AI take reviews">
         <ListRow
           title="Judge from"

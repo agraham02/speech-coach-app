@@ -198,13 +198,15 @@ export function synthFace(durationMs: number, face: DemoFace, seed = 1): Presenc
     const away = (t % windowMs) / windowMs > face.onLens;
     const wave = Math.sin(t / 900);
     const map: Record<string, number> = {
-      mouthSmileLeft: face.lively ? Math.max(0, 0.28 + 0.25 * wave) : 0.03,
-      mouthSmileRight: face.lively ? Math.max(0, 0.28 + 0.25 * wave) : 0.03,
-      cheekSquintLeft: face.lively ? Math.max(0, 0.2 + 0.2 * wave) : 0.02,
-      cheekSquintRight: face.lively ? Math.max(0, 0.2 + 0.2 * wave) : 0.02,
-      browInnerUp: face.lively ? Math.max(0, 0.15 + 0.3 * Math.sin(t / 1300)) : 0.02,
-      browOuterUpLeft: face.lively ? Math.max(0, 0.1 + 0.25 * Math.sin(t / 1300)) : 0.02,
-      browOuterUpRight: face.lively ? Math.max(0, 0.1 + 0.25 * Math.sin(t / 1300)) : 0.02,
+      // Amplitudes chosen so the real expressiveness measure (SD of smile, cheeks
+      // and brows, times 600) comes out near 40 for a lively face and near 8 for a still one.
+      mouthSmileLeft: face.lively ? 0.22 + 0.1 * wave : 0.03 + 0.015 * wave,
+      mouthSmileRight: face.lively ? 0.22 + 0.1 * wave : 0.03 + 0.015 * wave,
+      cheekSquintLeft: face.lively ? 0.15 + 0.08 * wave : 0.02 + 0.01 * wave,
+      cheekSquintRight: face.lively ? 0.15 + 0.08 * wave : 0.02 + 0.01 * wave,
+      browInnerUp: face.lively ? 0.15 + 0.1 * Math.sin(t / 1300) : 0.02 + 0.01 * Math.sin(t / 1300),
+      browOuterUpLeft: face.lively ? 0.12 + 0.1 * Math.sin(t / 1300) : 0.02 + 0.01 * Math.sin(t / 1300),
+      browOuterUpRight: face.lively ? 0.12 + 0.1 * Math.sin(t / 1300) : 0.02 + 0.01 * Math.sin(t / 1300),
       jawOpen: 0.15 + 0.15 * Math.abs(Math.sin(t / 180)),
       eyeBlinkLeft: rand() < 0.015 ? 0.8 : 0.05,
       eyeBlinkRight: rand() < 0.015 ? 0.8 : 0.05,
@@ -301,6 +303,7 @@ export function withFillers(sentences: readonly string[], density: number, seed 
     const tokens = sentence.split(" ");
     if (rand() < density) tokens.unshift(hesitations[Math.floor(rand() * hesitations.length)]);
     if (tokens.length > 8 && rand() < density) tokens.splice(3 + Math.floor(rand() * (tokens.length - 6)), 0, contextual[Math.floor(rand() * contextual.length)]);
+    if (density > 0.7 && tokens.length > 10) tokens.splice(4 + Math.floor(rand() * (tokens.length - 7)), 0, contextual[Math.floor(rand() * contextual.length)]);
     if (tokens.length > 10 && rand() < density * 0.6) tokens.splice(5 + Math.floor(rand() * (tokens.length - 8)), 0, hesitations[Math.floor(rand() * hesitations.length)].toLowerCase().replace(",", ""));
     return tokens.join(" ");
   });

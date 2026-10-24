@@ -14,10 +14,12 @@ interface ChipProps {
   background?: string;
   // A small colored dot before the label (skills, categories).
   dot?: string;
+  // A stable handle for automated testing.
+  testID?: string;
 }
 
 // A pill. Selected is ink; the fill eases between states.
-export function Chip({ label, selected, onPress, color, background, dot }: ChipProps) {
+export function Chip({ label, selected, onPress, color, background, dot, testID }: ChipProps) {
   const styles = useStyles();
   const { colors } = useTheme();
   const on = useSharedValue(selected ? 1 : 0);
@@ -35,6 +37,7 @@ export function Chip({ label, selected, onPress, color, background, dot }: ChipP
       scaleTo={0.95}
       accessibilityRole={onPress ? "button" : "text"}
       accessibilityState={{ selected }}
+      testID={testID}
     >
       <Animated.View style={[styles.chip, fill]}>
         {dot ? <View style={[styles.dot, { backgroundColor: dot }]} /> : null}

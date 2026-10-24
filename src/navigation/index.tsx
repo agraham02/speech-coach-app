@@ -37,6 +37,9 @@ import { FaceLabScreen } from "../screens/dev/FaceLabScreen";
 import { VoiceLabScreen } from "../screens/dev/VoiceLabScreen";
 import { ToolsScreen } from "../screens/dev/ToolsScreen";
 import { MetricsScreen } from "../screens/dev/MetricsScreen";
+import { DemoTakesScreen } from "../screens/dev/DemoTakesScreen";
+import { MockAccountScreen } from "../screens/dev/MockAccountScreen";
+import { StatePresetsScreen } from "../screens/dev/StatePresetsScreen";
 import { PathFinaleScreen } from "../screens/PathFinaleScreen";
 import type { ArtifactKind } from "../services/db/artifactsRepo";
 import type { LogLevelFilter } from "../domain/dev/logFilter";
@@ -190,6 +193,9 @@ export type RootStackParamList = {
   DevVoiceLab: { sessionId: string };
   DevTools: undefined;
   DevMetrics: undefined;
+  DevDemoTakes: undefined;
+  DevMockAccount: undefined;
+  DevPresets: undefined;
 };
 
 const JSTab = createBottomTabNavigator<TabParamList>();
@@ -440,6 +446,9 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
             <Stack.Screen name="AsrLab" component={AsrLabScreen} />
             <Stack.Screen name="PartnerVoicesLab" component={PartnerVoicesLabScreen} />
             <Stack.Screen name="DevMetrics" component={MetricsScreen} />
+            <Stack.Screen name="DevDemoTakes" component={DemoTakesScreen} />
+            <Stack.Screen name="DevMockAccount" component={MockAccountScreen} />
+            <Stack.Screen name="DevPresets" component={StatePresetsScreen} />
           </Stack.Group>
         ) : null}
         <Stack.Screen name="Practice" component={HomeScreen} />
