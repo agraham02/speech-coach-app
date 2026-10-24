@@ -38,3 +38,7 @@ import_map = "./functions/deno.json"
 [functions.app-config]
 verify_jwt = false
 import_map = "./functions/deno.json"
+
+[functions.ai-converse]
+verify_jwt = false
+import_map = "./functions/deno.json"

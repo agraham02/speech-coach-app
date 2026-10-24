@@ -37,6 +37,8 @@ export async function launchStep(navigation: Nav, step: LessonStep, practice: Pr
         navigation.navigate("LineRep", { category, lineIds, practice });
       } else if (step.drill === "move_it") {
         navigation.navigate("MoveIt", { practice });
+      } else if (step.drill === "conv_live") {
+        navigation.navigate("LiveConversation", { contentId: step.contentId, practice });
       } else if (isConversationDrill(step.drill)) {
         navigation.navigate("Conversation", { drill: step.drill, contentId: step.contentId, practice });
       } else if (isSummaryDrill(step.drill)) {

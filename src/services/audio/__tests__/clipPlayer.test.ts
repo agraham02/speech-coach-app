@@ -86,7 +86,9 @@ describe("clipPlayer", () => {
     events.length = 0;
     const onFinished = jest.fn();
     expect(await startClip(buffer, { offsetMs: 5000, rate: 1.5, onPosition: jest.fn(), onFinished })).toBe(true);
-    expect(events).toEqual(["resume", "start"]);
+    // The session is set again before every start: the live conversation's
+    // partner voice (partnerAudio.ts) sets its own in between.
+    expect(events).toEqual(["session:playback", "resume", "start"]);
     sources[sources.length - 1].onEnded?.();
     expect(onFinished).toHaveBeenCalled();
     expect(events[events.length - 1]).toBe("suspend");

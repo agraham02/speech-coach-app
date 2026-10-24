@@ -58,6 +58,8 @@ Tono AI judges a take the way a coach would: whether your answer had a shape, st
 
 **Exercises.** When you ask for notes on a Rewind or a Say it short drill, or have Tono AI check a Word Chain or Bridge Chain, or mark a text in Mark it up, the words involved (and the prompt or passage) are sent the same way, as text. Never audio or video.
 
+**Live conversation (Tono Plus).** In a live conversation, your phone listens and turns what you say into words; your voice itself is not sent. The words of the conversation so far (yours and your partner's), the scene and the move you are practicing go the same way, as text, so your partner can answer, and the partner's reply comes back as text and as a voice made by Google's Gemini text-to-speech. At the end, the same words go once more for a short note on the moves you made. Nothing of the conversation is kept on my service; the app keeps the process numbers on your phone (how soon you replied, whether you asked), not the words.
+
 **How it travels.** Everything goes through my service, which writes the instructions for the AI, sends them with your words and numbers to Google's Gemini, and passes Google's reply back to your phone. My service does not save your words, your numbers or the reply. It keeps only a record that a call happened (see below).
 
 **Google.** I use Google's paid Gemini service. Under Google's terms for paid use, Google does not use what you send, or its replies, to improve its products. Google logs prompts and responses for a limited period, only to detect and prevent abuse of its service and for legal requirements; its terms do not give an exact length of time. See Google's terms for the current rules.
@@ -72,7 +74,7 @@ What I hold about an account:
 
 - **A user ID,** and, only if you signed in with Apple or Google, which one you used, the email address from it (Apple may give me a private relay address instead of your real one), and the name or picture that account shares, if any. Apple and Google run the sign-in itself and tell me only that it was you.
 - **Your plan:** whether you have Tono Plus or its free trial, which plan, when the current period started and ends, and whether it was a test purchase.
-- **A record of each Tono AI call:** when it happened, what kind it was (a judged take, an exercise, a mark-up), which model ran, how many tokens it used and what that cost, and whether it worked. It holds none of your video, words or results. These records are how the monthly allowances and the cost limit work.
+- **A record of each Tono AI call:** when it happened, what kind it was (a judged take, an exercise, a mark-up, a turn of a live conversation), which model ran, how many tokens it used and what that cost, and whether it worked. For a live conversation it also holds a random conversation ID made on your phone and the seconds counted for that turn, which is how the conversation minutes work. It holds none of your video, words or results. These records are how the monthly allowances and the cost limit work.
 - **A short-lived upload record,** only if a take is judged from its video, linking that video to your account while it is judged. It is removed when judging finishes, or when you delete your account.
 - **A Sign in with Apple token,** only if you signed in with Apple, stored encrypted and used only to cancel Apple's link to Tono when you delete your account.
 

@@ -52,3 +52,17 @@ export const PLAYBACK_SESSION_IOS = {
   iosMode: "default",
   iosOptions: [],
 } as const;
+
+// For the live conversation partner's voice (services/conversation/
+// partnerAudio.ts): the same session the recognizer sets, so going from the
+// partner's line to your reply never switches the session (no route change,
+// no gap, AirPods stay on A2DP at full quality). It is not a call mode, so
+// there is no voice processing and no echo cancellation; that is why the
+// conversation is turn-based (the mic is closed while the partner speaks).
+// The Dev tab's Partner voices lab can switch to PLAYBACK_SESSION_IOS to
+// compare loudness on the speaker (test plan K).
+export const CONVERSATION_SESSION_IOS = {
+  iosCategory: "playAndRecord",
+  iosMode: "measurement",
+  iosOptions: ["defaultToSpeaker", "allowBluetoothA2DP"],
+} as const;

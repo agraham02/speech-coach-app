@@ -28,6 +28,8 @@ import { getUserProfile } from "../services/prefs/prefsStore";
 import { getPathView } from "../services/path/pathService";
 import { nextLessonInUnit } from "../domain/path";
 import { LessonCompleteCard } from "../components/path/LessonCompleteCard";
+import { LiveConversationCard } from "../components/conversation/LiveConversationCard";
+import { focusForLesson } from "../domain/conversation/live/prepareLive";
 
 // Drills that read marked text (the pause drill shows only pauses).
 const MARKED_DRILLS: string[] = ["marked_reading", "pause_reading", "move_it"];
@@ -106,6 +108,7 @@ export function LessonScreen({ route, navigation }: Props) {
 
   if (!lesson) return <ScreenContainer />;
   const skill = colors.skill[lesson.skill];
+  const liveFocus = focusForLesson(lesson.id);
   const teachOpen = showTeach ?? !collapseTeach;
 
   const firstOpen = lesson.steps.findIndex((_, i) => !done.has(i));
@@ -196,6 +199,9 @@ export function LessonScreen({ route, navigation }: Props) {
         );
       })}
       </TourTarget>
+      {liveFocus ? (
+        <LiveConversationCard focus={liveFocus} onOpen={() => navigation.navigate("LiveConversation", { focus: liveFocus, practice: { lessonId: lesson.id } })} />
+      ) : null}
       {finished ? (
         <LessonCompleteCard
           lesson={lesson}

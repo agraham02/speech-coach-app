@@ -1,5 +1,6 @@
 import postgres from "npm:postgres@3.4.5";
 import { decideAllowance, type UsageSnapshot } from "./allowance.ts";
+import type { ConversationSpan } from "./conversation.ts";
 import { parseServerConfig, type ServerConfig } from "./config.ts";
 import { env } from "./http.ts";
 import type { ModelChoice } from "./models.ts";
@@ -48,6 +49,7 @@ interface SnapshotRow {
   takes: number;
   text_calls: number;
   insights: number;
+  conversation_seconds: string | number;
   cost_usd: string | number;
   day_takes: number;
   free_spend_month_usd: string | number;
@@ -66,6 +68,7 @@ function toSnapshot(row: SnapshotRow): SnapshotWithTrial {
       takes: row.takes,
       text: row.text_calls,
       insights: row.insights,
+      conversationSeconds: Number(row.conversation_seconds),
       costUsd: Number(row.cost_usd),
       dayTakes: row.day_takes,
       freeSpendMonthUsd: Number(row.free_spend_month_usd),
@@ -99,11 +102,18 @@ export interface ReserveArgs {
   choice: ModelChoice;
   estCostUsd: number;
   now?: Date;
+  // A conversation call: its id, and the seconds to charge given the
+  // conversation so far (null: it has run past its length). Read under the
+  // account lock, so two turns at once can't both skip being charged.
+  conversation?: { id: string; charge: (span: ConversationSpan | null) => number | null };
+  // A conversation call that finishes one already allowed (a written line's
+  // voice, the debrief): skips the minutes check, never the cost cap.
+  finishing?: boolean;
 }
 
 export type ReserveResult =
-  | { ok: true; callId: string; tier: Tier; snapshot: UsageSnapshot }
-  | { ok: false; reason: DenyReason | "in_flight" | "already_done"; snapshot: UsageSnapshot | null };
+  | { ok: true; callId: string; tier: Tier; snapshot: UsageSnapshot; chargedSeconds: number }
+  | { ok: false; reason: DenyReason | "in_flight" | "already_done" | "conversation_over"; snapshot: UsageSnapshot | null };
 
 export async function reserve(args: ReserveArgs): Promise<ReserveResult> {
   const now = args.now ?? new Date();
@@ -133,8 +143,28 @@ export async function reserve(args: ReserveArgs): Promise<ReserveResult> {
       return { ok: false, reason: "in_flight", snapshot };
     }
 
-    const decision = decideAllowance({ config: args.config, kind: args.kind, snapshot, estCostUsd: args.estCostUsd });
+    const decision = decideAllowance({
+      config: args.config,
+      kind: args.kind,
+      snapshot,
+      estCostUsd: args.estCostUsd,
+      finishing: args.finishing,
+    });
     if (!decision.ok) return { ok: false, reason: decision.reason, snapshot };
+
+    let charged = 0;
+    const conversationId = args.conversation?.id ?? null;
+    if (args.conversation) {
+      const spans = (await tx`
+        select min(created_at) as first_at, max(created_at) as last_at from public.ai_calls
+        where user_id = ${args.userId} and conversation_id = ${args.conversation.id} and status <> 'refunded'
+      `) as unknown as { first_at: Date | null; last_at: Date | null }[];
+      const row = spans[0];
+      const span = row?.first_at && row?.last_at ? { firstAt: new Date(row.first_at), lastAt: new Date(row.last_at) } : null;
+      const seconds = args.conversation.charge(span);
+      if (seconds == null) return { ok: false, reason: "conversation_over", snapshot };
+      charged = seconds;
+    }
 
     const tier = decision.tier;
     let callId: string;
@@ -143,19 +173,20 @@ export async function reserve(args: ReserveArgs): Promise<ReserveResult> {
         update public.ai_calls
         set status = 'reserved', kind = ${args.kind}, tier = ${tier}, model = ${args.choice.model}, is_candidate = ${args.choice.isCandidate},
             used_fallback = false, est_cost_usd = ${args.estCostUsd}, cost_usd = null, error = null,
+            conversation_id = ${conversationId}, units_seconds = ${charged},
             created_at = now(), finished_at = null
         where id = ${prior.id}
       `;
       callId = prior.id;
     } else {
       const inserted = (await tx`
-        insert into public.ai_calls (user_id, kind, idempotency_key, tier, model, is_candidate, est_cost_usd)
-        values (${args.userId}, ${args.kind}, ${args.idempotencyKey}, ${tier}, ${args.choice.model}, ${args.choice.isCandidate}, ${args.estCostUsd})
+        insert into public.ai_calls (user_id, kind, idempotency_key, tier, model, is_candidate, est_cost_usd, conversation_id, units_seconds)
+        values (${args.userId}, ${args.kind}, ${args.idempotencyKey}, ${tier}, ${args.choice.model}, ${args.choice.isCandidate}, ${args.estCostUsd}, ${conversationId}, ${charged})
         returning id
       `) as unknown as { id: string }[];
       callId = inserted[0].id;
     }
-    return { ok: true, callId, tier, snapshot };
+    return { ok: true, callId, tier, snapshot, chargedSeconds: charged };
   });
 }
 

@@ -15,6 +15,9 @@ import { DailySessionScreen } from "../screens/DailySessionScreen";
 import { DrillRunnerScreen } from "../screens/DrillRunnerScreen";
 import { GuidedScreen } from "../screens/GuidedScreen";
 import { ConversationRunnerScreen } from "../screens/ConversationRunnerScreen";
+import { LiveConversationScreen } from "../screens/LiveConversationScreen";
+import { PartnerVoicesLabScreen } from "../screens/dev/PartnerVoicesLabScreen";
+import type { LiveFocus } from "../domain/conversation/live/prepareLive";
 import { SummaryRunnerScreen } from "../screens/SummaryRunnerScreen";
 import { FaceCheckScreen } from "../screens/FaceCheckScreen";
 import { PrimeScreen } from "../screens/PrimeScreen";
@@ -154,6 +157,7 @@ export type RootStackParamList = {
   Drill: { drill: DrillType; contentId?: string; practice?: PracticeContext };
   Guided: { guidedId?: string; warmupId?: string; practice?: PracticeContext };
   Conversation: { drill: ConversationDrillType; contentId?: string; practice?: PracticeContext; blankMomentId?: string };
+  LiveConversation: { focus?: LiveFocus; contentId?: string; practice?: PracticeContext } | undefined;
   Summary: { drill: SummaryDrillType; contentId?: string; practice?: PracticeContext };
   FaceCheck: undefined;
   Prime: undefined;
@@ -177,6 +181,7 @@ export type RootStackParamList = {
   Processing: { sessionId: string };
   Result: { sessionId: string; practice?: PracticeContext };
   AsrLab: undefined;
+  PartnerVoicesLab: undefined;
   DevLogs: { tag?: string; level?: LogLevelFilter } | undefined;
   DevPipeline: { problemsOnly?: boolean } | undefined;
   DevSession: { sessionId: string };
@@ -433,6 +438,7 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
             <Stack.Screen name="DevVoiceLab" component={VoiceLabScreen} />
             <Stack.Screen name="DevTools" component={ToolsScreen} />
             <Stack.Screen name="AsrLab" component={AsrLabScreen} />
+            <Stack.Screen name="PartnerVoicesLab" component={PartnerVoicesLabScreen} />
             <Stack.Screen name="DevMetrics" component={MetricsScreen} />
           </Stack.Group>
         ) : null}
@@ -445,6 +451,7 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
         <Stack.Screen name="Drill" component={DrillRunnerScreen} />
         <Stack.Screen name="Guided" component={GuidedScreen} />
         <Stack.Screen name="Conversation" component={ConversationRunnerScreen} />
+        <Stack.Screen name="LiveConversation" component={LiveConversationScreen} />
         <Stack.Screen name="Summary" component={SummaryRunnerScreen} />
         <Stack.Screen name="FaceCheck" component={FaceCheckScreen} />
         <Stack.Screen name="Prime" component={PrimeScreen} options={{ presentation: "modal" }} />

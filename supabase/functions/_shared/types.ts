@@ -4,11 +4,15 @@
 // What a call counts against. A judged take is one "take" whatever the judge
 // was sent (the words and measurements, or the video too): one take, one
 // count. Exercise notes and mark-ups are "text" calls, pooled behind fair use.
-export type CountKind = "take" | "text" | "insight";
+// A live conversation counts "conversation" calls, metered in seconds of
+// conversation the server measures (_shared/conversation.ts), not in calls.
+export type CountKind = "take" | "text" | "insight" | "conversation";
 
 // Which model runs it. A take judged from its words uses the text model; the
 // video setting uses the video model. The count stays "take" either way.
-export type ModelRole = "review_video" | "text" | "insight";
+// A conversation's partner lines use their own text role (fast, thinking off)
+// and its voice the "tts" role.
+export type ModelRole = "review_video" | "text" | "insight" | "conversation" | "tts";
 
 // What the person has: nothing bought, the 14-day free trial (an App Store
 // introductory offer on either plan), or Tono Plus.

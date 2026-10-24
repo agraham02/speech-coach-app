@@ -1,6 +1,6 @@
 import { describeAllowance, statusForDeny } from "../_shared/allowanceInfo.ts";
 import { requireUser } from "../_shared/auth.ts";
-import type { ServerConfig } from "../_shared/config.ts";
+import { priceAt, type ServerConfig } from "../_shared/config.ts";
 import { deleteFile, generate, GeminiError, getFile, type GenerateResult } from "../_shared/gemini.ts";
 import { env, handler, HttpError, json, readJson } from "../_shared/http.ts";
 import { db, finish, loadConfig, peekSnapshot, refund, reserve } from "../_shared/ledger.ts";
@@ -20,7 +20,8 @@ function estimateCost(config: ServerConfig, role: ModelRole, built: BuiltRequest
   const r = config.models[role];
   const inputTokens =
     estimateTextTokens(built.prompt.length + JSON.stringify(built.schema).length) + (videoSeconds ? estimateVideoInputTokens(videoSeconds, r.videoFps ?? 1) : 0);
-  return Math.max(...models.map((m) => estimateCostUsd({ inputTokens, maxOutputTokens: r.maxOutputTokens, price: config.prices[m] })));
+  const now = new Date();
+  return Math.max(...models.map((m) => estimateCostUsd({ inputTokens, maxOutputTokens: r.maxOutputTokens, price: priceAt(config.prices[m], now) })));
 }
 
 Deno.serve(
@@ -65,6 +66,7 @@ Deno.serve(
       config,
       choice,
       estCostUsd: est,
+      finishing: task.finishing,
     });
     if (!reservation.ok) {
       const view = reservation.snapshot ? describeAllowance(config, reservation.snapshot, new Date(), (await peekSnapshot(user.id)).trialEndsAt) : undefined;
@@ -109,7 +111,7 @@ Deno.serve(
 
     const usage = (result.body.usageMetadata ?? null) as Parameters<typeof tokensFromGeminiUsage>[0];
     const tokens = tokensFromGeminiUsage(usage);
-    const price = config.prices[usedModel];
+    const price = priceAt(config.prices[usedModel], new Date());
     // If Google sent no usage numbers, bill the reserved estimate rather than zero.
     const cost = tokens ? costUsd(tokens, price) : est;
     await finish(reservation.callId, { model: usedModel, usedFallback, tokens, costUsd: cost });
