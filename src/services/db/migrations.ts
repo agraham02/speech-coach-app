@@ -7,7 +7,7 @@ import type { SessionStatus } from "../../domain/sessionTypes";
 import { logger } from "../../utils/logger";
 
 // Bump this and add a new numbered migration when the schema changes.
-export const LATEST_DB_VERSION = 33;
+export const LATEST_DB_VERSION = 34;
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(
@@ -857,6 +857,15 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
     await addColumnIfMissing(db, "sessions", "loudness_peak_sd_db", "REAL");
     await db.execAsync(`DELETE FROM session_artifacts WHERE kind = 'presence_timeline';`);
     currentVersion = await commitVersion(db, 33);
+  }
+
+  if (currentVersion < 34) {
+    // The old curriculum engine's two composite columns were always null once
+    // the rep staircase took over. Dropped, not converted (the app is
+    // unreleased).
+    await dropColumnIfPresent(db, "curriculum_state", "spontaneous_composite");
+    await dropColumnIfPresent(db, "curriculum_state", "drill_composite");
+    currentVersion = await commitVersion(db, 34);
   }
 }
 

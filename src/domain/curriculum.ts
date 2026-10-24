@@ -30,8 +30,6 @@ export interface CurriculumDecision {
   component: CurriculumComponent | null;
   componentScore: number | null;
   reason: CurriculumReason;
-  spontaneousComposite: number | null;
-  drillComposite: number | null;
   spontaneousSessionCount: number;
 }
 

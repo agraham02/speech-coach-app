@@ -370,7 +370,7 @@ drills -> drill score (0-1) -> drill level (staircase) and the drill's skill rat
   Hide the raw 0 to 100 rating, the drill level and the practice step behind "how this works". The Skill detail ring currently shows the raw rating.
 - **Progress moments** compare a take's score only with earlier takes scored in the same layer (`scoresRepo.getScoreHistoryBefore(recordedAt, layer)`).
 
-**The old curriculum engine is deleted.** `evaluateCurriculum` and the composites, `computeRichDeliveryScore`, and the per-focus composite query in `curriculumRepo.ts` are gone. The step still follows the rep staircase, as it has since curriculum v2. `curriculum_state` keeps its `spontaneous_composite` and `drill_composite` columns, now always null. Dropping them is a one-line migration, left out to avoid a version clash with session 06's migration.
+**The old curriculum engine is deleted.** `evaluateCurriculum` and the composites, `computeRichDeliveryScore`, and the per-focus composite query in `curriculumRepo.ts` are gone. The step still follows the rep staircase, as it has since curriculum v2. The two always-null `spontaneous_composite` and `drill_composite` columns of `curriculum_state` were dropped in migration v34.
 
 ---
 
@@ -421,7 +421,7 @@ Treated as input (session 06 is building them in parallel). Where each lands:
 
 | Signal | Lands in | Scored? |
 |---|---|---|
-| Pitch in semitones (p10 to p90 range, SD, voiced share) | Cadence → Pitch variety | the range, full at 5.5 st until 06 calibrates it and adds the personal baseline after 5 takes; under about 20 voiced seconds, "not enough voice" instead of a score |
+| Pitch in semitones (p10 to p90 range, SD, voiced share) | Cadence → Pitch variety | the range, full at 5.5 st until 06 calibrates it and adds the personal baseline after 5 takes; scored from 8 voiced seconds (and a voice 12 dB over the noise), flagged low confidence under 20; below 8, "not enough voice" instead of a score |
 | Speech-only loudness relative to your median, spread, syllable-peak SD | Cadence → Emphasis | the syllable-peak SD (full at 3 dB, uncalibrated); the spread is a fact |
 | Pauses with breath tags (hysteresis, Silero later) | Cadence → Pauses | pauses at full stops, as now; breaths stop splitting pauses, so the counts get honest |
 | Speaking rate over the speaking span; articulation rate | Cadence → Pace | the speaking rate; articulation rate and pace changes are facts the judge reads |

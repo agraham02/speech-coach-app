@@ -40,8 +40,6 @@ export interface CurriculumStateEntry {
   changedAt: string;
   level: number;
   direction: string; // 'up' | 'down' | 'initial'
-  spontaneousComposite: number | null;
-  drillComposite: number | null;
   spontaneousSessionCount: number;
   reasonCode: string;
 }
