@@ -58,8 +58,19 @@ export async function readyForTono(options: { exercise: boolean }): Promise<bool
     Alert.alert("Tono AI is for 18 and over", "Everything your phone measures, and its tips, work as always.");
     return false;
   }
+  // Asked for by the person (a button, a switch): an account is worth making
+  // now, so their real tier is known (a TestFlight tester has exercise notes
+  // without Plus). Making it sends nothing about them.
+  if (getAccount().status !== "signedIn") {
+    try {
+      await ensureAccount();
+    } catch {
+      Alert.alert("Couldn't reach Tono AI", "Check your connection and try again. Your phone's measurements and tips work offline.");
+      return false;
+    }
+  }
   const account = getAccount();
-  if (getAccount().killSwitch) {
+  if (account.killSwitch) {
     Alert.alert(denialMessage("disabled", null), "Your phone's measurements and tips still work.");
     return false;
   }

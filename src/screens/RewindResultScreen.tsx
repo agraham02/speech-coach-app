@@ -128,7 +128,9 @@ export function RewindResultScreen({ route }: Props) {
   const processing = rewind.status === "processing";
   const details = stats?.details;
   // Notes are Tono AI, a Plus (and trial) feature; under 18 there are none.
-  const tier = useAccount().allowance?.tier ?? "free";
+  // Only a known free account sees the Plus card: before there is an
+  // account, the button finds out (a tester in beta has notes without Plus).
+  const tier = useAccount().allowance?.tier ?? null;
   const minor = tonoAgeGated();
   const hasAudio = rewindAudioExists(rewind.audioFile);
 
