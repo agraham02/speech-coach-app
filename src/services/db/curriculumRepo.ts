@@ -35,8 +35,6 @@ export async function getCurrentCurriculumState(): Promise<CurriculumStateEntry 
 interface NewCurriculumStateChange {
   level: CurriculumLevel;
   direction: "up" | "down" | "initial";
-  spontaneousComposite: number | null;
-  drillComposite: number | null;
   spontaneousSessionCount: number;
   reasonCode: CurriculumComponent | "initial";
 }
@@ -45,9 +43,9 @@ export async function insertCurriculumStateChange(input: NewCurriculumStateChang
   const db = await getDatabase();
   const changedAt = new Date().toISOString();
   await db.runAsync(
-    `INSERT INTO curriculum_state (changed_at, level, direction, spontaneous_composite, drill_composite, spontaneous_session_count, reason_code)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [changedAt, input.level, input.direction, input.spontaneousComposite, input.drillComposite, input.spontaneousSessionCount, input.reasonCode],
+    `INSERT INTO curriculum_state (changed_at, level, direction, spontaneous_session_count, reason_code)
+     VALUES (?, ?, ?, ?, ?)`,
+    [changedAt, input.level, input.direction, input.spontaneousSessionCount, input.reasonCode],
   );
 }
 
@@ -80,8 +78,6 @@ export async function recomputeCurriculumLevel(): Promise<CurriculumEvaluationRe
     await insertCurriculumStateChange({
       level: DEFAULT_CURRICULUM_LEVEL,
       direction: "initial",
-      spontaneousComposite: null,
-      drillComposite: null,
       spontaneousSessionCount: totalSpontaneous,
       reasonCode: "initial",
     });
@@ -92,8 +88,6 @@ export async function recomputeCurriculumLevel(): Promise<CurriculumEvaluationRe
       component: null,
       componentScore: null,
       reason: "changed",
-      spontaneousComposite: null,
-      drillComposite: null,
       spontaneousSessionCount: totalSpontaneous,
       changed: true,
     };
@@ -111,8 +105,6 @@ export async function recomputeCurriculumLevel(): Promise<CurriculumEvaluationRe
     component: null,
     componentScore: null,
     reason: repLevel !== current ? "changed" : "stable",
-    spontaneousComposite: null,
-    drillComposite: null,
     spontaneousSessionCount: totalTakes,
   };
 
@@ -122,8 +114,6 @@ export async function recomputeCurriculumLevel(): Promise<CurriculumEvaluationRe
     await insertCurriculumStateChange({
       level: decision.level,
       direction: decision.direction,
-      spontaneousComposite: decision.spontaneousComposite,
-      drillComposite: decision.drillComposite,
       spontaneousSessionCount: decision.spontaneousSessionCount,
       reasonCode: decision.component ?? "overall",
     });
@@ -152,8 +142,6 @@ export async function resetCurriculumProgress(): Promise<void> {
   await insertCurriculumStateChange({
     level: DEFAULT_CURRICULUM_LEVEL,
     direction: "initial",
-    spontaneousComposite: null,
-    drillComposite: null,
     spontaneousSessionCount: totalSpontaneous,
     reasonCode: "initial",
   });
