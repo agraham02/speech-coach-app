@@ -1,3 +1,5 @@
+import { audioPiecesIn, base64ToBytes, pcmFromAudio, SseReader, ttsBody, ttsUsageIn, type TtsRequest } from "./tts.ts";
+
 // Gemini REST calls made by the server. The API key goes in a header and
 // nowhere else, and an upload URL that contains the key is refused, so a key
 // can never reach a phone.
@@ -164,4 +166,71 @@ export function answerText(body: Record<string, unknown>): string {
   const text = (first.content?.parts ?? []).map((p) => p.text ?? "").join("");
   if (!text.trim()) throw new GeminiError("empty answer", 502, true);
   return text;
+}
+
+// ---- speech (the conversation partner's voice) ----
+
+export interface SpeakResult {
+  // Raw PCM bytes produced (24 kHz mono 16-bit).
+  bytes: number;
+  // Token counts if Google reported them; else the caller works them out
+  // from the audio length (25 tokens a second).
+  usage: { inputTokens: number; outputTokens: number } | null;
+  // Time from sending the request to the first audio bytes.
+  firstAudioMs: number | null;
+  streamed: boolean;
+}
+
+// One line spoken through the Interactions API, streamed: each piece of PCM
+// is handed to `onPcm` as it arrives. If the stream carries no audio (the
+// event format differs from what tts.ts expects), it asks once more without
+// streaming and hands over the whole line, so the person still hears it.
+export async function speak(key: string, r: Omit<TtsRequest, "stream">, onPcm: (pcm: Uint8Array) => void, timeoutMs = 30_000): Promise<SpeakResult> {
+  const started = Date.now();
+  let firstAudioMs: number | null = null;
+  let bytes = 0;
+  let usage: SpeakResult["usage"] = null;
+  const emit = (b64: string) => {
+    const pcm = pcmFromAudio(base64ToBytes(b64));
+    if (!pcm.length) return;
+    if (firstAudioMs == null) firstAudioMs = Date.now() - started;
+    bytes += pcm.length;
+    onPcm(pcm);
+  };
+
+  const res = await call(
+    key,
+    "/v1beta/interactions",
+    { method: "POST", headers: { "content-type": "application/json", accept: "text/event-stream" }, body: JSON.stringify(ttsBody({ ...r, stream: true })) },
+    timeoutMs,
+  );
+  if (!res.ok) throw new GeminiError(`speak ${res.status}`, res.status, isRetryable(res.status));
+  const contentType = res.headers.get("content-type") ?? "";
+  if (res.body && contentType.includes("event-stream")) {
+    const sse = new SseReader();
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    for (;;) {
+      const { done, value } = await reader.read();
+      const events = done ? sse.end() : sse.push(decoder.decode(value, { stream: true }));
+      for (const event of events) {
+        for (const piece of audioPiecesIn(event)) emit(piece);
+        usage = ttsUsageIn(event) ?? usage;
+      }
+      if (done) break;
+    }
+  } else {
+    // Not a stream after all: one JSON interaction.
+    const body = (await res.json().catch(() => null)) as unknown;
+    for (const piece of audioPiecesIn(body)) emit(piece);
+    usage = ttsUsageIn(body);
+  }
+  if (bytes > 0) return { bytes, usage, firstAudioMs, streamed: true };
+
+  const unary = await call(key, "/v1beta/interactions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(ttsBody({ ...r, stream: false })) }, timeoutMs);
+  if (!unary.ok) throw new GeminiError(`speak ${unary.status}`, unary.status, isRetryable(unary.status));
+  const body = (await unary.json()) as unknown;
+  for (const piece of audioPiecesIn(body)) emit(piece);
+  if (bytes === 0) throw new GeminiError("no audio", 502, true);
+  return { bytes, usage: ttsUsageIn(body), firstAudioMs, streamed: false };
 }

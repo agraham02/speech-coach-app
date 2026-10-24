@@ -48,7 +48,7 @@ Deno.serve(
       mode: config.mode,
       // Which kinds of call would be accepted right now, so the app can pick
       // its route without making a call that is bound to be refused.
-      allowed: { take: can("take"), text: can("text"), insight: can("insight") },
+      allowed: { take: can("take"), text: can("text"), insight: can("insight"), conversation: can("conversation") },
       killSwitch: config.killSwitch,
       // The launch switch: whether the app should show Tono Plus for sale.
       plusPurchasable: config.plusPurchasable,

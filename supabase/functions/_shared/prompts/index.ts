@@ -18,13 +18,29 @@ import {
   wordChainInputsSchema,
 } from "./exercises.ts";
 import { buildTakeReview, TAKE_REVIEW_SCHEMA_VERSION, takeReviewInputsSchema, type BuiltRequest, type JudgeInput } from "./takeReview.ts";
+import {
+  buildConversationDebrief,
+  buildConversationTurn,
+  CONVERSATION_DEBRIEF_SCHEMA_VERSION,
+  CONVERSATION_TURN_SCHEMA_VERSION,
+  conversationDebriefInputsSchema,
+  conversationTurnInputsSchema,
+} from "./conversation.ts";
 
 // Every kind of Tono AI call the server runs, in one table: what the phone
 // must send, what it counts against, which model role runs it, and how the
 // prompt is written. The phone names the task and sends its inputs; the
 // prompt and the answer's schema are made here.
 
-export type Task = "take_review" | "rewind_notes" | "word_chain" | "bridge_chain" | "summary_notes" | "mark_up";
+export type Task =
+  | "take_review"
+  | "rewind_notes"
+  | "word_chain"
+  | "bridge_chain"
+  | "summary_notes"
+  | "mark_up"
+  | "conversation_turn"
+  | "conversation_debrief";
 
 export interface TaskDef {
   inputs: z.ZodType<unknown>;
@@ -36,6 +52,12 @@ export interface TaskDef {
   role: (media: boolean) => ModelRole;
   // Whether this task may carry the take's video.
   allowsMedia: boolean;
+  // Which function runs it. "converse": only ai-converse (the partner's line
+  // and its voice, metered in conversation seconds); ai-generate refuses it.
+  via?: "converse";
+  // A conversation call that finishes one already allowed (the debrief):
+  // it skips the minutes check, never the cost cap.
+  finishing?: boolean;
   build: (inputs: never, input: JudgeInput) => BuiltRequest;
 }
 
@@ -88,6 +110,24 @@ export const TASKS: Record<Task, TaskDef> = {
     role: () => "text",
     allowsMedia: false,
     build: buildMarkUp as TaskDef["build"],
+  },
+  conversation_turn: {
+    inputs: conversationTurnInputsSchema,
+    schemaVersion: CONVERSATION_TURN_SCHEMA_VERSION,
+    count: "conversation",
+    role: () => "conversation",
+    allowsMedia: false,
+    via: "converse",
+    build: buildConversationTurn as TaskDef["build"],
+  },
+  conversation_debrief: {
+    inputs: conversationDebriefInputsSchema,
+    schemaVersion: CONVERSATION_DEBRIEF_SCHEMA_VERSION,
+    count: "conversation",
+    role: () => "text",
+    allowsMedia: false,
+    finishing: true,
+    build: buildConversationDebrief as TaskDef["build"],
   },
 };
 

@@ -9,12 +9,13 @@ through the edge functions below; the database is closed to direct access
 
 | Path | What it is |
 |---|---|
-| `migrations/` | The schema, in order. `20261019000000_tono_ai.sql` and the `entitlement_synced_at` column from `20261020000000_plus_sync.sql` are on the live project. **Run `20261023000000_tiers_and_trial.sql` in the SQL editor before deploying this branch's functions** (tiers, the trial, the retired starter pack, a new config row). |
+| `migrations/` | The schema, in order. `20261019000000_tono_ai.sql` and the `entitlement_synced_at` column from `20261020000000_plus_sync.sql` are on the live project. **Run `20261023000000_tiers_and_trial.sql` in the SQL editor before deploying this branch's functions** (tiers, the trial, the retired starter pack, a new config row). Then **`20261024000000_conversation.sql`** before deploying `ai-converse` (the conversation count kind, its seconds column, the voice models and their prices; it rewrites the config row, so check `mode` and `plusPurchasable` afterwards). |
 | `functions/_shared/` | Rules and helpers. The pure ones (allowance, pricing, config, request checks, prompts) are tested with jest; the Deno-only ones (ledger, gemini, secrets, apple, http, auth) with `deno test`. |
-| `functions/_shared/prompts/` | **Every prompt Tono AI uses, and the JSON schema of each answer.** The phone names a task (`take_review`, `rewind_notes`, `word_chain`, `bridge_chain`, `summary_notes`, `mark_up`) and sends structured inputs; it never sends prompt text. Change a prompt here and redeploy: no app update. A change to an answer's *shape* needs a new `schemaVersion` and an app update, since the phone checks every answer. |
+| `functions/_shared/prompts/` | **Every prompt Tono AI uses, and the JSON schema of each answer.** The phone names a task (`take_review`, `rewind_notes`, `word_chain`, `bridge_chain`, `summary_notes`, `mark_up`, `conversation_turn`, `conversation_debrief`) and sends structured inputs; it never sends prompt text. Change a prompt here and redeploy: no app update. A change to an answer's *shape* needs a new `schemaVersion` and an app update, since the phone checks every answer. |
 | `functions/ai-upload-start` | Asks Google for an upload URL (key stays server-side) and returns only the URL. |
 | `functions/ai-file` | Poll a file's state; proves the file belongs to the caller. |
 | `functions/ai-generate` | The one place a model runs: check the task's inputs, write the prompt, reserve, call Gemini, record real cost, refund on failure, return the answer as JSON. |
+| `functions/ai-converse` | The live conversation partner: writes the partner's next line (`conversation_turn`, thinking off) and speaks it with Gemini TTS, streaming newline-delimited JSON (the words, then 0.2 s PCM chunks, then timings). Also speaks a given line (the opener, the Dev voice lab). Meters conversation seconds itself from the time between a conversation's calls (`_shared/conversation.ts`). See `docs/decisions/conversation-voice.md`. |
 | `functions/me` | The caller's plan (free, trial or Plus), what they have left, which kinds of call would be accepted, and the switches the app follows (kill switch, Plus on sale, minors policy). |
 | `functions/app-config` | The switches the app needs before there is any account (Plus on sale, minors policy, mode, kill switch). No sign-in; nothing about the person. |
 | `functions/apple-token` | Trades a Sign in with Apple code for a refresh token, kept encrypted so it can be revoked. |
@@ -114,7 +115,10 @@ It checks the reservation under concurrency (five calls at once with one judged
 take left: exactly one wins), refunds, idempotency, the free monthly take, the
 trial window across a month boundary, the cost cap, the shared free budget and
 the daily ceiling. Last run 2026-10-23 against postgres:16 with all three
-migrations: 10 of 10 steps pass. The stand-in schemas are just
+migrations: 10 of 10 steps pass. Re-run 2026-10-24 with the conversation
+migration as well: 12 of 12 (the two new steps: seconds charged from a
+conversation's own calls and stopping at the limit while a finishing call still
+goes through; a conversation past its length refused). The stand-in schemas are just
 `auth.users (id uuid default gen_random_uuid(), email)`, `auth.uid()`,
 `storage.buckets (id, name, public)` and the `anon` and `authenticated` roles.
 

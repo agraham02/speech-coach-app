@@ -12,6 +12,9 @@ import type { CountKind, DenyReason, Plan, Tier } from "./types.ts";
 // - beta (server mode "beta"): what a TestFlight tester gets without paying.
 // - trial: Plus with the trial's own, smaller counts, over the 14 days.
 // - plus: the monthly counts.
+// Live conversation is metered in seconds the server measures between turns
+// (_shared/conversation.ts), against the tier's minutes. Free gets none by
+// default (the lesson content stays free on the phone).
 // Trial and Plus also stop at the cost cap, from real spend, so a model
 // change can never make a subscriber cost more than they pay. Free and beta
 // share one monthly spend ceiling across everyone (freeBudgetUsd).
@@ -23,6 +26,8 @@ export interface UsageSnapshot {
   takes: number;
   text: number;
   insights: number;
+  // Seconds of live conversation charged so far.
+  conversationSeconds: number;
   costUsd: number;
   // Judged takes this UTC day.
   dayTakes: number;
@@ -40,21 +45,31 @@ export function tierFor(config: ServerConfig, plan: Plan): Tier {
 }
 
 // The counts each tier gets. A zero means the tier doesn't get that kind.
+// Conversation is in seconds (the config says minutes).
 export function limitsFor(l: Limits, tier: Tier): Record<CountKind, number> {
   switch (tier) {
     case "plus":
-      return { take: l.plusMonthlyJudgedTakes, text: l.plusMonthlyTextCalls, insight: l.plusMonthlyInsights };
+      return { take: l.plusMonthlyJudgedTakes, text: l.plusMonthlyTextCalls, insight: l.plusMonthlyInsights, conversation: l.plusMonthlyConversationMinutes * 60 };
     case "trial":
-      return { take: l.trialJudgedTakes, text: l.trialTextCalls, insight: l.trialInsights };
+      return { take: l.trialJudgedTakes, text: l.trialTextCalls, insight: l.trialInsights, conversation: l.trialConversationMinutes * 60 };
     case "beta":
-      return { take: l.betaMonthlyJudgedTakes, text: l.betaMonthlyTextCalls, insight: l.betaMonthlyInsights };
+      return { take: l.betaMonthlyJudgedTakes, text: l.betaMonthlyTextCalls, insight: l.betaMonthlyInsights, conversation: l.betaMonthlyConversationMinutes * 60 };
     case "free":
-      return { take: l.freeMonthlyJudgedTakes, text: 0, insight: 0 };
+      return { take: l.freeMonthlyJudgedTakes, text: 0, insight: 0, conversation: l.freeMonthlyConversationMinutes * 60 };
   }
 }
 
 function used(s: UsageSnapshot, kind: CountKind): number {
-  return kind === "take" ? s.takes : kind === "text" ? s.text : s.insights;
+  switch (kind) {
+    case "take":
+      return s.takes;
+    case "text":
+      return s.text;
+    case "insight":
+      return s.insights;
+    case "conversation":
+      return s.conversationSeconds;
+  }
 }
 
 export function decideAllowance(args: {
@@ -63,6 +78,10 @@ export function decideAllowance(args: {
   snapshot: UsageSnapshot;
   // Worst-case cost of this call (pricing.estimateCostUsd).
   estCostUsd: number;
+  // A conversation's closing calls (the partner's voice for a line already
+  // written, the debrief): they finish a conversation that was allowed to
+  // start, so they skip the minutes check. The cost cap still applies.
+  finishing?: boolean;
 }): Decision {
   const { config, kind, snapshot: s, estCostUsd } = args;
   const l = config.limits;
@@ -76,7 +95,8 @@ export function decideAllowance(args: {
   const limit = limitsFor(l, tier)[kind];
   // Something this tier never gets is a Plus feature, not a used-up count.
   if (limit <= 0) return deny("plus_required");
-  if (used(s, kind) >= limit) return deny("quota_exhausted");
+  const finishing = kind === "conversation" && args.finishing === true;
+  if (!finishing && used(s, kind) >= limit) return deny("quota_exhausted");
 
   if (tier === "plus" || tier === "trial") {
     if (s.costUsd + estCostUsd > l.paidCostCapUsd) return deny("plus_cost_cap");

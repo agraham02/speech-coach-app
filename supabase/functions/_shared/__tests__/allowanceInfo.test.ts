@@ -10,6 +10,7 @@ const snapshot: UsageSnapshot = {
   costUsd: 0,
   dayTakes: 0,
   freeSpendMonthUsd: 0,
+  conversationSeconds: 0,
 };
 
 const beta: ServerConfig = { ...DEFAULT_CONFIG, mode: "beta" };
@@ -32,6 +33,8 @@ describe("describeAllowance", () => {
       tier: "free",
       takesTotal: 1,
       takesLeft: 1,
+      conversationMinutesTotal: 0,
+      conversationMinutesLeft: 0,
       resetsAt: "2027-01-01T00:00:00.000Z",
       trialEndsAt: null,
     });
@@ -53,6 +56,8 @@ describe("describeAllowance", () => {
       tier: "trial",
       takesTotal: 20,
       takesLeft: 15,
+      conversationMinutesTotal: 30,
+      conversationMinutesLeft: 30,
       resetsAt: "2026-12-28T09:00:00.000Z",
       trialEndsAt: "2026-12-28T09:00:00.000Z",
     });
@@ -68,5 +73,17 @@ describe("statusForDeny", () => {
     expect(statusForDeny("in_flight")).toBe(409);
     expect(statusForDeny("budget_paused")).toBe(503);
     expect(statusForDeny("disabled")).toBe(503);
+  });
+});
+
+describe("conversation minutes", () => {
+  it("are whole minutes, rounded down while left", () => {
+    const view = describeAllowance(launch, { ...snapshot, plan: "plus", conversationSeconds: 61 }, NOW);
+    expect(view.conversationMinutesTotal).toBe(120);
+    expect(view.conversationMinutesLeft).toBe(118);
+  });
+
+  it("never go below zero", () => {
+    expect(describeAllowance(launch, { ...snapshot, plan: "trial", conversationSeconds: 99_999 }, NOW).conversationMinutesLeft).toBe(0);
   });
 });
