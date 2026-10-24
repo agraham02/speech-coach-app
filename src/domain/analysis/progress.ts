@@ -182,6 +182,16 @@ export function etaSentence(range: [number, number], elapsedSeconds: number): st
   return `Usually ${a} to ${b} minutes.`;
 }
 
+// Joining the audio and writing the words out with Whisper (16.6 s per 60 s of
+// speech in the ASR Lab) for a Rewind of this length, in seconds.
+export function rewindSeconds(talkSeconds: number): [number, number] {
+  return [0.15 * talkSeconds + 2, 0.45 * talkSeconds + 6];
+}
+
+// Notes on a Rewind or an exercise: one short text call, and a second when
+// the first answer didn't check out against what was said (exercise-judging.md).
+export const NOTES_SECONDS: [number, number] = [5, 40];
+
 // --- After the app was closed ----------------------------------------------
 
 // Steps resume automatically only for recent takes and only a few times, so a

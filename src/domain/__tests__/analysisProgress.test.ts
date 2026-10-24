@@ -5,6 +5,7 @@ import {
   MAX_OFFLINE_RETRIES,
   offlineRetryDue,
   remainingSeconds,
+  rewindSeconds,
   resumeDecision,
   stepSeconds,
   summarizeWork,
@@ -155,6 +156,15 @@ describe("how long it takes", () => {
     expect(etaSentence([20, 60], 3)).toBe("Usually about a minute or less.");
     expect(etaSentence([45, 180], 3)).toBe("Usually 1 to 3 minutes.");
     expect(etaSentence([5, 30], 200)).toMatch(/longer than usual/);
+  });
+});
+
+describe("Rewind", () => {
+  it("a two-minute Rewind (about 35 s of Whisper) falls inside the range, and reads as about a minute", () => {
+    const [lo, hi] = rewindSeconds(120);
+    expect(lo).toBeLessThan(35);
+    expect(hi).toBeGreaterThan(35);
+    expect(etaSentence(rewindSeconds(120), 5)).toBe("Usually about a minute or less.");
   });
 });
 

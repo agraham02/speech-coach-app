@@ -12,7 +12,7 @@ import { Txt } from "../components/common/Txt";
 import { Waveform } from "../components/rewind/Waveform";
 import { cueForSeconds, MAX_REWIND_SECONDS, MIN_REWIND_SECONDS, type DayPart } from "../domain/rewind/stats";
 import { useRewindRecorder } from "../hooks/useRewindRecorder";
-import { discardRewindSegments, processRewind } from "../services/rewind/rewindProcessor";
+import { discardRewindSegments, startRewind } from "../services/rewind/rewindProcessor";
 import { formatDuration } from "../utils/dateUtils";
 import { success, tap, tick } from "../utils/haptics";
 import { duration } from "../theme/motion";
@@ -89,7 +89,7 @@ export function RewindRecordScreen() {
     setStage("finishing");
     const take = await recorder.stop();
     success();
-    const id = await processRewind(take);
+    const id = await startRewind(take);
     navigation.replace("RewindResult", { id });
   }
 
@@ -173,7 +173,7 @@ export function RewindRecordScreen() {
             <View style={styles.finishing}>
               <ActivityIndicator color={colors.textPrimary} />
               <Txt variant="subhead" tone="secondary">
-                Listening back…
+                Saving your take…
               </Txt>
             </View>
           ) : (

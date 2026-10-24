@@ -7,6 +7,7 @@ import { getReferencedRewindFiles } from "../db/rewindRepo";
 import { deleteRewindAudio, listRewindFiles } from "../rewind/rewindStorage";
 import { applyMediaBackup } from "../storage/mediaBackup";
 import { purgeDeletedData } from "../data/dataPurge";
+import { resumeRewinds } from "../rewind/rewindProcessor";
 import { resumeDecision } from "../../domain/analysis/progress";
 import { refreshSessionStatus } from "./stepRunner";
 import { runPendingSteps } from "./sessionPipeline";
@@ -58,6 +59,9 @@ export async function reconcileOnLaunch(): Promise<void> {
       }
     }
     if (stale.length) logger.info(`[reconcile] marked ${stale.length} interrupted step(s)`);
+
+    // A Rewind cut off mid-way is picked up again.
+    await resumeRewinds().catch((error) => logger.warn(`[reconcile] Rewind resume failed - ${(error as Error).message}`));
 
     await cleanUpOrphanedVideos();
     await cleanUpOrphanedRewindAudio();
