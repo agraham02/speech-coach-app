@@ -8,6 +8,7 @@ import { useFonts } from "expo-font";
 import { AppNavigator } from "./src/navigation";
 import { isModelDownloaded, DEFAULT_ASR_MODEL, tidyModelsFolder, subscribeModelReady } from "./src/services/asr/whisperModels";
 import { retryWaitingTakes } from "./src/services/pipeline/retryWaitingTakes";
+import { watchForOfflineReviews } from "./src/services/pipeline/retryOfflineReviews";
 import { initAccount } from "./src/services/account/accountStore";
 import { initPurchases } from "./src/services/purchases/purchases";
 import { logger } from "./src/utils/logger";
@@ -52,6 +53,10 @@ export default function App() {
     if (isModelDownloaded(DEFAULT_ASR_MODEL)) retryWaitingTakes().catch(() => undefined);
     return subscribeModelReady(() => retryWaitingTakes().catch(() => undefined));
   }, []);
+
+  // Reviews that couldn't go for lack of a connection are sent again by
+  // themselves, when the app opens and each time it comes back to the front.
+  useEffect(() => watchForOfflineReviews(), []);
 
   // The sign-in session and what Tono AI has left. Never blocks the app: a
   // failure just leaves the person signed out, and the phone-only features work.

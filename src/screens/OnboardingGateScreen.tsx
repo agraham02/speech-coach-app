@@ -9,6 +9,7 @@ import { PrimaryButton } from "../components/common/PrimaryButton";
 import { Txt } from "../components/common/Txt";
 import { Enter } from "../components/common/Enter";
 import { completeOnboarding, hasPracticeHistory, resetToTabs } from "../services/onboarding/onboarding";
+import { getFirstSkillCheckId } from "../services/db/skillChecksRepo";
 import { resetApp } from "../services/data/resetApp";
 import { getUserProfile, setUserProfile } from "../services/prefs/prefsStore";
 import { EMPTY_PROFILE } from "../domain/profile";
@@ -27,8 +28,14 @@ export function OnboardingGateScreen({ navigation }: NativeStackScreenProps<Root
   const [state, setState] = useState<"checking" | "existing" | "resetting">("checking");
 
   useEffect(() => {
-    hasPracticeHistory()
-      .then((existing) => (existing ? setState("existing") : navigation.replace("Onboarding")))
+    // The app was closed while the starting point was being put together:
+    // go back to it (its analysis carries on) instead of asking about "old"
+    // practice.
+    getFirstSkillCheckId()
+      .then(async (checkId) => {
+        if (checkId) return navigation.replace("StartingPoint", { checkId });
+        return (await hasPracticeHistory()) ? setState("existing") : navigation.replace("Onboarding");
+      })
       .catch((error) => {
         logger.error(`[onboarding] gate check failed — ${(error as Error).message}`);
         navigation.replace("Onboarding");

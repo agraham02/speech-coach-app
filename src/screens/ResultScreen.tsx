@@ -17,6 +17,10 @@ import { SegmentedControl } from "../components/common/SegmentedControl";
 import { colorForScore } from "../components/result/scoreColor";
 import { ThreePassPlayer } from "../components/review/ThreePassPlayer";
 import { AnalysisStepsCard } from "../components/result/AnalysisStepsCard";
+import { WorkStatusCard } from "../components/work/WorkStatusCard";
+import { useTakeWork } from "../hooks/useTakeWork";
+import { markResultSeen } from "../services/pipeline/activeTakes";
+import { getJudgeInput } from "../services/prefs/prefsStore";
 import { CoachCard } from "../components/result/CoachCard";
 import { ComparisonCard } from "../components/result/ComparisonCard";
 import { ScoreSummaryCard } from "../components/result/ScoreSummaryCard";
@@ -141,6 +145,11 @@ export function ResultScreen({ route, navigation }: Props) {
   }, [loadAll]);
 
   const { steps } = useSessionSteps(sessionId, loadAll);
+  const { work, elapsed } = useTakeWork(sessionId, steps);
+  // Opening the result clears its "ready" row on Today.
+  useEffect(() => {
+    markResultSeen(sessionId).catch(() => undefined);
+  }, [sessionId]);
   const { tourScroll, scrollProps } = useTourScroll();
   // Impromptu takes move your skills; their Result plays what moved.
   const movesSkills = session?.sessionType === "spontaneous" || session?.sessionType === "concise";
@@ -304,6 +313,8 @@ export function ResultScreen({ route, navigation }: Props) {
       {tab === "overview" ? (
         <TourScrollContext.Provider value={tourScroll}>
         <ScrollView {...scrollProps} style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <WorkStatusCard work={work} elapsed={elapsed} eta={{ takeSeconds: session.durationSeconds, reviewInput: work.review === "none" ? null : getJudgeInput() }} onRetry={handleRunStep} />
+
           {hasVideo ? <FeltCard state={feltObserved} /> : null}
 
           <TourTarget id="result.score">

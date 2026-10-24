@@ -7,6 +7,8 @@ import { getReferencedRewindFiles } from "../db/rewindRepo";
 import { deleteRewindAudio, listRewindFiles } from "../rewind/rewindStorage";
 import { applyMediaBackup } from "../storage/mediaBackup";
 import { purgeDeletedData } from "../data/dataPurge";
+import { resumeRewinds } from "../rewind/rewindProcessor";
+import { resumeDecision } from "../../domain/analysis/progress";
 import { refreshSessionStatus } from "./stepRunner";
 import { runPendingSteps } from "./sessionPipeline";
 import { backfillSessionScores } from "../sessions/sessionScoreService";
@@ -14,9 +16,7 @@ import { settleRepProgress } from "../sessions/repProgress";
 import { logger } from "../../utils/logger";
 
 // Steps resume automatically only for recent sessions and only a few times,
-// so a step that crashes the app can't loop forever.
-const AUTO_RESUME_WINDOW_MS = 24 * 60 * 60 * 1000;
-const MAX_AUTO_ATTEMPTS = 3;
+// so a step that crashes the app can't loop forever (resumeDecision).
 // Previews younger than this may belong to a take still on the Preview
 // screen, so they're never treated as orphans.
 const ORPHAN_MIN_AGE_MS = 60 * 60 * 1000;
@@ -48,9 +48,8 @@ export async function reconcileOnLaunch(): Promise<void> {
       await refreshSessionStatus(sessionId);
       const session = await getSessionById(sessionId);
       if (!session) continue;
-      const recent = Date.now() - Date.parse(session.recordedAt) < AUTO_RESUME_WINDOW_MS;
       const steps = resumable.filter((s) => s.sessionId === sessionId);
-      if (recent && steps.every((s) => s.attempts < MAX_AUTO_ATTEMPTS)) {
+      if (resumeDecision(steps, Date.parse(session.recordedAt), Date.now()) === "resume") {
         logger.info(`[reconcile] resuming ${steps.map((s) => s.step).join(", ")} for ${sessionId}`);
         runPendingSteps(sessionId).catch(() => undefined);
       } else {
@@ -60,6 +59,9 @@ export async function reconcileOnLaunch(): Promise<void> {
       }
     }
     if (stale.length) logger.info(`[reconcile] marked ${stale.length} interrupted step(s)`);
+
+    // A Rewind cut off mid-way is picked up again.
+    await resumeRewinds().catch((error) => logger.warn(`[reconcile] Rewind resume failed - ${(error as Error).message}`));
 
     await cleanUpOrphanedVideos();
     await cleanUpOrphanedRewindAudio();
