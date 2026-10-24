@@ -444,7 +444,7 @@ export function markRewindNotificationAsked(): void {
 
 // Whether a deep review is told what you answered in onboarding (goals,
 // what gets in your way…) so its feedback is relevant. On by default; the
-// exact text is shown in Settings → Deep reviews.
+// exact text is shown in Settings → Tono AI.
 export function getShareProfileWithReviews(): boolean {
   return storage.getBoolean(KEYS.shareProfileWithReviews) ?? true;
 }

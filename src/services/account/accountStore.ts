@@ -12,7 +12,7 @@ import {
 } from "../../domain/account";
 import { logger } from "../../utils/logger";
 import { getAccountCacheRaw, setAccountCacheRaw } from "../prefs/prefsStore";
-import { onAllowance, TonoApiError, tonoMe } from "../tono/tonoApi";
+import { onAllowance, TonoApiError, tonoAppConfig, tonoMe } from "../tono/tonoApi";
 import { getSupabase } from "./supabaseClient";
 
 // The person's Tono account and what they have left, as one observable object
@@ -44,10 +44,15 @@ export function useAccount(): AccountSnapshot {
   return useSyncExternalStore(subscribeAccount, getAccount, getAccount);
 }
 
+// The server's switches as last heard without an account (app-config), so a
+// person who never made one still sees Tono Plus when it is on sale.
+let publicSwitches: Pick<AccountSnapshot, "mode" | "killSwitch" | "plusPurchasable" | "minorsMayUseAi"> | null = null;
+const signedOut = (): AccountSnapshot => ({ ...SIGNED_OUT, ...(publicSwitches ?? {}) });
+
 // A session appeared, changed or went away.
 function applySession(session: Session | null): void {
   if (!session) {
-    if (state.status !== "signedOut") commit(SIGNED_OUT);
+    if (state.status !== "signedOut") commit(signedOut());
     return;
   }
   const user = session.user;
@@ -59,7 +64,7 @@ function applySession(session: Session | null): void {
     return;
   }
   // Someone new: nothing from the last account carries over.
-  commit({ ...SIGNED_OUT, status: "signedIn", userId: user.id, anonymous, provider, email });
+  commit({ ...signedOut(), status: "signedIn", userId: user.id, anonymous, provider, email });
 }
 
 // Asks the server what this person has left. Quiet when offline: the cached
@@ -124,6 +129,18 @@ export async function ensureAccount(): Promise<void> {
   return creating;
 }
 
+// Asks the server for its switches without an account. Quiet when offline.
+export async function refreshPublicConfig(): Promise<void> {
+  try {
+    const c = await tonoAppConfig();
+    publicSwitches = { mode: c.mode, killSwitch: c.killSwitch, plusPurchasable: c.plusPurchasable, minorsMayUseAi: c.minorsMayUseAi };
+    // A signed-in account hears the same switches from `me`.
+    if (state.status !== "signedIn") commit({ ...state, ...publicSwitches });
+  } catch (error) {
+    logger.info(`[account] could not read the app config — ${(error as Error).message}`);
+  }
+}
+
 let started = false;
 
 // Called once at launch.
@@ -146,18 +163,20 @@ export async function initAccount(): Promise<void> {
   const { data } = await auth.getSession();
   applySession(data.session);
   void refreshAccount();
+  if (!data.session) void refreshPublicConfig();
 
   let lastRefresh = Date.now();
   AppState.addEventListener("change", (appState) => {
     // Coming back to the app is when the numbers are most likely stale.
     if (appState === "active" && Date.now() - lastRefresh > 60_000) {
       lastRefresh = Date.now();
-      void refreshAccount();
+      if (state.status === "signedIn") void refreshAccount();
+      else void refreshPublicConfig();
     }
   });
 }
 
 // Forgets the account on this phone (after sign-out or deletion).
 export function clearAccount(): void {
-  commit(SIGNED_OUT);
+  commit(signedOut());
 }

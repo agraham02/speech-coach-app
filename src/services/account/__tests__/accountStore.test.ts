@@ -11,6 +11,7 @@ interface Fakes {
   me: jest.Mock;
   cache: string | null;
   signInAnonymously: jest.Mock;
+  appConfig: jest.Mock;
   allowanceListener: ((a: TonoAllowance) => void) | null;
 }
 
@@ -22,6 +23,7 @@ function load(initial: Partial<Fakes> = {}) {
     me: jest.fn(),
     cache: null,
     signInAnonymously: jest.fn(),
+    appConfig: jest.fn().mockRejectedValue(new Error("offline")),
     allowanceListener: null,
     ...initial,
   };
@@ -45,6 +47,7 @@ function load(initial: Partial<Fakes> = {}) {
     return {
       TonoApiError,
       tonoMe: (...a: unknown[]) => fakes.me(...a),
+      tonoAppConfig: (...a: unknown[]) => fakes.appConfig(...a),
       onAllowance: (l: Fakes["allowanceListener"]) => {
         fakes.allowanceListener = l;
       },
@@ -156,6 +159,15 @@ describe("accountStore", () => {
     expect(store.getAccount()).toMatchObject({ status: "signedIn", userId: "anon", anonymous: true, allowance: { takesLeft: 4 } });
     await store.ensureAccount();
     expect(fakes.signInAnonymously).toHaveBeenCalledTimes(1);
+  });
+
+  it("knows whether Plus is on sale without any account", async () => {
+    const { store, fakes } = load({ appConfig: jest.fn().mockResolvedValue({ mode: "launch", killSwitch: false, plusPurchasable: true, minorsMayUseAi: false, freeMonthlyJudgedTakes: 1 }) });
+    await store.initAccount();
+    await store.refreshPublicConfig();
+    expect(fakes.appConfig).toHaveBeenCalled();
+    expect(store.getAccount()).toMatchObject({ status: "signedOut", plusPurchasable: true, mode: "launch" });
+    expect(fakes.cache).toBeNull();
   });
 
   it("fails loudly when the account can't be made (offline), so the caller can say so", async () => {

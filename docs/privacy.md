@@ -90,15 +90,19 @@ I use this only to run Tono AI and Tono Plus: to know which account a call is fo
 - **Restoring and cancelling.** "Restore purchases" asks Apple and RevenueCat to find your past purchases. You cancel, including during the free trial, in your Apple ID's subscription settings. I cannot cancel it for you, and deleting your Tono account does not cancel it.
 - **Test builds.** In TestFlight builds, purchases are Apple "sandbox" purchases and do not charge you.
 
-### 4. The speech model download
+### 4. Checking what's on offer
+
+When the app starts without an account, it asks my service whether Tono Plus is on sale and which features are on. That request carries nothing about you (the service sees only the connection, such as your IP address) and nothing is stored.
+
+### 5. The speech model download
 
 The first time you use Tono, it downloads a speech-recognition model from Hugging Face. Hugging Face can see ordinary connection information, such as your IP address, as with any download. No recording or personal data is sent.
 
-### 5. Apple's speech recognition
+### 6. Apple's speech recognition
 
 Some live drills use iOS speech recognition. Where your iPhone supports it, this happens on the device. If it does not, Apple may process the audio on its servers under Apple's privacy policy.
 
-### 6. Apple services
+### 7. Apple services
 
 If you install Tono through TestFlight or the App Store, Apple handles the download, and may share crash reports or tester feedback with me if you have allowed that in iOS. Tono's reminders are scheduled on your phone; they are not push notifications from a server.
 

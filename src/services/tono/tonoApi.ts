@@ -134,6 +134,21 @@ export const tonoDeleteFile = (fileName: string) => call<{ ok: true }>("ai-file"
 // A take judged from its video waits for Google to watch it; text is quick.
 export const tonoGenerate = (request: GenerateRequest, timeoutMs = request.media ? 190_000 : 70_000) => call<GenerateResponse>("ai-generate", request, timeoutMs);
 
+// The server's switches, before there is any account (no token sent).
+export interface AppConfigResponse {
+  mode: "beta" | "launch";
+  killSwitch: boolean;
+  plusPurchasable: boolean;
+  minorsMayUseAi: boolean;
+  freeMonthlyJudgedTakes: number;
+}
+
+export async function tonoAppConfig(): Promise<AppConfigResponse> {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/functions/v1/app-config`, { method: "GET", headers: { apikey: SUPABASE_PUBLISHABLE_KEY } }, 15_000, "Tono");
+  if (!response.ok) throw new TonoApiError(response.status, `http_${response.status}`);
+  return (await response.json()) as AppConfigResponse;
+}
+
 export const tonoAppleToken = (authorizationCode: string) => call<{ ok: true }>("apple-token", { authorizationCode }, 30_000);
 
 export const tonoDeleteAccount = () => call<{ ok: true }>("delete-account", {}, 40_000);

@@ -92,6 +92,7 @@ All numbers are in the server's config row and change without an app update. Con
 - `ensureAccount()` calls Supabase `signInAnonymously()` once, only when the person asks for Tono AI (allows it, turns the save-screen switch on, taps "Get notes"), a Tono AI call is made, or a purchase or restore starts. The free path never makes an account, and an under-18 never gets one.
 - The anonymous user id is the RevenueCat app user id (`purchases.ts` logs RevenueCat in as it), so a purchase belongs to it and App Review sees no registration before purchase (5.1.1(v)).
 - **Linking.** Sign in with Apple (native) or Google (browser sheet) calls `linkIdentity` on the anonymous user, so the allowance, plan and history stay. If that Apple or Google identity already belongs to another Tono account (made on another phone), the phone signs in to that account instead.
+- **Before any account,** the app still needs the server's switches (is Plus on sale, the minors policy). A new public function, `app-config`, returns them with no sign-in and nothing about the person, so the free path can show Tono Plus without making an account.
 - **Delete account** works for both kinds (App Review 5.1.1(v): any app that creates accounts must offer deletion).
 - **Supabase settings Ahmad must turn on:** "Allow anonymous sign-ins" and "Allow manual linking". Without them Tono AI and purchases fail for everyone who hasn't signed in.
 - Anonymous users count toward Supabase's monthly active users like any other; at the free and Pro plan sizes that's not a constraint.

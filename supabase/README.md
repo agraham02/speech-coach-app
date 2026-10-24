@@ -16,6 +16,7 @@ through the edge functions below; the database is closed to direct access
 | `functions/ai-file` | Poll a file's state; proves the file belongs to the caller. |
 | `functions/ai-generate` | The one place a model runs: check the task's inputs, write the prompt, reserve, call Gemini, record real cost, refund on failure, return the answer as JSON. |
 | `functions/me` | The caller's plan (free, trial or Plus), what they have left, which kinds of call would be accepted, and the switches the app follows (kill switch, Plus on sale, minors policy). |
+| `functions/app-config` | The switches the app needs before there is any account (Plus on sale, minors policy, mode, kill switch). No sign-in; nothing about the person. |
 | `functions/apple-token` | Trades a Sign in with Apple code for a refresh token, kept encrypted so it can be revoked. |
 | `functions/delete-account` | Revokes the Apple grant, removes the person from RevenueCat, deletes the account. Works for an anonymous account too. |
 | `functions/revenuecat-webhook` | RevenueCat calls this when a subscription changes. It only learns who changed, then asks RevenueCat for the truth and writes `entitlements`. |
