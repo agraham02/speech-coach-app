@@ -1,62 +1,27 @@
 import { getDatabase } from "./database";
-import { parseAnnotationsJson } from "./mappers";
-import type { Archetype } from "../../domain/sessionTypes";
-import type { ScoredSessionSummary } from "../../domain/trends";
+import { scorePointOf, type ScorePoint } from "../../domain/trends";
+import type { TakeScores } from "../../domain/scoring/takeScore";
 
-interface ScoredSessionRow {
-  recorded_at: string;
-  duration_seconds: number;
-  overall_score: number;
-  structure_score: number;
-  content_coherence_score: number;
-  rate_score: number;
-  volume_score: number;
-  pitch_melody_score: number;
-  tonality_score: number;
-  pausing_score: number;
-  archetype_detected: string;
-  annotations_json: string;
-}
-
-function toSummary(row: ScoredSessionRow): ScoredSessionSummary {
-  const deliveryAvgScore =
-    Math.round(
-      ((row.rate_score + row.volume_score + row.pitch_melody_score + row.tonality_score + row.pausing_score) / 5) * 10,
-    ) / 10;
-
-  const restatedPointCount = parseAnnotationsJson(row.annotations_json).filter(
-    (a) => a.category === "restated_point",
-  ).length;
-  const minutes = Math.max(row.duration_seconds / 60, 1 / 60);
-  const restatedPointRatePerMinute = Math.round((restatedPointCount / minutes) * 10) / 10;
-
-  return {
-    recordedAt: row.recorded_at,
-    overallScore: row.overall_score,
-    structureScore: row.structure_score,
-    deliveryAvgScore,
-    archetype: row.archetype_detected as Archetype,
-    coherenceScore: row.content_coherence_score,
-    restatedPointCount,
-    restatedPointRatePerMinute,
-  };
-}
-
-// All graded, non-deleted impromptu sessions, oldest first — used for trend
-// math. Script readings are excluded: their structure/content scores are a
-// fixed 7 and would skew the averages.
-export async function getScoredSessionSummaries(): Promise<ScoredSessionSummary[]> {
+// Every scored impromptu take's two score sheets, oldest first, as trend
+// points. Script readings are left out (their categories differ, so their
+// overall isn't comparable); a deleted take is hidden at once.
+export async function getScoreSeries(): Promise<ScorePoint[]> {
   const db = await getDatabase();
-  const rows = await db.getAllAsync<ScoredSessionRow>(
-    `SELECT s.recorded_at, s.duration_seconds, COALESCE(s.session_score, sc.overall_score) AS overall_score, sc.structure_score, sc.content_coherence_score,
-            sc.rate_score, sc.volume_score, sc.pitch_melody_score, sc.tonality_score, sc.pausing_score,
-            sc.archetype_detected, sc.annotations_json
-     FROM sessions s
-     JOIN scores sc ON sc.session_id = s.id
+  const rows = await db.getAllAsync<{ recorded_at: string; json: string }>(
+    `SELECT s.recorded_at, a.json
+     FROM sessions s JOIN session_artifacts a ON a.session_id = s.id AND a.kind = 'session_score'
      WHERE s.status = 'done' AND s.deleted_at IS NULL AND s.session_type NOT IN ('script_practice', 'feeling')
      ORDER BY s.recorded_at ASC`,
   );
-  return rows.map(toSummary);
+  const out: ScorePoint[] = [];
+  for (const row of rows) {
+    try {
+      out.push(scorePointOf(row.recorded_at, JSON.parse(row.json) as TakeScores));
+    } catch {
+      // A malformed sheet is skipped; the next rescore rewrites it.
+    }
+  }
+  return out;
 }
 
 // Every completed session's date, regardless of whether it has scores — used
