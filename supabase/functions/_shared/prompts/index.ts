@@ -1,15 +1,21 @@
 import type { z } from "zod";
 import type { CountKind, ModelRole } from "../types.ts";
 import {
+  BRIDGE_CHAIN_SCHEMA_VERSION,
+  bridgeChainInputsSchema,
+  buildBridgeChain,
   buildMarkUp,
   buildRewindNotes,
   buildSummaryNotes,
+  buildWordChain,
   MARK_UP_SCHEMA_VERSION,
   markUpInputsSchema,
   REWIND_NOTES_SCHEMA_VERSION,
   rewindNotesInputsSchema,
   SUMMARY_NOTES_SCHEMA_VERSION,
   summaryNotesInputsSchema,
+  WORD_CHAIN_SCHEMA_VERSION,
+  wordChainInputsSchema,
 } from "./exercises.ts";
 import { buildTakeReview, TAKE_REVIEW_SCHEMA_VERSION, takeReviewInputsSchema, type BuiltRequest, type JudgeInput } from "./takeReview.ts";
 
@@ -18,7 +24,7 @@ import { buildTakeReview, TAKE_REVIEW_SCHEMA_VERSION, takeReviewInputsSchema, ty
 // prompt is written. The phone names the task and sends its inputs; the
 // prompt and the answer's schema are made here.
 
-export type Task = "take_review" | "rewind_notes" | "summary_notes" | "mark_up";
+export type Task = "take_review" | "rewind_notes" | "word_chain" | "bridge_chain" | "summary_notes" | "mark_up";
 
 export interface TaskDef {
   inputs: z.ZodType<unknown>;
@@ -50,6 +56,22 @@ export const TASKS: Record<Task, TaskDef> = {
     role: () => "text",
     allowsMedia: false,
     build: buildRewindNotes as TaskDef["build"],
+  },
+  word_chain: {
+    inputs: wordChainInputsSchema,
+    schemaVersion: WORD_CHAIN_SCHEMA_VERSION,
+    count: "text",
+    role: () => "text",
+    allowsMedia: false,
+    build: buildWordChain as TaskDef["build"],
+  },
+  bridge_chain: {
+    inputs: bridgeChainInputsSchema,
+    schemaVersion: BRIDGE_CHAIN_SCHEMA_VERSION,
+    count: "text",
+    role: () => "text",
+    allowsMedia: false,
+    build: buildBridgeChain as TaskDef["build"],
   },
   summary_notes: {
     inputs: summaryNotesInputsSchema,

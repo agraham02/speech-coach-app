@@ -4,7 +4,8 @@ import type { AnalysisContext, AnalysisKind } from "../../../domain/analysis/typ
 import type { Route } from "../../../domain/analysis/routing";
 import { acceptJudgedReview, TAKE_REVIEW_SCHEMA_VERSION } from "../../../domain/analysis/judgedReview";
 import { acceptModelMarks } from "../../../domain/cadence/autoMarkPrompt";
-import { acceptReview, rewindReviewSchema } from "../../../domain/rewind/reviewPrompt";
+import { acceptBridgeChain, acceptWordChain, chainPairs } from "../../../domain/drills/chainJudging";
+import { checkRewindReview } from "../../../domain/rewind/reviewPrompt";
 import { acceptSummaryReview } from "../../../domain/summary/summaryReviewPrompt";
 import { usageFromGemini } from "../../../domain/cloudUsage";
 import { MAX_REVIEW_VIDEO_BYTES, MAX_REVIEW_WORDS, wordCount } from "../../cloud/inputGuards";
@@ -15,7 +16,7 @@ import { resolveVideoUri, videoExists } from "../../storage/videoStorage";
 import { tonoGenerate, type GenerateResponse, type TonoTask } from "../../tono/tonoApi";
 import { resolveUploadForGrading } from "../../tono/upload";
 import type { InputFor, OutputFor, TakeReviewInput, TakeReviewOutput } from "../kinds";
-import { markUpInputs, rewindNotesInputs, summaryNotesInputs, takeReviewInputs } from "../inputs";
+import { bridgeChainInputs, markUpInputs, rewindNotesInputs, summaryNotesInputs, takeReviewInputs, wordChainInputs } from "../inputs";
 import { provenance, type AnalysisProvider, type ProviderOutcome } from "../provider";
 
 // Tono AI: the judge of record, through Tono's server, which holds the key,
@@ -28,10 +29,15 @@ import { provenance, type AnalysisProvider, type ProviderOutcome } from "../prov
 const NAME = "Tono AI";
 // A drill's notes and a mark-up are waited on: give up sooner.
 const QUICK_TIMEOUT_MS = 25_000;
+// A chain attempt is judged while the person waits on the result screen.
+const CHAIN_TIMEOUT_MS = 15_000;
 
+// The answer formats this app reads (the server's prompts/ say the same).
 const SCHEMA_VERSIONS: Record<TonoTask, number> = {
   take_review: TAKE_REVIEW_SCHEMA_VERSION,
-  rewind_notes: 1,
+  rewind_notes: 2,
+  word_chain: 1,
+  bridge_chain: 1,
   summary_notes: 1,
   mark_up: 1,
 };
@@ -40,6 +46,29 @@ async function call(task: TonoTask, inputs: object, extra: { media?: { fileName:
   // The behind-the-scenes account, made the first time it's needed.
   await ensureAccount();
   return tonoGenerate({ task, schemaVersion: SCHEMA_VERSIONS[task], inputs, ...(extra.media ? { media: extra.media } : {}), idempotencyKey: randomUUID() }, extra.timeoutMs);
+}
+
+type Checked<T> = { ok: true; value: T } | { ok: false; problems: string[] };
+
+// Asks, checks the answer against what was really said, and asks once more
+// (telling the judge what was wrong) when it doesn't hold up. Null when the
+// second answer is no better: nothing unchecked is ever shown. The last try is
+// the check's "final" one, which settles what it can instead of failing.
+// Each try is one text call on the server.
+async function askChecked<T>(
+  task: TonoTask,
+  inputs: (problems: string[]) => object,
+  check: (raw: unknown, final: boolean) => Checked<T>,
+  timeoutMs?: number,
+): Promise<{ value: T; response: GenerateResponse } | null> {
+  let problems: string[] = [];
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const response = await call(task, inputs(problems), { timeoutMs });
+    const checked = check(response.output, attempt === 1);
+    if (checked.ok) return { value: checked.value, response };
+    problems = checked.problems;
+  }
+  return null;
 }
 
 const meta = (r: GenerateResponse, input: "text" | "video") =>
@@ -99,7 +128,7 @@ async function takeReview(input: TakeReviewInput, route: Route): Promise<Provide
 
 export const tonoAiProvider: AnalysisProvider = {
   id: "tono_ai",
-  supports: (kind: AnalysisKind) => kind === "take_review" || kind === "rewind_notes" || kind === "summary_notes" || kind === "mark_up",
+  supports: (kind: AnalysisKind) => kind === "take_review" || kind === "rewind_notes" || kind === "word_chain" || kind === "bridge_chain" || kind === "summary_notes" || kind === "mark_up",
   async run<K extends AnalysisKind>(kind: K, input: InputFor<K>, _ctx: AnalysisContext, route: Route): Promise<ProviderOutcome<OutputFor<K>>> {
     type Out = ProviderOutcome<OutputFor<K>>;
     switch (kind) {
@@ -109,11 +138,33 @@ export const tonoAiProvider: AnalysisProvider = {
       case "rewind_notes": {
         const notes = input as InputFor<"rewind_notes">;
         if (wordCount(notes.transcript) > MAX_REVIEW_WORDS) return { ok: false, reason: "too_long", message: "That take is too long to send." };
-        const response = await call("rewind_notes", rewindNotesInputs(notes));
-        const parsed = rewindReviewSchema.safeParse(response.output);
-        const accepted = parsed.success ? acceptReview(parsed.data) : null;
-        if (!accepted) return { ok: false, reason: "error", message: "Tono AI didn't send back usable notes. Try again." };
-        return { ok: true, value: accepted as OutputFor<K>, provenance: meta(response, "text") };
+        const answer = await askChecked(
+          "rewind_notes",
+          (problems) => rewindNotesInputs(notes, problems),
+          (raw, final) => {
+            const checked = checkRewindReview(raw, notes.transcript, { final });
+            return checked.ok ? { ok: true, value: checked.review } : checked;
+          },
+        );
+        if (!answer) return { ok: false, reason: "error", message: "Tono AI's notes didn't check out against what you said. Try again." };
+        return { ok: true, value: answer.value as OutputFor<K>, provenance: meta(answer.response, "text") };
+      }
+
+      case "word_chain": {
+        const chain = input as InputFor<"word_chain">;
+        const pairs = chainPairs(chain.segments);
+        if (!pairs.length) return { ok: false, reason: "no_input", message: "There were no words to check." };
+        const answer = await askChecked("word_chain", (problems) => wordChainInputs(chain, problems), (raw) => acceptWordChain(raw, pairs), CHAIN_TIMEOUT_MS);
+        if (!answer) return { ok: false, reason: "error", message: "Tono AI's check of your links wasn't usable." };
+        return { ok: true, value: answer.value as OutputFor<K>, provenance: meta(answer.response, "text") };
+      }
+
+      case "bridge_chain": {
+        const chain = input as InputFor<"bridge_chain">;
+        if (!chain.segments.length) return { ok: false, reason: "no_input", message: "There were no words to check." };
+        const answer = await askChecked("bridge_chain", (problems) => bridgeChainInputs(chain, problems), (raw) => acceptBridgeChain(raw, chain.segments), CHAIN_TIMEOUT_MS);
+        if (!answer) return { ok: false, reason: "error", message: "Tono AI's check of your reasons wasn't usable." };
+        return { ok: true, value: answer.value as OutputFor<K>, provenance: meta(answer.response, "text") };
       }
 
       case "summary_notes": {

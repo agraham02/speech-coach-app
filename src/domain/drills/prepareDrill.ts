@@ -21,6 +21,9 @@ export interface DrillSetup {
   contentId: string;
   title: string;
   instructions: string;
+  // How the attempt is scored, in a sentence or two, for drills where that
+  // isn't obvious (the chains).
+  howScored?: string;
   live: LiveMode;
   // Text the speaker reads (follow mode); scored by alignment.
   targetText?: string;
@@ -151,8 +154,11 @@ export function prepareDrill(type: DrillType, level: number, seed: number, conte
         contentId: start,
         title: bridge ? "Bridge chain" : "Word chain",
         instructions: bridge
-          ? `Start from “${start}”. Say the next word and why it connects — “pen… ink, because pens need ink… octopus, because octopuses squirt ink.” Target: ${params.target} links with a reason in ${params.seconds} seconds.`
-          : `Start from “${start}”. Say a word it makes you think of, then a word that one makes you think of, and keep going — pen, ink, octopus, aquarium. Target: ${params.target} links in ${params.seconds} seconds. Go quiet for ${params.stallSeconds} seconds and a fresh word appears; just pick up from there.`,
+          ? `Word Chain is about speed. This one is about the reason. Start from “${start}”. Say a word that goes with it, then say why: “ink, because a pen writes with ink.” Then do the same from your new word: “octopus, because octopuses squirt ink.” Fewer links than Word Chain, but every one needs a real reason. Target: ${params.target} explained links in ${params.seconds} seconds. Go quiet for ${params.stallSeconds} seconds and a fresh word appears; just pick up from there.`
+          : `Start from “${start}”. Say a word that goes with it, then a word that goes with that one, and keep going fast: pen, ink, octopus, aquarium. Each word only has to make sense next to the word right before it, so wander wherever you like. No reasons needed, just speed. Target: ${params.target} good links in ${params.seconds} seconds. Go quiet for ${params.stallSeconds} seconds and a fresh word appears; just pick up from there.`,
+        howScored: bridge
+          ? "Tono AI listens for the reason, not the word “because”. A clear reason counts in full, a vague one (“because they go together”) counts half, and no reason doesn't count. Without Tono AI the phone can only count how many reasons you said."
+          : "Tono AI checks each link and shows you which ones worked. A clear link counts in full, a stretch counts half, and a word that doesn't connect doesn't count. Without Tono AI the phone can only count your words.",
         live: "chain",
         words: [start],
         seconds: params.seconds,

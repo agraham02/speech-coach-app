@@ -95,7 +95,7 @@ export interface FileStatusResponse {
 
 // The tasks the server runs (supabase/functions/_shared/prompts). The phone
 // names one and sends its structured inputs; the server writes the prompt.
-export type TonoTask = "take_review" | "rewind_notes" | "summary_notes" | "mark_up";
+export type TonoTask = "take_review" | "rewind_notes" | "word_chain" | "bridge_chain" | "summary_notes" | "mark_up";
 
 export interface GenerateRequest {
   task: TonoTask;

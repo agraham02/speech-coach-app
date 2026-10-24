@@ -8,11 +8,14 @@ The tasks Tono actually asks a model to do, with checks a script can make:
 
 | Task | Cases | Checked automatically |
 |---|---|---|
-| Rewind notes, structured coverage (proposed prompt) | 4 synthetic, plus the real transcript from the session 10 prompt | part-of-day status against gold (missing vs present, and exact), evidence quotes verbatim, "most vivid" quote verbatim |
-| Rewind notes, the app's current prompt | same | heuristic: does the coverage note call a covered part thin or missing (read the notes too) |
-| Word Chain link judging | 4 synthetic chains, 38 links | per-link verdict against gold, broken links caught, good links wrongly rejected |
+| Rewind notes (`rewind`): **the app's prompt as shipped** in session 10 | 5 synthetic (incl. `rewind_day_with_nap`, a lookalike of the regression transcript), plus the real transcript from the session 10 prompt | part-of-day status against gold (missing vs present, and exact), evidence quotes verbatim, "most vivid" quote verbatim |
+| Rewind notes, the app's previous prompt (`rewind_app`) | same | heuristic: does the coverage note call a covered part thin or missing (read the notes too). Kept to show the failure the new prompt fixes |
+| Word Chain link judging (`word_chain`): the app's prompt | 4 synthetic chains, 38 links | per-link verdict (matched by link number) against gold, broken links caught, good links wrongly rejected |
+| Bridge Chain judging (`bridge_chain`): the app's prompt | 4 synthetic attempts, including "because" said with nothing after it | step verdicts against gold, reasons verbatim, total credit against gold (over-crediting is the failure that matters) |
 | Coaching tip from measured stats | 2 synthetic, plus your own take exports | focus skill matches the expected one, every number in the tip appears in the measurements |
 | Mark it up | 3 synthetic texts | words come back exactly, sentence ends marked |
+
+The Rewind, Word Chain and Bridge Chain prompts are not written in the Python: `app_prompts.json` is generated from `supabase/functions/_shared/prompts/exercises.ts` by a jest test, so this always tests what the app sends (after changing a prompt: `UPDATE_EVAL_PROMPTS=1 npx jest evalPrompts`).
 
 Real takes are read from your take exports (`--samples-dir`) and the real Rewind transcript is read from the session 10 prompt file (`--rewind-prompt`) at run time. Neither is copied into this repository, which is public. Write results (`--out`) outside the repo, because they quote that content.
 

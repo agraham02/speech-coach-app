@@ -1,6 +1,7 @@
 import type { AnalysisKind } from "../../domain/analysis/types";
 import type { JudgedReview } from "../../domain/analysis/judgedReview";
 import type { CoachInput, CoachOutput } from "../../domain/coach/ruleCoach";
+import type { BridgeChainJudgement, BridgeSegment, ChainSegment, WordChainJudgement } from "../../domain/drills/chainJudging";
 import type { MarkedText } from "../../domain/cadence/marks";
 import type { PauseAnalysis } from "../../domain/dsp/pauses";
 import type { PresenceMetrics } from "../../domain/presenceMetrics";
@@ -40,6 +41,16 @@ export interface RewindNotesInput {
   transcript: string;
 }
 
+// A Word Chain attempt, split into the runs between start words (the phone's
+// own split: domain/drills/chainJudging.ts). Only these words are sent.
+export interface WordChainInput {
+  segments: ChainSegment[];
+}
+
+export interface BridgeChainInput {
+  segments: BridgeSegment[];
+}
+
 export interface SummaryNotesInput {
   setup: SummarySetup;
   transcripts: string[];
@@ -53,6 +64,8 @@ export interface InputMap {
   take_review: TakeReviewInput;
   coaching: CoachInput;
   rewind_notes: RewindNotesInput;
+  word_chain: WordChainInput;
+  bridge_chain: BridgeChainInput;
   summary_notes: SummaryNotesInput;
   mark_up: MarkUpInput;
 }
@@ -61,6 +74,8 @@ export interface OutputMap {
   take_review: TakeReviewOutput;
   coaching: CoachOutput;
   rewind_notes: RewindReview;
+  word_chain: WordChainJudgement;
+  bridge_chain: BridgeChainJudgement;
   summary_notes: SummaryReview;
   mark_up: MarkedText;
 }

@@ -8,7 +8,8 @@ import { computeFillerStats } from "../../domain/transcriptAnnotations";
 import { todayISODate } from "../../utils/dateUtils";
 import { getNextEvent, getShareProfileWithReviews, getUserProfile } from "../prefs/prefsStore";
 import { measuredVoice } from "../sessions/sessionScoreService";
-import type { MarkUpInput, RewindNotesInput, SummaryNotesInput, TakeReviewInput } from "./kinds";
+import { chainPairs } from "../../domain/drills/chainJudging";
+import type { BridgeChainInput, MarkUpInput, RewindNotesInput, SummaryNotesInput, TakeReviewInput, WordChainInput } from "./kinds";
 
 // What the phone sends Tono AI for each task: structured facts, never a
 // prompt. The server writes the prompt from these
@@ -107,8 +108,21 @@ export function takeReviewInputs(input: TakeReviewInput) {
   };
 }
 
-export function rewindNotesInputs(input: RewindNotesInput) {
-  return { transcript: input.transcript };
+// `problems`: what the phone's check found wrong with the last answer, on the
+// second try (the server tells the judge).
+const withProblems = (problems: string[]) => (problems.length ? { problems: problems.slice(0, 8).map((p) => p.slice(0, 300)) } : {});
+
+export function rewindNotesInputs(input: RewindNotesInput, problems: string[] = []) {
+  return { transcript: input.transcript, ...withProblems(problems) };
+}
+
+// The pairs to judge, numbered by the phone so it can check the answer.
+export function wordChainInputs(input: WordChainInput, problems: string[] = []) {
+  return { pairs: chainPairs(input.segments), ...withProblems(problems) };
+}
+
+export function bridgeChainInputs(input: BridgeChainInput, problems: string[] = []) {
+  return { segments: input.segments, ...withProblems(problems) };
 }
 
 export function summaryNotesInputs(input: SummaryNotesInput) {

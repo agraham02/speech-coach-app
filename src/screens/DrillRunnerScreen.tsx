@@ -19,7 +19,10 @@ import { FIRST_RESULT_LATENCY_MS, fullText } from "../domain/speech/liveTranscri
 import { tokenizeHeard } from "../domain/speech/normalize";
 import { buildTarget, followLive, type WordStatus } from "../domain/speech/speechAlignment";
 import { prepareDrill, type DrillSetup } from "../domain/drills/prepareDrill";
-import { evaluateDrill, type DrillDetails } from "../domain/drills/evaluateDrill";
+import { chainJudgeRequest, evaluateDrill, type DrillDetails } from "../domain/drills/evaluateDrill";
+import { judgeChain } from "../services/drills/chainJudge";
+import { ChainVerdicts } from "../components/drills/ChainVerdicts";
+import type { Provenance } from "../domain/analysis/types";
 import { DRILL_TITLES, type DrillOutcome } from "../domain/drills/drillSpecs";
 import { uniqueContentWords, usedWord } from "../domain/dsp/volumePauses";
 import { chainWords, nextSeed } from "../domain/drills/wordChain";
@@ -65,6 +68,12 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
   // current one started (the chain on screen restarts with each seed).
   const [seeds, setSeeds] = useState<string[]>([]);
   const [segmentStart, setSegmentStart] = useState(0);
+  // The same chain facts as refs, for the timer that ends the attempt (it
+  // runs from an older render), and the heard-word index each run began at.
+  const seedsRef = useRef<string[]>([]);
+  const startsRef = useRef<number[]>([0]);
+  // Word and Bridge Chain: how the attempt was checked.
+  const [chainCheck, setChainCheck] = useState<{ by: Provenance | null; note: string | null } | null>(null);
   const lastActivityRef = useRef(0);
 
   useEffect(() => {
@@ -92,7 +101,10 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
       // Recognition lags speech a little, so allow for that on top of the grace.
       if (setup?.live === "chain" && stall && Date.now() - lastActivityRef.current > stall * 1000 + FIRST_RESULT_LATENCY_MS) {
         lastActivityRef.current = Date.now();
-        setSeeds((current) => [...current, nextSeed(CHAIN_SEEDS, current, seedRef.current + current.length * 7)]);
+        const current = seedsRef.current;
+        seedsRef.current = [...current, nextSeed(CHAIN_SEEDS, current, seedRef.current + current.length * 7)];
+        startsRef.current = [...startsRef.current, heardCountRef.current];
+        setSeeds(seedsRef.current);
         setSegmentStart(heardCountRef.current);
         Haptics.selectionAsync().catch(() => undefined);
       }
@@ -154,6 +166,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
     if (!setup) return;
     finishingRef.current = false;
     setResult(null);
+    setChainCheck(null);
     const ready = await speech.session.prepare();
     if (ready !== "ready") {
       showGlobalToast(ready === "denied" ? "Microphone permission is needed for this drill." : "Speech recognition isn't available.", "error");
@@ -174,7 +187,9 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
 
   function beginListening() {
     if (!setup) return;
-    setSeeds(setup.words ?? []);
+    seedsRef.current = setup.words ?? [];
+    startsRef.current = [0];
+    setSeeds(seedsRef.current);
     setSegmentStart(0);
     lastActivityRef.current = Date.now();
     speech.session.start({
@@ -208,15 +223,32 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         setStage("result");
         return;
       }
-      const evaluated = evaluateDrill(setup, {
+      const measured = {
         transcript: text,
         speakingMs,
         volume,
-        seedWords: setup.live === "chain" ? seeds : undefined,
+        seedWords: setup.live === "chain" ? seedsRef.current : undefined,
+        chainStarts: startsRef.current,
         penalizeResets: !profileDefaults.stutterMode,
         ignoreSlips: profileDefaults.stutterMode,
         relaxedAccuracy: profileDefaults.relaxAccuracy,
-      });
+      };
+      // Chains are checked once, at the end, by Tono AI: does each link make
+      // sense, was each one explained. Without it the phone only counts, and
+      // the result says so.
+      let judgement: Pick<Parameters<typeof evaluateDrill>[1], "wordChainJudgement" | "bridgeChainJudgement"> = {};
+      let check: { by: Provenance | null; note: string | null } | null = null;
+      const chainRequest = chainJudgeRequest(setup, measured);
+      if (chainRequest) {
+        const judged = await judgeChain(chainRequest);
+        if (judged.ok) {
+          judgement = judged.request === "word_chain" ? { wordChainJudgement: judged.judgement } : { bridgeChainJudgement: judged.judgement };
+          check = { by: judged.provenance, note: null };
+        } else {
+          check = { by: null, note: judged.message };
+        }
+      }
+      const evaluated = evaluateDrill(setup, { ...measured, ...judgement });
       const moved = await recordDrillOutcome({
         drillType: setup.type,
         outcome: evaluated.outcome,
@@ -228,6 +260,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         metrics: evaluated.details,
       });
       setChange(moved);
+      setChainCheck(check);
       setResult(evaluated);
     } catch (error) {
       logger.error(`[drill] ${setup.type} failed to score — ${(error as Error).message}`);
@@ -260,6 +293,11 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
             {setup.instructions}
           </Txt>
         ) : null}
+        {stage === "intro" && setup.howScored ? (
+          <Txt variant="footnote" tone="muted">
+            {setup.howScored}
+          </Txt>
+        ) : null}
 
         {stage === "model" ? (
           <Txt variant="callout" tone="accent">
@@ -283,6 +321,9 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         ) : null}
 
         {stage === "result" && result ? ResultCard({ setup, result }) : null}
+        {stage === "result" && result && (result.details.links || result.details.steps) ? (
+          <ChainVerdicts links={result.details.links} steps={result.details.steps} checkedBy={chainCheck?.by ?? null} />
+        ) : null}
         {stage === "result" && result && change ? <DrillProgressLine change={change} drillTitle={DRILL_TITLES[setup.type]} /> : null}
         {stage === "result" && !result ? (
           <Card style={styles.card}>
@@ -302,7 +343,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
           onPress={finish}
         />
       ) : null}
-      {stage === "finalizing" ? <PrimaryButton label="Scoring…" onPress={() => undefined} loading /> : null}
+      {stage === "finalizing" ? <PrimaryButton label={setup.live === "chain" ? "Checking your links…" : "Scoring…"} onPress={() => undefined} loading /> : null}
       {stage === "result" ? (
         <View style={styles.row}>
           <PrimaryButton label="Try again" variant="secondary" onPress={tryAgain} style={styles.flex} />
@@ -536,9 +577,14 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
             ))}
           </View>
         ) : null}
-        {setup.type === "word_chain" && details.counted && details.counted.length > 0 ? (
+        {setup.type === "word_chain" && !details.links && details.counted && details.counted.length > 0 ? (
           <Txt variant="footnote" tone="secondary">
             {[seeds[0] ?? setup.words?.[0], ...details.counted].join(" → ")}
+          </Txt>
+        ) : null}
+        {setup.live === "chain" && chainCheck?.note ? (
+          <Txt variant="footnote" tone="muted">
+            {chainCheck.note}
           </Txt>
         ) : null}
         {setup.live === "chain" && (details.resets ?? 0) > 0 ? (

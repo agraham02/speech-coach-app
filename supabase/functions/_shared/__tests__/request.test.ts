@@ -7,7 +7,7 @@ const generate = generateRequestSchema(limits);
 
 const textTake = {
   task: "rewind_notes",
-  schemaVersion: 1,
+  schemaVersion: 2,
   inputs: { transcript: "I woke up early and walked to the river." },
   idempotencyKey: "take-9f8e7d6c",
 };

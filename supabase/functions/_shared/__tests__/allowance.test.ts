@@ -75,8 +75,8 @@ describe("beta mode, not paying", () => {
   });
 
   it("lets testers try exercise notes and insights, inside their own allowance", () => {
-    expect(decide(beta, "text", { text: 59 }).ok).toBe(true);
-    expect(decide(beta, "text", { text: 60 })).toEqual({ ok: false, reason: "quota_exhausted" });
+    expect(decide(beta, "text", { text: 99 }).ok).toBe(true);
+    expect(decide(beta, "text", { text: 100 })).toEqual({ ok: false, reason: "quota_exhausted" });
     expect(decide(beta, "insight", { insights: 4 })).toEqual({ ok: false, reason: "quota_exhausted" });
   });
 
@@ -91,7 +91,7 @@ describe("the 14-day trial", () => {
   it("has its own counts over the trial", () => {
     expect(decide(launch, "take", { ...trial, takes: 19 })).toEqual({ ok: true, tier: "trial", takesLeft: 0 });
     expect(decide(launch, "take", { ...trial, takes: 20 })).toEqual({ ok: false, reason: "quota_exhausted" });
-    expect(decide(launch, "text", { ...trial, text: 30 })).toEqual({ ok: false, reason: "quota_exhausted" });
+    expect(decide(launch, "text", { ...trial, text: 60 })).toEqual({ ok: false, reason: "quota_exhausted" });
     expect(decide(launch, "insight", { ...trial }).ok).toBe(true);
   });
 
@@ -132,7 +132,7 @@ describe("Plus", () => {
   it("has its own insight and text counts", () => {
     expect(decide(launch, "insight", { ...plus, insights: 11 }).ok).toBe(true);
     expect(decide(launch, "insight", { ...plus, insights: 12 })).toEqual({ ok: false, reason: "quota_exhausted" });
-    expect(decide(launch, "text", { ...plus, text: 100 })).toEqual({ ok: false, reason: "quota_exhausted" });
+    expect(decide(launch, "text", { ...plus, text: 300 })).toEqual({ ok: false, reason: "quota_exhausted" });
   });
 });
 
@@ -145,11 +145,12 @@ describe("daily ceiling", () => {
 });
 
 describe("the cost cap and the text-call cost", () => {
-  // A typical heavy month at the prices in the config: 60 judged takes from
-  // their words (about 0.6 cents each) and 100 text calls (about 0.35 cents)
-  // stay well under the cap, so the counts, not the cap, are what people meet.
+  // A month that uses every count at the expected prices: 60 judged takes
+  // from their words (about 0.6 cents each) and 300 exercise calls (about 0.35
+  // cents) still stays under the cap, so the counts, not the cap, are what
+  // people meet. Judged takes have their own count, so drills never use them up.
   it("leaves room for the full Plus counts at expected cost", () => {
-    const heavy = 60 * 0.006 + 100 * 0.0035;
+    const heavy = 60 * 0.006 + 300 * 0.0035;
     expect(heavy).toBeLessThan(DEFAULT_CONFIG.limits.paidCostCapUsd);
   });
 });

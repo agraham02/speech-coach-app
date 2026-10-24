@@ -7,8 +7,9 @@ import type { AnalysisContext, AnalysisKind, Producer, ShowLevel, Unavailable } 
 //
 // The tiers (docs/decisions/tiers-and-trial.md): the measured layer is free
 // for everyone. The judged layer is Plus and the trial, plus one free judged
-// take a month for everyone else. Exercise notes and mark-ups are judged
-// only for Plus and the trial (and testers in beta).
+// take a month for everyone else. Exercise judging (Rewind, Word Chain,
+// Bridge Chain, Say it short) and mark-ups are judged only for Plus and the
+// trial (and testers in beta).
 
 export interface Route {
   producers: Producer[];
@@ -25,6 +26,8 @@ export const SUPPORTED: Record<AnalysisKind, Producer[]> = {
   take_review: ["tono_ai"],
   coaching: ["rules"],
   rewind_notes: ["tono_ai"],
+  word_chain: ["tono_ai"],
+  bridge_chain: ["tono_ai"],
   summary_notes: ["tono_ai"],
   mark_up: ["tono_ai", "rules"],
 };

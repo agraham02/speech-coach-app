@@ -128,7 +128,7 @@ describe("every task", () => {
     expect(TASKS.take_review.count).toBe("take");
     expect(TASKS.take_review.role(false)).toBe("text");
     expect(TASKS.take_review.role(true)).toBe("review_video");
-    for (const task of ["rewind_notes", "summary_notes", "mark_up"] as const) {
+    for (const task of ["rewind_notes", "word_chain", "bridge_chain", "summary_notes", "mark_up"] as const) {
       expect(TASKS[task].count).toBe("text");
       expect(TASKS[task].allowsMedia).toBe(false);
     }

@@ -41,20 +41,8 @@ SKILLS = ["articulation", "cadence", "impromptu", "confidence", "conversation"]
 # Rewind adds the structured coverage the decision doc proposes.
 # --------------------------------------------------------------------------
 
-REWIND_SYSTEM = """You are a warm, honest speaking coach reading the transcript of someone telling the story of their day out loud. They are practicing recalling a day in detail and putting it into words. You only have the transcript, so say nothing about voice, pace, volume, fillers or confidence.
-
-Judge COVERAGE of the three parts of the day:
-- morning: from waking up until about noon (getting up, breakfast, the commute, the first things done).
-- midday: about noon to 5 pm (lunch, the working or school afternoon, errands, meetings).
-- evening: from about 5 pm until bed (coming home, dinner, the night, going to bed). Talking about "now" at night counts as evening.
-For each part give a status: "covered" = at least one concrete event from that part; "brief" = only mentioned in passing, with no detail; "missing" = nothing from that part at all. Infer the part of the day from times, meals and events, not only from the words morning/afternoon/evening. For every part that is not missing, copy a short exact quote (at most 15 words) from the transcript as evidence. For a missing part the evidence is "".
-
-Then write short notes: specificity (how concrete it was, and one vague line that could have been specific), storytelling (moments versus a list), flow (order and transitions). Pick the single most vivid detail and copy it EXACTLY, word for word, from the transcript. Give one small thing to try tomorrow.
-
-Rules: no scores, grades or percentages. Be kind but never flatter. Each note is one or two plain sentences. Write to them as "you"."""
-
-# The app's current Rewind prompt and schema, unchanged (free-text coverage),
-# to see whether a model reproduces the session 10 failure with it.
+# The app's PREVIOUS Rewind prompt and schema (free-text coverage), kept to
+# see whether a model reproduces the session 10 failure with it.
 REWIND_APP_SYSTEM = """You are a warm, honest speaking coach reading the transcript of someone telling the story of their day out loud. They are practicing recalling a day in detail and putting it into words. You only have the transcript — you can't hear them, so say nothing about voice, pace, volume, fillers or confidence.
 
 Write short notes on the CONTENT only:
@@ -73,49 +61,15 @@ REWIND_APP_SCHEMA = {
     "required": ["specificity", "storytelling", "flow", "coverage", "vividDetail", "tryTomorrow"],
 }
 
-PART = {
-    "type": "object",
-    "properties": {"status": {"type": "string", "enum": ["covered", "brief", "missing"]}, "evidence": {"type": "string"}},
-    "required": ["status", "evidence"],
-}
-REWIND_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "coverage": {"type": "object", "properties": {"morning": PART, "midday": PART, "evening": PART}, "required": ["morning", "midday", "evening"]},
-        "specificity": {"type": "string"},
-        "storytelling": {"type": "string"},
-        "flow": {"type": "string"},
-        "vividDetail": {"type": "string"},
-        "tryTomorrow": {"type": "string"},
-    },
-    "required": ["coverage", "specificity", "storytelling", "flow", "vividDetail", "tryTomorrow"],
-}
-
-CHAIN_SYSTEM = """You judge a Word Chain speaking drill. The speaker says a word, then a word related to it, then a word related to THAT one, and so on, out loud and fast. Each word only has to connect to the word right before it, not to the start of the chain.
-
-A link is "strong" when an ordinary listener would see the connection within a couple of seconds: same category, part and whole, something you use with it, cause and effect, a common phrase or compound (fire -> truck, fish -> chips), a famous saying, or a pun on a word with two meanings (bank -> river). A link is "loose" when there is a connection but it takes a stretch to explain. A link is "none" when you cannot name a sensible connection; sounding alike or starting with the same letter does not count.
-
-For every consecutive pair, return the verdict and a reason of at most 10 words. Return exactly one entry per pair, in order."""
-
-CHAIN_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "links": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "from": {"type": "string"},
-                    "to": {"type": "string"},
-                    "verdict": {"type": "string", "enum": ["strong", "loose", "none"]},
-                    "reason": {"type": "string"},
-                },
-                "required": ["from", "to", "verdict", "reason"],
-            },
-        }
-    },
-    "required": ["links"],
-}
+# The prompts the app sends now (supabase/functions/_shared/prompts/exercises.ts, on the server). Generated
+# into app_prompts.json by the jest test evalPrompts.test.ts, so this eval
+# always tests what the app really asks. Scoring also applies the checks the
+# phone makes (verbatim quotes, one verdict per link).
+with open(os.path.join(HERE, "app_prompts.json"), encoding="utf-8") as _f:
+    APP = json.load(_f)
+REWIND_SYSTEM, REWIND_SCHEMA = APP["rewind"]["system"], APP["rewind"]["schema"]
+CHAIN_SYSTEM, CHAIN_SCHEMA = APP["word_chain"]["system"], APP["word_chain"]["schema"]
+BRIDGE_SYSTEM, BRIDGE_SCHEMA = APP["bridge_chain"]["system"], APP["bridge_chain"]["schema"]
 
 COACH_SYSTEM = """You are a warm, direct public-speaking coach. You get the transcript of a short practice answer and measurements the phone took while they spoke. Treat the measurements as facts. Never invent numbers: any number you write must come from the measurements given.
 
@@ -235,6 +189,8 @@ def load_cases(args) -> list[dict]:
         cases.append({"task": "rewind_app", **c})
     for c in syn["word_chain"]:
         cases.append({"task": "word_chain", **c})
+    for c in syn["bridge_chain"]:
+        cases.append({"task": "bridge_chain", **c})
     coach = list(syn["coaching_synthetic"])
     if args.samples_dir:
         for path in sorted(glob.glob(os.path.join(args.samples_dir, "*.json"))):
@@ -260,7 +216,10 @@ def build_prompt(case: dict) -> tuple[str, str, dict]:
     if task == "word_chain":
         words = case["words"]
         pairs = "\n".join(f"{i + 1}. {a} -> {b}" for i, (a, b) in enumerate(zip(words, words[1:])))
-        return CHAIN_SYSTEM, f"The chain, in the order spoken: {', '.join(words)}\n\nJudge these {len(words) - 1} links:\n{pairs}", CHAIN_SCHEMA
+        return CHAIN_SYSTEM, f"Judge these {len(words) - 1} links, in the order spoken:\n{pairs}", CHAIN_SCHEMA
+    if task == "bridge_chain":
+        blocks = "\n\n".join(f"Start word {i + 1}: {seg['seed']}\nThey said: \"\"\"{seg['said']}\"\"\"" for i, seg in enumerate(case["segments"]))
+        return BRIDGE_SYSTEM, blocks, BRIDGE_SCHEMA
     if task == "coaching":
         head = f'Prompt they answered: "{case["promptText"]}"' if case.get("promptText") else "This was a free-form recording."
         body = "\n".join(case["measurements"])
@@ -398,7 +357,7 @@ def score_one(case: dict, out) -> dict:
         return {"valid": False}
     try:
         if task == "rewind":
-            cov = out["coverage"]
+            cov = out["parts"]
             res = {"valid": True, "parts": {}}
             missing_ok = exact_ok = grounded = 0
             for part in ("morning", "midday", "evening"):
@@ -434,16 +393,36 @@ def score_one(case: dict, out) -> dict:
             wrong = [p for p in parts if flagged[p] and "missing" not in case["gold"][p] and "brief" not in case["gold"][p]]
             return {"valid": True, "coverageNote": note, "flaggedThinOrMissing": flagged, "wronglyFlagged": wrong, "vividVerbatim": verbatim(out.get("vividDetail", ""), case["transcript"])}
         if task == "word_chain":
-            links = out["links"]
             gold = case["gold"]
             n = len(gold)
-            got = [l.get("verdict") for l in links[:n]]
+            by_n = {l.get("n"): l.get("verdict") for l in out["links"]}
+            got = [by_n.get(i + 1) for i in range(n)]
             right = sum(1 for g, p in zip(gold, got) if p in g.split("|"))
             none_gold = [i for i, g in enumerate(gold) if g == "none"]
-            none_caught = sum(1 for i in none_gold if i < len(got) and got[i] == "none")
+            none_caught = sum(1 for i in none_gold if got[i] == "none")
             strong_gold = [i for i, g in enumerate(gold) if g == "strong"]
-            false_reject = sum(1 for i in strong_gold if i < len(got) and got[i] == "none")
-            return {"valid": len(links) == n, "links": n, "correct": right, "brokenLinks": len(none_gold), "brokenCaught": none_caught, "falseRejects": false_reject, "got": got}
+            false_reject = sum(1 for i in strong_gold if got[i] == "none")
+            # The app refuses an answer that skips a link (and asks once more).
+            return {"valid": all(g is not None for g in got), "links": n, "correct": right, "brokenLinks": len(none_gold), "brokenCaught": none_caught, "falseRejects": false_reject, "got": got}
+        if task == "bridge_chain":
+            said = " ".join(seg["said"] for seg in case["segments"])
+            steps = out["steps"]
+            gold = case["gold"]
+            weights = {"explained": 1.0, "thin": 0.5, "unexplained": 0.0}
+            got = [s.get("verdict") for s in steps]
+            right = sum(1 for g, p in zip(gold, got) if g == p)
+            reasons = [s.get("reason", "") for s in steps if s.get("verdict") != "unexplained"]
+            return {
+                "valid": len(steps) == len(gold),
+                "steps": len(gold),
+                "correct": right,
+                "reasonsVerbatim": sum(1 for r in reasons if verbatim(r, said)),
+                "reasonsClaimed": len(reasons),
+                # What the score would be: a judge that over-credits is the failure that matters.
+                "credit": sum(weights.get(v, 0) for v in got),
+                "goldCredit": sum(weights[g] for g in gold),
+                "got": got,
+            }
         if task == "coaching":
             src = "\n".join(case["measurements"]) + "\n" + case["transcript"]
             text = f"{out.get('strength', '')} {out.get('tip', '')}"
@@ -507,6 +486,13 @@ def summarize(folder: str) -> None:
             s["chain_links_correct"] = f"{sum(x['correct'] for x in ok)}/{sum(x['links'] for x in ok)}"
             s["chain_broken_caught"] = f"{sum(x['brokenCaught'] for x in ok)}/{sum(x['brokenLinks'] for x in ok)}"
             s["chain_false_rejects"] = sum(x["falseRejects"] for x in ok)
+        bc = [r for r in rs if r["task"] == "bridge_chain"]
+        if bc:
+            ok = [r["score"] for r in bc if r["score"].get("steps")]
+            s["bridge_valid"] = f"{sum(1 for r in bc if r['score'].get('valid'))}/{len(bc)}"
+            s["bridge_steps_correct"] = f"{sum(x['correct'] for x in ok)}/{sum(x['steps'] for x in ok)}"
+            s["bridge_reasons_verbatim"] = f"{sum(x['reasonsVerbatim'] for x in ok)}/{sum(x['reasonsClaimed'] for x in ok)}"
+            s["bridge_credit_vs_gold"] = f"{sum(x['credit'] for x in ok)} / {sum(x['goldCredit'] for x in ok)}"
         co = [r for r in rs if r["task"] == "coaching"]
         if co:
             ok = [r["score"] for r in co if r["score"].get("valid")]
@@ -544,7 +530,7 @@ def main() -> None:
     ap.add_argument("--thinking", action="store_true", help="let the model think first (llama.cpp chat templates that support it)")
     ap.add_argument("--thinking-budget", type=int, help="Gemini thinking budget in tokens (0 = off)")
     ap.add_argument("--unconstrained", dest="constrained", action="store_false", help="ask for JSON in the prompt instead of grammar-constrained decoding")
-    ap.add_argument("--only", help="comma-separated tasks: rewind,word_chain,coaching,mark_up")
+    ap.add_argument("--only", help="comma-separated tasks: rewind,rewind_app,word_chain,bridge_chain,coaching,mark_up")
     ap.add_argument("--score", help="summarize every results file in this folder and exit")
     args = ap.parse_args()
 

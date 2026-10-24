@@ -599,7 +599,7 @@ All screens look the same apart from the provenance labels and the score breakdo
   - Wire `not_entitled` (the free tier) into `analysisContext`, so `whatCanShow` returns "locked" for free users.
   - Rewrite the consent and privacy text for the text default; `whatGetsSent` is already updated.
 - **09 (waiting UX):** use `analysis.observe(takeId)` and the `analysis` artifact's pending, done and unavailable states. The take review is still a pipeline step, not a server job.
-- **10 (exercise judging):** add `word_chain` and `bridge_chain` kinds (input, output, a Tono provider case, `SUPPORTED`), and rework `rewind_notes` with the evidence-quoting prompt.
+- **10 (exercise judging):** add `word_chain` and `bridge_chain` kinds (input, output, a Tono provider case, `SUPPORTED`), and rework `rewind_notes` with the evidence-quoting prompt. *Done: see `exercise-judging.md`.*
 - **11 (results screens):**
   - Feed the Overview and the Scores tab from `TakeScores` only. The Scores tab still renders the raw rubric and the radar from the old grouping.
   - Drop the archetype from the hero.

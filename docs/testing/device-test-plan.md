@@ -157,7 +157,7 @@ These produce the data that tunes the new pitch/volume/pause code in session 06.
   Notes:
 - [ ] **Mastery moves with the score.** After a judged take, open Progress → a skill → Recent changes. Pass: the change for this take matches the direction of that skill's category score on the Result (a low Cadence doesn't raise Cadence).
   Notes:
-- [ ] **Rewind notes on request.** Record a Rewind of a minute or more. Pass: no notes appear by themselves (Apple Intelligence no longer writes them); "Get notes from Tono AI" asks for consent once, then shows notes captioned "Written by Tono AI from your transcript. Not a score."
+- [ ] **Rewind notes on request.** Record a Rewind of a minute or more. Pass: no notes appear by themselves (Apple Intelligence no longer writes them); "Get notes from Tono AI" asks for consent once, then shows notes captioned "Written by Tono AI from your transcript, with every quote checked against your words. Not a score." (section G has the full Rewind checks)
   Notes:
 - [ ] **Say it short and Mark it up.** Do one Say it short drill and mark one sentence in Mark it up. Pass: the summary card says "From your AI coach (Tono AI)"; the mark-up toast says "Marked by Tono AI"; with Tono AI signed out, Mark it up still marks (by the rules) and Say it short still scores.
   Notes:
@@ -267,6 +267,66 @@ Storage:
 
 ---
 
+## G. Exercise judging: Word Chain, Bridge Chain, Rewind (session 10)
+
+**Needs build:** a normal build, no native changes. Needs Tono AI signed in and allowed (items 1 to 9); items 10 to 13 are the signed-out and offline cases. The judge's accuracy is not measured yet: item 14 is the laptop run that measures it. Details of what is judged and how: `docs/decisions/exercise-judging.md`.
+
+Word Chain and Bridge Chain (Practice, or Learn, Impromptu, "Keep the thread"):
+
+- [ ] **Word Chain, sensible links.** Level 1, say 8 or more words that each follow from the one before (pen, ink, octopus, aquarium ...). Pass: a short "Checking your links..." (note the seconds, expected under 8), then a "Link by link" list with a green tick and a short reason on each link, a summary like "8 clear (target 8)", and "Checked by Tono AI from the words you said."
+  Data to send back: seconds spent on "Checking your links...", a screenshot of the list.
+  Notes:
+- [ ] **Word Chain, deliberate nonsense.** Same, but put three unrelated words in the middle (for example "ink, octopus, carburetor, banana, salsa"). Pass: the unrelated ones are marked with a red cross and "didn't connect" in the summary, the sensible ones are not, and the score is lower than item 1's.
+  Notes:
+- [ ] **Word Chain, a stretch.** Say a link you could only explain with a story. Pass: it shows an amber minus and "a stretch", counted as half.
+  Notes:
+- [ ] **A fresh word.** Go quiet until the fresh word appears, then carry on. Pass: the first word after it is judged against the fresh word (the list shows it as the "from" word), and the summary says "1 fresh start".
+  Notes:
+- [ ] **Misheard words.** Speak quickly or with your natural accent and look at the list. Pass: the words in the list are what the phone heard; count how many red crosses come from a misheard word rather than a bad link.
+  Data to send back: the list of links with the misheard ones marked.
+  Notes:
+- [ ] **The timer ending vs the Finish button.** Do one attempt where a fresh word appears and let the clock run out, and one where you press Finish. Pass: both show "You blanked once ... that recovery is the skill", and the fresh word itself is not counted as a link (this was a bug before).
+  Notes:
+- [ ] **Bridge Chain, real reasons.** Level 1: "ink, because a pen writes with ink. Octopus, because octopuses squirt ink. Aquarium, because octopuses live in aquariums." Pass: 3 green ticks showing your reason in quotes, "3 explained (target 3)".
+  Notes:
+- [ ] **Bridge Chain, empty "because".** Say "ink because, octopus because, river because, banana because" with nothing after each. Pass: red crosses marked "no reason", score 0%. Then "ink because they go together, octopus because it's related": amber, "vague", counted half.
+  Notes:
+- [ ] **Read both intros as someone new.** Open Word Chain's intro, then Bridge Chain's, without help. Pass: you can say in one sentence how they differ and how each is scored. If not, say which sentence lost you.
+  Data to send back: your one-sentence answer.
+  Notes:
+- [ ] **Allowance.** After a day of drills, check how many Tono AI calls the chains used (Dev, Logs, lines starting `[analysis]`; Settings, account). Pass: one call per attempt (two only when the first answer failed the phone's checks).
+  Data to send back: number of attempts and calls.
+  Notes:
+- [ ] **Offline.** Airplane mode, do a Word Chain. Pass: after the attempt ends it finishes within about 15 s, the result says "N words in a row (target T) · counted, not checked" and "Couldn't reach Tono AI, so your words were just counted.", no list, no crash, and the drill is still recorded.
+  Notes:
+- [ ] **Signed out.** Sign out, do a Bridge Chain. Pass: no sign-in or consent prompt appears during the drill; the result says "counted, not checked" and that Tono AI can check each link.
+  Notes:
+- [ ] **Own key (until session 08).** With an own-key provider chosen, tap "Get notes" on a Rewind. Pass: it says this one is Tono AI only and offers Settings; nothing is sent.
+  Notes:
+
+Rewind (End-of-day recall, then the result screen):
+
+- [ ] **A full day.** Tell a real day with a morning, a working or busy middle, and an evening (a minute or more). Pass before asking for notes: "The day you covered" shows all three ticked (the phone's keywords). Then "Get notes from Tono AI": the hero adds "Read by Tono AI"; the Coverage note says all three parts came up; "Most vivid" is a moment you really said, in your words; the caption reads "Written by Tono AI from your transcript, with every quote checked against your words. Not a score."
+  Data to send back: the transcript (paste into `analysis_samples/`), the notes shown, how many seconds the notes took.
+  Notes:
+- [ ] **Only the morning.** Record just your morning. Pass: Coverage says the midday and evening didn't come up; the hero shows one tick; no part is invented.
+  Notes:
+- [ ] **A thin Rewind.** Say a short, vague day ("I got up, went to work, came home"). Pass: Coverage says the parts only came up in passing, notes name something specific to add, and "Most vivid" is either a real line of yours or absent.
+  Notes:
+- [ ] **Checks that bite.** If notes ever show "didn't check out against what you said" instead of notes, that is the phone refusing an answer twice. Pass: this should be rare (under 1 in 10). If it happens, note it.
+  Data to send back: the transcript and Dev, Logs lines for `[analysis]` around it.
+  Notes:
+- [ ] **The regression.** Rewind with the exact day from the session 10 prompt (read it aloud; your own transcript text will vary a little). Pass: Coverage says all three parts, hero all ticked, and "Most vivid" is a whole moment you said.
+  Notes:
+
+On the laptop (no phone):
+
+- [ ] **Hosted eval of the new prompts** (about 15 minutes, under 50 cents, billed to your key; commands in `docs/decisions/exercise-judging.md` section 5). Pass: Rewind parts of the day right on all 6 cases including yours, every run; evidence quotes verbatim 95% or more; Word Chain links 90% or more with every broken link caught; Bridge Chain steps right 80% or more, `bridge_credit_vs_gold` not more than 10% above gold, and the "because" gaming case at 0 credit.
+  Data to send back: the `--score` summary.
+  Notes:
+
+---
+
 ## Sections to be added by later sessions
 
-Each new build session adds its own section here: 08 (trial, tiers, age range), 09 (waiting on analysis), 10 (exercise judging), 11 (impromptu results), 12 (conversation voice).
+Each new build session adds its own section here: 08 (trial, tiers, age range), 09 (waiting on analysis), 11 (impromptu results), 12 (conversation voice).

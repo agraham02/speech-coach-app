@@ -52,86 +52,8 @@ export function schemaFor(type: SummarySetup["type"]) {
   return type === "sum_up" ? sumUpReviewSchema : type === "relay" ? relayReviewSchema : explainReviewSchema;
 }
 
-// The same shapes in the plain JSON-Schema subset Gemini and the others read.
-const VERDICT = { type: "string", enum: ["yes", "partly", "no"] };
-const ACCURACY = { type: "string", enum: ["yes", "mostly", "no", "not_checked"] };
-const TEXT = { type: "string" };
-
-export function jsonSchemaFor(type: SummarySetup["type"]): object {
-  if (type === "sum_up") {
-    return { type: "object", properties: { core: VERDICT, accurate: ACCURACY, note: TEXT, cut: TEXT, tighter: TEXT }, required: ["core", "accurate", "note", "cut", "tighter"] };
-  }
-  if (type === "relay") {
-    return {
-      type: "object",
-      properties: {
-        turns: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: { mainIdea: VERDICT, linkedBack: { type: "string", enum: ["yes", "partly", "no", "not_applicable"] }, missed: TEXT },
-            required: ["mainIdea", "linkedBack", "missed"],
-          },
-        },
-        note: TEXT,
-        tighter: TEXT,
-      },
-      required: ["turns", "note", "tighter"],
-    };
-  }
-  return {
-    type: "object",
-    properties: { accurate: ACCURACY, wrong: TEXT, jargon: { type: "array", items: TEXT }, usedExample: { type: "boolean" }, note: TEXT, simpler: TEXT },
-    required: ["accurate", "wrong", "jargon", "usedExample", "note", "simpler"],
-  };
-}
-
-export const SUMMARY_REVIEW_SYSTEM: Record<SummarySetup["type"], string> = {
-  sum_up: `You are a warm, honest speaking coach. Someone practiced summarizing something in a sentence or two, out loud. You only have the transcript — you can't hear them, so say nothing about voice, pace or fillers.
-
-Judge the CONTENT of the summary:
-- core: did it capture who or what it is about, what happens, and what is at stake?
-- accurate: are the facts right? Use not_checked when the subject is the speaker's own life or opinion.
-- Then give one short note, the one thing to drop, and a tighter version within the sentence limit, written the way they would say it.
-
-Rules: no scores, grades or percentages. Be kind but never flatter — point at real words from the transcript. Write to them as "you". Don't diagnose or mention anxiety.`,
-  relay: `You are a warm, honest speaking coach. Someone read a passage one paragraph at a time and, with each paragraph hidden, summarized it out loud: the first two paragraphs in two sentences each, and every later turn as one sentence on the previous paragraph and one sentence on the new one. You only have the transcript — you can't hear them.
-
-For each turn, judge whether the summary captured the main idea of the paragraph it covers (and, on rolling turns, whether it also covered the previous paragraph in one sentence — linkedBack). Name the key point they missed, if any. Then give one short note across the exercise and a tighter way to say the weakest turn.
-
-Rules: no scores, grades or percentages. Be kind but never flatter — point at real words. Write to them as "you". Don't diagnose or mention anxiety.`,
-  explain_simple: `You are a warm, honest speaking coach. Someone practiced explaining a concept as if to a ten-year-old, out loud. You only have the transcript — you can't hear them, so say nothing about voice, pace or fillers.
-
-Judge: is the explanation correct (accurate), anything wrong or misleading (wrong), words a ten-year-old would not know (jargon — quote only words that are really in the transcript, and never the subject's own name), and whether they gave a concrete example or comparison. Then one short note and a simpler way to say their weakest sentence.
-
-Rules: no scores, grades or percentages. Be kind but never flatter — point at real words. Write to them as "you". Don't diagnose or mention anxiety.`,
-};
-
-// The user message: what they were asked, what a good answer looks like, and
-// each transcript. Transcripts go between """ fences so they can't close one;
-// `fence` is the shared sanitizer (services/cloud/inputGuards.ts).
-export function buildSummaryReviewPrompt(setup: SummarySetup, transcripts: string[], fence: (text: string) => string): string {
-  const parts: string[] = [];
-  if (setup.type === "sum_up") {
-    const t = setup.turns[0];
-    parts.push(`THE SUBJECT THEY WERE ASKED TO SUM UP: "${fence(t.show)}"${t.own ? " (their own life or opinion — accuracy can't be checked)" : ""}`);
-    parts.push(`SENTENCE LIMIT: ${t.sentenceLimit}`);
-    if (t.example) parts.push(`ONE GOOD SUMMARY, FOR REFERENCE ONLY: "${fence(t.example)}"`);
-  } else if (setup.type === "relay") {
-    setup.turns.forEach((t, i) => {
-      parts.push(`TURN ${i + 1}${t.rolling ? " (rolling: one sentence on the previous paragraph, one on this one)" : ""}\nPARAGRAPH THEY READ:\n"""\n${fence(t.show)}\n"""`);
-      if (t.rolling && t.prevText) parts.push(`PREVIOUS PARAGRAPH:\n"""\n${fence(t.prevText)}\n"""`);
-    });
-  } else {
-    const t = setup.turns[0];
-    parts.push(`THE CONCEPT THEY WERE ASKED TO EXPLAIN SIMPLY: "${fence(t.show)}"`);
-    if (t.example) parts.push(`ONE GOOD SIMPLE EXPLANATION, FOR REFERENCE ONLY: "${fence(t.example)}"`);
-  }
-  transcripts.forEach((text, i) => {
-    parts.push(`${setup.turns.length > 1 ? `WHAT THEY SAID IN TURN ${i + 1}` : "WHAT THEY SAID"} (speech recognition):\n"""\n${fence(text.trim() || "(nothing was recognized)")}\n"""`);
-  });
-  return parts.join("\n\n");
-}
+// The prompts and the JSON schema the judge answers in are on the server
+// (supabase/functions/_shared/prompts/exercises.ts); these are the checks.
 
 const SCORE_LIKE = /\b\d+\s*(\/|out of)\s*\d+\b|\b\d+\s*%|\bscor(?:e|es|ed|ing)\b|\bgrad(?:e|es|ed|ing)\b/i;
 
