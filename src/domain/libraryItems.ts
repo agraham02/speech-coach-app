@@ -37,6 +37,8 @@ export interface LibraryItem<S = unknown, R = unknown> {
   transcript: string;
   status: LibraryStatus;
   overallScore: number | null;
+  // Which layer the score is from: judged by Tono AI, or measured on the phone.
+  scoreLayer?: "judged" | "measured" | null;
   keepsake: boolean;
   session: S | null;
   rewind: R | null;
