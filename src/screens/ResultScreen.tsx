@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Reveal, Skeleton, SkeletonCard, SkeletonHero } from "../components/common/Skeleton";
 import { GuideTip, TourScrollContext, TourTarget, useTourScroll } from "../components/common/GuideTip";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
@@ -51,6 +51,8 @@ import { getArtifact } from "../services/db/artifactsRepo";
 import { describeSessionSubject, subjectFromSession, type SessionSubjectSummary } from "../services/sessions/sessionSubject";
 import { useSessionSteps } from "../hooks/useSessionSteps";
 import { useProgressMoment } from "../hooks/useProgressMoment";
+import { useScrollVisibility } from "../hooks/useScrollVisibility";
+import { ArrivalPill } from "../components/common/ArrivalPill";
 import { ProgressPending, ProgressReveal } from "../components/celebrate/ProgressReveal";
 import { FeelingResultView } from "../components/feelings/FeelingResultView";
 import type { SessionStep } from "../domain/sessionSteps";
@@ -110,8 +112,6 @@ export function ResultScreen({ route, navigation }: Props) {
   const [subjectSummary, setSubjectSummary] = useState<SessionSubjectSummary | null>(null);
   const [coach, setCoach] = useState<CoachOutput | null>(null);
   const [takeScores, setTakeScores] = useState<TakeScores | null>(null);
-  // A moment picked on a Scores chart, for the Overview player to start at.
-  const [startAt, setStartAt] = useState<{ ms: number; nonce: number } | null>(null);
   // Felt vs observed: the first question at the top, the second by the video.
   const feltObserved = useFeltObserved(sessionId);
   const [comparison, setComparison] = useState<Awaited<ReturnType<typeof getPromptComparison>>>(null);
@@ -151,13 +151,18 @@ export function ResultScreen({ route, navigation }: Props) {
     markResultSeen(sessionId).catch(() => undefined);
   }, [sessionId]);
   const { tourScroll, scrollProps } = useTourScroll();
+  // Which parts of the Overview are on screen: the progress animation waits
+  // until its card is, and a pill points at things that land out of view.
+  const seen = useScrollVisibility();
   // Impromptu takes move your skills; their Result plays what moved.
   const movesSkills = session?.sessionType === "spontaneous" || session?.sessionType === "concise";
-  const { moment, animate } = useProgressMoment(sessionId, movesSkills);
+  const { moment, animate, playing } = useProgressMoment(sessionId, movesSkills, seen.visible.progress === true);
+  const sections = useRef<Record<string, number>>({});
 
   if (!session) {
     return (
       <ScreenContainer style={styles.skeleton}>
+        <IconButton icon="chevron-back" onPress={() => navigation.goBack()} size={38} accessibilityLabel="Back" />
         <Skeleton height={14} width="30%" />
         <Skeleton height={28} width="75%" />
         <View style={styles.skeletonTiles}>
@@ -198,12 +203,22 @@ export function ResultScreen({ route, navigation }: Props) {
   // Back to wherever this was opened from (daily session, History, a
   // library). Only a Plan-Your-Point screen underneath is skipped — that
   // take is finished.
-  async function handleDone() {
-    if (route.params.practice) await completePracticeStep(route.params.practice, null);
+  function leave() {
     const routes = navigation.getState().routes;
     const below = routes[routes.length - 2]?.name;
     if (!below || below === "PlanYourPoint") navigation.popToTop();
     else navigation.goBack();
+  }
+
+  async function handleDone() {
+    if (route.params.practice) await completePracticeStep(route.params.practice, null);
+    leave();
+  }
+
+  // The back button: the same way out as Done, without marking a practice
+  // step done (a swipe back never did either).
+  function handleLeave() {
+    leave();
   }
 
   // Answering the coach's follow-up out loud is a fresh impromptu rep.
@@ -289,6 +304,7 @@ export function ResultScreen({ route, navigation }: Props) {
     <ScreenContainer style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerTop}>
+          <IconButton icon="chevron-back" onPress={handleLeave} size={38} accessibilityLabel="Back" />
           <Txt variant="footnote" weight="500" tone="secondary" style={styles.flex}>
             {subjectSummary?.typeLabel ?? ""}
           </Txt>
@@ -312,11 +328,29 @@ export function ResultScreen({ route, navigation }: Props) {
 
       {tab === "overview" ? (
         <TourScrollContext.Provider value={tourScroll}>
-        <ScrollView {...scrollProps} style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.scroll}>
+        <ScrollView
+          {...scrollProps}
+          onScroll={(e) => {
+            scrollProps.onScroll(e);
+            seen.onScroll(e);
+          }}
+          onLayout={seen.onLayout}
+          // Sections landing above where you are reading (the waiting card
+          // leaving, a skeleton becoming a score) don't move what you're looking at.
+          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+          style={styles.flex}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           <WorkStatusCard work={work} elapsed={elapsed} eta={{ takeSeconds: session.durationSeconds, reviewInput: work.review === "none" ? null : getJudgeInput() }} onRetry={handleRunStep} />
 
           {hasVideo ? <FeltCard state={feltObserved} /> : null}
 
+          <View onLayout={(e) => {
+            sections.current.score = e.nativeEvent.layout.y;
+            seen.bind("score").onLayout(e);
+          }}>
           <TourTarget id="result.score">
           {overall != null && scoreSettled ? (
             <Reveal key="hero">
@@ -364,10 +398,16 @@ export function ResultScreen({ route, navigation }: Props) {
             </Reveal>
           )}
           </TourTarget>
+          </View>
 
           {movesSkills ? (
             moment ? (
-              <ProgressReveal beats={moment.beats} animate={animate} />
+              <View onLayout={(e) => {
+                sections.current.progress = e.nativeEvent.layout.y;
+                seen.bind("progress").onLayout(e);
+              }}>
+                <ProgressReveal beats={moment.beats} animate={animate} playing={playing} />
+              </View>
             ) : measuring || reviewing ? (
               <ProgressPending reviewing={reviewing} />
             ) : null
@@ -438,7 +478,6 @@ export function ResultScreen({ route, navigation }: Props) {
                 videoUri={videoUri}
                 transcriptWords={session.transcriptWords}
                 transcriptText={session.transcriptClean}
-                startAt={startAt}
               />
               <ObservedCard state={feltObserved} />
             </>
@@ -458,26 +497,25 @@ export function ResultScreen({ route, navigation }: Props) {
           {!scores && reviewing ? <SkeletonCard key="coaching-skeleton" lines={4} /> : null}
           <PrimaryButton label="Practice this prompt again" variant="secondary" onPress={handlePracticeAgain} />
         </ScrollView>
+        <ArrivalPill
+          arrived={overall != null && scoreSettled}
+          targetVisible={seen.visible.score === true}
+          label="Your score is ready"
+          icon="arrow-up"
+          onPress={() => scrollProps.ref.current?.scrollTo({ y: 0, animated: true })}
+        />
+        <ArrivalPill
+          arrived={movesSkills && !!moment && animate && !playing}
+          targetVisible={seen.visible.progress === true}
+          label="See what this moved"
+          icon="arrow-down"
+          onPress={() => scrollProps.ref.current?.scrollTo({ y: Math.max(0, (sections.current.progress ?? 0) - 24), animated: true })}
+        />
+        </View>
         </TourScrollContext.Provider>
       ) : null}
 
-      {tab === "scores" && takeScores ? (
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <ScoresTab
-            scores={takeScores}
-            rubric={scores}
-            session={session}
-            onPlayFrom={
-              hasVideo
-                ? (ms) => {
-                    setStartAt({ ms, nonce: Date.now() });
-                    setTab("overview");
-                  }
-                : undefined
-            }
-          />
-        </ScrollView>
-      ) : null}
+      {tab === "scores" && takeScores ? <ScoresTab scores={takeScores} rubric={scores} session={session} videoUri={hasVideo ? videoUri : null} /> : null}
 
       {tab === "transcript" ? (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>

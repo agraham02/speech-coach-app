@@ -18,12 +18,16 @@ interface ProgressRevealProps {
   beats: Beat[];
   // First viewing: beats land one after another. Afterwards they're just there.
   animate: boolean;
+  // With `animate`: the beats start when this turns true (the card is on
+  // screen). Until then the card holds its place, empty, so nothing shifts.
+  playing?: boolean;
 }
 
 // "Your progress" on a take's Result: what it changed, a beat at a time.
-export function ProgressReveal({ beats, animate }: ProgressRevealProps) {
+export function ProgressReveal({ beats, animate, playing = true }: ProgressRevealProps) {
   const styles = useStyles();
   if (beats.length === 0) return null;
+  const waiting = animate && !playing;
   return (
     <Card style={styles.card}>
       <Txt variant="footnote" weight="500" tone="secondary">
@@ -31,10 +35,11 @@ export function ProgressReveal({ beats, animate }: ProgressRevealProps) {
       </Txt>
       {beats.map((beat, i) => (
         <Animated.View
-          key={`${beat.kind}-${i}`}
-          entering={animate ? FadeInDown.duration(duration.slow).delay(200 + i * BEAT_GAP_MS).easing(easeOut).withInitialValues({ transform: [{ translateY: 10 }] }) : undefined}
+          key={`${beat.kind}-${i}-${waiting ? "wait" : "go"}`}
+          style={waiting ? styles.hidden : undefined}
+          entering={animate && !waiting ? FadeInDown.duration(duration.slow).delay(200 + i * BEAT_GAP_MS).easing(easeOut).withInitialValues({ transform: [{ translateY: 10 }] }) : undefined}
         >
-          <BeatRow beat={beat} delay={animate ? 200 + i * BEAT_GAP_MS + 180 : 0} animate={animate} />
+          <BeatRow beat={beat} delay={animate ? 200 + i * BEAT_GAP_MS + 180 : 0} animate={animate && !waiting} />
         </Animated.View>
       ))}
     </Card>
@@ -181,6 +186,7 @@ function Icon({ name, color, bg }: { name: keyof typeof Ionicons.glyphMap; color
 
 const useStyles = makeStyles((t) => ({
   card: { gap: t.space.md },
+  hidden: { opacity: 0 },
   pending: { flexDirection: "row", alignItems: "center", gap: t.space.sm + 2 },
   line: { flexDirection: "row", gap: t.space.sm + 4, alignItems: "flex-start" },
   icon: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },

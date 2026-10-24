@@ -7,12 +7,14 @@ import { BEAT_GAP_MS } from "../components/celebrate/ProgressReveal";
 // A take's progress moment for its Result screen: loads it (and again when
 // it settles), marks this screen as watching so the pipeline doesn't toast
 // over it, and the first time it plays, marks it seen and opens the stage
-// celebration once the beats have landed. Leaving before then leaves it
-// unseen, so Today offers it again. `animate` is true for that first
-// viewing only.
-export function useProgressMoment(sessionId: string, enabled: boolean) {
+// celebration once the beats have landed. It plays when the card is on screen
+// (`visible`), not when it arrives: someone reading further down would miss the
+// whole thing. Leaving before then leaves it unseen, so Today offers it again.
+// `animate` is true for that first viewing only; `playing` once it has begun.
+export function useProgressMoment(sessionId: string, enabled: boolean, visible = true) {
   const [moment, setMoment] = useState<LoadedMoment | null>(null);
   const [animate, setAnimate] = useState(false);
+  const [playing, setPlaying] = useState(false);
   const played = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -20,16 +22,7 @@ export function useProgressMoment(sessionId: string, enabled: boolean) {
     if (!enabled) return;
     loadMoment(sessionId).then((m) => {
       if (!m) return;
-      if (!m.seen && !played.current) {
-        played.current = true;
-        setAnimate(true);
-        const landed = 200 + m.beats.length * BEAT_GAP_MS + 900;
-        const stage = m.beats.find((b) => b.kind === "stage");
-        timer.current = setTimeout(() => {
-          markProgressSeen(sessionId).catch(() => undefined);
-          if (stage && stage.kind === "stage") celebrate({ kind: "stage", skill: stage.skill, stage: stage.stage, speakerLevel: stage.speakerLevel });
-        }, landed);
-      }
+      if (!m.seen && !played.current) setAnimate(true);
       setMoment(m);
     });
   }, [sessionId, enabled]);
@@ -48,5 +41,18 @@ export function useProgressMoment(sessionId: string, enabled: boolean) {
     };
   }, [sessionId, enabled, load]);
 
-  return { moment, animate };
+  // The first time it is both there and in view, it plays.
+  useEffect(() => {
+    if (!moment || !animate || !visible || played.current) return;
+    played.current = true;
+    setPlaying(true);
+    const landed = 200 + moment.beats.length * BEAT_GAP_MS + 900;
+    const stage = moment.beats.find((b) => b.kind === "stage");
+    timer.current = setTimeout(() => {
+      markProgressSeen(sessionId).catch(() => undefined);
+      if (stage && stage.kind === "stage") celebrate({ kind: "stage", skill: stage.skill, stage: stage.stage, speakerLevel: stage.speakerLevel });
+    }, landed);
+  }, [moment, animate, visible, sessionId]);
+
+  return { moment, animate, playing };
 }

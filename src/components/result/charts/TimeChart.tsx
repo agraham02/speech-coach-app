@@ -1,6 +1,6 @@
 import { useId, useMemo, useRef, useState } from "react";
-import { PanResponder, Pressable, View, type GestureResponderEvent, type LayoutChangeEvent } from "react-native";
-import Svg, { ClipPath, Defs, G, Line, Path, Rect, Text as SvgText } from "react-native-svg";
+import { Dimensions, PanResponder, Pressable, View, type GestureResponderEvent, type LayoutChangeEvent } from "react-native";
+import Svg, { Circle, ClipPath, Defs, G, Line, Path, Rect, Text as SvgText } from "react-native-svg";
 import { Ionicons } from "@expo/vector-icons";
 import { Txt } from "../../common/Txt";
 import { makeStyles, useTheme } from "../../../theme/ThemeProvider";
@@ -42,6 +42,15 @@ const RIGHT = 6;
 const TOP = 6;
 const AXIS_H = 18;
 const DOUBLE_TAP_MS = 300;
+// A touch that begins this close to a screen edge belongs to the system's
+// "go back" swipe (iOS from the left, Android from either side). The chart
+// leaves such a touch alone, so it doesn't half-scrub while the screen slides
+// away. The plot starts well inside this (screen gutter plus the axis labels).
+const SYSTEM_EDGE = 32;
+
+function startedAtScreenEdge(pageX: number): boolean {
+  return pageX < SYSTEM_EDGE || pageX > Dimensions.get("window").width - SYSTEM_EDGE;
+}
 
 // One chart on the shared time axis. It fits the screen width by default, so
 // a whole take is visible at once; pinch, double tap or the buttons zoom in
@@ -78,7 +87,8 @@ export function TimeChart({ title, unit, axis, layers, bands, readout, caption, 
       PanResponder.create({
         // Only a sideways drag or a second finger takes the touch, so
         // scrolling the screen from over a chart still scrolls.
-        onMoveShouldSetPanResponderCapture: (e, g) => e.nativeEvent.touches.length >= 2 || (Math.abs(g.dx) > 6 && Math.abs(g.dx) > Math.abs(g.dy) * 1.2),
+        onMoveShouldSetPanResponderCapture: (e, g) =>
+          !startedAtScreenEdge(g.x0) && (e.nativeEvent.touches.length >= 2 || (Math.abs(g.dx) > 6 && Math.abs(g.dx) > Math.abs(g.dy) * 1.2)),
         onPanResponderTerminationRequest: () => false,
         onPanResponderGrant: (e) => {
           const t = touch.current;
@@ -147,7 +157,10 @@ export function TimeChart({ title, unit, axis, layers, bands, readout, caption, 
   const vp = tl.viewport;
   const ticks = useMemo(() => timeTicks(vp), [vp]);
   const cursorX = tl.cursorMs != null && tl.cursorMs >= vp.startMs && tl.cursorMs <= vp.endMs ? GUTTER + xOfMs(tl.cursorMs, vp, plotW) : null;
-  const reading = tl.cursorMs != null ? readout(tl.cursorMs) : null;
+  const playheadX = tl.playheadMs != null && tl.playheadMs >= vp.startMs && tl.playheadMs <= vp.endMs ? GUTTER + xOfMs(tl.playheadMs, vp, plotW) : null;
+  // The reading is for the moment you point at, or else where the recording is.
+  const focusMs = tl.cursorMs ?? tl.playheadMs;
+  const reading = focusMs != null ? readout(focusMs) : null;
 
   const drawn = useMemo(
     () =>
@@ -173,15 +186,15 @@ export function TimeChart({ title, unit, axis, layers, bands, readout, caption, 
         </View>
       </View>
       <View style={styles.readout}>
-        {reading != null && tl.cursorMs != null ? (
+        {reading != null && focusMs != null ? (
           <>
             <Txt variant="footnote" weight="600" tabular>
-              {clock(tl.cursorMs)}
+              {clock(focusMs)}
             </Txt>
             <Txt variant="footnote" tone="secondary" tabular style={styles.flex}>
               {reading}
             </Txt>
-            {tl.playFrom ? (
+            {tl.playFrom && tl.cursorMs != null ? (
               <Pressable onPress={() => tl.playFrom?.(tl.cursorMs ?? 0)} style={styles.play} accessibilityRole="button" accessibilityLabel={`Play the recording from ${clock(tl.cursorMs)}`}>
                 <Ionicons name="play" size={11} color={colors.onAccent} />
                 <Txt variant="caption1" weight="600" tone="onAccent">
@@ -246,6 +259,12 @@ export function TimeChart({ title, unit, axis, layers, bands, readout, caption, 
                 ))}
               </G>
               {cursorX != null ? <Line x1={cursorX} x2={cursorX} y1={TOP} y2={TOP + plotH} stroke={colors.textPrimary} strokeWidth={1} opacity={0.7} /> : null}
+              {playheadX != null ? (
+                <>
+                  <Line x1={playheadX} x2={playheadX} y1={TOP} y2={TOP + plotH} stroke={colors.accent} strokeWidth={2} />
+                  <Circle cx={playheadX} cy={TOP + 3} r={3.5} fill={colors.accent} />
+                </>
+              ) : null}
             </Svg>
           ) : null}
         </Pressable>

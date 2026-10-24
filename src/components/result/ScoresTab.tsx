@@ -1,7 +1,11 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { Pressable, View } from "react-native";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { Pressable, ScrollView, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useEvent } from "expo";
+import { useVideoPlayer } from "expo-video";
 import { Card } from "../common/Card";
+import { IconButton } from "../common/IconButton";
+import { Scrubber } from "../playback/Scrubber";
 import { SegmentedControl } from "../common/SegmentedControl";
 import { Txt } from "../common/Txt";
 import { colorForScore } from "./scoreColor";
@@ -27,11 +31,12 @@ interface ScoresTabProps {
   // The judge's stored rubric, for the body-language note the totals leave out.
   rubric: SessionScores | null;
   session: Session;
-  // Opens the recording at a moment (the Overview's player).
-  onPlayFrom?: (ms: number) => void;
+  // The take's video file when it still exists: "Play from here" on a chart
+  // plays its sound right here, so the line moves along the charts.
+  videoUri?: string | null;
 }
 
-export function ScoresTab({ scores, rubric, session, onPlayFrom }: ScoresTabProps) {
+export function ScoresTab({ scores, rubric, session, videoUri }: ScoresTabProps) {
   const styles = useStyles();
   const [layer, setLayer] = useState<Layer>(scores.headline);
   const [voice, setVoice] = useState<VoiceCharts | null | undefined>(undefined);
@@ -50,13 +55,15 @@ export function ScoresTab({ scores, rubric, session, onPlayFrom }: ScoresTabProp
     };
   }, [session]);
 
+  const { playFrom, bar, playheadMs, playing } = useScorePlayer(videoUri ?? null);
   const both = !!(scores.measured && scores.judged);
   const sheet = sheetFor(scores, layer);
   const judge = producerName(scores.judgedBy);
   const durationMs = Math.max(session.durationSeconds * 1000, voice?.durationMs ?? 0);
 
   return (
-    <TimelineProvider durationMs={durationMs} playFrom={onPlayFrom}>
+    <TimelineProvider durationMs={durationMs} playFrom={videoUri ? playFrom : undefined} playheadMs={playheadMs} playing={playing}>
+      <ScrollView style={styles.flex} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <Card style={styles.head}>
         <View style={styles.headTop}>
           <View style={styles.flex}>
@@ -105,8 +112,78 @@ export function ScoresTab({ scores, rubric, session, onPlayFrom }: ScoresTabProp
           bodyNote={category.skill === "confidence" && layer === "judged" && rubric?.bodyLanguageNotes ? rubric.bodyLanguageNotes : null}
         />
       ))}
+      </ScrollView>
+      {bar}
     </TimelineProvider>
   );
+}
+
+// The Scores tab's own player: "Play from here" starts the take's sound at the
+// chosen moment and keeps you where you are, with the charts' line moving. A
+// small bar appears (play or pause, scrub, close) and goes with the tab.
+function useScorePlayer(videoUri: string | null) {
+  const styles = useStyles();
+  const [started, setStarted] = useState(false);
+  const player = useVideoPlayer(videoUri, (p) => {
+    p.loop = false;
+    p.timeUpdateEventInterval = 0.1;
+  });
+  const { currentTime } = useEvent(player, "timeUpdate", { currentTime: 0, currentLiveTimestamp: null, currentOffsetFromLive: null, bufferedPosition: 0 });
+  const { isPlaying } = useEvent(player, "playingChange", { isPlaying: player.playing });
+  // The line holds where a scrub or a start put it until the player reports a time.
+  const [seekedMs, setSeekedMs] = useState<number | null>(null);
+  useEffect(() => setSeekedMs(null), [currentTime]);
+
+  const playFrom = useCallback(
+    (ms: number) => {
+      player.currentTime = ms / 1000;
+      setSeekedMs(ms);
+      setStarted(true);
+      player.play();
+    },
+    [player],
+  );
+
+  const durationMs = Math.round((player.duration || 0) * 1000);
+  const positionMs = seekedMs ?? currentTime * 1000;
+
+  function toggle() {
+    if (isPlaying) {
+      player.pause();
+      return;
+    }
+    // Played to the end: again from the start.
+    if (durationMs > 0 && positionMs >= durationMs - 250) {
+      player.currentTime = 0;
+      setSeekedMs(0);
+    }
+    player.play();
+  }
+
+  function close() {
+    player.pause();
+    setStarted(false);
+    setSeekedMs(null);
+  }
+
+  const bar = started ? (
+    <View style={styles.bar}>
+      <IconButton icon={isPlaying ? "pause" : "play"} onPress={toggle} size={38} accessibilityLabel={isPlaying ? "Pause" : "Play"} />
+      <View style={styles.flex}>
+        <Scrubber
+          positionMs={positionMs}
+          durationMs={durationMs}
+          onSeek={(ms) => {
+            player.currentTime = ms / 1000;
+            setSeekedMs(ms);
+          }}
+        />
+      </View>
+      <IconButton icon="close" onPress={close} size={38} accessibilityLabel="Close the player" />
+    </View>
+  ) : null;
+
+  return { playFrom, bar, playheadMs: started ? positionMs : null, playing: isPlaying };
 }
 
 function otherScore(scores: TakeScores, layer: Layer, skill: CategoryScore["skill"]): { name: string; score: number } | null {
@@ -249,6 +326,8 @@ function FactorRow({ factor: f }: { factor: ScoreFactor }) {
 
 const useStyles = makeStyles((t) => ({
   flex: { flex: 1 },
+  content: { gap: t.space.md, paddingBottom: t.space.lg },
+  bar: { flexDirection: "row", alignItems: "center", gap: t.space.xs, paddingTop: t.space.xs },
   head: { gap: t.space.sm },
   headTop: { flexDirection: "row", alignItems: "center", gap: t.space.md },
   category: { gap: t.space.md },

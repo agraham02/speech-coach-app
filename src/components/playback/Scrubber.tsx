@@ -5,6 +5,13 @@ import { makeStyles } from "../../theme/ThemeProvider";
 import { clampMs, formatClock, msAtX, spokenClock } from "../../domain/playback/followAlong";
 import { tick } from "../../utils/haptics";
 
+// iOS (and Android's back gesture) start a "go back" swipe from a touch that
+// begins within about 20 pt of the screen edge, and take the touch away from
+// the app. The screen gutter is 20 pt and the thumb sits half off the bar's
+// end, so a drag that began on the thumb at the start of the bar turned into
+// a back swipe. The bar and its hit area are inset this much on both sides, so
+// no scrub can begin in the edge zone (the times underneath stay on the gutter).
+const EDGE_SAFE_INSET = 18;
 // How far one VoiceOver / TalkBack swipe moves the playhead.
 const A11Y_STEP_MS = 10_000;
 // After a drag lets go, the thumb holds where it was dropped until the
@@ -110,7 +117,7 @@ export function Scrubber({ positionMs, durationMs, onSeek, disabled }: ScrubberP
 const useStyles = makeStyles((t) => ({
   wrap: { gap: 2 },
   // Tall enough to grab (the bar itself is 4 pt).
-  hit: { height: 28, justifyContent: "center" },
+  hit: { height: 28, justifyContent: "center", marginHorizontal: EDGE_SAFE_INSET },
   track: { height: 4, borderRadius: 2, backgroundColor: t.colors.switchTrackOff, overflow: "hidden" },
   fill: { height: 4, backgroundColor: t.colors.accent },
   thumb: { position: "absolute", top: 8, width: 12, height: 12, borderRadius: 6, backgroundColor: t.colors.accent },

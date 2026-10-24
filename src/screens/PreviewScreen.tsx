@@ -5,6 +5,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
 import { Card } from "../components/common/Card";
+import { IconButton } from "../components/common/IconButton";
 import { PrimaryButton } from "../components/common/PrimaryButton";
 import { VideoPlayback } from "../components/result/VideoPlayback";
 import { deleteRecording } from "../services/storage/videoStorage";
@@ -38,12 +39,13 @@ export function PreviewScreen({ route, navigation }: Props) {
   const minor = tonoAgeGated();
   // On by default only once Tono AI is allowed and there's a judged take left.
   const [wantsCloudReview, setWantsCloudReview] = useState(
-    () => !isFeeling && !minor && getCloudReviewDefault() && hasTonoConsent() && getAccount().allowed.take,
+    () => !isFeeling && !minor && getCloudReviewDefault() && hasTonoConsent() && getAccount().status === "signedIn" && getAccount().allowed.take,
   );
   // What judging costs: exactly one judged take, whatever is sent. With none
   // left, the line says when the next one comes instead.
   const allowance = account.allowance;
-  const cost = allowance ? (allowance.takesLeft > 0 ? usesOneLine(allowance) : usedUpLine(allowance)) : "Uses 1 judged take. Everyone gets one free a month.";
+  const cost =
+    account.status !== "signedIn" ? "Sign in to use it: everyone gets one judged take free a month." : allowance ? (allowance.takesLeft > 0 ? usesOneLine(allowance) : usedUpLine(allowance)) : "Uses 1 judged take. Everyone gets one free a month.";
   const what = subject.kind === "script" ? "your reading: pace, pauses, emphasis and how well you followed the marks" : "what you said and how it came across";
   const from = getJudgeInput() === "video" ? "from the video, your words and the phone's measurements" : "from your words and the phone's measurements; the video stays here";
 
@@ -141,6 +143,9 @@ export function PreviewScreen({ route, navigation }: Props) {
 
   return (
     <ScreenContainer style={styles.container}>
+      <View style={styles.headerRow}>
+        <IconButton icon="chevron-back" onPress={() => navigation.goBack()} size={38} accessibilityLabel="Back" />
+      </View>
       <Text style={styles.title}>Review your take</Text>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <VideoPlayback videoUri={videoUri} />
@@ -192,6 +197,7 @@ export function PreviewScreen({ route, navigation }: Props) {
 
 const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
+  headerRow: { flexDirection: "row", alignItems: "center", marginLeft: -spacing.xs },
   title: { color: colors.textPrimary, fontFamily: fontDisplay.title, fontSize: 30, lineHeight: 36, letterSpacing: -0.8 },
   scroll: { flex: 1 },
   scrollContent: { gap: spacing.md, paddingBottom: spacing.lg },

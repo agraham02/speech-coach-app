@@ -44,16 +44,11 @@ export function ThreePassPlayer({
   videoUri,
   transcriptWords,
   transcriptText,
-  startAt,
 }: {
   sessionId: string;
   videoUri: string;
   transcriptWords: TranscriptWord[] | null;
   transcriptText: string | null;
-  // "Play from here" on the Scores tab's charts: open on the picture and
-  // sound together and start at this moment. `nonce` makes a repeat of the
-  // same moment count as a new request.
-  startAt?: { ms: number; nonce: number } | null;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -81,17 +76,6 @@ export function ThreePassPlayer({
   // Re-renders once the video has loaded, so the scrubber learns its length.
   const { status } = useEvent(player, "statusChange", { status: player.status });
   useEffect(() => setSeekedMs(null), [currentTime]);
-
-  // Start where a chart pointed, once the video has loaded.
-  const startedFor = useRef<number | null>(null);
-  useEffect(() => {
-    if (!startAt || startedFor.current === startAt.nonce || status !== "readyToPlay") return;
-    startedFor.current = startAt.nonce;
-    setPass("both");
-    player.currentTime = startAt.ms / 1000;
-    setSeekedMs(startAt.ms);
-    player.play();
-  }, [startAt, status, player]);
 
   useEffect(() => {
     player.muted = pass === "watch";
