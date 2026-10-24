@@ -571,7 +571,7 @@ Branch `feature/signal-capture`, 2026-10-23. Phone checks are in `docs/testing/d
 | 10.8 Native models | **Not added: the iOS link spike failed.** See below. | `docs/research/spikes/signal-capture/ios_link_overlap.sh` |
 | 10.9 Held vowel | Dropped (decided). | |
 | 10.10 Sound events | Deferred (optional). | |
-| Fillers | Built, with two types: hesitation (um, uh, er) and contextual (like, actually, basically, literally, you know, I mean, kind of, sort of), counted only on positive evidence. Both are shown in the transcript card and the reviewer prompt. | `domain/fillers.ts` |
+| Fillers | Built, with two types: hesitation (um, uh, er) and contextual (like, actually, basically, literally, you know, I mean), counted only on positive evidence. "Kind of" and "sort of" are hedges (Confidence), as session 07's taxonomy recommends, so they are not counted twice. Both kinds are shown in the transcript card and the reviewer prompt. Fluency counts contextual ones at half weight (session 07's band). | `domain/fillers.ts` |
 
 **Off the JS thread.** The audio extraction runs on a background worklet runtime from react-native-worklets, which is already in the app for Reanimated, so this needs no new native code. If that fails, it falls back to the JS thread. Measured on synthetic speech (96 s): 3.2 ms per audio second in V8 and 78 ms per audio second jitless (the Hermes stand-in), which is about 4.7 s for a 60 s take. That is why it must not run on the JS thread. Memory is small: the track is about 30 KB a minute packed.
 

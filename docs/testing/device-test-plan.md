@@ -232,7 +232,7 @@ Voice:
 
 Fillers:
 
-- [ ] **Two kinds, counted apart.** Record this as a take, naturally: "Um, so I was, like, thinking about it. I like this plan, and it looks like it could work. It was actually really hard, uh, but I actually disagree with them. You know, it's kind of a big deal. What kind of plan is that? I mean, we'll see." Pass: the transcript card's second line reads 2 um or uh, and 5 like, you know, actually (the filler "like", "actually really", "You know,", "kind of a", "I mean,"). Comparison "like", the verb "like", the contrast "actually" and "what kind of" are not highlighted. Whisper may drop or add commas, which changes the context fillers: note what it wrote.
+- [ ] **Two kinds, counted apart.** Record this as a take, naturally: "Um, so I was, like, thinking about it. I like this plan, and it looks like it could work. It was actually really hard, uh, but I actually disagree with them. You know, it's kind of a big deal. What kind of plan is that? I mean, we'll see." Pass: the transcript card's second line reads 2 um or uh, and 4 like, you know, actually (the filler "like", "actually really", "You know,", "I mean,"). Comparison "like", the verb "like" and the contrast "actually" are not highlighted, and "kind of" is counted as a hedge, not a filler. Whisper may drop or add commas, which changes the context fillers: note what it wrote.
   Data to send back: the transcript as Whisper wrote it, and the two counts.
   Notes:
 - [ ] **Stutter mode unchanged.** With the speech difference set to stutter in your profile, a take with repeated words and ums. Pass: fluency isn't scored against you and the reviewer prompt has no filler or repeated-word lines (Dev → Logs), as before.

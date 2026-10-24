@@ -65,11 +65,10 @@ describe("other context fillers", () => {
     expect(words("I mean it this time.")).toEqual([]);
   });
 
-  it("counts kind of and sort of as hedges, not as names for a kind", () => {
-    expect(words("It's kind of hard to explain.")).toEqual(["kind of"]);
-    expect(words("I sort of agree.")).toEqual(["sort of"]);
+  it("leaves kind of and sort of to the hedges, so they're not counted twice", () => {
+    expect(words("It's kind of hard to explain.")).toEqual([]);
+    expect(words("I sort of agree.")).toEqual([]);
     expect(words("What kind of car do you drive?")).toEqual([]);
-    expect(words("This sort of thing happens.")).toEqual([]);
   });
 
   it("counts basically and literally when they pad, not in the literal sense", () => {
@@ -79,14 +78,14 @@ describe("other context fillers", () => {
   });
 
   it("labels each kind", () => {
-    const typed = detectFillerWords("Um, it was, like, kind of fun.");
+    const typed = detectFillerWords("Um, it was, like, you know, fun.");
     expect(typed.map((m) => m.type)).toEqual(["hesitation", "contextual", "contextual"]);
   });
 });
 
 describe("computeFillerStats", () => {
   it("counts both kinds apart and together", () => {
-    const s = computeFillerStats("Um, so, uh, it was, like, kind of fun. I actually disagree.", 30);
+    const s = computeFillerStats("Um, so, uh, it was, like, basically fun. I actually disagree.", 30);
     expect(s.hesitation.count).toBe(2);
     expect(s.contextual.count).toBe(2);
     expect(s.count).toBe(4);

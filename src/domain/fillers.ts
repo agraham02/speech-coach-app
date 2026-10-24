@@ -1,12 +1,15 @@
 // Filler words, in two kinds:
 //
 // - "hesitation": um, uh, er. Always fillers.
-// - "contextual": like, actually, basically, literally, you know, I mean,
-//   sort of, kind of. Fillers only in some uses: "like" can compare ("it
-//   looks like rain") or be a verb ("I like it"), "actually" can mark a
-//   contrast ("I actually disagree"), "kind of" can name a kind ("what kind
-//   of car"). These are counted only on positive evidence that they're
+// - "contextual": like, actually, basically, literally, you know, I mean.
+//   Fillers only in some uses: "like" can compare ("it looks like rain") or
+//   be a verb ("I like it"), "actually" can mark a contrast ("I actually
+//   disagree"). These are counted only on positive evidence that they're
 //   filling, and left out when unsure, so the count is conservative.
+//
+// "kind of" and "sort of" are not fillers here: they soften a claim, so they
+// are hedges, counted once, in Confidence (coach/structureHeuristics.ts
+// findHedges), per the scoring taxonomy (docs/decisions/scoring-taxonomy.md).
 //
 // Deterministic and on-device. Runs on the verbatim transcript (Whisper with
 // the filler prompt keeps the ums and the commas around a filler "like").
@@ -52,10 +55,6 @@ const LITERAL_SENSE_BEFORE = new Set("translate translated translates translatin
 // "you know" before these takes an object ("you know what", "you know how").
 const YOU_KNOW_OBJECT_AFTER = new Set("what that how where when why who whether the a an about it him her them this these those me us".split(" "));
 const YOU_KNOW_QUESTION_BEFORE = new Set("do did don't didn't if as what whether".split(" "));
-// "kind of" / "sort of" after these names a kind ("what kind of", "this sort of").
-const KIND_DETERMINERS = new Set(
-  "a an the this that these those what which any some every same one all no each another my your his her our their its different new other right wrong".split(" "),
-);
 const OTHER_FILLERS = new Set(["like", "actually", "basically", "literally", "so"]);
 
 function tokenize(text: string): Token[] {
@@ -123,13 +122,6 @@ export function detectTypedFillers(transcript: string): TypedFillerMatch[] {
       const quoted = !!prev && !punctBefore(i) && (prev.lower === "what" || prev.lower === "if");
       const filler = !quoted && (punctAfter(j) || ((sentenceStart(i) || punctBefore(i)) && isHes(after)));
       if (filler) push(t, nextTok, "contextual");
-      i = j;
-      continue;
-    }
-    if ((t.lower === "kind" || t.lower === "sort") && nextTok && !nextTok.punct && nextTok.lower === "of") {
-      const j = i + 1;
-      const namesAKind = !!prev && !punctBefore(i) && KIND_DETERMINERS.has(prev.lower);
-      if (!namesAKind) push(t, nextTok, "contextual");
       i = j;
       continue;
     }
