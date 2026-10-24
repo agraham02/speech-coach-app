@@ -156,7 +156,7 @@ Granting while the app runs is fine. Revoking kills the process, which is what t
 
 Use the `clear_app_data` tool (or `adb shell pm clear com.ahmadgraham.tono`). It also resets runtime permissions, so after every clear: re-grant (2.6), then reopen the dev-client URL (2.5). The dev client forgets its server on a clear, so the URL is needed every time. The result is S0 (the Welcome intro).
 
-A cheaper reset that keeps permissions and the dev-client server: Settings -> Help & data -> **Reset app** (alert "Reset the app?" with Cancel, Export first, Reset). It erases the app's data and lands on onboarding. It does not clear MMKV flags that live outside the app's own reset list (verify), so use `clear_app_data` when a test says S0.
+A cheaper reset that keeps permissions and the dev-client server: Settings -> Help & data -> **Reset app** (alert "Reset the app?" with Cancel, Export first, Reset). Per `resetApp.ts` it drops the database, deletes videos and Rewind audio and temp files, clears every preference (so tips and onboarding start over), the logs and the Dev tab's data, and cancels reminders; it keeps the Tono account and any downloaded models. It then lands on onboarding. Use `clear_app_data` when a test says S0 and a different reset when it says "Reset app".
 
 Optional baseline snapshot (verify): after reaching S1 you can save the app's files so the next reset takes seconds instead of a 3-minute onboarding:
 
@@ -328,7 +328,7 @@ Format: **ID - title.** Pre: state. Steps (numbered). **Expect:** result. **Evid
 
 **ONB-1 - The standard recipe (builds S1).** Pre: S0.
 1. Welcome intro: swipe or tap **Next** through the pages (Tono; A short plan, made for you; Feedback you can act on; Practice the hard parts; Watch yourself improve), or tap **Skip**. Last page button: **Let's start**.
-2. Then "Tell us about you" is skipped in the full flow; the questions start. Answer per 11.1.
+2. The questions start (the "Tell us about you" card is only for "profile" mode). Answer per 11.1.
 3. Finish with **Done** on the last question; setup check; **Tomorrow** (skill check deferred).
 **Expect:** every step advances; the progress bar grows; chapter label reads "About you · 1 of 3", then "How you speak · 2 of 3", then "Your practice · 3 of 3"; Today opens with a skill-check card for tomorrow (verify) and no errors.
 **Evidence:** chapter labels seen; final Today text.
@@ -381,7 +381,7 @@ Format: **ID - title.** Pre: state. Steps (numbered). **Expect:** result. **Evid
 **Expect:** the picker (Time row with two dropdowns, hour and AM/PM) appears only for yes; picking yes may show the Android notification permission dialog if not granted (allow it).
 
 **ONB-11 - Permissions in the setup check.** Pre: S0 with all permissions revoked (`pm revoke` all three).
-1. Reach "Camera and mic". Read the rows (Camera, Microphone, Speech recognition, Notifications) and their state words.
+1. Reach "Camera and mic". Read the rows (expected Camera, Microphone, Speech recognition, Notifications; verify which rows Android lists) and their state words.
 2. Tap **Allow access**; on each system dialog choose **While using the app** / **Allow**; repeat once denying the camera.
 **Expect:** rows show "Not asked yet" before and "On" after; a denied permission shows "Off" and the warning "Recording needs the camera and mic. Tap a row that says Off to turn it on in your phone's Settings, or carry on and do it later."; **Next** always available.
 **Evidence:** row states before and after.
@@ -426,7 +426,7 @@ Pre for all: S1 (Tono AI skipped with **Not now**), airplane mode off unless sta
 **FREE-4 - Measured-only wording.** On a take Result (blocked unless P1): "Measured on this phone" hero label and the quiet line "Measured on this phone. Tono AI would judge what you said and how it came across: you get one judged take free each month." Mark blocked on this AVD; on a Failed take check that none of these appear as errors.
 
 **FREE-5 - Exercises without Plus.** Pre: S1. Do a Rewind (7.14) and a Word Chain (7.13) to their result screens.
-**Expect:** counts and a calm card, no error, no spinner that never ends: Rewind result "Notes" card with "Notes on what you said come with Tono Plus" (verify exact text) and no **See Tono Plus** button on Android; Word Chain result says "counted, not checked"-style text (blocked unless P4).
+**Expect:** counts and a calm card, no error, no spinner that never ends. A Rewind with a transcript shows a "Notes" card "Notes on what you said come with Tono Plus: which parts of the day you covered, the most vivid moment, and one thing to try tomorrow. Your counts above are from this phone." and no **See Tono Plus** button on Android; but a Rewind recorded here has no words, so it shows "No words came through" and no Notes card (the card needs a transcript: blocked unless P4/P5). Word Chain result says "counted, not checked"-style text (blocked unless P4).
 
 ### 7.3 NAV - Navigation of every tab and main screen
 
@@ -515,7 +515,7 @@ Pre: S1 unless stated.
 **TODAY-5 - "Your takes" list (after a take).** Pre: S2 with the take's analysis having failed (or a take still running). Return to Today right after **Use this take**. **Expect:** a "Your takes" group with a row: while running an hourglass row with a spinner and the headline "Step N of M: ..." or "Waiting for its turn"; when stuck: an alert-circle row whose subtitle ends "Tap to try again." (for example "One part didn't finish. Tap to try again."); tapping opens that take's Result. A "Ready. Tap to see what stood out." row is only for a take that finished OK (blocked here). The row disappears after the take is deleted.
 **Evidence:** quote the row subtitle.
 
-**TODAY-6 - Two takes at once.** Record and save a second take within a few seconds of the first. **Expect:** two rows, each with its own state, neither stuck on a spinner forever (within 60 s each shows its failure).
+**TODAY-6 - Several takes at once.** Record and save a second take within a few seconds of the first. **Expect:** two rows, each with its own state, neither stuck on a spinner forever (within 60 s each shows its failure). The list shows at most 4 takes, working first, then ones that need attention, then "ready"; a failed take stays listed for 24 hours.
 
 **TODAY-7 - Transcription banner.** With the model missing, Today shows a card "Download the transcription model" ("Your recordings can't be turned into text until it's on this phone. It's a one-time download of about 574 MB, best over Wi-Fi.") with **Download**. Start it: card becomes "Downloading the transcription model: N%" with **Pause**; pause: "Download paused at N%" with **Resume**. Offline start: "The model download stopped" with **Try again**. The same banner shows on the Preview screen.
 
@@ -580,7 +580,7 @@ Pre: a recording just finished (REC-4).
 **What exists on this AVD:** Overview and Transcript tabs only (no Scores tab: the take has no score sheet). Tests for scores, the layer switch, charts and marks are listed at the end as blocked with their pass conditions, ready for when P1 exists.
 
 **RES-1 - A take that cannot be read (expected failure).** Pre: S2 (just saved). `wait_for_ui_stable`; `get_all_text` at 5 s and 40 s.
-**Expect:** header shows the type line and the prompt title; two tabs **Overview** and **Transcript** (no **Scores**); top card with a headline such as "One part didn't finish"/"Some parts didn't finish", a bar, per-step problem lines under "Transcript" with the message "Couldn't read this recording's audio on the device. Retry, or have Tono AI judge it from the video." (or the model-missing sentence) in red, a **Try again** button per problem, and the reassurance "Nothing is lost. Try again when you're ready."; the "Analysis" card lists Transcript, Voice analysis, Video analysis (omitted when skipped), Coaching, Tono AI with detail text and action buttons **Retry**/**Run**/**Get**; the skeleton hero "Listening back and measuring, on this phone…" may show first. No score ring. The video player shows the recorded video (play it). Buttons **Practice this prompt again** and **Done**.
+**Expect:** header shows the type line and the prompt title; two tabs **Overview** and **Transcript** (no **Scores**); top card with a headline "Some parts didn't finish" (or "One part didn't finish"), a bar, a problem line per failed step in red with a **Try again** button each (Transcript: "Couldn't read this recording's audio on the device. Retry, or have Tono AI judge it from the video." or the model-missing sentence; Voice analysis: "Couldn't read this recording's audio, and there's no transcript to analyze yet."; Coaching: whatever the code reports, copy it), and the reassurance "Nothing is lost. Try again when you're ready."; the "Analysis" card lists Transcript, Voice analysis, Video analysis (omitted when skipped: the emulator's face timeline is usually empty), Coaching, Tono AI with detail text and action buttons **Retry**/**Run**/**Get**; the skeleton hero "Listening back and measuring, on this phone…" may show first, for a few seconds. No score ring. The video player shows the recorded video (play it). Buttons **Practice this prompt again** and **Done**.
 **Evidence:** the problem line and the button list.
 
 **RES-2 - Try again.** Tap **Try again** on the Transcript problem. **Expect:** the step goes to "Working…"/"Waiting…" and fails again with the same message within about a minute; no crash; the button returns. Report if it spins for more than 2 minutes.
@@ -763,7 +763,7 @@ All speech drills share the same shape here: the screen works up to listening; n
 
 **DEV-3 - Pipeline.** Dev -> Pipeline: segmented "Last 30" / "Problems N", the dots legend ("Dots: transcript, voice, video, coaching, deep review. Filled is done; hollow is skipped."), a row per take ("Take from <date>"), type · seconds · id. Open a take -> "Take" screen: copyable ID, Steps with per-step re-run icons ("Re-run Transcript" etc.), Export ("Copy analysis as JSON", "Share analysis as a file"), Labs -> Voice Lab, "Stored results" list (artifact kinds), the open-result icon. Voice Lab: **Run the analysis** on a take (the audio cannot be decoded on this AVD, so it should report an error alert "Voice Lab" with a message, not crash). **Do not** use Re-run on the Tono AI row (stop list: it asks "Have Tono AI judge it again?").
 
-**DEV-4 - App tools.** Rows: "Judge from" (toggles Words and measurements / Video: toggle and back), "Over-the-air updates" (Channel/Runtime/Running: "A development build: JS comes from Metro, not from updates"), "Tours" (one row per tour id with seen/new; tap a seen one to show it again; **Show every tour again**), "Previews" (live waveform with chips for reading rates; welcome intro; progress moment with chips Stage earned / Personal best / Off day and **Replay**/**Close**; stage celebration; unit celebration; path finale), "Notifications" (**Send a test in 5 seconds**), the scheduled list ("N scheduled" with times), "Storage" rows. **Expect:** each preview opens and closes; confetti/celebrations render and can be closed; the path finale preview shows its screen and its close button works and does not mark itself seen.
+**DEV-4 - App tools.** Rows: "Judge from" (toggles Words and measurements / Video: toggle it and put it back to Words and measurements, since it changes the what-is-sent wording everywhere), "Over-the-air updates" (Channel/Runtime/Running: "A development build: JS comes from Metro, not from updates"), "Tours" (one row per tour id with seen/new; tap a seen one to show it again; **Show every tour again**), "Previews" (live waveform with chips for reading rates; welcome intro; progress moment with chips Stage earned / Personal best / Off day and **Replay**/**Close**; stage celebration; unit celebration; path finale), "Notifications" (**Send a test in 5 seconds**), the scheduled list ("N scheduled" with times), "Storage" rows. **Expect:** each preview opens and closes; confetti/celebrations render and can be closed; the path finale preview shows its screen and its close button works and does not mark itself seen.
 
 **DEV-5 - Test notification.** Tap **Send a test in 5 seconds** (allow the notification permission if asked), toast "Sending in 5 seconds. Lock the phone or leave the app.", press HOME, wait 7 s, pull down the shade (`adb shell cmd statusbar expand-notifications`), `get_all_text`. **Expect:** a notification "Tono" "Test notification from the Dev tab." Collapse it (`adb shell cmd statusbar collapse`).
 
@@ -952,7 +952,7 @@ From S0 (Welcome intro showing). Use `get_clickable_elements` to find buttons; t
 | 20 | Get the transcription model | download button then **Pause**, **Continue** |
 | 21 | Meet Tono AI, your coach | **Not now** (never **Allow Tono AI**) |
 | 22 | How long should full videos be kept? | **30 days, plus two keepsakes each month**, **Continue** |
-| 23 | What will be different when this works? | **Skip**... the last question's primary button reads **Done**; tap **Done** |
+| 23 | What will be different when this works? | last question: tap **Done** (**Skip** also finishes) |
 | 24 | Camera and mic | **Allow access** (or **Next**), camera step **Skip for now**, mic step **Skip** |
 | 25 | All set | **Tomorrow** |
 | 26 | Today | tap **Turn off tips** on the first tip card |
