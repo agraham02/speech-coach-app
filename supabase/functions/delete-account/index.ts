@@ -1,9 +1,9 @@
 import { appleConfigured, revokeRefreshToken } from "../_shared/apple.ts";
 import { adminClient, requireUser } from "../_shared/auth.ts";
-import { handler, HttpError, json, optionalEnv } from "../_shared/http.ts";
+import { handler, HttpError, json } from "../_shared/http.ts";
 import { db } from "../_shared/ledger.ts";
 import { deleteSubscriber, revenueCatConfigured } from "../_shared/revenuecat.ts";
-import { decryptText, identityHash } from "../_shared/secrets.ts";
+import { decryptText } from "../_shared/secrets.ts";
 
 // Deletes the account and everything tied to it (App Review 5.1.1(v)).
 // Order matters: the Apple grant is revoked first and a failure stops the
@@ -13,24 +13,8 @@ Deno.serve(
     if (req.method !== "POST") throw new HttpError(405, "method_not_allowed");
     const user = await requireUser(req);
 
-    const rows = await db()`
-      select starter_reviews_used, starter_text_used, apple_refresh_token_enc
-      from public.accounts where user_id = ${user.id}
-    `;
+    const rows = await db()`select apple_refresh_token_enc from public.accounts where user_id = ${user.id}`;
     const account = rows[0];
-
-    // Remember (by keyed hash) how much of the starter pack was used.
-    if (account && user.identity && optionalEnv("TONO_SECRET")) {
-      const hash = await identityHash(user.identity);
-      await db()`
-        insert into public.starter_tombstones (identity_hash, starter_reviews_used, starter_text_used)
-        values (${hash}, ${account.starter_reviews_used}, ${account.starter_text_used})
-        on conflict (identity_hash) do update
-          set starter_reviews_used = greatest(public.starter_tombstones.starter_reviews_used, excluded.starter_reviews_used),
-              starter_text_used = greatest(public.starter_tombstones.starter_text_used, excluded.starter_text_used),
-              updated_at = now()
-      `;
-    }
 
     if (account?.apple_refresh_token_enc) {
       if (!appleConfigured()) throw new HttpError(503, "apple_not_configured");

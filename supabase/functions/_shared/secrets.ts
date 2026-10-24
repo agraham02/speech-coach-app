@@ -2,7 +2,7 @@ import { env } from "./http.ts";
 
 // Everything secret the server derives comes from ONE random secret,
 // TONO_SECRET (32 random bytes, base64), by labelled HMAC. One value to set,
-// and the encryption key and the identity pepper can never be the same.
+// and every derived key is distinct.
 
 const encoder = new TextEncoder();
 
@@ -26,13 +26,6 @@ async function hmac(keyBytes: Uint8Array, data: string): Promise<Uint8Array> {
 
 async function derive(label: string, root: string = env("TONO_SECRET")): Promise<Uint8Array> {
   return hmac(encoder.encode(root), `tono:${label}`);
-}
-
-// A keyed one-way hash of a sign-in identity, so a deleted account cannot be
-// re-created for another starter pack and the table never holds the identity.
-export async function identityHash(identity: string, root?: string): Promise<string> {
-  const digest = await hmac(await derive("identity", root), identity);
-  return Array.from(digest, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 // AES-GCM with a fresh random IV. Output is base64(iv || ciphertext).

@@ -16,7 +16,7 @@ export function adminClient(): SupabaseClient {
 export interface AuthedUser {
   id: string;
   // "apple:001234.abc" style: the sign-in provider and its stable user id.
-  // Used only to remember (by keyed hash) that this person had a starter pack.
+  // Null for an anonymous account (nobody has to sign in to use Tono).
   identity: string | null;
   provider: string | null;
 }

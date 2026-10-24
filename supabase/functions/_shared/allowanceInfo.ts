@@ -1,43 +1,41 @@
-import type { Tier, UsageSnapshot } from "./allowance.ts";
+import { limitsFor, tierFor, type UsageSnapshot } from "./allowance.ts";
 import type { ServerConfig } from "./config.ts";
 import { utcNextMonthStart } from "./time.ts";
-import type { DenyReason, Plan } from "./types.ts";
+import type { DenyReason, Plan, Tier } from "./types.ts";
+
+export { tierFor } from "./allowance.ts";
 
 // What the phone is told about a person's allowance. The shape matches
 // TonoAllowance in the app (src/domain/aiAllowance.ts).
 export interface AllowanceView {
   plan: Plan;
   tier: Tier;
-  reviewsLeft: number;
-  reviewsTotal: number;
-  // When a monthly allowance refills (ISO). Null for the one-off starter pack.
-  resetsAt: string | null;
+  // Judged takes: one take, one count, whatever the judge was sent.
+  takesLeft: number;
+  takesTotal: number;
+  // When the counts refill (ISO): the 1st of next month (UTC). For a trial,
+  // when it ends (it turns into Plus then, unless cancelled).
+  resetsAt: string;
+  // The trial's end, for "Free until 14 November". Null outside a trial.
+  trialEndsAt: string | null;
 }
 
-export function tierFor(config: ServerConfig, plan: Plan): Tier {
-  if (plan === "plus") return "plus";
-  return config.mode === "beta" ? "beta" : "starter";
-}
-
-export function describeAllowance(config: ServerConfig, snapshot: UsageSnapshot, now: Date): AllowanceView {
+export function describeAllowance(
+  config: ServerConfig,
+  snapshot: UsageSnapshot,
+  now: Date,
+  trialEndsAt: Date | null = null,
+): AllowanceView {
   const tier = tierFor(config, snapshot.plan);
-  const l = config.limits;
-  if (tier === "starter") {
-    return {
-      plan: snapshot.plan,
-      tier,
-      reviewsTotal: l.starterReviews,
-      reviewsLeft: Math.max(0, l.starterReviews - snapshot.starterReviewsUsed),
-      resetsAt: null,
-    };
-  }
-  const total = tier === "plus" ? l.plusMonthlyReviews : l.betaMonthlyReviews;
+  const total = limitsFor(config.limits, tier).take;
+  const trialEnd = tier === "trial" && trialEndsAt ? trialEndsAt.toISOString() : null;
   return {
     plan: snapshot.plan,
     tier,
-    reviewsTotal: total,
-    reviewsLeft: Math.max(0, total - snapshot.monthReviews),
-    resetsAt: utcNextMonthStart(now).toISOString(),
+    takesTotal: total,
+    takesLeft: Math.max(0, total - snapshot.takes),
+    resetsAt: trialEnd ?? utcNextMonthStart(now).toISOString(),
+    trialEndsAt: trialEnd,
   };
 }
 
