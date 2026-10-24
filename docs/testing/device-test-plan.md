@@ -148,7 +148,7 @@ These produce the data that tunes the new pitch/volume/pause code in session 06.
   - tapping one shows sub-scores, each labelled "Tono AI" or "measured on the phone";
   - the hero number sits between the lowest and the highest row;
   - the footnote gives the measured-only score.
-  (The Scores tab still shows the old rubric until session 11.)
+  (The Scores tab now reads the same score sheets: section H.)
   Notes:
 - [ ] **An unjudged take.** Turn Deep review off on the save screen, then record. Pass:
   - the hero score is the measured one, and the footnote says "Measured on this phone";
@@ -327,6 +327,38 @@ On the laptop (no phone):
 
 ---
 
+## H. Impromptu results screens (session 11)
+
+**Needs build:** no. JavaScript only, so an over-the-air update works. Use takes recorded after session 06 (they have the packed feature track); an older take's pitch and loudness charts say the voice analysis isn't available.
+
+- [ ] **Overview and Scores agree.** Open a judged take, then an unjudged one (Deep review off). Pass: the Overview's "Your scores" card lists Cadence, Impromptu and Confidence with the sub-scores underneath ("Pace 7 · Pauses 5.5 ..."); "See every score" opens the Scores tab; every number on the Overview appears, with the same name and value, on the Scores tab; the hero number sits between the lowest and highest skill. The hero says "Judged by Tono AI" or "Measured on this phone", with no archetype.
+  Data to send back: a screenshot of each tab for one judged and one unjudged take.
+  Notes:
+- [ ] **The layer switch.** On the judged take's Scores tab, switch between "Tono AI" and "This phone". Pass: each layer's overall and skill scores change, sub-scores say who gave them, and the other layer's skill score is shown small under the skill name.
+  Notes:
+- [ ] **Charts fit and line up.** On a 1 to 2 minute take, open the Scores tab. Pass: the pace chart (under Pace), the pitch chart (under Pitch variety) and the loudness chart (under Emphasis) each show the whole take with no sideways scrolling; their time axes (0:00, 0:30 ...) line up; every y-axis has labelled numbers and its unit is in the chart title.
+  Data to send back: a screenshot with the three charts.
+  Notes:
+- [ ] **Pitch honesty.** Record one take speaking deliberately flat (monotone) and one lively. Pass: the flat take's line stays within about 2 semitones of the 0 line; the lively one reaches into the shaded band and beyond; gaps are real gaps (the line breaks), never a drop to the floor; the line under the chart says how much of your speaking had a readable pitch. If the lively take still looks flat, send both takes' exports: that is the tracker, not the chart.
+  Data to send back: Dev → Pipeline → the take → export (the `signals` artifact), and screenshots.
+  Notes:
+- [ ] **Zoom and scrub.** On a chart: drag one finger sideways; double tap; pinch; drag with two fingers when zoomed; tap the minus, plus and "whole take" buttons. Pass: a vertical line marks the same moment on all three charts and the readout shows the time and value (for pitch, semitones and Hz); zooming one chart zooms all three; at the closest zoom about 8 seconds fill the width and the detail gets finer; scrolling the screen up and down with a finger over a chart still scrolls; nothing jumps or lags noticeably.
+  Data to send back: a short screen recording and which gesture misbehaved, on which phone.
+  Notes:
+- [ ] **Play from here.** With the cursor on a chart, press "Play from here". Pass: the Overview opens, the video plays with sound within about a second of that moment.
+  Notes:
+- [ ] **No voice, no chart line.** Record 2 seconds of mostly silence. Pass: the pitch chart says there isn't enough clear voice instead of drawing a line.
+  Notes:
+- [ ] **Transcript marks.** Open the Transcript tab of a take with ums and a "like". Pass: um/uh and like/you know/actually are highlighted in two colours and the counts match what you hear; there are no other highlights until you turn on "Tono AI's notes" (shown only on a judged take that has some). With it on, every highlighted phrase is something you actually said, the label (Structure, On the point, Repeated idea) fits it, and tapping shows the note headed with who wrote it.
+  Data to send back: for 3 judged takes, how many AI notes appeared (0 to 6) and how many made sense.
+  Notes:
+- [ ] **Library and Trends.** Pass: judged takes in the Library say "Judged by Tono AI" on their row; a month's average says "· Tono AI" when it averages judged takes; Progress → Score trends draws the judged and measured lines separately, with a gap (not a zero) in the judged line for unjudged takes.
+  Notes:
+- [ ] **Dark mode, large text, a small phone.** Open the Scores tab in dark mode, at the largest text size, on the smallest phone you have. Pass: chart labels are readable, nothing overlaps, the zoom buttons are easy to hit.
+  Notes:
+
+---
+
 ## Sections to be added by later sessions
 
-Each new build session adds its own section here: 08 (trial, tiers, age range), 09 (waiting on analysis), 11 (impromptu results), 12 (conversation voice).
+Each new build session adds its own section here: 08 (trial, tiers, age range), 09 (waiting on analysis), 12 (conversation voice).
