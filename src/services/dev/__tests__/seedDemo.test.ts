@@ -280,3 +280,15 @@ describeIfSqlite("demo takes", () => {
     expect(again.takes).toBe(DEMO_TAKES.length);
   });
 });
+
+describe("in a production build", () => {
+  it("refuses to add, count or remove demo data", async () => {
+    jest.resetModules();
+    jest.doMock("../../../config/devTools", () => ({ SHOW_DEV_TOOLS: false }));
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const seed = require("../seedDemo") as typeof import("../seedDemo");
+    await expect(seed.addDemoData(OPTIONS)).rejects.toThrow(/only available in development/);
+    await expect(seed.removeDemoData()).rejects.toThrow(/only available in development/);
+    await expect(seed.countDemoData()).rejects.toThrow(/only available in development/);
+  });
+});
