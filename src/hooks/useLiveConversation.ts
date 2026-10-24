@@ -120,13 +120,21 @@ export function useLiveConversation(setup: LiveSetup | null, options: LiveOption
     abortRef.current = controller;
     let player: PartnerLinePlayer | null = null;
     let gotLine = false;
+    let lineFinished = false;
+    const log = () => {
+      const summary = latencySummary(latency);
+      logger.info(`[live] turn ${s.turns.length}: words ${summary.toLineMs ?? "-"} ms, first sound ${summary.toFirstAudioMs ?? "-"} ms, server ${JSON.stringify(latency.server)}`);
+    };
     const finishLine = (text: string, hadVoice: boolean) => {
+      if (lineFinished) return;
+      lineFinished = true;
       if (hadVoice && player) {
         player.finish();
         return;
       }
       // No voice: the words stay on screen for about reading time.
       setVoiceFailed(true);
+      log();
       silentTimerRef.current = setTimeout(() => dispatch({ type: "AUDIO_END", now: Date.now() }), readingDelayMs(text));
     };
     let lineText = "";
@@ -145,6 +153,7 @@ export function useLiveConversation(setup: LiveSetup | null, options: LiveOption
                 onStart: () => {
                   latency.firstAudioAt = Date.now();
                   dispatch({ type: "AUDIO_START", now: Date.now() });
+                  log();
                 },
                 onEnd: (how) => {
                   if (how === "played") dispatch({ type: "AUDIO_END", now: Date.now() });
@@ -181,8 +190,6 @@ export function useLiveConversation(setup: LiveSetup | null, options: LiveOption
       }
     } finally {
       if (gotLine) setLatencies((prev) => [...prev, latency]);
-      const summary = latencySummary(latency);
-      logger.info(`[live] turn ${s.turns.length}: line ${summary.toLineMs ?? "-"} ms, first sound ${summary.toFirstAudioMs ?? "-"} ms, server ${JSON.stringify(latency.server)}`);
     }
   }, []);
 

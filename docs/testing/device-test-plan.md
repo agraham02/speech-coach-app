@@ -533,7 +533,7 @@ On the laptop first (no phone):
 The Partner voices lab (Dev → Labs → Partner voices):
 
 - [ ] **Hear the voices.** Play the three lines in each of the 14 voices at normal speed, on the speaker, then in AirPods. Rate each 1 to 5 for "would I listen to this for ten minutes?". Also play "Same line, phone's own voice".
-  Pass: at least two voices you'd rate 4 or more; none sounds robotic or tiring next to the phone's own voice.
+  Pass: at least two voices you'd rate 4 or more; none sounds robotic or tiring next to the phone's own voice; every line plays through without a gap mid-word or a cut-off last word (the voice streams in pieces).
   Data to send back: Copy results (the table and ratings), and a line on which voices sound like a person.
   Notes:
 - [ ] **Time to first sound for a line.** Ten plays of one voice on Wi-Fi, then ten on cellular (5G or LTE).
