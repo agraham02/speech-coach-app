@@ -20,7 +20,11 @@ export type ArtifactKind =
   | "cloud_usage"
   // What each kind of analysis did on this take, with its provenance
   // (services/analysis/store.ts).
-  | "analysis";
+  | "analysis"
+  // Present while a finished take's result hasn't been opened yet (the
+  // "ready" marker on Today); removed when the Result screen opens
+  // (services/pipeline/readyTakes.ts).
+  | "ready_unseen";
 
 export async function putArtifact(sessionId: string, kind: ArtifactKind, value: unknown, version = 1): Promise<void> {
   const db = await getDatabase();
@@ -76,4 +80,19 @@ export async function listArtifacts(sessionId: string): Promise<ArtifactInfo[]> 
     [sessionId],
   );
   return rows.map((r) => ({ kind: r.kind as ArtifactKind, version: r.version, bytes: r.bytes, createdAt: r.created_at }));
+}
+
+export async function deleteArtifact(sessionId: string, kind: ArtifactKind): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(`DELETE FROM session_artifacts WHERE session_id = ? AND kind = ?`, [sessionId, kind]);
+}
+
+// Live takes that have an artifact of this kind, newest first.
+export async function listSessionIdsWithArtifact(kind: ArtifactKind): Promise<string[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{ session_id: string }>(
+    `SELECT a.session_id FROM session_artifacts a JOIN sessions s ON s.id = a.session_id WHERE a.kind = ? AND s.deleted_at IS NULL ORDER BY s.recorded_at DESC`,
+    [kind],
+  );
+  return rows.map((r) => r.session_id);
 }

@@ -16,6 +16,7 @@ import { takePresenceTimeline } from "./presenceTimelineStore";
 import { clearDecodedAudio } from "./steps/decodedAudioCache";
 import { startEarlyUpload } from "./earlyUpload";
 import { runExclusive } from "./jobQueue";
+import { markReadyUnseen } from "./activeTakes";
 import { scheduleShrink } from "../data/videoShrink";
 import { beginRun, type RunHandle } from "../dev/deviceMetrics";
 import { settleRepProgress } from "../sessions/repProgress";
@@ -222,6 +223,8 @@ async function announceCompletion(sessionId: string, ranCloudReview: boolean): P
   if (!session || session.status !== "done") return;
 
   syncDailyReminder().catch(() => undefined);
+  // Not on screen: Today keeps a "ready" row until the result is opened.
+  if (!isViewingSession(sessionId)) markReadyUnseen(sessionId).catch(() => undefined);
   const scores = ranCloudReview ? await getScoresBySessionId(sessionId) : null;
   const title = scores ? "Deep review ready" : "Session ready";
   // The OS notification is personal; the in-app toast above keeps its short form.
