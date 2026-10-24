@@ -247,8 +247,6 @@ export interface CurriculumStateRow {
   changed_at: string;
   level: number;
   direction: string;
-  spontaneous_composite: number | null;
-  drill_composite: number | null;
   spontaneous_session_count: number;
   reason_code: string;
 }
@@ -259,8 +257,6 @@ export function rowToCurriculumState(row: CurriculumStateRow): CurriculumStateEn
     changedAt: row.changed_at,
     level: row.level,
     direction: row.direction,
-    spontaneousComposite: row.spontaneous_composite,
-    drillComposite: row.drill_composite,
     spontaneousSessionCount: row.spontaneous_session_count,
     reasonCode: row.reason_code,
   };

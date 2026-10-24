@@ -2,6 +2,38 @@
 
 What Ahmad decided, with the reason, so later sessions don't re-open it. Newest first. The research behind these is in `inference-strategy.md` and `../research/signal-capture.md`.
 
+## 2026-10-24: answers after sessions 06, 07 and 13 merged
+
+### What the AI judges from
+
+- **Tono AI judges from the phone's transcript and measurements by default.** One text call, about 0.35 cents a take, instead of sending the video. Video judging stays as a Dev setting. Quality of the two is compared later on real takes (device test plan), not argued now.
+- **Privacy rule change.** Measurements (pitch, loudness, pauses, face) feed the scores, and the phone's transcript is sent to the AI for text judging. For video reviews too: stop asking the cloud model to transcribe, because the on-device whisper.rn transcript is good now. Session 08 does this; it also saves output tokens.
+- **An AI-judged take counts as one of the monthly judged takes** (one take, one count). Session 08 fixes the wording on the save screen.
+
+### Scoring
+
+- **Skill weights: Cadence 30, Impromptu 45, Confidence 25.**
+- **Contextual fillers (like, actually) count at half weight** and are shown separately from um and uh. "Kind of" and "sort of" are hedges only, not fillers.
+- **Tone fit and Body language are shown but not totalled** into the skill scores.
+- **Fluency uses the phone's filler count**, not the AI's.
+- **Pitch range is scored from 8 voiced seconds and flagged low confidence under 20.** Under 8 there is no score. Face thresholds (expressiveness scale 600, looking-up cutoff 0.25) are first guesses, to be tuned from the Face Lab checks.
+
+### Models and deferred signals
+
+- **Native pitch and voice models (Silero, SwiftF0): wait.** ONNX Runtime and MediaPipe clash on iOS (824 shared symbols). Wait for the Voice Lab data, then convert to Core ML if a model is still needed.
+- **Deferred for now:** vocal fry, blink rate at the new detection rate, posture, gestures and sound events.
+
+### Storage and delete
+
+- **Analysed takes shrink to 720p ten minutes after analysis.** Quiet re-measuring runs at launch, 3 takes per launch.
+- **`deleted_at` stays as the pending-erase flag.** A deleted Rewind does not block tonight's Rewind prompt, but a deleted take still counts as practiced today. Remote delete is best effort, with no retry.
+
+### Business and housekeeping
+
+- **The free trial applies to both plans** (settles the open point under the 14-day trial below).
+- **Minors and Gemini terms:** session 08 reads the current terms text and proposes what to do. Unchanged from before.
+- **`react-native-gesture-handler` is kept.** The `tono-models` folder was deleted by Ahmad.
+
 ## 2026-10-23: after the first round of research (sessions 01 to 05)
 
 ### Architecture and business
@@ -33,7 +65,7 @@ What Ahmad decided, with the reason, so later sessions don't re-open it. Newest 
 - The prep Dynamic Island timer keeps running when you come back; only the notification is cancelled.
 - AirPods: recording uses the iPhone's mic, playback is full quality.
 - Recording keeps its no-auto-gain "measurement" mode.
-- Prep notifications should hide the prompt text on the lock screen for custom prompts. **Not built yet**: do it in the next session that touches notifications.
+- Prep notifications do **not** hide the prompt text on the lock screen (decided 2026-10-24, reversing the earlier plan). Custom prompt text is treated as normal in notifications; no extra work.
 - Path finale: Seneca quote kept; it doesn't replay if an update adds units.
 - Library: edge fade instead of a real blur; no skill filter; search runs in memory.
 - Rewind's saved audio is 16 kHz (checked in `rewindProcessor.ts`: `WAV_SAMPLE_RATE` is 16,000). Only the recognizer's in-between pieces are 48 kHz. The signal-capture research doc says Rewind is saved at 48 kHz; that is wrong. Moving Rewind to a compressed format is already in its storage plan (10.6).
