@@ -42,3 +42,7 @@ import_map = "./functions/deno.json"
 [functions.ai-converse]
 verify_jwt = false
 import_map = "./functions/deno.json"
+
+[functions.dev-override]
+verify_jwt = false
+import_map = "./functions/deno.json"

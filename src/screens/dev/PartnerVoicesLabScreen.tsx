@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import * as Speech from "expo-speech";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import type { RootStackParamList } from "../../navigation";
 import { Screen } from "../../components/common/Screen";
 import { Card } from "../../components/common/Card";
 import { Chip } from "../../components/common/Chip";
@@ -29,7 +31,7 @@ import { makeStyles } from "../../theme/ThemeProvider";
 const ALL_VOICES = [...PARTNER_VOICES, ...LAB_EXTRA_VOICES];
 const DEVICE = "Phone's own voice";
 
-export function PartnerVoicesLabScreen() {
+export function PartnerVoicesLabScreen({ navigation }: NativeStackScreenProps<RootStackParamList, "PartnerVoicesLab">) {
   const styles = useStyles();
   const showToast = useToast();
   const [voice, setVoice] = useState(ALL_VOICES[0].id);
@@ -85,6 +87,7 @@ export function PartnerVoicesLabScreen() {
       streamed: null,
     };
     let player: PartnerLinePlayer | null = null;
+    let chunks = 0;
     try {
       await new Promise<void>((resolve, reject) => {
         let finished = false;
@@ -111,14 +114,19 @@ export function PartnerVoicesLabScreen() {
                 });
                 playerRef.current = player;
               } else if (event.type === "audio") {
+                chunks += 1;
                 player?.push(event.pcm);
               } else if (event.type === "done") {
                 run.server = { llmMs: event.timing.llmMs, ttsFirstAudioMs: event.timing.ttsFirstAudioMs, totalMs: event.timing.totalMs };
                 run.audioSeconds = event.voice?.seconds ?? null;
                 run.streamed = event.voice?.streamed ?? null;
-                if (event.voice && player) player.finish();
+                run.chunks = chunks;
+                if (event.voice && player && chunks > 0) player.finish();
                 else {
-                  run.error = event.noVoice ?? "no voice";
+                  // The words came but no voice did: say why (the speech service's
+                  // own message), instead of ending in silence.
+                  run.error = [event.noVoice ?? "no voice", event.noVoiceDetail].filter(Boolean).join(": ");
+                  showToast(`No voice: ${run.error}`, "error");
                   end();
                 }
               } else if (event.type === "error") {
@@ -129,7 +137,8 @@ export function PartnerVoicesLabScreen() {
         ).catch(reject);
       });
     } catch (error) {
-      run.error = (error as Error)?.message ?? String(error);
+      const code = (error as { code?: string })?.code;
+      run.error = [code, (error as Error)?.message].filter((part, i, all) => part && all.indexOf(part) === i).join(": ") || String(error);
       showToast(`Failed: ${run.error}`, "error");
     } finally {
       save(run);
@@ -200,7 +209,7 @@ export function PartnerVoicesLabScreen() {
   const ms = (v: number | null | undefined) => (v == null ? "-" : `${Math.round(v)} ms`);
 
   return (
-    <Screen eyebrow="Dev" title="Partner voices">
+    <Screen eyebrow="Dev" title="Partner voices" onBack={navigation.goBack}>
       <Card style={styles.card}>
         <Txt variant="footnote" tone="secondary">
           Each play is a real Tono AI call and uses a few seconds of conversation minutes. Try the speaker and AirPods. Pass: a voice you'd happily hear for ten
@@ -261,7 +270,7 @@ export function PartnerVoicesLabScreen() {
               `${last.kind} · ${last.voice} · ${last.speed}× · ${last.session}`,
               `words ${ms(last.toLineMs)} · first sound ${ms(last.toFirstSoundMs)} · total ${ms(last.totalMs)}`,
               `server: llm ${ms(last.server?.llmMs)} · tts first audio ${ms(last.server?.ttsFirstAudioMs)} · total ${ms(last.server?.totalMs)}`,
-              `audio ${last.audioSeconds ?? "-"} s · streamed ${last.streamed ?? "-"}${last.error ? ` · error ${last.error}` : ""}`,
+              `audio ${last.audioSeconds ?? "-"} s · pieces ${last.chunks ?? "-"} · streamed ${last.streamed ?? "-"}${last.error ? ` · error ${last.error}` : ""}`,
               last.line,
             ].join("\n")}
           </Mono>

@@ -22,21 +22,38 @@ export type Obstacle =
 export type EventKind = "interview" | "talk" | "toast" | "pitch" | "date" | "other";
 export type PracticePlace = "private" | "car" | "shared" | "walking";
 
-// The age question in onboarding. Ranges, not a birthday: only "under 18 or
-// not" changes anything (whether Tono AI may be used: the Gemini API terms
-// ask for 18 or older; docs/decisions/tiers-and-trial.md). "unsaid" never
-// blocks anything.
-export type AgeRange = "under_13" | "13_17" | "18_24" | "25_34" | "35_49" | "50_plus" | "unsaid";
+// The birthday: asked in onboarding (and again at the Tono AI sign-in when
+// it was skipped), kept on this phone only. A birthday rather than an age
+// range because the only thing that changes anything is "18 or older" (the
+// Gemini API terms ask for 18+; docs/decisions/tiers-and-trial.md), and that
+// has to flip by itself on the day someone turns 18.
 
-// True for 18 or older, false under 18, null when it wasn't answered.
-export function isAdultFromAge(range: AgeRange | undefined | null): boolean | null {
-  if (!range || range === "unsaid") return null;
-  return range !== "under_13" && range !== "13_17";
+// True for 18 or older on `today`, false under 18, null when there is no
+// (valid) birthday. Both are YYYY-MM-DD; compared as numbers so no time zone
+// can move a birthday by a day.
+export const ADULT_AGE = 18;
+
+export function isAdultFromBirthDate(birthDate: string | undefined | null, today: string): boolean | null {
+  const born = parseISODate(birthDate);
+  const now = parseISODate(today);
+  if (!born || !now) return null;
+  if (born.y * 10_000 + born.m * 100 + born.d > now.y * 10_000 + now.m * 100 + now.d) return null;
+  const turns18 = born.y + ADULT_AGE;
+  return now.y > turns18 || (now.y === turns18 && (now.m > born.m || (now.m === born.m && now.d >= born.d)));
+}
+
+function parseISODate(value: string | undefined | null): { y: number; m: number; d: number } | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value ?? "");
+  if (!match) return null;
+  const [y, m, d] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+  return { y, m, d };
 }
 
 export interface UserProfile {
   name?: string;
-  ageRange?: AgeRange;
+  // YYYY-MM-DD. See isAdultFromBirthDate.
+  birthDate?: string;
   contexts: SpeakingContext[];
   obstacles: Obstacle[];
   // Legacy: the one event onboarding used to keep here. Events live in the

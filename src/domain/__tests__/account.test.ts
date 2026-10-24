@@ -1,7 +1,6 @@
 import type { TonoAllowance } from "../aiAllowance";
 import {
   ALL_ALLOWED,
-  isLinked,
   parseAccountCache,
   providerFromAuth,
   serializeAccountCache,
@@ -15,7 +14,6 @@ const allowance: TonoAllowance = { plan: "free", tier: "free", takesLeft: 1, tak
 const signedIn: AccountSnapshot = {
   status: "signedIn",
   userId: "u1",
-  anonymous: false,
   provider: "apple",
   email: "me@example.com",
   allowance,
@@ -25,12 +23,10 @@ const signedIn: AccountSnapshot = {
   plusPurchasable: true,
   minorsMayUseAi: false,
 };
-const anonymous: AccountSnapshot = { ...signedIn, anonymous: true, provider: null, email: null };
 
 describe("account cache", () => {
-  it("round trips a signed-in account, and the anonymous one", () => {
+  it("round trips a signed-in account", () => {
     expect(parseAccountCache(serializeAccountCache(signedIn))).toEqual(signedIn);
-    expect(parseAccountCache(serializeAccountCache(anonymous))).toEqual(anonymous);
   });
 
   it("keeps nothing for a signed-out account", () => {
@@ -46,7 +42,7 @@ describe("account cache", () => {
 
   it("repairs odd fields instead of trusting them", () => {
     const parsed = parseAccountCache(JSON.stringify({ status: "signedIn", userId: "u", provider: "facebook", allowance: { takesLeft: "many" }, allowed: { take: false } }));
-    expect(parsed).toMatchObject({ provider: null, allowance: null, allowed: { take: false, text: true, insight: true }, anonymous: false, minorsMayUseAi: false });
+    expect(parsed).toMatchObject({ provider: null, allowance: null, allowed: { take: false, text: true, insight: true }, minorsMayUseAi: false });
   });
 });
 
@@ -75,10 +71,7 @@ describe("signedInLabel", () => {
     expect(signedInLabel({ ...signedIn, email: null, provider: null })).toBe("Signed in");
   });
 
-  it("says nothing is linked for the behind-the-scenes account", () => {
-    expect(signedInLabel(anonymous)).toBe("Not signed in");
+  it("says nobody is signed in when nobody is", () => {
     expect(signedInLabel(SIGNED_OUT)).toBe("Not signed in");
-    expect(isLinked(anonymous)).toBe(false);
-    expect(isLinked(signedIn)).toBe(true);
   });
 });

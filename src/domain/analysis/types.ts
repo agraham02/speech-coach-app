@@ -44,7 +44,7 @@ export interface Provenance {
 // Why a result isn't there.
 export type Unavailable =
   | "not_entitled" // the kind needs Plus or the trial
-  | "signed_out" // no account could be made or used (rare: one is made on demand)
+  | "signed_out" // not signed in: Tono AI needs an account (Apple or Google)
   | "no_consent"
   | "opted_out" // switched off for this take
   | "offline" // no connection; a take review is retried when back online
@@ -80,9 +80,13 @@ export interface AnalysisContext {
     // `conversation` absent: assumed allowed (the server has the final say).
     allowed: { take: boolean; text: boolean; insight: boolean; conversation?: boolean };
     killSwitch: boolean;
+    // Signed in with Apple or Google. Absent: assumed (callers that don't
+    // know never block on it; the server has the final say).
+    signedIn?: boolean;
   };
-  // From the age question in onboarding: false for under 18, null when it
-  // wasn't answered (nobody is blocked on a guess).
+  // From the birthday (onboarding, or the Tono AI sign-in): false for under
+  // 18, null when there is none. Signing in for Tono AI asks for it, so an
+  // account always has one.
   isAdult: boolean | null;
   // The server's policy for under-18s (config.minorsMayUseAi).
   minorsMayUseAi: boolean;

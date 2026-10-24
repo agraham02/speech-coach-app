@@ -1,5 +1,5 @@
 import { acceptJudgedReview, annotationCategoryFor } from "../analysis/judgedReview";
-import { isAdultFromAge } from "../profile";
+import { isAdultFromBirthDate } from "../profile";
 
 const sub = (score: number) => ({ score, notes: "Grounded note.", evidence: "keep going" });
 const TRANSCRIPT = "um so my point is simple, start small and keep going";
@@ -71,13 +71,20 @@ describe("acceptJudgedReview", () => {
   });
 });
 
-describe("isAdultFromAge", () => {
-  it("is false under 18, true from 18, and unknown when not answered", () => {
-    expect(isAdultFromAge("under_13")).toBe(false);
-    expect(isAdultFromAge("13_17")).toBe(false);
-    expect(isAdultFromAge("18_24")).toBe(true);
-    expect(isAdultFromAge("50_plus")).toBe(true);
-    expect(isAdultFromAge("unsaid")).toBeNull();
-    expect(isAdultFromAge(undefined)).toBeNull();
+describe("isAdultFromBirthDate", () => {
+  it("is false under 18, true from the 18th birthday, and unknown without a birthday", () => {
+    expect(isAdultFromBirthDate("2010-03-04", "2026-10-24")).toBe(false);
+    expect(isAdultFromBirthDate("2000-03-04", "2026-10-24")).toBe(true);
+    expect(isAdultFromBirthDate(undefined, "2026-10-24")).toBeNull();
+    expect(isAdultFromBirthDate("not a date", "2026-10-24")).toBeNull();
+    expect(isAdultFromBirthDate("2030-01-01", "2026-10-24")).toBeNull();
+  });
+
+  it("flips on the 18th birthday itself, so someone who turns 18 is let in without being asked again", () => {
+    expect(isAdultFromBirthDate("2008-10-25", "2026-10-24")).toBe(false);
+    expect(isAdultFromBirthDate("2008-10-25", "2026-10-25")).toBe(true);
+    expect(isAdultFromBirthDate("2008-10-25", "2027-01-01")).toBe(true);
+    expect(isAdultFromBirthDate("2008-12-31", "2026-12-31")).toBe(true);
+    expect(isAdultFromBirthDate("2008-12-31", "2026-12-30")).toBe(false);
   });
 });

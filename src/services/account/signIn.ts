@@ -4,16 +4,13 @@ import * as WebBrowser from "expo-web-browser";
 import { logger } from "../../utils/logger";
 import { setTonoConsent } from "../prefs/prefsStore";
 import { tonoAppleToken, tonoDeleteAccount } from "../tono/tonoApi";
-import { clearAccount, getAccount, refreshAccount } from "./accountStore";
+import { clearAccount, refreshAccount } from "./accountStore";
 import { parseAuthCallback } from "./oauthCallback";
 import { getSupabase } from "./supabaseClient";
 
-// Signing in is optional: nobody needs it to practice, to try Tono AI or to
-// buy Plus (an anonymous account does that behind the scenes). It is for
-// keeping Plus and the account on another phone. When this phone already has
-// the anonymous account, signing in LINKS Apple or Google to it, so nothing
-// is lost. If that Apple or Google sign-in already belongs to another Tono
-// account (made on another phone), this phone switches to that account.
+// Signing in is how Tono AI and Tono Plus know whose allowance is whose, and
+// it is how Plus follows someone to another phone. It is never needed to
+// practice. There are no anonymous accounts: this is the only way in.
 //
 // Apple is native (expo-apple-authentication); Google opens Supabase's
 // sign-in in the system browser sheet and comes back by deep link. Both keep
@@ -57,9 +54,7 @@ export async function signInWithApple(): Promise<SignInResult> {
 
   const auth = getSupabase().auth;
   const credentials = { provider: "apple" as const, token: credential.identityToken, nonce: raw };
-  let { error } = getAccount().anonymous ? await auth.linkIdentity(credentials) : await auth.signInWithIdToken(credentials);
-  // Already someone's Tono account (another phone): use that one instead.
-  if (error && isIdentityTaken(error)) ({ error } = await auth.signInWithIdToken(credentials));
+  const { error } = await auth.signInWithIdToken(credentials);
   if (error) {
     logger.warn(`[account] Apple sign-in rejected — ${error.message}`);
     throw new SignInError("Tono couldn't verify that Apple sign-in. Try again.");
@@ -74,33 +69,15 @@ export async function signInWithApple(): Promise<SignInResult> {
   return "signedIn";
 }
 
-function isIdentityTaken(error: { code?: string; message?: string }): boolean {
-  return error.code === "identity_already_exists" || /already (linked|exists)/i.test(error.message ?? "");
-}
-
 export async function signInWithGoogle(): Promise<SignInResult> {
   const auth = getSupabase().auth;
-  const options = { provider: "google" as const, options: { redirectTo: AUTH_REDIRECT, skipBrowserRedirect: true } };
-  const link = getAccount().anonymous;
-  const { data, error } = link ? await auth.linkIdentity(options) : await auth.signInWithOAuth(options);
+  const { data, error } = await auth.signInWithOAuth({ provider: "google", options: { redirectTo: AUTH_REDIRECT, skipBrowserRedirect: true } });
   if (error || !data?.url) throw new SignInError("Couldn't start the Google sign-in. Try again.");
 
   const result = await WebBrowser.openAuthSessionAsync(data.url, AUTH_REDIRECT);
   if (result.type !== "success") return "cancelled";
 
   const callback = parseAuthCallback(result.url);
-  // Linking failed because this Google account is already someone's Tono
-  // account: sign in to that one instead.
-  if (link && callback.error && /already|exists/i.test(callback.error)) {
-    const again = await auth.signInWithOAuth(options);
-    if (again.error || !again.data?.url) throw new SignInError("Couldn't start the Google sign-in. Try again.");
-    const second = await WebBrowser.openAuthSessionAsync(again.data.url, AUTH_REDIRECT);
-    if (second.type !== "success") return "cancelled";
-    const code = parseAuthCallback(second.url).code;
-    if (!code || (await auth.exchangeCodeForSession(code)).error) throw new SignInError("Tono couldn't finish the Google sign-in. Try again.");
-    void refreshAccount();
-    return "signedIn";
-  }
   if (callback.error) {
     logger.warn(`[account] Google sign-in returned an error — ${callback.error}`);
     throw new SignInError("Google didn't complete the sign-in. Try again.");

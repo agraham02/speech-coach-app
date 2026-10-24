@@ -23,8 +23,8 @@ type Props = NativeStackScreenProps<RootStackParamList, "Paywall">;
 // Tono Plus: what it adds, the two plans at the store's own prices, the free
 // trial when the App Store says this Apple ID can still have it, and, right
 // by the button, what App Review needs shown (trial length, price after it,
-// that it renews, how to stop it, Restore, Terms and Privacy). No sign-in:
-// the purchase belongs to the Tono account made behind the scenes.
+// that it renews, how to stop it, Restore, Terms and Privacy). Subscribing
+// asks for a sign-in first: the purchase belongs to the Tono account.
 export function PaywallScreen({ navigation }: Props) {
   const styles = useStyles();
   const showToast = useToast();
@@ -185,7 +185,7 @@ export function PaywallScreen({ navigation }: Props) {
         </Txt>
       )}
       <Txt variant="footnote" tone="secondary">
-        No account needed. To keep Plus on another phone, you can sign in with Apple or Google later in Settings.
+        Tono Plus belongs to your Tono account (Apple or Google sign-in), so it follows you to a new phone. You're asked to sign in when you subscribe.
       </Txt>
     </Screen>
   );

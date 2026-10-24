@@ -2,9 +2,12 @@ import { ALL_ALLOWED, SIGNED_OUT, type AccountSnapshot } from "../../../domain/a
 import type { TonoAllowance } from "../../../domain/aiAllowance";
 import { routeAnalysis } from "../../../domain/analysis/routing";
 import type { AnalysisKind } from "../../../domain/analysis/types";
-import type { AgeRange } from "../../../domain/profile";
 
-let mockPrefs = { cloudReviewOn: true, consent: true, judgeInput: "text", ageRange: undefined as AgeRange | undefined };
+// Birthdays relative to today, so the tests don't age.
+const yearsAgo = (years: number) => `${new Date().getFullYear() - years}-01-01`;
+const ADULT = yearsAgo(30);
+
+let mockPrefs = { cloudReviewOn: true, consent: true, judgeInput: "text", birthDate: undefined as string | undefined };
 let mockAccount: AccountSnapshot = SIGNED_OUT;
 const mockRefresh = jest.fn(async () => undefined);
 
@@ -12,7 +15,7 @@ jest.mock("../../prefs/prefsStore", () => ({
   getCloudReviewDefault: () => mockPrefs.cloudReviewOn,
   hasTonoConsent: () => mockPrefs.consent,
   getJudgeInput: () => mockPrefs.judgeInput,
-  getUserProfile: () => ({ contexts: [], obstacles: [], startedAt: "2026-10-01", ageRange: mockPrefs.ageRange }),
+  getUserProfile: () => ({ contexts: [], obstacles: [], startedAt: "2026-10-01", birthDate: mockPrefs.birthDate }),
 }));
 jest.mock("../../account/accountStore", () => ({ getAccount: () => mockAccount, refreshAccount: () => mockRefresh() }));
 
@@ -23,7 +26,6 @@ const freeTake: TonoAllowance = { plan: "free", tier: "free", takesLeft: 1, take
 const account = (patch: Partial<AccountSnapshot> = {}): AccountSnapshot => ({
   status: "signedIn",
   userId: "u1",
-  anonymous: true,
   provider: null,
   email: null,
   allowance: freeTake,
@@ -36,7 +38,7 @@ const account = (patch: Partial<AccountSnapshot> = {}): AccountSnapshot => ({
 });
 
 beforeEach(() => {
-  mockPrefs = { cloudReviewOn: true, consent: true, judgeInput: "text", ageRange: "25_34" };
+  mockPrefs = { cloudReviewOn: true, consent: true, judgeInput: "text", birthDate: ADULT };
   mockAccount = account();
   mockRefresh.mockClear();
 });
@@ -49,11 +51,11 @@ describe("the route, from the live facts", () => {
     expect(await route("take_review")).toMatchObject({ producers: ["tono_ai"], tonoInput: "text" });
   });
 
-  it("works before any account exists: one is made when the call is made", async () => {
+  it("needs a sign-in: signed out, the take stays measured on the phone", async () => {
     mockAccount = SIGNED_OUT;
     const ctx = await analysisContext(take);
     expect(ctx.tier).toBe("free");
-    expect(routeAnalysis("take_review", ctx).producers).toEqual(["tono_ai"]);
+    expect(routeAnalysis("take_review", ctx)).toMatchObject({ producers: [], blocked: "signed_out" });
   });
 
   it("sends the video when that's the setting, or when there's no transcript", async () => {
@@ -89,24 +91,31 @@ describe("the route, from the live facts", () => {
   });
 });
 
-describe("the age answer", () => {
+describe("the birthday", () => {
   it("keeps Tono AI off for under-18s by the server's policy", async () => {
-    for (const ageRange of ["under_13", "13_17"] as const) {
-      mockPrefs.ageRange = ageRange;
+    for (const birthDate of [yearsAgo(10), yearsAgo(15), yearsAgo(17) + ""]) {
+      mockPrefs.birthDate = birthDate === yearsAgo(17) ? `${new Date().getFullYear() - 17}-12-31` : birthDate;
       expect((await route("take_review")).blocked).toBe("age_gate");
       expect(tonoAgeGated()).toBe(true);
     }
   });
 
-  it("lets the server open it to minors, and never blocks an unanswered question", async () => {
-    mockPrefs.ageRange = "13_17";
+  it("opens by itself on the 18th birthday, with nothing asked again", async () => {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const today = `${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    mockPrefs.birthDate = `${now.getFullYear() - 18}-${today}`;
+    expect(tonoAgeGated()).toBe(false);
+    expect((await route("take_review")).producers).toEqual(["tono_ai"]);
+  });
+
+  it("lets the server open it to minors, and never calls a missing birthday 'under 18' (the sign-in asks for it)", async () => {
+    mockPrefs.birthDate = yearsAgo(15);
     mockAccount = account({ minorsMayUseAi: true });
     expect((await route("take_review")).producers).toEqual(["tono_ai"]);
     mockAccount = account();
-    for (const ageRange of [undefined, "unsaid"] as const) {
-      mockPrefs.ageRange = ageRange;
-      expect((await route("take_review")).producers).toEqual(["tono_ai"]);
-    }
+    mockPrefs.birthDate = undefined;
+    expect(tonoAgeGated()).toBe(false);
   });
 });
 
@@ -116,8 +125,9 @@ describe("whyNotJudged", () => {
     expect(whyNotJudged("age_gate")).toMatch(/18 and over/);
     mockAccount = account({ allowance: { ...freeTake, takesLeft: 0 } });
     expect(whyNotJudged("quota")).toMatch(/next one comes on 1 December/);
-    for (const reason of ["no_consent", "quota", "offline", "signed_out", "kill_switch"] as const) {
+    for (const reason of ["no_consent", "quota", "offline", "kill_switch"] as const) {
       expect(whyNotJudged(reason)).not.toMatch(/own key|API key|sign in/i);
     }
+    expect(whyNotJudged("signed_out")).toMatch(/sign in/i);
   });
 });

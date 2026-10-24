@@ -4,15 +4,14 @@ import type { TonoAllowance } from "./aiAllowance";
 // so screens can subscribe to it and the pipeline can read it without awaiting
 // anything. Pure: services/account/accountStore.ts owns the storage.
 //
-// Nobody has to sign in. The free path needs no account at all. The first
-// time Tono AI or a purchase needs one, the app makes an anonymous account
-// behind the scenes (Supabase anonymous sign-in, linked to RevenueCat), so a
-// trial or a purchase never asks anyone to register. Signing in with Apple or
-// Google is optional and links that same account, so Plus can follow the
-// person to another phone.
+// Nobody needs an account to practice: the measured layer, the lessons and
+// the drills all work offline and signed out. Tono AI (the judged layer and
+// the live conversation) and Tono Plus need one, made by signing in with Apple
+// or Google. That account's id is also the RevenueCat app user id, so Plus
+// follows the person to another phone.
 
 export type AccountProvider = "apple" | "google";
-// "signedIn" means there is a session, anonymous or linked.
+// "signedIn" means signed in with Apple or Google.
 export type AccountStatus = "unknown" | "signedOut" | "signedIn";
 
 // Which kinds of call the server would accept right now (from its `me`).
@@ -28,9 +27,7 @@ export interface AccountSnapshot {
   // "unknown" only until the stored session has been read at launch.
   status: AccountStatus;
   userId: string | null;
-  // True for the behind-the-scenes account nobody signed in to.
-  anonymous: boolean;
-  // The sign-in linked to it, when there is one.
+  // How they signed in.
   provider: AccountProvider | null;
   email: string | null;
   allowance: TonoAllowance | null;
@@ -50,7 +47,6 @@ export const ALL_ALLOWED: AccountAllowed = { take: true, text: true, insight: tr
 export const SIGNED_OUT: AccountSnapshot = {
   status: "signedOut",
   userId: null,
-  anonymous: false,
   provider: null,
   email: null,
   allowance: null,
@@ -94,7 +90,6 @@ export function parseAccountCache(raw: string | null | undefined): AccountSnapsh
     return {
       status: "signedIn",
       userId: v.userId,
-      anonymous: v.anonymous === true,
       provider: providerFromAuth(v.provider),
       email: typeof v.email === "string" ? v.email : null,
       allowance: isAllowance(v.allowance) ? v.allowance : null,
@@ -126,15 +121,10 @@ export function withAllowance(a: AccountSnapshot, allowance: TonoAllowance): Acc
   return { ...a, allowance, allowed: { ...a.allowed, take: allowance.takesLeft > 0, conversation } };
 }
 
-// A short line for Settings: who this is, or that nothing is linked.
+// A short line for Settings: who this is, or that nobody is signed in.
 export function signedInLabel(a: AccountSnapshot): string {
-  if (a.status !== "signedIn" || a.anonymous) return "Not signed in";
+  if (a.status !== "signedIn") return "Not signed in";
   const via = a.provider === "apple" ? "Apple" : a.provider === "google" ? "Google" : null;
   if (a.email && !/privaterelay\.appleid\.com$/i.test(a.email)) return a.email;
   return via ? `Signed in with ${via}` : "Signed in";
-}
-
-// Signed in with Apple or Google (not just the anonymous account).
-export function isLinked(a: AccountSnapshot): boolean {
-  return a.status === "signedIn" && !a.anonymous;
 }

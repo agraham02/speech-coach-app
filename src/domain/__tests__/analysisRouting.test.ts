@@ -18,6 +18,13 @@ const tono = (patch: Partial<AnalysisContext["tono"]>) => ({ ...ctx().tono, ...p
 const EXERCISES: AnalysisKind[] = ["rewind_notes", "word_chain", "bridge_chain", "summary_notes"];
 
 describe("routeAnalysis", () => {
+  it("needs a sign-in for Tono AI, and keeps the measured layer either way", () => {
+    expect(routeAnalysis("take_review", ctx({ tono: tono({ signedIn: false }) }))).toMatchObject({ producers: [], blocked: "signed_out" });
+    expect(routeAnalysis("take_review", ctx({ tono: tono({ signedIn: true }) })).producers).toEqual(["tono_ai"]);
+    // Callers that don't know (the field is absent) never block on it.
+    expect(routeAnalysis("take_review", ctx()).producers).toEqual(["tono_ai"]);
+  });
+
   it("sends a take review to Tono AI, from the transcript and measurements by default", () => {
     expect(routeAnalysis("take_review", ctx())).toEqual({ producers: ["tono_ai"], blocked: null, tonoInput: "text" });
   });

@@ -81,7 +81,14 @@ async function readSnapshot(sql: Sql | Tx, userId: string, now: Date): Promise<S
   const rows = (await sql`
     select * from public.usage_snapshot(${userId}, ${utcMonthStart(now)}, ${utcDayStart(now)})
   `) as unknown as SnapshotRow[];
-  return rows.length ? toSnapshot(rows[0]) : null;
+  if (!rows.length) return null;
+  const result = toSnapshot(rows[0]);
+  // The developer's testing switch (migration 20261025000000).
+  const override = (await sql`
+    select dev_override_until is not null and dev_override_until > now() as on from public.accounts where user_id = ${userId}
+  `) as unknown as { on: boolean }[];
+  if (override[0]?.on) result.snapshot.devOverride = true;
+  return result;
 }
 
 // Read-only (no lock, no reservation): for pages and checks that only need to

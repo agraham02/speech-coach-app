@@ -42,8 +42,9 @@ export function tonoInputFor(ctx: AnalysisContext): "text" | "video" | null {
   return null;
 }
 
-// Under 18, and the server's policy keeps Tono AI off for minors. An
-// unanswered age question never blocks anyone.
+// Under 18, and the server's policy keeps Tono AI off for minors. With no
+// birthday this does not say "under 18": the sign-in for Tono AI is where a
+// missing birthday is asked for, so nobody is told they are too young on a guess.
 export function ageGated(ctx: Pick<AnalysisContext, "isAdult" | "minorsMayUseAi">): boolean {
   return ctx.isAdult === false && !ctx.minorsMayUseAi;
 }
@@ -51,6 +52,8 @@ export function ageGated(ctx: Pick<AnalysisContext, "isAdult" | "minorsMayUseAi"
 function tonoBlock(kind: AnalysisKind, ctx: AnalysisContext): Unavailable | null {
   if (ctx.tono.killSwitch) return "kill_switch";
   if (ageGated(ctx)) return "age_gate";
+  // Tono AI is for people with an account (Apple or Google sign-in).
+  if (ctx.tono.signedIn === false) return "signed_out";
   // Exercise notes and mark-ups are Plus (and trial, and beta) features.
   if (kind !== "take_review" && ctx.tier === "free") return "not_entitled";
   if (!ctx.tono.consent) return "no_consent";
@@ -112,6 +115,7 @@ export function liveConversationGate(
 ): { open: true } | { open: false; reason: Unavailable; locked: boolean } {
   if (ctx.tono.killSwitch) return { open: false, reason: "kill_switch", locked: false };
   if (ageGated(ctx)) return { open: false, reason: "age_gate", locked: false };
+  if (ctx.tono.signedIn === false) return { open: false, reason: "signed_out", locked: false };
   const paying = ctx.tier === "plus" || ctx.tier === "trial";
   // A free account has no minutes unless the server says it has (a sample).
   const hasMinutes = minutes.total == null ? ctx.tier !== "free" : minutes.total > 0;

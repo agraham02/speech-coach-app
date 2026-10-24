@@ -2,10 +2,11 @@ import { Alert } from "react-native";
 import { conversationMinutesLine } from "../../domain/aiAllowance";
 import { liveConversationGate } from "../../domain/analysis/routing";
 import type { Unavailable } from "../../domain/analysis/types";
-import { isAdultFromAge } from "../../domain/profile";
-import { ensureAccount, getAccount, refreshAccount } from "../account/accountStore";
+import { getAccount, refreshAccount } from "../account/accountStore";
+import { askToSignIn } from "../account/signInGate";
 import { askTonoConsent } from "../cloud/consent";
-import { getUserProfile, hasTonoConsent } from "../prefs/prefsStore";
+import { hasTonoConsent } from "../prefs/prefsStore";
+import { isAdultNow } from "../cloud/routing";
 
 // Whether the live conversation can run for this person, from what the phone
 // already knows (no server call), and the one place that asks in the moment
@@ -16,6 +17,8 @@ export type LiveGate = { open: true } | { open: false; reason: Unavailable; lock
 export function liveGateNow(): LiveGate {
   const account = getAccount();
   const a = account.allowance;
+  // Signed-out is not a closed gate here: the screen shows the lesson's way
+  // in as usual and starting asks for the sign-in (readyForLiveConversation).
   // Before there is an account the tier isn't known; in beta mode (TestFlight)
   // a tester has minutes without Plus, so the screen lets them try and the
   // start button finds out.
@@ -24,7 +27,7 @@ export function liveGateNow(): LiveGate {
     {
       tier,
       tono: { consent: hasTonoConsent(), allowed: account.allowed, killSwitch: account.killSwitch },
-      isAdult: isAdultFromAge(getUserProfile()?.ageRange),
+      isAdult: isAdultNow(),
       minorsMayUseAi: account.minorsMayUseAi,
     },
     { total: a?.conversationMinutesTotal ?? null, left: a?.conversationMinutesLeft ?? null },
@@ -37,6 +40,8 @@ export function whyNoLiveConversation(reason: Unavailable): string {
   switch (reason) {
     case "age_gate":
       return "Live conversation uses Tono AI, which is for 18 and over. The drills in this lesson work as always.";
+    case "signed_out":
+      return "Live conversation needs a Tono account. Sign in to try it. The drills in this lesson work without one.";
     case "kill_switch":
       return "Live conversation is switched off for a moment. Try again soon.";
     case "quota":
@@ -48,18 +53,14 @@ export function whyNoLiveConversation(reason: Unavailable): string {
   }
 }
 
-// Before starting: make sure there's an account (made behind the scenes),
-// the minutes are current, and Tono AI is allowed. Resolves true to go ahead.
+// Before starting: make sure there's an account and a birthday (asked for in
+// the moment), the minutes are current, and Tono AI is allowed. Resolves with
+// the gate; open means go ahead.
 export async function readyForLiveConversation(): Promise<LiveGate> {
-  if (getAccount().status !== "signedIn") {
-    try {
-      await ensureAccount();
-    } catch {
-      return { open: false, reason: "offline", locked: false };
-    }
-  } else {
-    await refreshAccount().catch(() => undefined);
+  if (!(await askToSignIn("conversation"))) {
+    return liveGateNow().open ? { open: false, reason: "signed_out", locked: false } : liveGateNow();
   }
+  await refreshAccount().catch(() => undefined);
   const gate = liveGateNow();
   if (gate.open) return gate;
   if (gate.reason !== "no_consent") return gate;

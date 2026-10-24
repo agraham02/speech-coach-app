@@ -24,13 +24,14 @@ const mockRefresh = jest.fn();
 const mockEnsure = jest.fn();
 jest.mock("../../account/accountStore", () => ({
   getAccount: () => mockAccount,
-  ensureAccount: () => mockEnsure(),
   refreshAccount: (...a: unknown[]) => mockRefresh(...a),
   subscribeAccount: (l: () => void) => {
     mockListener = l;
     return () => undefined;
   },
 }));
+
+jest.mock("../../account/signInGate", () => ({ askToSignIn: (...a: unknown[]) => mockEnsure(...a) }));
 
 import { buyPlus, initPurchases, loadPlusOffer, purchasesEnabled, restorePlus, type PlusOffer } from "../purchases";
 import type { PlusPlan } from "../../../domain/plus";
@@ -45,7 +46,7 @@ beforeEach(() => {
   Object.values(mockSdk).forEach((f) => f.mockReset());
   mockRefresh.mockReset();
   mockEnsure.mockReset();
-  mockEnsure.mockResolvedValue(undefined);
+  mockEnsure.mockResolvedValue(true);
   mockSdk.checkTrialOrIntroductoryPriceEligibility.mockResolvedValue({});
   mockAccount = { status: "signedIn", userId: "user-1", allowance: { plan: "free" } };
   mockSdk.logIn.mockResolvedValue({});
@@ -138,7 +139,7 @@ describe("buyPlus", () => {
     await expect(buyPlus(ANNUAL, offer())).resolves.toMatchObject({ ok: false, cancelled: false, message: expect.stringMatching(/connection/) });
   });
 
-  it("needs no sign-in: it makes the account behind the scenes first", async () => {
+  it("asks for the sign-in first, since a purchase belongs to an account", async () => {
     mockSdk.purchasePackage.mockResolvedValue({});
     mockRefresh.mockImplementation(async () => {
       mockAccount = { ...mockAccount, allowance: { plan: "trial" } };
@@ -147,7 +148,13 @@ describe("buyPlus", () => {
     expect(mockEnsure).toHaveBeenCalled();
   });
 
-  it("says so plainly when the account can't be made (offline)", async () => {
+  it("is a plain cancel when the sign-in is closed, and charges nothing", async () => {
+    mockEnsure.mockResolvedValue(false);
+    await expect(buyPlus(ANNUAL, offer())).resolves.toEqual({ ok: false, cancelled: true });
+    expect(mockSdk.purchasePackage).not.toHaveBeenCalled();
+  });
+
+  it("says so plainly when the sign-in itself fails (offline)", async () => {
     mockEnsure.mockRejectedValue(new Error("offline"));
     await expect(buyPlus(ANNUAL, offer())).resolves.toMatchObject({ ok: false, cancelled: false, message: expect.stringMatching(/connection/) });
     expect(mockSdk.purchasePackage).not.toHaveBeenCalled();

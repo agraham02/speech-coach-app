@@ -3,16 +3,18 @@ import type { PurchasesPackage } from "react-native-purchases";
 import { REVENUECAT_IOS_KEY } from "../../config/backend";
 import { plansFromPackages, purchaseFailure, type PlusPlan } from "../../domain/plus";
 import { logger } from "../../utils/logger";
-import { ensureAccount, getAccount, refreshAccount, subscribeAccount } from "../account/accountStore";
+import { getAccount, refreshAccount, subscribeAccount } from "../account/accountStore";
+import { askToSignIn } from "../account/signInGate";
 
 // Tono Plus purchases through RevenueCat, on iPhone. RevenueCat talks to the
 // App Store; the server learns the result from RevenueCat (webhook and the
 // `me` refresh) and is the only thing that decides what Plus allows. This file
 // never decides the plan: it buys, then asks the server what the person has.
 //
-// No sign-in is needed to buy: the purchase belongs to the anonymous Tono
-// account made behind the scenes (its id is the RevenueCat app user id), so
-// App Review never sees registration before a purchase (guideline 5.1.1(v)).
+// Buying needs a Tono account (Apple or Google sign-in): the purchase belongs
+// to it (its id is the RevenueCat app user id), so Plus follows the person to
+// another phone. Plus is the account-based feature (guideline 5.1.1(v)); the
+// free app asks for nothing.
 // The 14-day trial is Apple's introductory offer on both plans; Apple allows
 // one per Apple ID per subscription group, so a new Tono account or a
 // reinstall doesn't bring a second trial.
@@ -79,10 +81,14 @@ export function initPurchases(): void {
   subscribeAccount(follow);
 }
 
-// The account the purchase belongs to (made anonymously when there's none),
-// with RevenueCat logged in as it.
+// Thrown when the person closes the sign-in without signing in.
+class SignInDeclined extends Error {}
+
+// The account the purchase belongs to, with RevenueCat logged in as it. A
+// purchase needs one, so the sign-in is asked for here (with the birthday, as
+// Plus is for 18 and over).
 async function readyAccount(): Promise<void> {
-  await ensureAccount();
+  if (!(await askToSignIn("plus"))) throw new SignInDeclined();
   follow();
   await login;
 }
@@ -135,7 +141,8 @@ export async function buyPlus(plan: PlusPlan, offer: PlusOffer): Promise<Purchas
   if (!pkg) return { ok: false, cancelled: false, message: "That plan isn't available right now. Try again in a little while." };
   try {
     await readyAccount();
-  } catch {
+  } catch (error) {
+    if (error instanceof SignInDeclined) return { ok: false, cancelled: true };
     return { ok: false, cancelled: false, message: "Couldn't reach Tono. Check your connection and try again." };
   }
   try {
@@ -153,7 +160,8 @@ export async function buyPlus(plan: PlusPlan, offer: PlusOffer): Promise<Purchas
 export async function restorePlus(): Promise<PurchaseResult> {
   try {
     await readyAccount();
-  } catch {
+  } catch (error) {
+    if (error instanceof SignInDeclined) return { ok: false, cancelled: true };
     return { ok: false, cancelled: false, message: "Couldn't reach Tono. Check your connection and try again." };
   }
   try {

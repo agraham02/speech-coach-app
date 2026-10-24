@@ -25,6 +25,8 @@ export interface TonoAllowance {
   resetsAt: string;
   // The trial's end, for "free until 6 November". Null outside a trial.
   trialEndsAt: string | null;
+  // The developer's testing switch is on for this account (Dev tab).
+  devOverride?: boolean;
 }
 
 export type DenyReason = "quota_exhausted" | "plus_required" | "plus_cost_cap" | "budget_paused" | "rate_limited" | "disabled";

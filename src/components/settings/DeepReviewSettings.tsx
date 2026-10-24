@@ -59,7 +59,7 @@ export function DeepReviewSettings() {
         </Txt>
         <Card style={styles.section}>
           <Txt variant="subhead" tone="secondary">
-            Tono AI is for people 18 and over, so nothing you record leaves this phone. Your phone still measures every take and gives you tips. If you gave the wrong age, change it in Settings → Practice.
+            Tono AI is for people 18 and over, so nothing you record leaves this phone. Your phone still measures every take and gives you tips. It opens by itself the day you turn 18. If you entered the wrong birthday, you can change it in Settings → Account.
           </Txt>
         </Card>
       </View>

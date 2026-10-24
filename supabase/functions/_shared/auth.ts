@@ -16,7 +16,6 @@ export function adminClient(): SupabaseClient {
 export interface AuthedUser {
   id: string;
   // "apple:001234.abc" style: the sign-in provider and its stable user id.
-  // Null for an anonymous account (nobody has to sign in to use Tono).
   identity: string | null;
   provider: string | null;
 }
@@ -28,6 +27,9 @@ export async function requireUser(req: Request): Promise<AuthedUser> {
   if (!match) throw new HttpError(401, "signed_out");
   const { data, error } = await adminClient().auth.getUser(match[1]);
   if (error || !data.user) throw new HttpError(401, "signed_out");
+  // Tono AI is for people who signed in with Apple or Google. Anonymous
+  // accounts (from a build that made them) are not accounts any more.
+  if (data.user.is_anonymous === true) throw new HttpError(401, "sign_in_required");
   const identity = data.user.identities?.[0];
   return {
     id: data.user.id,

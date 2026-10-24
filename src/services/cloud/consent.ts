@@ -2,15 +2,15 @@ import { Alert } from "react-native";
 import { denialMessage, usedUpLine } from "../../domain/aiAllowance";
 import { navigationRef } from "../../navigation/navigationRef";
 import { purchasesEnabled } from "../purchases/purchases";
-import { ensureAccount, getAccount, refreshAccount } from "../account/accountStore";
+import { getAccount, refreshAccount } from "../account/accountStore";
+import { askToSignIn } from "../account/signInGate";
 import { hasTonoConsent, setTonoConsent } from "../prefs/prefsStore";
 import { whatGetsSent } from "./disclosure";
 import { tonoAgeGated } from "./routing";
 
 // Asks once before anything is sent to Tono AI: App Review 5.1.2(i) wants the
 // app to say where personal data goes (including a third-party AI) and get
-// explicit permission first. Allowing it also makes the behind-the-scenes
-// account (no sign-in), so the free judged take can be counted.
+// explicit permission first.
 export function askTonoConsent(): Promise<boolean> {
   return new Promise((resolve) => {
     Alert.alert(
@@ -22,7 +22,6 @@ export function askTonoConsent(): Promise<boolean> {
           text: "Allow",
           onPress: () => {
             setTonoConsent(true);
-            void ensureAccount().catch(() => undefined);
             resolve(true);
           },
         },
@@ -58,17 +57,11 @@ export async function readyForTono(options: { exercise: boolean }): Promise<bool
     Alert.alert("Tono AI is for 18 and over", "Everything your phone measures, and its tips, work as always.");
     return false;
   }
-  // Asked for by the person (a button, a switch): an account is worth making
-  // now, so their real tier is known (a TestFlight tester has exercise notes
-  // without Plus). Making it sends nothing about them.
-  if (getAccount().status !== "signedIn") {
-    try {
-      await ensureAccount();
-    } catch {
-      Alert.alert("Couldn't reach Tono AI", "Check your connection and try again. Your phone's measurements and tips work offline.");
-      return false;
-    }
-  }
+  // Tono AI needs an account and a birthday. Asked for by the person (a
+  // button, a switch), so this is the moment to ask for them.
+  if (!(await askToSignIn("tono_ai"))) return false;
+  if (tonoAgeGated()) return false;
+  await refreshAccount().catch(() => undefined);
   const account = getAccount();
   if (account.killSwitch) {
     Alert.alert(denialMessage("disabled", null), "Your phone's measurements and tips still work.");

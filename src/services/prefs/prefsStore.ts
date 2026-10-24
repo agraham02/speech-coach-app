@@ -10,7 +10,8 @@ import {
 import { DEFAULT_REMINDER_SETTINGS, type ReminderSettings } from "../../domain/reminderSettings";
 import { DEFAULT_CURRICULUM_LEVEL } from "../../domain/curriculum";
 import type { DailyGoal } from "../../domain/dailyGoal";
-import type { UserProfile } from "../../domain/profile";
+import { EMPTY_PROFILE, type UserProfile } from "../../domain/profile";
+import { todayISODate } from "../../utils/dateUtils";
 import { DEFAULT_RUN, type RunState } from "../../domain/innerVoice/run";
 import { parseCalibration, type FaceCalibration } from "../../domain/faceCalibration";
 import type { UpcomingEvent } from "../../domain/events";
@@ -278,6 +279,12 @@ export function getUserProfile(): UserProfile | null {
 
 export function setUserProfile(profile: UserProfile): void {
   storage.set(KEYS.userProfile, JSON.stringify(profile));
+}
+
+// The birthday, from the Tono AI sign-in (or onboarding's own question).
+export function setBirthDate(birthDate: string): void {
+  const profile = getUserProfile() ?? EMPTY_PROFILE(todayISODate());
+  setUserProfile({ ...profile, birthDate });
 }
 
 export function isOnboardingComplete(): boolean {

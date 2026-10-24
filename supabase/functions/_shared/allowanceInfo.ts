@@ -1,4 +1,4 @@
-import { limitsFor, tierFor, type UsageSnapshot } from "./allowance.ts";
+import { DEV_OVERRIDE_COUNT, limitsFor, tierFor, type UsageSnapshot } from "./allowance.ts";
 import type { ServerConfig } from "./config.ts";
 import { utcNextMonthStart } from "./time.ts";
 import type { DenyReason, Plan, Tier } from "./types.ts";
@@ -21,6 +21,8 @@ export interface AllowanceView {
   resetsAt: string;
   // The trial's end, for "Free until 14 November". Null outside a trial.
   trialEndsAt: string | null;
+  // True while the developer testing switch is on for this account.
+  devOverride?: boolean;
 }
 
 export function describeAllowance(
@@ -29,6 +31,19 @@ export function describeAllowance(
   now: Date,
   trialEndsAt: Date | null = null,
 ): AllowanceView {
+  if (snapshot.devOverride) {
+    return {
+      plan: snapshot.plan,
+      tier: "plus",
+      takesTotal: DEV_OVERRIDE_COUNT,
+      takesLeft: DEV_OVERRIDE_COUNT,
+      conversationMinutesTotal: DEV_OVERRIDE_COUNT,
+      conversationMinutesLeft: DEV_OVERRIDE_COUNT,
+      resetsAt: utcNextMonthStart(now).toISOString(),
+      trialEndsAt: null,
+      devOverride: true,
+    };
+  }
   const tier = tierFor(config, snapshot.plan);
   const limits = limitsFor(config.limits, tier);
   const total = limits.take;

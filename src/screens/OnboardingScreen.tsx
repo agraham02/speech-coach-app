@@ -22,7 +22,6 @@ import {
   ANCHOR_OPTIONS,
   CHAPTERS,
   CONTEXT_OPTIONS,
-  AGE_OPTIONS,
   ENGLISH_OPTIONS,
   EVENT_OPTIONS,
   EVENT_WHEN,
@@ -64,7 +63,6 @@ import { AiCoachSetup } from "../components/onboarding/AiCoachSetup";
 import { TranscriptionSetup } from "../components/onboarding/TranscriptionSetup";
 import { useTranscriptionModel } from "../hooks/useTranscriptionModel";
 import { tonoAgeGated } from "../services/cloud/routing";
-import { ensureAccount } from "../services/account/accountStore";
 import { isoDateFromDate, todayISODate } from "../utils/dateUtils";
 import { DatePicker, formatEventDate } from "../components/common/DatePicker";
 import { createEvent, deleteEvent, listEvents, updateEvent } from "../services/db/eventsRepo";
@@ -109,6 +107,7 @@ export function OnboardingScreen({ route, navigation }: Props) {
   const [eventNote, setEventNote] = useState("");
   const [eventId, setEventId] = useState<string | null>(null);
   const [pickingDate, setPickingDate] = useState(false);
+  const [pickingBirthday, setPickingBirthday] = useState(false);
   const [busy, setBusy] = useState(false);
   const [customThought, setCustomThought] = useState("");
 
@@ -174,15 +173,14 @@ export function OnboardingScreen({ route, navigation }: Props) {
 
   // The Tono AI step. What is sent is spelled out right above the button, so
   // "Allow Tono AI" is the person's explicit permission (App Review 5.1.2(i)).
-  // It also makes the account behind the scenes (no sign-in) so the free
-  // judged take can be counted. Under 18 (with the server's policy) there's
+  // (The account comes later, with a sign-in, the first time Tono AI is
+  // used.) Under 18 (with the server's policy) there's
   // nothing to allow.
   function allowTono(): boolean {
     if (tonoAgeGated()) return true;
     setTonoConsent(true);
     setCloudReviewDefault(true);
     setConnected(true);
-    void ensureAccount().catch(() => undefined);
     return true;
   }
 
@@ -379,7 +377,23 @@ export function OnboardingScreen({ route, navigation }: Props) {
       case "experience":
         return <Choices options={EXPERIENCE_OPTIONS} value={profile.experience} onPick={(experience) => update({ experience })} />;
       case "age":
-        return <Choices options={AGE_OPTIONS} value={profile.ageRange} onPick={(ageRange) => update({ ageRange })} />;
+        return (
+          <View style={styles.block}>
+            <View style={styles.chips}>
+              <Chip label={profile.birthDate ? formatEventDate(profile.birthDate) : "Pick your birthday"} selected={!!profile.birthDate} onPress={() => setPickingBirthday(true)} />
+            </View>
+            <DatePicker
+              visible={pickingBirthday}
+              value={profile.birthDate ?? "2000-01-01"}
+              title="Your birthday"
+              display="spinner"
+              minimumDate="1900-01-01"
+              maximumDate={todayISODate()}
+              onPick={(birthDate) => update({ birthDate })}
+              onClose={() => setPickingBirthday(false)}
+            />
+          </View>
+        );
       case "english":
         return <Choices options={ENGLISH_OPTIONS} value={profile.englishFirst} onPick={(englishFirst) => update({ englishFirst })} />;
       case "speech":

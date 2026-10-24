@@ -20,6 +20,8 @@ export interface LabRun {
   server: { llmMs: number | null; ttsFirstAudioMs: number | null; totalMs: number } | null;
   audioSeconds: number | null;
   streamed: boolean | null;
+  // Audio pieces that reached the phone, to tell "nothing came" from "it came but didn't play".
+  chunks?: number;
   error?: string;
 }
 

@@ -12,6 +12,8 @@ export type ConverseEvent =
       type: "done";
       voice: { model: string; seconds: number; streamed: boolean } | null;
       noVoice: string | null;
+      // Why the voice failed, in the speech service's words (for the Dev lab).
+      noVoiceDetail: string | null;
       sampleRate: number;
       timing: { llmMs: number | null; ttsFirstAudioMs: number | null; ttsMs: number | null; totalMs: number };
       allowance: unknown;
@@ -78,6 +80,7 @@ export function toConverseEvent(raw: unknown): ConverseEvent | null {
         type: "done",
         voice: voice && typeof voice.model === "string" ? { model: voice.model, seconds: num(voice.seconds) ?? 0, streamed: voice.streamed === true } : null,
         noVoice: typeof o.noVoice === "string" ? o.noVoice : null,
+        noVoiceDetail: typeof o.noVoiceDetail === "string" ? o.noVoiceDetail : null,
         sampleRate: num(o.sampleRate) ?? 24_000,
         timing: { llmMs: num(timing.llmMs), ttsFirstAudioMs: num(timing.ttsFirstAudioMs), ttsMs: num(timing.ttsMs), totalMs: num(timing.totalMs) ?? 0 },
         allowance: o.allowance ?? null,

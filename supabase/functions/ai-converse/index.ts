@@ -121,13 +121,16 @@ Deno.serve(
           failure = "unusable line";
         } catch (e) {
           failure = e instanceof Error ? e.message : "unknown";
-          const retryable = e instanceof SyntaxError || (e instanceof GeminiError && e.retryable);
-          if (!retryable || i === candidates.length - 1) break;
+          // A live conversation can't wait for a retry from the phone, so any
+          // model failure tries the other model once (the first one may just
+          // refuse a setting the second takes).
+          console.warn(`partner line failed on ${model}:`, failure);
+          if (i === candidates.length - 1) break;
         }
       }
       if (!accepted) {
         await refund(reservation.callId, failure);
-        throw new HttpError(502, "upstream_failed");
+        throw new HttpError(502, "upstream_failed", failure);
       }
       const tokens = tokensFromGeminiUsage(usage);
       await finish(reservation.callId, {
@@ -188,6 +191,8 @@ Deno.serve(
 
       let voice: { model: string; bytes: number; firstAudioMs: number | null; streamed: boolean } | null = null;
       let noVoice: string | null = voiceReservation.ok ? null : voiceReservation.reason;
+      // Why the voice failed, in Google's words, for the Dev tab's lab.
+      let noVoiceDetail: string | null = null;
       const ttsStarted = Date.now();
       if (voiceReservation.ok) {
         let failure = "";
@@ -225,6 +230,7 @@ Deno.serve(
         if (!voice) {
           await refund(voiceReservation.callId, failure);
           noVoice = "voice_failed";
+          noVoiceDetail = failure;
         }
       }
 
@@ -233,6 +239,7 @@ Deno.serve(
         type: "done",
         voice: voice ? { model: voice.model, seconds: Math.round(pcmSeconds(voice.bytes) * 100) / 100, streamed: voice.streamed } : null,
         noVoice,
+        noVoiceDetail,
         sampleRate: TTS_SAMPLE_RATE,
         timing: {
           llmMs: lineMeta?.llmMs ?? null,

@@ -50,6 +50,8 @@ import { TrendsScreen } from "../screens/TrendsScreen";
 import type { SkillId } from "../theme/tokens";
 import { SkillDetailScreen } from "../screens/SkillDetailScreen";
 import { LevelScreen } from "../screens/LevelScreen";
+import { SignInScreen } from "../screens/SignInScreen";
+import type { SignInReason } from "../services/account/signInGate";
 import { DevHomeScreen } from "../screens/dev/DevHomeScreen";
 import { SHOW_DEV_TOOLS } from "../config/devTools";
 import { RecordingScreen } from "../screens/RecordingScreen";
@@ -118,6 +120,8 @@ export type RootStackParamList = {
   Settings: { section?: SettingsSection } | undefined;
   // Tono Plus: what it adds, the plans, restore.
   Paywall: undefined;
+  // Asked for by services/account/signInGate.ts when Tono AI or Plus needs an account.
+  SignIn: { reason: SignInReason } | undefined;
   Progress: undefined;
   // One skill's rating: what moves it, and its recent changes.
   SkillDetail: { skill: SkillId };
@@ -419,6 +423,7 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
         <Stack.Screen name="StartingPoint" component={StartingPointScreen} options={{ gestureEnabled: false }} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen name="Paywall" component={PaywallScreen} />
+        <Stack.Screen name="SignIn" component={SignInScreen} options={{ presentation: "modal" }} />
         <Stack.Screen name="Progress" component={ProgressScreen} />
         <Stack.Screen name="Phrasebook" component={PhrasebookScreen} />
         <Stack.Screen name="ThreeThings" component={ThreeThingsScreen} />

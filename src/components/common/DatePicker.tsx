@@ -17,14 +17,19 @@ interface DatePickerProps {
   title?: string;
   // Earliest pickable day (YYYY-MM-DD); today by default.
   minimumDate?: string;
+  // Latest pickable day (YYYY-MM-DD); no limit by default.
+  maximumDate?: string;
+  // "spinner": month, day and year wheels, for far-off dates like a birthday.
+  display?: "inline" | "spinner";
 }
 
 // A calendar for picking one day. Android opens its own dialog; iOS shows
 // the inline calendar in a slide-up sheet (the FilterSheet pattern), with
 // Done to confirm.
-export function DatePicker({ visible, value, onPick, onClose, title = "Pick a date", minimumDate }: DatePickerProps) {
+export function DatePicker({ visible, value, onPick, onClose, title = "Pick a date", minimumDate, maximumDate, display = "inline" }: DatePickerProps) {
   const min = dateFromISODate(minimumDate ?? todayISODate());
-  const start = value ? dateFromISODate(value) : min;
+  const max = maximumDate ? dateFromISODate(maximumDate) : undefined;
+  const start = value ? dateFromISODate(value) : max && max < min ? max : min;
 
   useEffect(() => {
     if (Platform.OS !== "android" || !visible) return;
@@ -32,6 +37,7 @@ export function DatePicker({ visible, value, onPick, onClose, title = "Pick a da
       value: start,
       mode: "date",
       minimumDate: min,
+      ...(max ? { maximumDate: max } : {}),
       onChange: (event, date) => {
         if (event.type === "set" && date) onPick(isoDateFromDate(date));
         onClose();
@@ -42,10 +48,10 @@ export function DatePicker({ visible, value, onPick, onClose, title = "Pick a da
   }, [visible]);
 
   if (Platform.OS === "android") return null;
-  return <IosSheet visible={visible} start={start} min={min} title={title} onPick={onPick} onClose={onClose} />;
+  return <IosSheet visible={visible} start={start} min={min} max={max} display={display} title={title} onPick={onPick} onClose={onClose} />;
 }
 
-function IosSheet({ visible, start, min, title, onPick, onClose }: { visible: boolean; start: Date; min: Date; title: string; onPick: (d: string) => void; onClose: () => void }) {
+function IosSheet({ visible, start, min, max, display, title, onPick, onClose }: { visible: boolean; start: Date; min: Date; max?: Date; display: "inline" | "spinner"; title: string; onPick: (d: string) => void; onClose: () => void }) {
   const styles = useStyles();
   const { colors, scheme } = useTheme();
   const insets = useSafeAreaInsets();
@@ -72,8 +78,9 @@ function IosSheet({ visible, start, min, title, onPick, onClose }: { visible: bo
         <DateTimePicker
           value={draft}
           mode="date"
-          display="inline"
+          display={display}
           minimumDate={min}
+          maximumDate={max}
           accentColor={colors.accent}
           themeVariant={scheme === "dark" ? "dark" : "light"}
           onValueChange={(_e, date) => date && setDraft(date)}

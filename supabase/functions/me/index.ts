@@ -30,8 +30,7 @@ async function syncPlusIfDue(userId: string, wanted: boolean): Promise<void> {
 // What the app asks on launch, after a purchase and when a count may have
 // refilled: what plan this person is on, what they have left, and the server
 // switches the app follows (kill switch, Plus on sale, the minors policy).
-// Works the same for an anonymous account (the default: nobody has to sign in)
-// and one linked to Apple or Google.
+// For a signed-in account (Apple or Google); anonymous accounts are refused.
 Deno.serve(
   handler(async (req) => {
     if (req.method !== "GET" && req.method !== "POST") throw new HttpError(405, "method_not_allowed");

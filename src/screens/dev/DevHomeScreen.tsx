@@ -10,7 +10,10 @@ import { ListGroup, ListRow } from "../../components/common/ListRow";
 import { PressableScale } from "../../components/common/PressableScale";
 import { Txt } from "../../components/common/Txt";
 import { useToast } from "../../components/common/ToastProvider";
+import { DevOverrideCard } from "../../components/dev/DevOverrideCard";
 import { Mono } from "../../components/dev/Mono";
+import { useAccount } from "../../services/account/accountStore";
+import { devTabOpen } from "../../services/dev/devAccess";
 import { getLogs, subscribeLogs } from "../../services/logs/logStore";
 import { subscribeToAllSessions } from "../../services/pipeline/processingEvents";
 import { isAppleModelAvailable } from "../../services/asr/appleProvider";
@@ -24,6 +27,21 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // The Dev tab's home: a status card for what the build is and whether
 // anything's wrong, then one row per tool. Each tool is its own screen.
 export function DevHomeScreen() {
+  const account = useAccount();
+  return devTabOpen(account) ? <DevHome /> : <DevLocked />;
+}
+
+// Preview and TestFlight builds carry the Dev tab for the developer, so it
+// stays closed to everyone else until the developer's password is given.
+function DevLocked() {
+  return (
+    <Screen title="Dev" eyebrow="Developer tools" large tabRoot>
+      <DevOverrideCard locked />
+    </Screen>
+  );
+}
+
+function DevHome() {
   const styles = useStyles();
   const showToast = useToast();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -100,6 +118,8 @@ export function DevHomeScreen() {
           />
         </View>
       </Card>
+
+      <DevOverrideCard />
 
       <ListGroup title="Inspect">
         <ListRow

@@ -142,23 +142,27 @@ describe("accountStore", () => {
     expect(store.getAccount().status).toBe("signedIn");
   });
 
-  it("marks the behind-the-scenes account as anonymous, with no sign-in shown", async () => {
-    const { store, fakes } = load({ me: jest.fn().mockResolvedValue(meReply) });
+  it("does not treat an anonymous session as an account: it is dropped and the person signs in when Tono AI needs it", async () => {
+    const { store, fakes } = load({ session: { user: { id: "anon", is_anonymous: true, identities: [] } } });
     await store.initAccount();
-    fakes.authCallback!("SIGNED_IN", { user: { id: "anon", is_anonymous: true, email: null, app_metadata: { provider: "anonymous" }, identities: [] } });
-    expect(store.getAccount()).toMatchObject({ status: "signedIn", anonymous: true, provider: null, email: null });
+    expect(store.getAccount().status).toBe("signedOut");
+    expect(fakes.signOut).toHaveBeenCalledWith({ scope: "local" });
+    fakes.authCallback!("SIGNED_IN", { user: { id: "anon2", is_anonymous: true, identities: [] } });
+    expect(store.getAccount().status).toBe("signedOut");
   });
 
-  it("makes an anonymous account only when one is needed, and only once", async () => {
-    const anon = { user: { id: "anon", is_anonymous: true, identities: [] } };
-    const { store, fakes } = load({ me: jest.fn().mockResolvedValue(meReply), signInAnonymously: jest.fn().mockResolvedValue({ data: { session: anon }, error: null }) });
+  it("never makes an account by itself: with nobody signed in it asks for a sign-in", async () => {
+    const { store, fakes } = load();
     await store.initAccount();
+    await expect(store.ensureAccount()).rejects.toMatchObject({ code: "sign_in_required", status: 401 });
     expect(fakes.signInAnonymously).not.toHaveBeenCalled();
-    await Promise.all([store.ensureAccount(), store.ensureAccount()]);
-    expect(fakes.signInAnonymously).toHaveBeenCalledTimes(1);
-    expect(store.getAccount()).toMatchObject({ status: "signedIn", userId: "anon", anonymous: true, allowance: { takesLeft: 4 } });
-    await store.ensureAccount();
-    expect(fakes.signInAnonymously).toHaveBeenCalledTimes(1);
+    expect(store.getAccount().status).toBe("signedOut");
+  });
+
+  it("is fine to ask for an account once someone has signed in", async () => {
+    const { store } = load({ session: { user }, me: jest.fn().mockResolvedValue(meReply) });
+    await store.initAccount();
+    await expect(store.ensureAccount()).resolves.toBeUndefined();
   });
 
   it("knows whether Plus is on sale without any account", async () => {
@@ -168,12 +172,5 @@ describe("accountStore", () => {
     expect(fakes.appConfig).toHaveBeenCalled();
     expect(store.getAccount()).toMatchObject({ status: "signedOut", plusPurchasable: true, mode: "launch" });
     expect(fakes.cache).toBeNull();
-  });
-
-  it("fails loudly when the account can't be made (offline), so the caller can say so", async () => {
-    const { store } = load({ signInAnonymously: jest.fn().mockResolvedValue({ data: { session: null }, error: { message: "network" } }) });
-    await store.initAccount();
-    await expect(store.ensureAccount()).rejects.toThrow("network");
-    expect(store.getAccount().status).toBe("signedOut");
   });
 });

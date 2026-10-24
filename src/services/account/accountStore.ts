@@ -19,8 +19,10 @@ import { getSupabase } from "./supabaseClient";
 // (domain/account.ts). The copy kept between launches means the app knows the
 // answer straight away; the server's answer follows and replaces it.
 //
-// The free path never makes an account. ensureAccount() makes an anonymous
-// one, with no sign-in, the first time Tono AI or a purchase needs it.
+// The free path never needs an account. Tono AI and Plus do: signing in with
+// Apple or Google (services/account/signInGate.ts asks, in the moment). There
+// are no anonymous accounts: a free judged take a month is worth a sign-in,
+// and an anonymous one made abuse cheap (a reinstall was a new allowance).
 
 let state: AccountSnapshot = parseAccountCache(getAccountCacheRaw()) ?? UNKNOWN_ACCOUNT;
 const listeners = new Set<() => void>();
@@ -51,20 +53,25 @@ const signedOut = (): AccountSnapshot => ({ ...SIGNED_OUT, ...(publicSwitches ??
 
 // A session appeared, changed or went away.
 function applySession(session: Session | null): void {
+  // An anonymous session (from a build that made them) isn't an account any
+  // more: it is dropped, and the person signs in when Tono AI needs it.
+  if (session?.user.is_anonymous === true) {
+    void getSupabase().auth.signOut({ scope: "local" }).catch(() => undefined);
+    session = null;
+  }
   if (!session) {
     if (state.status !== "signedOut") commit(signedOut());
     return;
   }
   const user = session.user;
-  const anonymous = user.is_anonymous === true;
-  const provider = anonymous ? null : providerFromAuth(user.app_metadata?.provider ?? user.identities?.[0]?.provider);
-  const email = anonymous ? null : (user.email ?? null);
+  const provider = providerFromAuth(user.app_metadata?.provider ?? user.identities?.[0]?.provider);
+  const email = user.email ?? null;
   if (state.status === "signedIn" && state.userId === user.id) {
-    if (state.provider !== provider || state.email !== email || state.anonymous !== anonymous) commit({ ...state, provider, email, anonymous });
+    if (state.provider !== provider || state.email !== email) commit({ ...state, provider, email });
     return;
   }
   // Someone new: nothing from the last account carries over.
-  commit({ ...signedOut(), status: "signedIn", userId: user.id, anonymous, provider, email });
+  commit({ ...signedOut(), status: "signedIn", userId: user.id, provider, email });
 }
 
 // Asks the server what this person has left. Quiet when offline: the cached
@@ -107,26 +114,34 @@ export async function refreshAccount(options?: { syncPurchases?: boolean }): Pro
   return refreshing;
 }
 
-let creating: Promise<void> | null = null;
+// Thrown where Tono AI or a purchase is asked for with nobody signed in. It is
+// a Tono API error ("sign_in_required") so the pipeline words it like any
+// other refusal. The screens that start those things call askToSignIn first
+// (signInGate.ts), so the person is asked in the moment, not shown this.
+export class SignInRequiredError extends TonoApiError {
+  constructor() {
+    super(401, "sign_in_required", "Sign in to use Tono AI");
+    this.name = "SignInRequiredError";
+  }
+}
 
-// Makes sure there is an account to count against, making an anonymous one
-// when there's none: no sign-in, no registration, nothing shown. Supabase's
-// anonymous sign-ins must be on (supabase/README.md). Throws when it can't be
-// made (offline); callers treat that like any other offline failure.
+// Resolves once the stored session has been read at launch.
+function whenKnown(): Promise<void> {
+  if (state.status !== "unknown") return Promise.resolve();
+  return new Promise((resolve) => {
+    const stop = subscribeAccount(() => {
+      if (state.status === "unknown") return;
+      stop();
+      resolve();
+    });
+  });
+}
+
+// Makes sure there is an account to count against, or throws
+// SignInRequiredError. It never makes one: signing in is the person's act.
 export async function ensureAccount(): Promise<void> {
-  if (state.status === "signedIn") return;
-  if (creating) return creating;
-  creating = (async () => {
-    try {
-      const { data, error } = await getSupabase().auth.signInAnonymously();
-      if (error || !data.session) throw new Error(error?.message ?? "No session");
-      applySession(data.session);
-      await refreshAccount();
-    } finally {
-      creating = null;
-    }
-  })();
-  return creating;
+  await whenKnown();
+  if (state.status !== "signedIn") throw new SignInRequiredError();
 }
 
 // Asks the server for its switches without an account. Quiet when offline.

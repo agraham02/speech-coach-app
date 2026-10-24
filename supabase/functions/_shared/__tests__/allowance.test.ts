@@ -197,3 +197,23 @@ describe("conversation minutes", () => {
     expect(limitsFor(sample.limits, "free").conversation).toBe(180);
   });
 });
+
+describe("the developer's testing override", () => {
+  const over: Partial<UsageSnapshot> = { devOverride: true };
+
+  it("lets everything through, past every count, ceiling and cap", () => {
+    const spent = { ...over, takes: 500, text: 500, insights: 500, dayTakes: 500, costUsd: 99, freeSpendMonthUsd: 9999, conversationSeconds: 99999 };
+    for (const kind of ["take", "text", "insight", "conversation"] as const) {
+      expect(decide(launch, kind, spent)).toMatchObject({ ok: true, tier: "plus" });
+    }
+  });
+
+  it("opens the kinds a free account never gets", () => {
+    expect(decide(launch, "text", { plan: "free" })).toEqual({ ok: false, reason: "plus_required" });
+    expect(decide(launch, "text", { plan: "free", ...over })).toMatchObject({ ok: true });
+  });
+
+  it("still stops at the kill switch", () => {
+    expect(decide({ ...launch, killSwitch: true }, "take", over)).toEqual({ ok: false, reason: "disabled" });
+  });
+});

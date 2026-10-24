@@ -33,7 +33,13 @@ export interface UsageSnapshot {
   dayTakes: number;
   // All non-paying spend this UTC month, across every account.
   freeSpendMonthUsd: number;
+  // The developer's testing switch is on for this account (accounts.
+  // dev_override_until, set by the dev-override function): no limits apply.
+  devOverride?: boolean;
 }
+
+// What an account with the developer override is told it has left.
+export const DEV_OVERRIDE_COUNT = 999;
 
 export type Decision = { ok: true; tier: Tier; takesLeft: number } | { ok: false; reason: DenyReason };
 
@@ -87,6 +93,9 @@ export function decideAllowance(args: {
   const l = config.limits;
 
   if (config.killSwitch) return deny("disabled");
+
+  // The developer testing their own limits: everything goes through, as Plus.
+  if (s.devOverride) return { ok: true, tier: "plus", takesLeft: DEV_OVERRIDE_COUNT };
 
   // Only judged takes have a daily ceiling, which stops a stuck retry loop.
   if (kind === "take" && s.dayTakes >= l.dailyJudgedTakes) return deny("rate_limited");

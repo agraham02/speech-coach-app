@@ -26,12 +26,13 @@ export function isDenyCode(code: string): code is DenyReason {
 // True when retrying by itself would change nothing and the person has to act
 // (wait for the refill, or start Tono Plus).
 export function needsPersonToAct(error: TonoApiError): boolean {
-  if (error.code === "signed_out") return true;
+  if (error.code === "signed_out" || error.code === "sign_in_required") return true;
   return isDenyCode(error.code) && isActionNeeded(error.code);
 }
 
 // A failed Tono AI call, worded for the person who has to fix it.
 export function describeTonoError(error: TonoApiError): string {
+  if (error.code === "sign_in_required") return "Sign in to use Tono AI. It's free for one judged take a month.";
   if (error.code === "signed_out") return "Couldn't reach your Tono account. Check your connection and try again.";
   if (isDenyCode(error.code)) {
     const base = denialMessage(error.code, error.allowance ?? null);

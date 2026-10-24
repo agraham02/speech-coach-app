@@ -23,6 +23,20 @@ function isRetryable(status: number): boolean {
   return status === 404 || status === 429 || status >= 500;
 }
 
+// Google's own words for a failure ("Invalid value at ..."), short enough to
+// log and to show in the Dev tab. Never contains the key (it is sent in a
+// header, and Google does not echo headers).
+async function failureDetail(res: Response): Promise<string> {
+  const text = await res.text().catch(() => "");
+  try {
+    const message = (JSON.parse(text) as { error?: { message?: unknown } }).error?.message;
+    if (typeof message === "string") return message.replace(/\s+/g, " ").slice(0, 240);
+  } catch {
+    // not JSON
+  }
+  return text.replace(/\s+/g, " ").slice(0, 240);
+}
+
 async function call(key: string, path: string, init: RequestInit, timeoutMs: number): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -134,17 +148,28 @@ export async function generate(key: string, args: GenerateArgs): Promise<Generat
     ...(args.thinkingBudget !== undefined ? { thinkingConfig: { thinkingBudget: args.thinkingBudget } } : {}),
   };
 
-  const res = await call(
-    key,
-    `/v1beta/models/${encodeURIComponent(args.model)}:generateContent`,
-    {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig }),
-    },
-    args.file ? 170_000 : 60_000,
-  );
-  if (!res.ok) throw new GeminiError(`generate ${res.status}`, res.status, isRetryable(res.status));
+  const send = (config: Record<string, unknown>) =>
+    call(
+      key,
+      `/v1beta/models/${encodeURIComponent(args.model)}:generateContent`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig: config }),
+      },
+      args.file ? 170_000 : 60_000,
+    );
+  let res = await send(generationConfig);
+  if (res.status === 400 && args.thinkingBudget !== undefined) {
+    // Newer models steer thinking by level and may refuse a token budget
+    // (or a budget of zero). Ask again with the model's own default.
+    const detail = await failureDetail(res);
+    if (!/think/i.test(detail)) throw new GeminiError(`generate 400: ${detail}`, 400, false);
+    console.warn(`${args.model} refused the thinking budget (${detail}); asking again without it`);
+    const { thinkingConfig: _dropped, ...rest } = generationConfig;
+    res = await send(rest);
+  }
+  if (!res.ok) throw new GeminiError(`generate ${res.status}: ${await failureDetail(res)}`, res.status, isRetryable(res.status));
 
   const body = (await res.json()) as Record<string, unknown>;
   const text = answerText(body);
@@ -204,7 +229,7 @@ export async function speak(key: string, r: Omit<TtsRequest, "stream">, onPcm: (
     { method: "POST", headers: { "content-type": "application/json", accept: "text/event-stream" }, body: JSON.stringify(ttsBody({ ...r, stream: true })) },
     timeoutMs,
   );
-  if (!res.ok) throw new GeminiError(`speak ${res.status}`, res.status, isRetryable(res.status));
+  if (!res.ok) throw new GeminiError(`speak ${res.status}: ${await failureDetail(res)}`, res.status, isRetryable(res.status));
   const contentType = res.headers.get("content-type") ?? "";
   if (res.body && contentType.includes("event-stream")) {
     const sse = new SseReader();
@@ -228,7 +253,7 @@ export async function speak(key: string, r: Omit<TtsRequest, "stream">, onPcm: (
   if (bytes > 0) return { bytes, usage, firstAudioMs, streamed: true };
 
   const unary = await call(key, "/v1beta/interactions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(ttsBody({ ...r, stream: false })) }, timeoutMs);
-  if (!unary.ok) throw new GeminiError(`speak ${unary.status}`, unary.status, isRetryable(unary.status));
+  if (!unary.ok) throw new GeminiError(`speak ${unary.status}: ${await failureDetail(unary)}`, unary.status, isRetryable(unary.status));
   const body = (await unary.json()) as unknown;
   for (const piece of audioPiecesIn(body)) emit(piece);
   if (bytes === 0) throw new GeminiError("no audio", 502, true);

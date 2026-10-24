@@ -1,7 +1,8 @@
 import { denialMessage, usedUpLine } from "../../domain/aiAllowance";
 import { ageGated } from "../../domain/analysis/routing";
 import type { AnalysisContext, AnalysisKind, Producer, Unavailable } from "../../domain/analysis/types";
-import { isAdultFromAge } from "../../domain/profile";
+import { isAdultFromBirthDate } from "../../domain/profile";
+import { todayISODate } from "../../utils/dateUtils";
 import { getAccount, refreshAccount } from "../account/accountStore";
 import { getCloudReviewDefault, getJudgeInput, getUserProfile, hasTonoConsent } from "../prefs/prefsStore";
 
@@ -22,6 +23,12 @@ export interface ContextArgs {
   kind?: AnalysisKind;
 }
 
+// True for 18 or older today, false under 18, null with no birthday. Worked
+// out each time, so the day someone turns 18 Tono AI opens by itself.
+export function isAdultNow(): boolean | null {
+  return isAdultFromBirthDate(getUserProfile()?.birthDate, todayISODate());
+}
+
 export async function analysisContext(args: ContextArgs): Promise<AnalysisContext> {
   if (args.refresh) {
     const a = getAccount();
@@ -34,8 +41,9 @@ export async function analysisContext(args: ContextArgs): Promise<AnalysisContex
       consent: hasTonoConsent(),
       allowed: account.allowed,
       killSwitch: account.killSwitch,
+      signedIn: account.status === "signedIn",
     },
-    isAdult: isAdultFromAge(getUserProfile()?.ageRange),
+    isAdult: isAdultNow(),
     minorsMayUseAi: account.minorsMayUseAi,
     takeOptIn: args.takeOptIn ?? getCloudReviewDefault(),
     judgeInput: getJudgeInput(),
@@ -47,7 +55,7 @@ export async function analysisContext(args: ContextArgs): Promise<AnalysisContex
 
 // Whether Tono AI is off for this person because of the age answer.
 export function tonoAgeGated(): boolean {
-  return ageGated({ isAdult: isAdultFromAge(getUserProfile()?.ageRange), minorsMayUseAi: getAccount().minorsMayUseAi });
+  return ageGated({ isAdult: isAdultNow(), minorsMayUseAi: getAccount().minorsMayUseAi });
 }
 
 // Why a take wasn't judged, in words for the step's line. Never alarming:
@@ -71,7 +79,7 @@ export function whyNotJudged(reason: Unavailable): string {
     case "offline":
       return "You're offline. It will be judged when you're back online.";
     case "signed_out":
-      return "Couldn't reach your Tono account. Check your connection and try again.";
+      return "Sign in to have Tono AI judge this take. It's free for one judged take a month, and the sign-in is in Settings → Account.";
     case "no_input":
       return "There's no transcript and no video to judge.";
     default:

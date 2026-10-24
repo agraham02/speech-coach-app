@@ -1,4 +1,4 @@
-import type { AgeRange, EventKind, Obstacle, PracticePlace, SpeakingContext } from "../domain/profile";
+import type { EventKind, Obstacle, PracticePlace, SpeakingContext } from "../domain/profile";
 
 // Onboarding questions (docs/history/practice-expansion-plan.md §8). One question per
 // screen, most answered with a tap. Every question changes something — see
@@ -51,10 +51,10 @@ export const QUESTIONS: Question[] = [
   {
     id: "age",
     chapter: 0,
-    title: "How old are you?",
-    subtitle: "A range is enough.",
+    title: "When is your birthday?",
+    subtitle: "It stays on this phone.",
     optional: true,
-    changes: "Tono AI, the coach that judges your takes, is for people 18 and over. Under 18, everything stays on your phone and the rest of Tono is the same.",
+    changes: "Tono AI, the coach that judges your takes, is for people 18 and over. Under 18, everything stays on your phone and the rest of Tono is the same. A birthday means it opens by itself the day you turn 18.",
   },
   {
     id: "contexts",
@@ -215,16 +215,6 @@ export const EXPERIENCE_OPTIONS: Option<"none" | "little" | "course" | "lots">[]
   { key: "little", label: "A little — videos, books" },
   { key: "course", label: "A course or Toastmasters" },
   { key: "lots", label: "Lots" },
-];
-
-export const AGE_OPTIONS: Option<AgeRange>[] = [
-  { key: "under_13", label: "Under 13" },
-  { key: "13_17", label: "13 to 17" },
-  { key: "18_24", label: "18 to 24" },
-  { key: "25_34", label: "25 to 34" },
-  { key: "35_49", label: "35 to 49" },
-  { key: "50_plus", label: "50 or over" },
-  { key: "unsaid", label: "Prefer not to say" },
 ];
 
 export const ENGLISH_OPTIONS: Option<"yes" | "no" | "unsaid">[] = [

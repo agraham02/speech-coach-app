@@ -226,3 +226,10 @@ export async function tonoAppConfig(): Promise<AppConfigResponse> {
 export const tonoAppleToken = (authorizationCode: string) => call<{ ok: true }>("apple-token", { authorizationCode }, 30_000);
 
 export const tonoDeleteAccount = () => call<{ ok: true }>("delete-account", {}, 40_000);
+
+// The developer's testing switch (supabase/functions/dev-override): with the
+// right password the signed-in account goes past every Tono AI limit for a few
+// hours. The password is checked on the server; "not_available" when the
+// server has none set.
+export const tonoDevOverride = (body: { password: string } | { off: true } | Record<string, never>) =>
+  call<{ active: boolean; until: string | null }>("dev-override", body, 20_000);

@@ -3,22 +3,22 @@ import { Card } from "../common/Card";
 import { ListGroup, ListRow } from "../common/ListRow";
 import { Txt } from "../common/Txt";
 import { useToast } from "../common/ToastProvider";
-import { SignInOptions } from "../account/SignInOptions";
-import { isLinked, signedInLabel } from "../../domain/account";
+import { SignInPanel } from "../account/SignInPanel";
+import { signedInLabel } from "../../domain/account";
 import { allowanceLine, isPaidPlan } from "../../domain/aiAllowance";
 import { MANAGE_SUBSCRIPTIONS_URL, PLUS_MONTHLY_JUDGED_TAKES, TRIAL_DAYS } from "../../domain/plus";
 import { restorePlus, purchasesEnabled } from "../../services/purchases/purchases";
 import { openPaywall } from "../../services/cloud/consent";
-import { tonoAgeGated } from "../../services/cloud/routing";
+import { isAdultNow, tonoAgeGated } from "../../services/cloud/routing";
 import { useAccount } from "../../services/account/accountStore";
 import { deleteAccount, signOut } from "../../services/account/signIn";
 import { describeCloudError } from "../../services/cloud/cloudErrors";
 import { makeStyles } from "../../theme/ThemeProvider";
 
-// Settings → Account & Plus. Nobody has to sign in: Tono works without an
-// account, and Tono AI and Plus use one made behind the scenes. Signing in
-// with Apple or Google links that account, so Plus follows you to another
-// phone. Practice data stays on the phone either way.
+// Settings → Account & Plus. Tono works without an account; Tono AI and Plus
+// need one (Apple or Google sign-in) and a birthday, so Plus follows you to
+// another phone and the 18-and-over rule holds. Practice data stays on the
+// phone either way.
 export function AccountSettings() {
   const styles = useStyles();
   const account = useAccount();
@@ -26,7 +26,7 @@ export function AccountSettings() {
 
   if (account.status === "unknown") return <View />;
 
-  const linked = isLinked(account);
+  const signedIn = account.status === "signedIn";
   const paying = isPaidPlan(account.allowance);
   const canBuy = purchasesEnabled() && !tonoAgeGated();
 
@@ -53,7 +53,7 @@ export function AccountSettings() {
   function confirmDelete() {
     Alert.alert(
       "Delete your account?",
-      `This deletes your Tono account and its record of your Tono AI use${linked ? ", and unlinks your sign-in" : ""}. Your recordings and practice history stay on this phone.${
+      `This deletes your Tono account and its record of your Tono AI use${signedIn ? ", and unlinks your sign-in" : ""}. Your recordings and practice history stay on this phone.${
         paying ? " It does not cancel Tono Plus: cancel that in iOS Settings, under your name, then Subscriptions." : ""
       } This can't be undone.`,
       [
@@ -78,21 +78,20 @@ export function AccountSettings() {
 
   return (
     <View style={styles.wrap}>
-      {account.status === "signedIn" ? (
+      {signedIn ? (
         <ListGroup>
-          <ListRow icon="person-circle-outline" title={signedInLabel(account)} subtitle={linked ? "Your Tono account" : "Tono works without signing in"} />
+          <ListRow icon="person-circle-outline" title={signedInLabel(account)} subtitle="Your Tono account" />
           {account.allowance ? <ListRow icon="sparkles-outline" title={allowanceLine(account.allowance)} subtitle={planName} /> : null}
         </ListGroup>
       ) : null}
 
-      {!linked ? (
+      {!signedIn || isAdultNow() !== true ? (
         <Card style={styles.section}>
-          <Txt variant="headline">Sign in (optional)</Txt>
+          <Txt variant="headline">{signedIn ? "Your birthday" : "Sign in to use Tono AI"}</Txt>
           <Txt variant="subhead" tone="secondary">
-            You don't need an account to use Tono. Sign in with Apple or Google to keep Tono Plus on another phone, or to bring it back after reinstalling. Your recordings stay on this phone either
-            way.
+            Tono AI and Tono Plus need an account. Everything else works without one, and your recordings stay on this phone either way.
           </Txt>
-          <SignInOptions />
+          <SignInPanel />
         </Card>
       ) : null}
 
@@ -119,9 +118,9 @@ export function AccountSettings() {
         </ListGroup>
       ) : null}
 
-      {account.status === "signedIn" ? (
+      {signedIn ? (
         <ListGroup>
-          {linked ? <ListRow icon="log-out-outline" title="Sign out" onPress={confirmSignOut} /> : null}
+          <ListRow icon="log-out-outline" title="Sign out" onPress={confirmSignOut} />
           <ListRow icon="trash-outline" title="Delete account" subtitle="Removes your account and its Tono AI record" destructive onPress={confirmDelete} />
         </ListGroup>
       ) : null}
