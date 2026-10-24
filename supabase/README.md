@@ -19,7 +19,8 @@ through the edge functions below; the database is closed to direct access
 | `functions/me` | The caller's plan (free, trial or Plus), what they have left, which kinds of call would be accepted, and the switches the app follows (kill switch, Plus on sale, minors policy). |
 | `functions/app-config` | The switches the app needs before there is any account (Plus on sale, minors policy, mode, kill switch). No sign-in; nothing about the person. |
 | `functions/apple-token` | Trades a Sign in with Apple code for a refresh token, kept encrypted so it can be revoked. |
-| `functions/delete-account` | Revokes the Apple grant, removes the person from RevenueCat, deletes the account. Works for an anonymous account too. |
+| `functions/delete-account` | Revokes the Apple grant, removes the person from RevenueCat, deletes the account. |
+| `functions/dev-override` | The developer's testing switch: with the `DEV_OVERRIDE_PASSWORD` secret's value, the signed-in account goes past every Tono AI limit for 6 hours (`accounts.dev_override_until`, migration `20261025000000_dev_override.sql`). It is also how the Dev tab opens in preview and TestFlight builds. With no secret set it answers `not_available`. |
 | `functions/revenuecat-webhook` | RevenueCat calls this when a subscription changes. It only learns who changed, then asks RevenueCat for the truth and writes `entitlements`. |
 
 ## Function secrets (Dashboard -> Edge Functions -> Secrets)
@@ -31,6 +32,7 @@ through the edge functions below; the database is closed to direct access
 | `APPLE_PRIVATE_KEY` | The text of the `AuthKey_MFDU2QKLAT.p8` file (key id `MFDU2QKLAT`, team `23NQ9ZTT2W`). |
 | `REVENUECAT_SECRET_KEY` | RevenueCat → Project settings → API keys → a **secret** v1 key (starts `sk_`). Lets the server read and delete subscribers. Never goes in the app. |
 | `REVENUECAT_WEBHOOK_SECRET` | Any long random string. Enter the same value as the Authorization header in RevenueCat's webhook settings. |
+| `DEV_OVERRIDE_PASSWORD` | A long password only the developer knows. Typed in the app's Dev tab; checked here, never in the app. Leave it unset to switch the override off entirely. |
 
 `SUPABASE_URL`, `SUPABASE_DB_URL` and the service key are provided by the platform.
 
@@ -129,7 +131,7 @@ goes through; a conversation past its length refused). The stand-in schemas are 
   used by Supabase's browser-based flow (full nonce checks, no "skip nonce" setting).
   The provider also needs that client's secret, entered by hand.
 - Email provider is off.
-- **Anonymous sign-ins: turn ON** (Authentication → Sign In / Providers → "Allow anonymous sign-ins"), and **manual linking: ON** ("Allow manual linking"), so the app can make an account without a sign-in and later link Apple or Google to it. Without these, Tono AI and purchases fail for anyone who hasn't signed in.
+- **Anonymous sign-ins: turn OFF** (Authentication → Sign In / Providers → "Allow anonymous sign-ins"). Tono AI and Plus need an Apple or Google sign-in, so the app no longer makes anonymous accounts, and the functions refuse any that exist. Manual linking is no longer used.
 - Allowed redirect URL: `tono://auth/callback`.
 
 ## Tono Plus (RevenueCat)

@@ -45,7 +45,7 @@ const SCHEMA_VERSIONS: Record<TonoTask, number> = {
 };
 
 async function call(task: TonoTask, inputs: object, extra: { media?: { fileName: string; videoSeconds: number }; timeoutMs?: number } = {}): Promise<GenerateResponse> {
-  // The behind-the-scenes account, made the first time it's needed.
+  // Throws sign_in_required with nobody signed in (the screens ask first).
   await ensureAccount();
   return tonoGenerate({ task, schemaVersion: SCHEMA_VERSIONS[task], inputs, ...(extra.media ? { media: extra.media } : {}), idempotencyKey: randomUUID() }, extra.timeoutMs);
 }

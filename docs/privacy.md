@@ -13,8 +13,8 @@ Tono is a speaking-practice app made by Ahmad Graham ("I", "me"). This policy ex
 - **Your recordings stay on your phone.** Your videos, audio, transcripts, scores, face and voice measurements, and settings are stored on your device. I do not keep copies on a server.
 - **Everything your phone measures is free and needs no account.** Nothing leaves your phone unless you turn on Tono AI.
 - **Tono AI is optional.** When you let it judge a take, the words of that take (your phone's transcript, with its timing) and your phone's measurements of it are sent, as text, through my service to Google's Gemini. Your video and audio stay on your phone.
-- **You never have to sign in.** When Tono AI or a purchase first needs one, Tono makes an anonymous account behind the scenes: a random ID with no name, email or password. Signing in with Apple or Google is optional, and only links that account so Tono Plus can follow you to another phone.
-- **Tono AI is for people 18 and over.** If you tell Tono you are under 18, nothing is sent to Tono AI.
+- **You only sign in for Tono AI and Tono Plus.** Practicing, and everything your phone measures, needs no account. To use Tono AI or buy Tono Plus you sign in with Apple or Google, so your allowance and your subscription are yours on any phone. Tono keeps your sign-in identifier (and the email Apple or Google shares, if any) with your usage record.
+- **Tono AI is for people 18 and over.** Tono asks for your birthday and keeps it on your phone only: it is never sent to me. If you are under 18, nothing is sent to Tono AI, and it opens by itself on your 18th birthday.
 - **No ads, no analytics, no tracking, and I do not sell your information.**
 - **If you buy Tono Plus or start its free trial,** Apple takes the payment and I never see your card details.
 - **You can delete everything:** your account from Settings → Account & Plus, and the data on your phone from Settings or by deleting the app.
@@ -88,7 +88,7 @@ I use this only to run Tono AI and Tono Plus: to know which account a call is fo
 
 - **Apple takes the payment.** You buy, or start the 14-day free trial, through the App Store with your Apple ID. I never see your card or other payment details. Apple decides who can have the free trial (one per Apple ID).
 - **RevenueCat manages the subscription.** I use RevenueCat, a subscription service, to check purchases with Apple. It receives your Tono user ID (a random ID, not your name or email), what you bought, whether it is a trial, the App Store receipt, and your device type and iOS version. It receives none of your recordings, words or scores. RevenueCat works on my behalf and stores this data in the United States.
-- **No sign-in is needed to buy.** The purchase belongs to your Tono account, anonymous or linked. To keep Plus on another phone, sign in with Apple or Google, or use Restore purchases.
+- **Buying needs a sign-in.** The purchase belongs to your Tono account (Apple or Google), so Tono Plus follows you to another phone. You can also use Restore purchases.
 - **Restoring and cancelling.** "Restore purchases" asks Apple and RevenueCat to find your past purchases. You cancel, including during the free trial, in your Apple ID's subscription settings. I cannot cancel it for you, and deleting your Tono account does not cancel it.
 - **Test builds.** In TestFlight builds, purchases are Apple "sandbox" purchases and do not charge you.
 

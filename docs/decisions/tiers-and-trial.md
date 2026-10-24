@@ -10,7 +10,7 @@ Status: **built, with the open choices listed at the end for Ahmad.** Read with 
 2. [Where the prompt and the code disagreed](#2-where-the-prompt-and-the-code-disagreed)
 3. [The tiers](#3-the-tiers)
 4. [The 14-day trial](#4-the-14-day-trial)
-5. [Accounts: anonymous by default, sign-in optional](#5-accounts-anonymous-by-default-sign-in-optional)
+5. [Accounts: a sign-in for Tono AI and Plus](#5-accounts-a-sign-in-for-tono-ai-and-plus-changed-2026-10-24)
 6. [Minors and the Gemini API terms](#6-minors-and-the-gemini-api-terms)
 7. [Prompts on the server, in the taxonomy's terms](#7-prompts-on-the-server-in-the-taxonomys-terms)
 8. [Cost, re-done for text judging](#8-cost-re-done-for-text-judging)
@@ -25,7 +25,7 @@ Status: **built, with the open choices listed at the end for Ahmad.** Read with 
 - **Free, no account:** everything the phone measures, the measured score, the rule-based tips, the curriculum and the drills. Nothing leaves the phone.
 - **One free judged take a month** for everyone not paying (a server setting, `limits.freeMonthlyJudgedTakes`, default 1).
 - **Tono Plus** ($4.99 a month, $49.99 a year, unchanged) with a **14-day free trial on both plans**, as an App Store introductory offer read through RevenueCat. Plus and the trial judge takes (60 a month; 20 in the trial), judge the exercises (Rewind, Word Chain, Bridge Chain, Say it short) and write AI mark-ups.
-- **No sign-in, ever required.** An anonymous Supabase account is made behind the scenes the first time Tono AI or a purchase needs one, and it is the RevenueCat app user id. Sign in with Apple or Google links that same account.
+- **Practice never needs an account; Tono AI and Plus do.** Sign in with Apple or Google (and give a birthday) the first time Tono AI or a purchase is asked for; the Supabase user id is the RevenueCat app user id. (This replaced anonymous accounts, section 5.)
 - **The age range** is asked in onboarding. Under 18, Tono AI is off while the server's `minorsMayUseAi` is false (the default).
 - **Bring-your-own-key is gone**, with testers' keys deleted from the keychain at launch.
 - **The prompts are on the server.** The phone sends a task name and structured inputs; the server writes the prompt and the answer schema. The take review answers in the scoring taxonomy's terms. A video review gets the phone's transcript instead of transcribing.
@@ -84,18 +84,21 @@ All numbers are in the server's config row and change without an app update. Con
   - New Tono accounts or reinstalls don't bring new trials: eligibility is Apple's, per Apple ID.
   - The trial needs a payment method and converts unless cancelled.
   - The trial's own counts (20 judged takes, 60 exercise calls) and the $2.50 cost cap bound what a trial can cost: at most about 35 cents at the expected prices (section 8).
-  - Reinstalling to get more *free* judged takes works (each reinstall is a new anonymous account), but it's worth less than a cent each time, and `freeBudgetUsd` caps the total across everyone. If it ever shows up in `ai_calls`, the fixes are Apple's DeviceCheck (two bits per device that survive reinstall) or CAPTCHA on anonymous sign-ins; neither is built.
+  - Reinstalling no longer resets the free judged take: the allowance belongs to the Apple or Google account, not to the phone. `freeBudgetUsd` still caps the total across everyone.
 - **A cancelled trial** ends at its expiry; RevenueCat's webhook (or the hourly re-check) removes the entitlement, and the person is back on the free tier.
 
-## 5. Accounts: anonymous by default, sign-in optional
+## 5. Accounts: a sign-in for Tono AI and Plus (changed 2026-10-24)
 
-- `ensureAccount()` calls Supabase `signInAnonymously()` once, only when the person asks for Tono AI (allows it, turns the save-screen switch on, taps "Get notes"), a Tono AI call is made, or a purchase or restore starts. The free path never makes an account, and an under-18 never gets one.
-- The anonymous user id is the RevenueCat app user id (`purchases.ts` logs RevenueCat in as it), so a purchase belongs to it and App Review sees no registration before purchase (5.1.1(v)).
-- **Linking.** Sign in with Apple (native) or Google (browser sheet) calls `linkIdentity` on the anonymous user, so the allowance, plan and history stay. If that Apple or Google identity already belongs to another Tono account (made on another phone), the phone signs in to that account instead.
-- **Before any account,** the app still needs the server's switches (is Plus on sale, the minors policy). A new public function, `app-config`, returns them with no sign-in and nothing about the person, so the free path can show Tono Plus without making an account.
-- **Delete account** works for both kinds (App Review 5.1.1(v): any app that creates accounts must offer deletion).
-- **Supabase settings Ahmad must turn on:** "Allow anonymous sign-ins" and "Allow manual linking". Without them Tono AI and purchases fail for everyone who hasn't signed in.
-- Anonymous users count toward Supabase's monthly active users like any other; at the free and Pro plan sizes that's not a constraint.
+This section first described anonymous accounts made behind the scenes. That was reversed after the first device tests: an anonymous account made abuse cheap (a reinstall was a new free allowance), and a free judged take a month is worth a sign-in.
+
+- **Practice needs no account.** The measured layer, lessons and drills work offline and signed out.
+- **Tono AI, live conversation and Plus need a sign-in with Apple or Google, and a birthday.** `askToSignIn()` (`services/account/signInGate.ts`) opens the SignIn screen in the moment the person asks (allowing Tono AI, turning the save-screen switch on, "Get notes", Start on a live conversation, subscribing). It closes itself when both are in place.
+- **No anonymous accounts.** `ensureAccount()` only checks; it throws `sign_in_required` and never makes one. An anonymous session left on a phone is dropped at launch, and the functions refuse one (`requireUser`). In Supabase, "Allow anonymous sign-ins" is OFF.
+- **The Supabase user id is still the RevenueCat app user id**, so Plus follows the person to another phone. Sign in with Apple or Google signs in; there is no linking step.
+- **Birthday, not an age range.** The only rule is 18 and over, and it has to flip by itself on the day someone turns 18, so the app keeps a birthday (on the phone only; `UserProfile.birthDate`) and works out `isAdultFromBirthDate` each time. Onboarding asks it (skippable); the SignIn screen asks it when it is missing, before the sign-in, so a person under 18 is never asked to make an account. The server does not see it (policy is still `minorsMayUseAi`); putting the check on the server is a possible later step.
+- **Before any account,** the app still needs the server's switches (is Plus on sale, the minors policy). `app-config` returns them with no sign-in.
+- **Delete account** is unchanged (App Review 5.1.1(v)).
+- **Developer override.** `dev-override` + `accounts.dev_override_until`: with the `DEV_OVERRIDE_PASSWORD` secret, one account goes past every Tono AI limit for 6 hours (the kill switch still applies). The Dev tab (present in preview and TestFlight builds) stays locked until the password is given.
 
 ## 6. Minors and the Gemini API terms
 
@@ -191,6 +194,6 @@ Each is built as recommended and easy to reverse.
 4. **Trial counts:** 20 judged takes and 60 exercise calls over the trial, under the same $2.50 cap.
 5. **Conviction is judged** by Tono AI from the text (it was measured only). Reverse: `conviction.judged = null` in `taxonomy.ts` and the server list.
 6. **Gemini 3.1 Flash-Lite** as a 0% text candidate, to roll out after the hosted eval.
-7. **Anonymous sign-in and manual linking** in Supabase (needed for no-sign-in purchases).
+7. ~~Anonymous sign-in and manual linking~~ Reversed: anonymous sign-ins are OFF (section 5).
 8. **The video setting stays Dev-only**, so the production privacy answers don't include audio or video.
 9. **`freeBudgetUsd`** stays $50 for the beta; raise it at launch.

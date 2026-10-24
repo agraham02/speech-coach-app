@@ -28,8 +28,8 @@ You are responsible for what you record, and for having the right to record it. 
 
 Tono AI is the AI coach that runs through my service. Using it means:
 
-- **No sign-in is needed.** The first time you use Tono AI, or buy Tono Plus, the app makes an anonymous Tono account for you behind the scenes. You can link it to Sign in with Apple or Google in Settings, so Tono Plus follows you to another phone. One person should have one account, and you are responsible for what happens under yours.
-- **It is for people 18 and over.** Google's terms for the Gemini service behind Tono AI require it. If you tell Tono you are under 18, Tono AI is not offered.
+- **You sign in with Apple or Google.** Tono AI and Tono Plus need a Tono account, made by signing in with Apple or Google; practicing does not. One person should have one account, and you are responsible for what happens under yours.
+- **It is for people 18 and over.** Google's terms for the Gemini service behind Tono AI require it. Tono asks for your birthday, and if you are under 18 Tono AI is not offered until you turn 18.
 - **There is an allowance.** Everyone gets one judged take a month free. Tono Plus, and its free trial, give you more, as shown in the app. Notes on drills and exercises, and AI mark-ups, are part of Tono Plus. One judged take counts as one, whatever it was judged from. The numbers and the rules can change, and I may pause Tono AI for everyone, for example if it costs more than I can cover. Unused judged takes do not carry over, and an allowance has no cash value.
 - **It is not guaranteed.** Tono AI depends on Google and other services, so it can be slow, unavailable, or give a poor result. When it is not available, Tono keeps the measurements and tips that run on your phone, which stay free. I choose the AI model behind Tono AI, and the instructions it is given, and may change them at any time.
 - **Fair use.** Do not try to get around the limits, for example by making extra accounts or reinstalling to get more free judged takes, automating requests, or using Tono AI other than through the app. I may limit or close an account that does.

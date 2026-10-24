@@ -7,7 +7,7 @@ import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 // Onboarding's Tono AI step: what it adds, what it costs (nothing to start),
 // and exactly what is sent, right above the "Allow Tono AI" button
 // (OnboardingScreen) that is the person's permission (App Review 5.1.2(i)).
-// No sign-in and no key: an account is made behind the scenes when needed.
+// Using it needs a sign-in with Apple or Google, asked for the first time it is used.
 export function AiCoachSetup() {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -16,7 +16,7 @@ export function AiCoachSetup() {
       <View style={styles.points}>
         <Point icon="sparkles-outline" text="Judges each take like a coach would: did your answer have a shape, stay on the point and land with conviction, and what to change next." />
         <Point icon="phone-portrait-outline" text="Your phone still measures pace, pauses, fillers and eye contact on its own, free. Tono AI adds the judgement calls a phone can't make." />
-        <Point icon="gift-outline" text="One judged take a month is free, with no account to make. Tono Plus gives you 60 a month, and you can try it free for 14 days." />
+        <Point icon="gift-outline" text="One judged take a month is free; you sign in with Apple or Google the first time you use it. Tono Plus gives you 60 a month, and you can try it free for 14 days." />
       </View>
       <View style={styles.disclosure}>
         <Ionicons name="document-text-outline" size={18} color={colors.textSecondary} />

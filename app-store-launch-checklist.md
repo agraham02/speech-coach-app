@@ -6,7 +6,7 @@ The app's shape matters for several answers below:
 
 - **Free, no account:** recording, the on-device transcript, every measurement, scores and tips, the curriculum and the drills. Nothing leaves the phone.
 - **Tono AI** (optional, after one in-app consent): the take's transcript and the phone's measurements go, as text, through Tono's Supabase backend to Google Gemini (paid tier). The video stays on the phone (a Dev setting can send it; not in production builds).
-- **Accounts:** none is ever required. The first Tono AI call or purchase makes an **anonymous** Supabase account behind the scenes (linked to RevenueCat by its id), so App Review never sees forced registration before a purchase (Guideline 5.1.1(v)). Sign in with Apple or Google is optional and links that account.
+- **Accounts:** practice needs none. Tono AI, live conversation and Tono Plus need a sign-in with Apple or Google (and a birthday, kept on the phone). Anonymous sign-ins are OFF in Supabase. The account id is the RevenueCat app user id. Guideline 5.1.1(v): the free app asks for nothing; the account-based features (Tono AI, Plus) require one, and deletion is in Settings → Account & Plus. 4.8: Sign in with Apple is offered next to Google.
 - **Tono Plus:** auto-renewing subscriptions, $4.99 a month and $49.99 a year, both with a **14-day free trial** (an introductory offer). Free users get one judged take a month.
 - **Age:** onboarding asks an age range. Under 18, Tono AI is off (the Gemini API terms ask for 18 or older; `docs/decisions/tiers-and-trial.md`).
 
@@ -26,7 +26,7 @@ Already done:
 
 - [x] Permission prompts say what each one is for and where the data goes: camera, microphone, speech recognition (`app.config.ts`, Guideline 5.1.1).
 - [x] One consent before anything goes to Tono AI, with exactly what is sent shown above the button (Guideline 5.1.2(i)); the save screen has a per-take switch.
-- [x] No sign-in before purchase: the anonymous account is made behind the scenes (Guideline 5.1.1(v)). Account deletion is in Settings → Account & Plus for any account, anonymous or linked.
+- [x] The free app asks for no account; Tono AI, live conversation and Tono Plus need a sign-in with Apple (offered first, Guideline 4.8) or Google. Account deletion is in Settings → Account & Plus (Guideline 5.1.1(v)).
 - [x] The paywall shows trial length, price after the trial, that it renews, how to cancel, Restore, Terms and Privacy next to the button (Guideline 3.1.2). It promises a trial only when the App Store says the Apple ID is eligible.
 - [x] Export compliance: `ITSAppUsesNonExemptEncryption: false`. HTTPS only.
 - [x] The Dev tab and lab screens are hidden in production builds (`SHOW_DEV_TOOLS` is only on for `__DEV__` or the `preview` profile). That includes the "judge from the video" setting.
@@ -96,7 +96,7 @@ The device test plan (`docs/testing/device-test-plan.md`, section J) has the ful
 - [ ] Before submitting, flip the launch switch (`supabase/README.md`): `mode` launch and `plusPurchasable` true, so the reviewer sees the paywall.
 - [ ] Choose the build, fill in App Review Information, and attach both subscriptions to the version. Review notes, draft:
 
-  > Tono is a public-speaking practice app. No account or sign-in is needed for anything, including purchases: the app makes an anonymous account behind the scenes when the AI feature or a purchase first needs one. Sign in with Apple or Google in Settings is optional and only lets a subscription follow the user to another phone.
+  > Tono is a public-speaking practice app. Practice needs no account. Tono AI (an AI coach) and the Tono Plus subscription need a sign-in with Apple or Google, so no demo account is needed: sign in with any Apple ID. The app also asks for a birthday, kept on the phone, because Tono AI is for people 18 and over.
   >
   > To try it: finish onboarding, tap Record on Today, speak for 30 seconds, and stop. The result shows pace, pauses, filler words and eye contact, all computed on the device.
   >

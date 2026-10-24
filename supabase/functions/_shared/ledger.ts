@@ -85,9 +85,9 @@ async function readSnapshot(sql: Sql | Tx, userId: string, now: Date): Promise<S
   const result = toSnapshot(rows[0]);
   // The developer's testing switch (migration 20261025000000).
   const override = (await sql`
-    select dev_override_until is not null and dev_override_until > now() as on from public.accounts where user_id = ${userId}
-  `) as unknown as { on: boolean }[];
-  if (override[0]?.on) result.snapshot.devOverride = true;
+    select dev_override_until is not null and dev_override_until > now() as active from public.accounts where user_id = ${userId}
+  `) as unknown as { active: boolean }[];
+  if (override[0]?.active) result.snapshot.devOverride = true;
   return result;
 }
 

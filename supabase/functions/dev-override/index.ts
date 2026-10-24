@@ -32,9 +32,9 @@ function sameSecret(given: string, secret: string): boolean {
 
 async function status(userId: string): Promise<{ active: boolean; until: string | null }> {
   const rows = (await db()`
-    select dev_override_until as until from public.accounts where user_id = ${userId}
-  `) as unknown as { until: Date | null }[];
-  const until = rows[0]?.until ? new Date(rows[0].until) : null;
+    select dev_override_until as override_until from public.accounts where user_id = ${userId}
+  `) as unknown as { override_until: Date | null }[];
+  const until = rows[0]?.override_until ? new Date(rows[0].override_until) : null;
   return { active: !!until && until.getTime() > Date.now(), until: until && until.getTime() > Date.now() ? until.toISOString() : null };
 }
 
@@ -59,7 +59,7 @@ Deno.serve(
         throw new HttpError(403, "wrong_password");
       }
       await db()`
-        update public.accounts set dev_override_until = now() + make_interval(hours => ${OVERRIDE_HOURS}) where user_id = ${user.id}
+        update public.accounts set dev_override_until = now() + ${OVERRIDE_HOURS}::int * interval '1 hour' where user_id = ${user.id}
       `;
     }
     return json(await status(user.id));
