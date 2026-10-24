@@ -79,7 +79,7 @@ export const GUIDES = {
     { title: "Drills listen live", body: "Just speak. It follows along as you go, and keeps your score, not your audio.", placement: "top" },
   ],
   recording: [
-    { title: "Recording a take", body: "Talk to the lens like it's a person. Your phone measures the take, and your AI coach reviews it if you've turned that on.", placement: "top" },
+    { title: "Recording a take", body: "Talk to the lens like it's a person. Your phone measures the take, and Tono AI judges it if you've turned that on.", placement: "top" },
     {
       title: "Hide yourself",
       body: "Turn this on to record without watching yourself. Tap the screen to see the question and time left; you'll feel two taps at 30 seconds and three at 10.",
@@ -88,9 +88,9 @@ export const GUIDES = {
     { title: "Start when you're ready", body: "Tap to start, and tap again to stop. Restart throws a bad start away.", target: "recording.record" },
   ],
   result: [
-    { title: "Your score", body: "Built from what your phone measured and, once it's in, your AI coach's review — which leads where it could see more.", target: "result.score" },
+    { title: "Your score", body: "Built from what your phone measured, or, when Tono AI judged the take, from its judgement, which uses those measurements as evidence.", target: "result.score" },
     { title: "Why it's this number", body: "Tap any part to see what raised it, what took points away, and what would earn them back.", target: "result.breakdown" },
-    { title: "What's still working", body: "Each part of the analysis, and a retry if one didn't finish. Add a deep review here if this take doesn't have one.", target: "result.steps" },
+    { title: "What's still working", body: "Each part of the analysis, and a retry if one didn't finish. Have Tono AI judge it here if it hasn't been.", target: "result.steps" },
   ],
   markItUp: [
     { title: "Mark it up", body: "Mark where to pause, which word to stress, and where your voice rises or falls. Then read the line the way you marked it.", placement: "top" },

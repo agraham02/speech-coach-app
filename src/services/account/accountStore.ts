@@ -11,15 +11,16 @@ import {
   type AccountSnapshot,
 } from "../../domain/account";
 import { logger } from "../../utils/logger";
-import { PROVIDER_ORDER } from "../cloud/providers";
-import { getAccountCacheRaw, hasChosenCloudProvider, setAccountCacheRaw, setCloudProvider } from "../prefs/prefsStore";
-import { getProviderKey } from "../secrets/secretsStore";
-import { onAllowance, TonoApiError, tonoMe } from "../tono/tonoApi";
+import { getAccountCacheRaw, setAccountCacheRaw } from "../prefs/prefsStore";
+import { onAllowance, TonoApiError, tonoAppConfig, tonoMe } from "../tono/tonoApi";
 import { getSupabase } from "./supabaseClient";
 
-// Who is signed in and what they have left, as one observable object
+// The person's Tono account and what they have left, as one observable object
 // (domain/account.ts). The copy kept between launches means the app knows the
 // answer straight away; the server's answer follows and replaces it.
+//
+// The free path never makes an account. ensureAccount() makes an anonymous
+// one, with no sign-in, the first time Tono AI or a purchase needs it.
 
 let state: AccountSnapshot = parseAccountCache(getAccountCacheRaw()) ?? UNKNOWN_ACCOUNT;
 const listeners = new Set<() => void>();
@@ -43,21 +44,27 @@ export function useAccount(): AccountSnapshot {
   return useSyncExternalStore(subscribeAccount, getAccount, getAccount);
 }
 
+// The server's switches as last heard without an account (app-config), so a
+// person who never made one still sees Tono Plus when it is on sale.
+let publicSwitches: Pick<AccountSnapshot, "mode" | "killSwitch" | "plusPurchasable" | "minorsMayUseAi"> | null = null;
+const signedOut = (): AccountSnapshot => ({ ...SIGNED_OUT, ...(publicSwitches ?? {}) });
+
 // A session appeared, changed or went away.
 function applySession(session: Session | null): void {
   if (!session) {
-    if (state.status !== "signedOut") commit(SIGNED_OUT);
+    if (state.status !== "signedOut") commit(signedOut());
     return;
   }
   const user = session.user;
-  const provider = providerFromAuth(user.app_metadata?.provider ?? user.identities?.[0]?.provider);
-  const email = user.email ?? null;
+  const anonymous = user.is_anonymous === true;
+  const provider = anonymous ? null : providerFromAuth(user.app_metadata?.provider ?? user.identities?.[0]?.provider);
+  const email = anonymous ? null : (user.email ?? null);
   if (state.status === "signedIn" && state.userId === user.id) {
-    if (state.provider !== provider || state.email !== email) commit({ ...state, provider, email });
+    if (state.provider !== provider || state.email !== email || state.anonymous !== anonymous) commit({ ...state, provider, email, anonymous });
     return;
   }
-  // Someone new: nothing from the last person carries over.
-  commit({ ...SIGNED_OUT, status: "signedIn", userId: user.id, provider, email });
+  // Someone new: nothing from the last account carries over.
+  commit({ ...signedOut(), status: "signedIn", userId: user.id, anonymous, provider, email });
 }
 
 // Asks the server what this person has left. Quiet when offline: the cached
@@ -77,7 +84,14 @@ export async function refreshAccount(options?: { syncPurchases?: boolean }): Pro
     try {
       const me = await tonoMe(options?.syncPurchases ? { refresh: true } : undefined);
       if (state.status !== "signedIn") return;
-      commit({ ...withAllowance(state, me.allowance), allowed: me.allowed, mode: me.mode, killSwitch: me.killSwitch, plusPurchasable: me.plusPurchasable === true });
+      commit({
+        ...withAllowance(state, me.allowance),
+        allowed: me.allowed,
+        mode: me.mode,
+        killSwitch: me.killSwitch,
+        plusPurchasable: me.plusPurchasable === true,
+        minorsMayUseAi: me.minorsMayUseAi === true,
+      });
     } catch (error) {
       if (error instanceof TonoApiError && error.code === "signed_out") {
         // The server will not accept this session even after a refresh.
@@ -93,16 +107,37 @@ export async function refreshAccount(options?: { syncPurchases?: boolean }): Pro
   return refreshing;
 }
 
-// Phones that already had a key before Tono AI existed would otherwise be moved
-// to it silently, which would leave their key unused. Once, they keep what
-// they had.
-async function keepExistingKeyProvider(): Promise<void> {
-  if (hasChosenCloudProvider()) return;
-  for (const id of PROVIDER_ORDER) {
-    if (await getProviderKey(id).catch(() => null)) {
-      setCloudProvider(id);
-      return;
+let creating: Promise<void> | null = null;
+
+// Makes sure there is an account to count against, making an anonymous one
+// when there's none: no sign-in, no registration, nothing shown. Supabase's
+// anonymous sign-ins must be on (supabase/README.md). Throws when it can't be
+// made (offline); callers treat that like any other offline failure.
+export async function ensureAccount(): Promise<void> {
+  if (state.status === "signedIn") return;
+  if (creating) return creating;
+  creating = (async () => {
+    try {
+      const { data, error } = await getSupabase().auth.signInAnonymously();
+      if (error || !data.session) throw new Error(error?.message ?? "No session");
+      applySession(data.session);
+      await refreshAccount();
+    } finally {
+      creating = null;
     }
+  })();
+  return creating;
+}
+
+// Asks the server for its switches without an account. Quiet when offline.
+export async function refreshPublicConfig(): Promise<void> {
+  try {
+    const c = await tonoAppConfig();
+    publicSwitches = { mode: c.mode, killSwitch: c.killSwitch, plusPurchasable: c.plusPurchasable, minorsMayUseAi: c.minorsMayUseAi };
+    // A signed-in account hears the same switches from `me`.
+    if (state.status !== "signedIn") commit({ ...state, ...publicSwitches });
+  } catch (error) {
+    logger.info(`[account] could not read the app config — ${(error as Error).message}`);
   }
 }
 
@@ -112,7 +147,6 @@ let started = false;
 export async function initAccount(): Promise<void> {
   if (started) return;
   started = true;
-  await keepExistingKeyProvider();
 
   onAllowance((allowance) => {
     if (state.status === "signedIn") commit(withAllowance(state, allowance));
@@ -129,18 +163,20 @@ export async function initAccount(): Promise<void> {
   const { data } = await auth.getSession();
   applySession(data.session);
   void refreshAccount();
+  if (!data.session) void refreshPublicConfig();
 
   let lastRefresh = Date.now();
   AppState.addEventListener("change", (appState) => {
     // Coming back to the app is when the numbers are most likely stale.
     if (appState === "active" && Date.now() - lastRefresh > 60_000) {
       lastRefresh = Date.now();
-      void refreshAccount();
+      if (state.status === "signedIn") void refreshAccount();
+      else void refreshPublicConfig();
     }
   });
 }
 
-// Forgets the signed-in person on this phone (after sign-out or deletion).
+// Forgets the account on this phone (after sign-out or deletion).
 export function clearAccount(): void {
-  commit(SIGNED_OUT);
+  commit(signedOut());
 }

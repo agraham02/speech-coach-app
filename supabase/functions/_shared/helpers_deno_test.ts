@@ -2,7 +2,7 @@
 // checks. Run with `deno test` (see supabase/README.md). Not part of jest.
 import { assertEquals, assertRejects, assertThrows } from "jsr:@std/assert@1";
 import { answerText, GeminiError, startUpload } from "./gemini.ts";
-import { decryptText, encryptText, identityHash } from "./secrets.ts";
+import { decryptText, encryptText } from "./secrets.ts";
 
 const ROOT = "dGVzdC1zZWNyZXQtZm9yLXRvbm8tdGVzdHMtb25seS0hISE=";
 
@@ -16,15 +16,6 @@ Deno.test("encrypt and decrypt round trip, and differ every time", async () => {
 Deno.test("decrypting with another secret fails", async () => {
   const a = await encryptText("x", ROOT);
   await assertRejects(() => decryptText(a, "b3RoZXItc2VjcmV0"));
-});
-
-Deno.test("identity hash is stable, keyed and one-way looking", async () => {
-  const one = await identityHash("apple:001234.abcd", ROOT);
-  assertEquals(one, await identityHash("apple:001234.abcd", ROOT));
-  assertEquals(one === (await identityHash("apple:001234.abce", ROOT)), false);
-  assertEquals(one === (await identityHash("apple:001234.abcd", "b3RoZXItc2VjcmV0")), false);
-  assertEquals(/^[0-9a-f]{64}$/.test(one), true);
-  assertEquals(one.includes("001234"), false);
 });
 
 Deno.test("answerText accepts a finished answer", () => {

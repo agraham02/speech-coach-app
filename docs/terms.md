@@ -4,13 +4,13 @@ title: Tono Terms of Service
 
 # Tono Terms of Service
 
-Effective October 19, 2026
+Effective October 24, 2026
 
 These terms are an agreement between you and Ahmad Graham ("I", "me") about your use of the Tono app. By installing or using Tono, you agree to them. If you do not agree, please do not use the app.
 
 ## What Tono is
 
-Tono is a speaking-practice app. It records your practice, measures your voice, pace and delivery on your phone, and, if you choose, asks an AI service for feedback, either through my service (Tono AI) or with your own API key.
+Tono is a speaking-practice app. It records your practice and measures your voice, pace and delivery on your phone, free and with no account. If you choose, Tono AI, an AI service that runs through my service, judges your takes and coaches you.
 
 ## Not professional advice
 
@@ -18,43 +18,36 @@ Tono is a practice and coaching tool. Its scores and feedback come from software
 
 ## Your content
 
-Your recordings, transcripts, answers and everything else you create in Tono belong to you. I do not take ownership of them. Practice data stays on your device unless you choose to send it for an AI review.
+Your recordings, transcripts, answers and everything else you create in Tono belong to you. I do not take ownership of them. Practice data stays on your device unless you choose to have Tono AI judge it.
 
-If you use Tono AI, you allow me, and Google as the service that runs the review, to process what you send for the sole purpose of giving you that review. That is the only permission you give me. The [Privacy Policy](privacy.html) explains what is sent and what I keep.
+If you use Tono AI, you allow me, and Google as the service that runs it, to process what you send for the sole purpose of judging it and giving you the result. That is the only permission you give me. The [Privacy Policy](privacy.html) explains what is sent and what I keep.
 
 You are responsible for what you record, and for having the right to record it. Do not record other people without their permission where the law requires it.
 
 ## Tono AI
 
-Tono AI is the AI review service that runs through my service. It needs an account. Using it means:
+Tono AI is the AI coach that runs through my service. Using it means:
 
-- **You sign in with Apple or Google.** An account is only for Tono AI. The rest of Tono works without one. You are responsible for your sign-in, and for what happens under your account. One person should have one account.
-- **There is an allowance.** Tono AI is limited in how many reviews you get. Today, while Tono is in beta, that is a monthly allowance (a larger one with Tono Plus, once it is offered), and the app shows how many reviews you have left. The numbers and the rules can change, and I may pause Tono AI for everyone, for example if it costs more than I can cover. Unused reviews do not carry over, and an allowance has no cash value.
-- **It is not guaranteed.** Tono AI depends on Google and other services, so it can be slow, unavailable, or give a poor result. When it is not available, Tono falls back to the feedback that runs on your phone, which stays free. I choose the AI model behind Tono AI and may change it at any time.
-- **Fair use.** Do not try to get around the limits, for example by making extra accounts, deleting and re-creating your account to get the free reviews again, automating requests, or using Tono AI other than through the app. I may limit or close an account that does.
-- **Your account can be deleted** at any time in Settings → Account. That removes the account and its usage record. It does not touch the recordings on your phone.
+- **No sign-in is needed.** The first time you use Tono AI, or buy Tono Plus, the app makes an anonymous Tono account for you behind the scenes. You can link it to Sign in with Apple or Google in Settings, so Tono Plus follows you to another phone. One person should have one account, and you are responsible for what happens under yours.
+- **It is for people 18 and over.** Google's terms for the Gemini service behind Tono AI require it. If you tell Tono you are under 18, Tono AI is not offered.
+- **There is an allowance.** Everyone gets one judged take a month free. Tono Plus, and its free trial, give you more, as shown in the app. Notes on drills and exercises, and AI mark-ups, are part of Tono Plus. One judged take counts as one, whatever it was judged from. The numbers and the rules can change, and I may pause Tono AI for everyone, for example if it costs more than I can cover. Unused judged takes do not carry over, and an allowance has no cash value.
+- **It is not guaranteed.** Tono AI depends on Google and other services, so it can be slow, unavailable, or give a poor result. When it is not available, Tono keeps the measurements and tips that run on your phone, which stay free. I choose the AI model behind Tono AI, and the instructions it is given, and may change them at any time.
+- **Fair use.** Do not try to get around the limits, for example by making extra accounts or reinstalling to get more free judged takes, automating requests, or using Tono AI other than through the app. I may limit or close an account that does.
+- **Your account can be deleted** at any time in Settings → Account & Plus. That removes the account and its usage record. It does not touch the recordings on your phone.
 
-## Tono Plus
+## Tono Plus and the free trial
 
-Nothing in Tono asks you to pay today. Tono Plus is an optional paid subscription that gives you a larger monthly allowance of Tono AI reviews. These terms apply once it is offered.
+Tono Plus is an optional paid subscription, monthly or yearly. It gives you more judged takes a month, notes on your drills and exercises, and AI mark-ups.
 
-- **What you get.** The app lists what Tono Plus includes, and how many reviews, before you buy. The practice tools and the feedback that runs on your phone stay free for everyone.
-- **Price and billing.** The price and the length (monthly or yearly) are shown in the app, in your local currency, before you buy. Payment is charged to your Apple ID when you confirm the purchase.
+- **What you get.** The app lists what Tono Plus includes, and how many judged takes, before you buy. The practice tools, and the measurements and tips that run on your phone, stay free for everyone.
+- **The free trial.** New subscribers can try Tono Plus free for 14 days, on either plan, as an App Store introductory offer. Apple decides who is eligible: one free trial per Apple ID, so a new Tono account or a reinstall does not bring another. The trial has its own allowance, shown in the app. Unless you cancel at least 24 hours before the trial ends, it turns into the plan you chose and your Apple ID is charged then.
+- **Price and billing.** The price and the length (monthly or yearly) are shown in the app, in your local currency, before you buy. Without a trial, payment is charged to your Apple ID when you confirm the purchase.
 - **It renews by itself.** Your subscription renews for the same length, at the then-current price, unless you cancel at least 24 hours before the end of the current period. Apple charges the renewal within 24 hours before the period ends.
-- **Cancelling.** Manage or cancel in your Apple ID's subscription settings (iOS Settings → your name → Subscriptions). You keep Tono Plus until the end of the period you paid for. Deleting the app, or your Tono account, does not cancel a subscription.
+- **Cancelling.** Manage or cancel, including during the trial, in your Apple ID's subscription settings (iOS Settings → your name → Subscriptions). You keep Tono Plus until the end of the period you paid for, or the trial. Deleting the app, or your Tono account, does not cancel a subscription.
 - **Refunds.** Apple handles payments and refunds. Ask Apple for a refund through its usual process. I cannot issue one for an App Store purchase.
-- **It belongs to your account.** Tono Plus is tied to your Tono account, so you must be signed in to buy it. "Restore purchases" in Settings brings it back on a new phone. When it ends, you go back to the free allowance and your recordings on your phone are not affected.
-- **Limits still apply.** Tono Plus has a monthly allowance, and a limit on what Tono AI may cost to run for each subscriber in a month, so that it stays fair and sustainable. If you reach a limit, Tono AI waits until the next month, and the feedback on your phone keeps working.
+- **It belongs to your Tono account.** "Restore purchases" in Settings brings it back on a new phone, and signing in with Apple or Google keeps it with you. When it ends, you go back to the free allowance and your recordings on your phone are not affected.
+- **Limits still apply.** Tono Plus has a monthly allowance, and a limit on what Tono AI may cost to run for each subscriber in a month, so that it stays fair and sustainable. If you reach a limit, Tono AI waits until the next month, and the measurements and tips on your phone keep working.
 - **Price changes.** I may change the price. Apple will ask you to agree to an increase before it applies to you.
-
-## Your own API keys
-
-Deep reviews can instead use an AI provider you choose (Google, OpenAI, Anthropic or OpenRouter) with **your own API key**. This does not need a Tono account. It means:
-
-- **You pay the provider.** Usage is billed to your account with them. I do not charge for Tono, and I receive none of that money. Costs can add up, so check your provider's pricing and set limits on your key if you like. Tono has a daily limit on reviews to help avoid runaway use, but it is a safeguard, not a guarantee, and I am not responsible for charges.
-- **Their terms apply.** Your use of a provider is governed by their terms and privacy policy, which you accept when you create the account and key. What they do with data you send is up to them (see the [Privacy Policy](privacy.html)).
-- **Keep your key private.** Tono stores it in your iPhone Keychain. You are responsible for keeping it secure, and for what happens if it is shared or leaked.
-- **Availability varies.** Providers can change, limit, rename or end their services at any time. Tono may stop working with one of them, and I cannot control that.
 
 ## Acceptable use
 
@@ -70,7 +63,7 @@ The Tono app, its name, design, text and code belong to me, apart from third-par
 
 ## Third-party services
 
-Tono relies on services and software I do not control, including Apple, Google, Supabase, RevenueCat, OpenAI, Anthropic, OpenRouter and Hugging Face. They are not responsible for the app, and I am not responsible for them.
+Tono relies on services and software I do not control, including Apple, Google, Supabase, RevenueCat and Hugging Face. They are not responsible for the app, and I am not responsible for them.
 
 ## No warranty
 
@@ -78,15 +71,15 @@ Tono is provided "as is" and "as available," without warranties of any kind, whe
 
 ## Limit of liability
 
-To the fullest extent the law allows, I am not liable for any indirect, incidental, special, consequential or punitive damages, or for loss of data, profits or opportunities, arising from your use of Tono or of any AI service you connect to it. My total liability for any claim is limited to the amount you paid me for Tono in the 12 months before the claim, which is zero if you have paid nothing. Some places do not allow these limits, so they may not apply to you in full.
+To the fullest extent the law allows, I am not liable for any indirect, incidental, special, consequential or punitive damages, or for loss of data, profits or opportunities, arising from your use of Tono or of Tono AI. My total liability for any claim is limited to the amount you paid me for Tono in the 12 months before the claim, which is zero if you have paid nothing. Some places do not allow these limits, so they may not apply to you in full.
 
 ## Ending your use
 
-You can stop using Tono at any time by deleting your account if you have one (Settings → Account) and deleting the app, which removes the data stored on your phone. I may stop offering or supporting the app, or end your access to Tono AI or to a test version, at any time. If I close an account for breaking these terms, I will tell you why when I can.
+You can stop using Tono at any time by deleting your account if you have one (Settings → Account & Plus) and deleting the app, which removes the data stored on your phone. I may stop offering or supporting the app, or end your access to Tono AI or to a test version, at any time. If I close an account for breaking these terms, I will tell you why when I can.
 
 ## Apple
 
-These terms are between you and me, not Apple. Apple has no obligation to provide support or maintenance for Tono. If the app fails to meet a warranty that applies, you may tell Apple, and Apple may refund the purchase price if you have paid one (Tono Plus, once it is offered). Apple is not responsible for claims relating to the app. Apple and its subsidiaries are third-party beneficiaries of these terms and may enforce them against you. You also agree to Apple's usage rules for the App Store and TestFlight.
+These terms are between you and me, not Apple. Apple has no obligation to provide support or maintenance for Tono. If the app fails to meet a warranty that applies, you may tell Apple, and Apple may refund the purchase price if you have paid one (Tono Plus). Apple is not responsible for claims relating to the app. Apple and its subsidiaries are third-party beneficiaries of these terms and may enforce them against you. You also agree to Apple's usage rules for the App Store and TestFlight.
 
 ## Changes
 

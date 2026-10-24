@@ -17,14 +17,12 @@ import { Chip } from "../../components/common/Chip";
 import { PrimaryButton } from "../../components/common/PrimaryButton";
 import { CADENCES, syntheticVolume } from "../../services/dev/syntheticVolume";
 import { GUIDES } from "../../content/guide";
-import { getCloudCallsToday, getGuideSeen, getJudgeInput, resetCloudCallsToday, resetGuide, setJudgeInput, unmarkGuideSeen } from "../../services/prefs/prefsStore";
+import { getGuideSeen, getJudgeInput, resetGuide, setJudgeInput, unmarkGuideSeen } from "../../services/prefs/prefsStore";
 import { requestNotificationPermission } from "../../services/notifications/reminderScheduler";
 import { storageBreakdown, type StorageLine } from "../../services/dev/storageInfo";
 import { mediaBackupStatus } from "../../services/storage/mediaBackup";
 import { modelBackupStatus, reapplyBackupExclusion, type ModelBackupStatus } from "../../services/asr/whisperModels";
 import { formatBytes } from "../../domain/dev/jsonView";
-import { DAILY_REVIEW_LIMIT } from "../../services/cloud/inputGuards";
-import { todayISODate } from "../../utils/dateUtils";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 import { ProgressReveal } from "../../components/celebrate/ProgressReveal";
 import { celebrate } from "../../components/celebrate/CelebrationHost";
@@ -97,7 +95,6 @@ export function ToolsScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const showToast = useToast();
   const [seen, setSeen] = useState<string[]>(getGuideSeen());
-  const [calls, setCalls] = useState(() => getCloudCallsToday(todayISODate()));
   const [scheduled, setScheduled] = useState<Scheduled[] | null>(null);
   const [storage, setStorage] = useState<StorageLine[]>([]);
   const [backup, setBackup] = useState<ModelBackupStatus | null>(null);
@@ -112,7 +109,6 @@ export function ToolsScreen({ navigation }: Props) {
 
   const refresh = useCallback(() => {
     setSeen(getGuideSeen());
-    setCalls(getCloudCallsToday(todayISODate()));
     setStorage(storageBreakdown());
     setBackup(modelBackupStatus());
     Notifications.getAllScheduledNotificationsAsync()
@@ -161,7 +157,7 @@ export function ToolsScreen({ navigation }: Props) {
       <ListGroup title="Tono AI take reviews">
         <ListRow
           title="Judge from"
-          subtitle="Words and measurements is the default (cheaper). Video sends the take's video too, as before."
+          subtitle="Words and measurements is the default (cheaper). Video sends the take's video too, with the phone's transcript; it still counts as one judged take."
           value={judgeInput === "video" ? "Video" : "Words and measurements"}
           onPress={() => {
             const next = judgeInput === "video" ? "text" : "video";
@@ -265,19 +261,6 @@ export function ToolsScreen({ navigation }: Props) {
           </View>
         ))}
       </Card>
-
-      <ListGroup title="Deep review limit">
-        <ListRow title="Used today" value={calls + " of " + DAILY_REVIEW_LIMIT} />
-        <ListRow
-          icon="refresh-outline"
-          title="Reset today"
-          subtitle="Starts the daily count over"
-          onPress={() => {
-            resetCloudCallsToday();
-            refresh();
-          }}
-        />
-      </ListGroup>
 
       <ListGroup title="Storage">
         {storage.map((line) => (

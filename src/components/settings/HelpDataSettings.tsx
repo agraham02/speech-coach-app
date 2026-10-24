@@ -75,11 +75,11 @@ export function HelpDataSettings() {
   }
 
   // Starts over completely — for old data from an earlier version, or a
-  // clean slate. Everything but the API keys goes (see resetApp.ts).
+  // clean slate (see resetApp.ts).
   function confirmReset() {
     Alert.alert(
       "Reset the app?",
-      "This erases every recording and video, with their transcripts and scores, your lessons, levels and streak, and your profile and settings — then starts onboarding again. Your API keys are kept. This can't be undone.",
+      "This erases every recording and video, with their transcripts and scores, your lessons, levels and streak, and your profile and settings — then starts onboarding again. This can't be undone.",
       [
         { text: "Cancel", style: "cancel" },
         { text: "Export first", onPress: handleExport },
@@ -196,9 +196,6 @@ export function HelpDataSettings() {
           onPress={confirmReset}
         />
       </ListGroup>
-      <Txt variant="footnote" tone="secondary" style={styles.note}>
-        Your API keys are kept.
-      </Txt>
 
       {resetting ? (
         <Modal transparent animationType="fade" visible>

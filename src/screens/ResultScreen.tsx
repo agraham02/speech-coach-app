@@ -42,8 +42,10 @@ import { getPrompt } from "../services/db/promptsRepo";
 import { getScriptById } from "../services/db/scriptsRepo";
 import { resolveVideoUri, videoExists } from "../services/storage/videoStorage";
 import { requestStep } from "../services/pipeline/sessionPipeline";
-import { currentProvider, reviewBlockedReason } from "../services/cloud/providers";
-import { readyForDeepReview } from "../services/cloud/consent";
+import { openPaywall, readyForTono } from "../services/cloud/consent";
+import { tonoAgeGated } from "../services/cloud/routing";
+import { useAccount } from "../services/account/accountStore";
+import { purchasesEnabled } from "../services/purchases/purchases";
 import { setVideoKeepsake } from "../services/data/videoKeepsakes";
 import { getArtifact } from "../services/db/artifactsRepo";
 import { describeSessionSubject, subjectFromSession, type SessionSubjectSummary } from "../services/sessions/sessionSubject";
@@ -98,6 +100,7 @@ export function ResultScreen({ route, navigation }: Props) {
   const { colors } = useTheme();
   const { sessionId } = route.params;
   const showToast = useToast();
+  const account = useAccount();
   const [session, setSession] = useState<Session | null>(null);
   const [prompt, setPrompt] = useState<Prompt | undefined>(undefined);
   const [scores, setScores] = useState<SessionScores | null>(null);
@@ -185,7 +188,7 @@ export function ResultScreen({ route, navigation }: Props) {
       ];
 
   async function handleRunStep(step: SessionStep) {
-    if (step === "cloud_review" && !(await readyForDeepReview(() => navigation.navigate("Settings", { section: "deepReviews" })))) return;
+    if (step === "cloud_review" && !(await readyForTono({ exercise: false }))) return;
     requestStep(sessionId, step).catch((error) => {
       logger.error(`[result] ${step} failed to start — ${(error as Error).message}`);
       showToast("Couldn't start that — try again", "error");
@@ -250,7 +253,11 @@ export function ResultScreen({ route, navigation }: Props) {
   if (session.sessionType === "feeling") {
     return <FeelingResultView session={session} steps={steps} hasVideo={hasVideo} videoUri={videoUri} onDone={handleDone} onDelete={handleDelete} />;
   }
-  const deepReviewBlocked = reviewBlockedReason(currentProvider(), { hasVideo, hasDeviceTranscript: !!session.transcriptVerbatim });
+  const deepReviewBlocked = tonoAgeGated()
+    ? "Tono AI is for people 18 and over, so this take stays on your phone."
+    : !hasVideo && !session.transcriptVerbatim
+      ? "Tono AI needs the transcript or the video, and this take has neither."
+      : undefined;
   // Pace over the speaking span, and pitch range in semitones: the same
   // numbers the score reads.
   const { wpmAvg: avgWpm, pitchRangeSt: pitchRange } = measuredVoice(session);
@@ -270,6 +277,9 @@ export function ResultScreen({ route, navigation }: Props) {
   };
   const measuring = steps.length === 0 || (["transcribe", "audio_metrics", "presence", "coach"] as SessionStep[]).some(working);
   const reviewing = working("cloud_review");
+  // A free take that wasn't judged: one quiet line where the judged layer
+  // would be. Nothing for a subscriber who chose not to, or for under-18s.
+  const judgedLocked = !!takeScores && !takeScores.judged && !reviewing && (account.allowance?.tier ?? "free") === "free" && !tonoAgeGated();
   // The total waits until every part is in: averaging only what has finished
   // makes it jump (a lone voice score read 10, then settled at 9). A take that
   // already has a review keeps its score while it is reviewed again.
@@ -329,14 +339,14 @@ export function ResultScreen({ route, navigation }: Props) {
                   <View style={styles.reviewingRow}>
                     <ActivityIndicator size="small" color={colors.textMuted} />
                     <Txt variant="footnote" tone="muted">
-                      Deep review on the way — this score will sharpen.
+                      Tono AI is judging this take. The score will update.
                     </Txt>
                   </View>
                 ) : null}
               </HeroCard>
             </Reveal>
           ) : measuring || reviewing ? (
-            <SkeletonHero key="hero-skeleton" note={measuring ? "Listening back and measuring, on this phone…" : "Waiting for the deep review…"} />
+            <SkeletonHero key="hero-skeleton" note={measuring ? "Listening back and measuring, on this phone…" : "Waiting for Tono AI…"} />
           ) : coach ? null : (
             <Reveal key="numbers">
               <Card style={styles.numbersCard}>
@@ -349,7 +359,7 @@ export function ResultScreen({ route, navigation }: Props) {
                   />
                   <NumberTile value={pitchRange != null ? `${Math.round(pitchRange * 10) / 10} st` : "—"} label="pitch range" />
                 </View>
-                <Text style={styles.rowSubtitle}>Measured on this phone. A deep review adds structure and presence scores.</Text>
+                <Text style={styles.rowSubtitle}>Measured on this phone.</Text>
               </Card>
             </Reveal>
           )}
@@ -367,6 +377,16 @@ export function ResultScreen({ route, navigation }: Props) {
           {takeScores ? (
             <Reveal key="breakdown">
               <ScoreSummaryCard scores={takeScores} pending={!scoreSettled} onSeeScores={() => setTab("scores")} />
+              {judgedLocked ? (
+                <View style={styles.lockedLine}>
+                  <Txt variant="footnote" tone="muted">
+                    {account.allowed.take
+                      ? "Measured on this phone. Tono AI would judge what you said and how it came across: you get one judged take free each month."
+                      : "Measured on this phone. Tono AI judging comes with Tono Plus, and your free judged take comes back next month."}
+                  </Txt>
+                  {purchasesEnabled() ? <PrimaryButton label="See Tono Plus" variant="ghost" size="sm" onPress={openPaywall} /> : null}
+                </View>
+              ) : null}
             </Reveal>
           ) : measuring ? (
             <SkeletonCard key="breakdown-skeleton" lines={4} />
@@ -497,6 +517,7 @@ export function ResultScreen({ route, navigation }: Props) {
 }
 
 const useStyles = makeStyles(({ colors }) => ({
+  lockedLine: { gap: spacing.xs, marginTop: spacing.sm, alignItems: "flex-start" },
   container: { gap: spacing.md },
   flex: { flex: 1 },
   skeleton: { gap: 16, paddingTop: 24 },

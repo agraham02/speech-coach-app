@@ -1,35 +1,65 @@
-import type { ServerConfig } from "./config.ts";
-import type { AiKind, DenyReason, Plan } from "./types.ts";
+import type { Limits, ServerConfig } from "./config.ts";
+import type { CountKind, DenyReason, Plan, Tier } from "./types.ts";
 
 // Whether one more AI call is allowed. Pure: the edge function reads the
 // snapshot and writes the reservation inside ONE database transaction that
 // holds a lock on the account, so two calls at once cannot both take the last
-// review.
+// judged take.
+//
+// The tiers (docs/decisions/tiers-and-trial.md):
+// - free: the measured layer only, plus `freeMonthlyJudgedTakes` judged takes
+//   a month (the free taste). Exercise notes, mark-ups and insights are Plus.
+// - beta (server mode "beta"): what a TestFlight tester gets without paying.
+// - trial: Plus with the trial's own, smaller counts, over the 14 days.
+// - plus: the monthly counts.
+// Trial and Plus also stop at the cost cap, from real spend, so a model
+// change can never make a subscriber cost more than they pay. Free and beta
+// share one monthly spend ceiling across everyone (freeBudgetUsd).
 
 export interface UsageSnapshot {
   plan: Plan;
-  // Lifetime, for the starter pack (launch mode). Refunded calls do not count.
-  starterReviewsUsed: number;
-  starterTextUsed: number;
-  // This UTC month / day, refunded calls excluded.
-  monthReviews: number;
-  monthInsights: number;
-  monthText: number;
-  monthCostUsd: number;
-  dayReviews: number;
-  // All non-Plus spend this UTC month, across every account.
+  // Counts over the current window: the trial so far for a trial, else this
+  // UTC month. Refunded calls excluded; in-flight ones count.
+  takes: number;
+  text: number;
+  insights: number;
+  costUsd: number;
+  // Judged takes this UTC day.
+  dayTakes: number;
+  // All non-paying spend this UTC month, across every account.
   freeSpendMonthUsd: number;
 }
 
-export type Tier = "starter" | "beta" | "plus";
-
-export type Decision = { ok: true; tier: Tier; reviewsLeft: number } | { ok: false; reason: DenyReason };
+export type Decision = { ok: true; tier: Tier; takesLeft: number } | { ok: false; reason: DenyReason };
 
 const deny = (reason: DenyReason): Decision => ({ ok: false, reason });
 
+export function tierFor(config: ServerConfig, plan: Plan): Tier {
+  if (plan !== "free") return plan;
+  return config.mode === "beta" ? "beta" : "free";
+}
+
+// The counts each tier gets. A zero means the tier doesn't get that kind.
+export function limitsFor(l: Limits, tier: Tier): Record<CountKind, number> {
+  switch (tier) {
+    case "plus":
+      return { take: l.plusMonthlyJudgedTakes, text: l.plusMonthlyTextCalls, insight: l.plusMonthlyInsights };
+    case "trial":
+      return { take: l.trialJudgedTakes, text: l.trialTextCalls, insight: l.trialInsights };
+    case "beta":
+      return { take: l.betaMonthlyJudgedTakes, text: l.betaMonthlyTextCalls, insight: l.betaMonthlyInsights };
+    case "free":
+      return { take: l.freeMonthlyJudgedTakes, text: 0, insight: 0 };
+  }
+}
+
+function used(s: UsageSnapshot, kind: CountKind): number {
+  return kind === "take" ? s.takes : kind === "text" ? s.text : s.insights;
+}
+
 export function decideAllowance(args: {
   config: ServerConfig;
-  kind: AiKind;
+  kind: CountKind;
   snapshot: UsageSnapshot;
   // Worst-case cost of this call (pricing.estimateCostUsd).
   estCostUsd: number;
@@ -39,37 +69,21 @@ export function decideAllowance(args: {
 
   if (config.killSwitch) return deny("disabled");
 
-  // Only reviews have a daily ceiling, which stops a stuck retry loop.
-  if (kind === "review" && s.dayReviews >= l.dailyReviews) return deny("rate_limited");
+  // Only judged takes have a daily ceiling, which stops a stuck retry loop.
+  if (kind === "take" && s.dayTakes >= l.dailyJudgedTakes) return deny("rate_limited");
 
-  const thisReview = kind === "review" ? 1 : 0;
+  const tier = tierFor(config, s.plan);
+  const limit = limitsFor(l, tier)[kind];
+  // Something this tier never gets is a Plus feature, not a used-up count.
+  if (limit <= 0) return deny("plus_required");
+  if (used(s, kind) >= limit) return deny("quota_exhausted");
 
-  if (s.plan === "plus") {
-    const used = kind === "review" ? s.monthReviews : kind === "insight" ? s.monthInsights : s.monthText;
-    const limit = kind === "review" ? l.plusMonthlyReviews : kind === "insight" ? l.plusMonthlyInsights : l.plusMonthlyTextCalls;
-    if (used >= limit) return deny("quota_exhausted");
-    if (s.monthCostUsd + estCostUsd > l.plusMonthlyCostCapUsd) return deny("plus_cost_cap");
-    return { ok: true, tier: "plus", reviewsLeft: Math.max(0, l.plusMonthlyReviews - s.monthReviews - thisReview) };
+  if (tier === "plus" || tier === "trial") {
+    if (s.costUsd + estCostUsd > l.paidCostCapUsd) return deny("plus_cost_cap");
+  } else if (s.freeSpendMonthUsd + estCostUsd > config.freeBudgetUsd) {
+    return deny("budget_paused");
   }
 
-  // Not on Plus.
-  if (kind === "insight" && config.mode === "launch") return deny("plus_required");
-
-  let tier: Tier;
-  let reviewsLeft: number;
-  if (config.mode === "beta") {
-    tier = "beta";
-    const used = kind === "review" ? s.monthReviews : kind === "insight" ? s.monthInsights : s.monthText;
-    const limit = kind === "review" ? l.betaMonthlyReviews : kind === "insight" ? l.betaMonthlyInsights : l.betaMonthlyTextCalls;
-    if (used >= limit) return deny("quota_exhausted");
-    reviewsLeft = Math.max(0, l.betaMonthlyReviews - s.monthReviews - thisReview);
-  } else {
-    tier = "starter";
-    if (kind === "review" && s.starterReviewsUsed >= l.starterReviews) return deny("quota_exhausted");
-    if (kind === "text" && s.starterTextUsed >= l.starterTextCalls) return deny("quota_exhausted");
-    reviewsLeft = Math.max(0, l.starterReviews - s.starterReviewsUsed - thisReview);
-  }
-
-  if (s.freeSpendMonthUsd + estCostUsd > config.freeBudgetUsd) return deny("budget_paused");
-  return { ok: true, tier, reviewsLeft };
+  const takesLimit = limitsFor(l, tier).take;
+  return { ok: true, tier, takesLeft: Math.max(0, takesLimit - s.takes - (kind === "take" ? 1 : 0)) };
 }

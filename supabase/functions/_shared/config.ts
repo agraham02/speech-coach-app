@@ -24,21 +24,33 @@ const roleModels = z.object({
   videoFps: z.number().positive().max(5).optional(),
 });
 
+// Counts are per UTC calendar month, except the trial's, which run over the
+// trial itself (14 days, which can span two months).
 const limits = z.object({
-  starterReviews: z.number().int().nonnegative(),
-  starterTextCalls: z.number().int().nonnegative(),
-  betaMonthlyReviews: z.number().int().nonnegative(),
-  betaMonthlyInsights: z.number().int().nonnegative(),
+  // The free taste: judged takes a month for someone with no trial and no Plus.
+  freeMonthlyJudgedTakes: z.number().int().nonnegative(),
+  // Beta mode (TestFlight): what everyone who isn't paying gets.
+  betaMonthlyJudgedTakes: z.number().int().nonnegative(),
   betaMonthlyTextCalls: z.number().int().nonnegative(),
-  plusMonthlyReviews: z.number().int().nonnegative(),
-  plusMonthlyInsights: z.number().int().nonnegative(),
+  betaMonthlyInsights: z.number().int().nonnegative(),
+  // The 14-day trial, counted over the trial.
+  trialJudgedTakes: z.number().int().nonnegative(),
+  trialTextCalls: z.number().int().nonnegative(),
+  trialInsights: z.number().int().nonnegative(),
+  trialConversationMinutes: z.number().int().nonnegative(),
+  // Tono Plus, a month.
+  plusMonthlyJudgedTakes: z.number().int().nonnegative(),
   plusMonthlyTextCalls: z.number().int().nonnegative(),
-  plusMonthlyCostCapUsd: z.number().nonnegative(),
-  dailyReviews: z.number().int().positive(),
+  plusMonthlyInsights: z.number().int().nonnegative(),
+  plusMonthlyConversationMinutes: z.number().int().nonnegative(),
+  // The real AI cost one subscriber may run up in a month (or in the trial).
+  paidCostCapUsd: z.number().nonnegative(),
+  // Judged takes in a UTC day, for everyone: stops a stuck retry loop.
+  dailyJudgedTakes: z.number().int().positive(),
   maxVideoSeconds: z.number().int().positive(),
   maxUploadBytes: z.number().int().positive(),
-  maxPromptChars: z.number().int().positive(),
-  maxSchemaChars: z.number().int().positive(),
+  // The phone sends structured inputs, never prompts; this bounds their size.
+  maxInputChars: z.number().int().positive(),
 });
 
 export const serverConfigSchema = z.object({
@@ -47,9 +59,13 @@ export const serverConfigSchema = z.object({
   killSwitch: z.boolean(),
   // Whether the app offers Tono Plus for sale. The purchase code ships in the
   // app either way; this is the launch switch, so turning sales on needs no
-  // app update. Rows written before it existed read as false.
-  plusPurchasable: z.boolean().default(false),
-  // Monthly spend ceiling for everyone who is not on Plus.
+  // app update.
+  plusPurchasable: z.boolean(),
+  // Whether someone who said in onboarding that they are under 18 may use
+  // Tono AI. The Gemini API terms say no (docs/decisions/tiers-and-trial.md);
+  // the app keeps everything on the phone for them while this is false.
+  minorsMayUseAi: z.boolean(),
+  // Monthly spend ceiling for everyone who is not paying (free and beta).
   freeBudgetUsd: z.number().nonnegative(),
   limits,
   models: z.object({ review_video: roleModels, text: roleModels, insight: roleModels }),
@@ -68,26 +84,38 @@ export const DEFAULT_CONFIG: ServerConfig = {
   mode: "beta",
   killSwitch: false,
   plusPurchasable: false,
+  minorsMayUseAi: false,
   freeBudgetUsd: 50,
   limits: {
-    starterReviews: 5,
-    starterTextCalls: 15,
-    betaMonthlyReviews: 15,
+    freeMonthlyJudgedTakes: 1,
+    betaMonthlyJudgedTakes: 15,
+    betaMonthlyTextCalls: 100,
     betaMonthlyInsights: 4,
-    betaMonthlyTextCalls: 60,
-    plusMonthlyReviews: 60,
+    trialJudgedTakes: 20,
+    trialTextCalls: 60,
+    trialInsights: 4,
+    trialConversationMinutes: 30,
+    plusMonthlyJudgedTakes: 60,
+    plusMonthlyTextCalls: 300,
     plusMonthlyInsights: 12,
-    plusMonthlyTextCalls: 100,
-    plusMonthlyCostCapUsd: 2.5,
-    dailyReviews: 6,
+    plusMonthlyConversationMinutes: 120,
+    paidCostCapUsd: 2.5,
+    dailyJudgedTakes: 6,
     maxVideoSeconds: 300,
     maxUploadBytes: 500_000_000,
-    maxPromptChars: 120_000,
-    maxSchemaChars: 20_000,
+    maxInputChars: 60_000,
   },
   models: {
     review_video: { primary: "gemini-3.5-flash-lite", fallback: "gemini-3.8-flash", maxOutputTokens: 6000, videoFps: 1 },
-    text: { primary: "gemini-3.5-flash-lite", fallback: "gemini-3.8-flash", maxOutputTokens: 4000 },
+    // Gemini 3.1 Flash-Lite is 40% cheaper on output and text-only calls don't
+    // need 3.5's audio pricing; it waits as a 0% candidate until the hosted
+    // eval says it judges as well (and it shuts down on 2027-05-07).
+    text: {
+      primary: "gemini-3.5-flash-lite",
+      fallback: "gemini-3.8-flash",
+      candidate: { model: "gemini-3.1-flash-lite", rolloutPercent: 0 },
+      maxOutputTokens: 4000,
+    },
     insight: { primary: "gemini-3.5-flash-lite", fallback: "gemini-3.8-flash", maxOutputTokens: 4000 },
   },
   prices: {

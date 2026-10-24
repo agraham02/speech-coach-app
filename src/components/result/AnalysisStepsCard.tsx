@@ -2,19 +2,17 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Card } from "../common/Card";
 import { STEP_LABELS, type SessionStep, type StepState } from "../../domain/sessionSteps";
-import { currentProvider } from "../../services/cloud/providers";
+import { getJudgeInput } from "../../services/prefs/prefsStore";
 import { radii, spacing, typography, font } from "../../theme/theme";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 const VISIBLE_STEPS: SessionStep[] = ["transcribe", "audio_metrics", "presence", "coach", "cloud_review"];
 
-// What "Get" would do, for the provider chosen in Settings.
+// What "Get" would do. One take is one judged take, whatever is sent.
 function cloudReviewDescription(): string {
-  const provider = currentProvider();
-  const paidBy = provider.id === "tono" ? "Counts toward your Tono AI reviews." : "Your own key.";
-  return provider.input === "video"
-    ? `${provider.name} scores structure, delivery and presence from the video. ${paidBy}`
-    : `${provider.name} scores your transcript and the phone's measurements. ${paidBy}`;
+  return getJudgeInput() === "video"
+    ? "Tono AI judges it from the video, your words and the phone's measurements. Uses 1 judged take."
+    : "Tono AI judges it from your words and the phone's measurements. Uses 1 judged take.";
 }
 
 interface Props {

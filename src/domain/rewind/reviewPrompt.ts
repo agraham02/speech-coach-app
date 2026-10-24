@@ -4,7 +4,7 @@ import { dayCoverage, type DayPart } from "./stats";
 
 // The notes on a Rewind take, written from the transcript alone: what was
 // said, not how it sounded. The judge never gives a score. The prompt itself
-// lives in services/analysis/prompts.ts (session 08 moves it to the server);
+// lives on the server (supabase/functions/_shared/prompts/exercises.ts);
 // this file is the shape of the answer and the checks the phone makes on it
 // before showing a word of it (docs/decisions/exercise-judging.md). Pure.
 

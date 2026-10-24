@@ -7,16 +7,24 @@ const mockSdk = {
   getOfferings: jest.fn(),
   purchasePackage: jest.fn(),
   restorePurchases: jest.fn(),
+  checkTrialOrIntroductoryPriceEligibility: jest.fn(),
 };
-jest.mock("react-native-purchases", () => ({ __esModule: true, default: mockSdk, LOG_LEVEL: { DEBUG: "DEBUG", WARN: "WARN" } }));
+jest.mock("react-native-purchases", () => ({
+  __esModule: true,
+  default: mockSdk,
+  LOG_LEVEL: { DEBUG: "DEBUG", WARN: "WARN" },
+  INTRO_ELIGIBILITY_STATUS: { INTRO_ELIGIBILITY_STATUS_UNKNOWN: 0, INTRO_ELIGIBILITY_STATUS_INELIGIBLE: 1, INTRO_ELIGIBILITY_STATUS_ELIGIBLE: 2 },
+}));
 jest.mock("../../../config/backend", () => ({ REVENUECAT_IOS_KEY: "appl_test" }));
 jest.mock("../../../utils/logger", () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
 
 let mockAccount: { status: string; userId: string | null; allowance: { plan: string } | null; plusPurchasable?: boolean } = { status: "signedIn", userId: "user-1", allowance: { plan: "free" } };
 let mockListener: (() => void) | null = null;
 const mockRefresh = jest.fn();
+const mockEnsure = jest.fn();
 jest.mock("../../account/accountStore", () => ({
   getAccount: () => mockAccount,
+  ensureAccount: () => mockEnsure(),
   refreshAccount: (...a: unknown[]) => mockRefresh(...a),
   subscribeAccount: (l: () => void) => {
     mockListener = l;
@@ -27,14 +35,18 @@ jest.mock("../../account/accountStore", () => ({
 import { buyPlus, initPurchases, loadPlusOffer, purchasesEnabled, restorePlus, type PlusOffer } from "../purchases";
 import type { PlusPlan } from "../../../domain/plus";
 
-const ANNUAL: PlusPlan = { id: "annual", packageId: "$rc_annual", title: "Yearly", price: "$49.99", period: "year", perMonth: "$4.17", savePercent: 17 };
+const ANNUAL: PlusPlan = { id: "annual", packageId: "$rc_annual", title: "Yearly", price: "$49.99", period: "year", perMonth: "$4.17", savePercent: 17, productId: "com.ahmadgraham.tono.plus.annual", trialDays: 14 };
 
 const offer = (): PlusOffer => ({ plans: [ANNUAL], packages: new Map([["$rc_annual", { identifier: "$rc_annual" } as never]]) });
+const TRIAL = { price: 0, periodUnit: "WEEK", periodNumberOfUnits: 2, cycles: 1 };
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 
 beforeEach(() => {
   Object.values(mockSdk).forEach((f) => f.mockReset());
   mockRefresh.mockReset();
+  mockEnsure.mockReset();
+  mockEnsure.mockResolvedValue(undefined);
+  mockSdk.checkTrialOrIntroductoryPriceEligibility.mockResolvedValue({});
   mockAccount = { status: "signedIn", userId: "user-1", allowance: { plan: "free" } };
   mockSdk.logIn.mockResolvedValue({});
   mockSdk.isAnonymous.mockResolvedValue(false);
@@ -67,14 +79,25 @@ describe("loadPlusOffer", () => {
     mockSdk.getOfferings.mockResolvedValue({
       current: {
         availablePackages: [
-          { identifier: "$rc_monthly", packageType: "MONTHLY", product: { price: 4.99, priceString: "$4.99", pricePerMonthString: "$4.99" } },
-          { identifier: "$rc_annual", packageType: "ANNUAL", product: { price: 49.99, priceString: "$49.99", pricePerMonthString: "$4.17" } },
+          { identifier: "$rc_monthly", packageType: "MONTHLY", product: { identifier: "m", price: 4.99, priceString: "$4.99", pricePerMonthString: "$4.99", introPrice: TRIAL } },
+          { identifier: "$rc_annual", packageType: "ANNUAL", product: { identifier: "a", price: 49.99, priceString: "$49.99", pricePerMonthString: "$4.17", introPrice: TRIAL } },
         ],
       },
     });
+    mockSdk.checkTrialOrIntroductoryPriceEligibility.mockResolvedValue({ m: { status: 2 }, a: { status: 1 } });
     const loaded = await loadPlusOffer();
     expect(loaded.plans.map((p) => p.id)).toEqual(["annual", "monthly"]);
     expect(loaded.packages.has("$rc_annual")).toBe(true);
+    // The App Store says this Apple ID had the yearly trial already.
+    expect(loaded.plans.map((p) => p.trialDays)).toEqual([null, 14]);
+  });
+
+  it("promises no trial when eligibility can't be checked", async () => {
+    mockSdk.getOfferings.mockResolvedValue({
+      current: { availablePackages: [{ identifier: "$rc_annual", packageType: "ANNUAL", product: { identifier: "a", price: 49.99, priceString: "$49.99", pricePerMonthString: "$4.17", introPrice: TRIAL } }] },
+    });
+    mockSdk.checkTrialOrIntroductoryPriceEligibility.mockRejectedValue(new Error("no"));
+    expect((await loadPlusOffer()).plans[0].trialDays).toBeNull();
   });
 
   it("returns no plans when there is no current offering", async () => {
@@ -115,9 +138,18 @@ describe("buyPlus", () => {
     await expect(buyPlus(ANNUAL, offer())).resolves.toMatchObject({ ok: false, cancelled: false, message: expect.stringMatching(/connection/) });
   });
 
-  it("will not buy for someone who is signed out", async () => {
-    mockAccount = { status: "signedOut", userId: null, allowance: null };
-    await expect(buyPlus(ANNUAL, offer())).resolves.toMatchObject({ ok: false, cancelled: false });
+  it("needs no sign-in: it makes the account behind the scenes first", async () => {
+    mockSdk.purchasePackage.mockResolvedValue({});
+    mockRefresh.mockImplementation(async () => {
+      mockAccount = { ...mockAccount, allowance: { plan: "trial" } };
+    });
+    await expect(buyPlus(ANNUAL, offer())).resolves.toEqual({ ok: true, plus: true });
+    expect(mockEnsure).toHaveBeenCalled();
+  });
+
+  it("says so plainly when the account can't be made (offline)", async () => {
+    mockEnsure.mockRejectedValue(new Error("offline"));
+    await expect(buyPlus(ANNUAL, offer())).resolves.toMatchObject({ ok: false, cancelled: false, message: expect.stringMatching(/connection/) });
     expect(mockSdk.purchasePackage).not.toHaveBeenCalled();
   });
 });

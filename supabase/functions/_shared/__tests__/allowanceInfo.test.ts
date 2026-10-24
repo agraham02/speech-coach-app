@@ -4,13 +4,11 @@ import { DEFAULT_CONFIG, type ServerConfig } from "../config.ts";
 
 const snapshot: UsageSnapshot = {
   plan: "free",
-  starterReviewsUsed: 2,
-  starterTextUsed: 0,
-  monthReviews: 4,
-  monthInsights: 0,
-  monthText: 0,
-  monthCostUsd: 0,
-  dayReviews: 0,
+  takes: 4,
+  text: 0,
+  insights: 0,
+  costUsd: 0,
+  dayTakes: 0,
   freeSpendMonthUsd: 0,
 };
 
@@ -19,38 +17,45 @@ const launch: ServerConfig = { ...DEFAULT_CONFIG, mode: "launch" };
 const NOW = new Date(Date.UTC(2026, 11, 20, 12, 0, 0));
 
 describe("tierFor", () => {
-  it("is plus for Plus, then depends on the mode", () => {
+  it("is the paid plan when there is one, then depends on the mode", () => {
     expect(tierFor(beta, "plus")).toBe("plus");
+    expect(tierFor(launch, "trial")).toBe("trial");
     expect(tierFor(beta, "free")).toBe("beta");
-    expect(tierFor(launch, "free")).toBe("starter");
+    expect(tierFor(launch, "free")).toBe("free");
   });
 });
 
 describe("describeAllowance", () => {
-  it("counts the starter pack down and never refills it", () => {
-    expect(describeAllowance(launch, snapshot, NOW)).toEqual({
+  it("shows a free account its monthly taste, refilling on the 1st", () => {
+    expect(describeAllowance(launch, { ...snapshot, takes: 0 }, NOW)).toEqual({
       plan: "free",
-      tier: "starter",
-      reviewsTotal: 5,
-      reviewsLeft: 3,
-      resetsAt: null,
+      tier: "free",
+      takesTotal: 1,
+      takesLeft: 1,
+      resetsAt: "2027-01-01T00:00:00.000Z",
+      trialEndsAt: null,
     });
   });
 
   it("never goes below zero", () => {
-    expect(describeAllowance(launch, { ...snapshot, starterReviewsUsed: 9 }, NOW).reviewsLeft).toBe(0);
+    expect(describeAllowance(launch, { ...snapshot, takes: 9 }, NOW).takesLeft).toBe(0);
   });
 
-  it("uses the month for beta and Plus, and says when it refills", () => {
-    expect(describeAllowance(beta, snapshot, NOW)).toEqual({
-      plan: "free",
-      tier: "beta",
-      reviewsTotal: 15,
-      reviewsLeft: 11,
-      resetsAt: "2027-01-01T00:00:00.000Z",
+  it("uses the month for beta and Plus", () => {
+    expect(describeAllowance(beta, snapshot, NOW)).toMatchObject({ tier: "beta", takesTotal: 15, takesLeft: 11, resetsAt: "2027-01-01T00:00:00.000Z" });
+    expect(describeAllowance(launch, { ...snapshot, plan: "plus", takes: 60 }, NOW)).toMatchObject({ tier: "plus", takesTotal: 60, takesLeft: 0 });
+  });
+
+  it("says when a trial ends, and that is when its counts end too", () => {
+    const ends = new Date("2026-12-28T09:00:00Z");
+    expect(describeAllowance(launch, { ...snapshot, plan: "trial", takes: 5 }, NOW, ends)).toEqual({
+      plan: "trial",
+      tier: "trial",
+      takesTotal: 20,
+      takesLeft: 15,
+      resetsAt: "2026-12-28T09:00:00.000Z",
+      trialEndsAt: "2026-12-28T09:00:00.000Z",
     });
-    const plus = describeAllowance(launch, { ...snapshot, plan: "plus", monthReviews: 60 }, NOW);
-    expect(plus).toMatchObject({ tier: "plus", reviewsTotal: 60, reviewsLeft: 0 });
   });
 });
 

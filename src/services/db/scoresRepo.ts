@@ -1,43 +1,55 @@
 import { getDatabase } from "./database";
 import { rowToScores, type ScoreRow } from "./mappers";
 import type { SessionScores } from "../../domain/sessionTypes";
-import type { GeminiSessionAnalysis } from "../gemini/types";
+import type { JudgedReview } from "../../domain/analysis/judgedReview";
+import type { SubcategoryId } from "../../domain/scoring/taxonomy";
 
-export function analysisToSessionScores(sessionId: string, analysis: GeminiSessionAnalysis): SessionScores {
+// The `scores` row: the copy of Tono AI's judgement that the Scores tab
+// reads. The judgement itself, in the taxonomy's terms, is the take's
+// `judged_review` artifact, and the judged score sheet is made from that
+// (services/sessions/sessionScoreService.ts). Subcategories the judge didn't
+// score on this take (Tone fit and Body language without the video; Structure
+// and the content ones on a scripted reading) are 0 here, which the Scores
+// tab leaves out. The cut ones (face-voice match, archetype, the judge's own
+// overall) are no longer asked for: 0 and empty.
+export function judgedReviewToScores(sessionId: string, review: JudgedReview, opts: { wpm: number | null }): SessionScores {
+  const sub = (id: SubcategoryId) => review.subscores[id];
+  const score = (id: SubcategoryId) => sub(id)?.score ?? 0;
+  const notes = (id: SubcategoryId) => sub(id)?.notes ?? "";
   return {
     sessionId,
-    structureScore: analysis.structure.score,
-    structureUsed: analysis.structure.structure_used,
-    structureNotes: analysis.structure.notes,
-    relevanceScore: analysis.content.relevance_score,
-    relevanceNotes: analysis.content.relevance_notes,
-    coherenceScore: analysis.content.coherence_score,
-    coherenceNotes: analysis.content.coherence_notes,
-    rateScore: analysis.delivery.rate.score,
-    rateWpmAvg: analysis.delivery.rate.wpm_avg,
-    rateNotes: analysis.delivery.rate.notes,
-    volumeScore: analysis.delivery.volume.score,
-    volumeNotes: analysis.delivery.volume.notes,
-    pitchMelodyScore: analysis.delivery.pitch_melody.score,
-    pitchMelodyNotes: analysis.delivery.pitch_melody.notes,
-    tonalityScore: analysis.delivery.tonality.score,
-    tonalityNotes: analysis.delivery.tonality.notes,
-    pausingScore: analysis.delivery.pausing.score,
-    pausingNotes: analysis.delivery.pausing.notes,
-    eyeContactScore: analysis.presence.eye_contact_score,
-    facialExpressivenessScore: analysis.presence.facial_expressiveness_score,
-    bodyLanguageNotes: analysis.presence.body_language_notes,
-    faceVoiceCongruenceScore: analysis.combined.face_voice_congruence_score,
-    archetypeDetected: analysis.combined.archetype_detected,
-    archetypeFitForTopic: analysis.combined.archetype_fit_for_topic,
-    overallScore: analysis.combined.overall_score,
-    coachingSummary: analysis.coaching.summary,
-    topStrength: analysis.coaching.top_strength,
-    topFocusArea: analysis.coaching.top_focus_area,
-    recommendedDrill: analysis.coaching.recommended_drill,
-    annotations: analysis.annotations,
-    cueComplianceScore: analysis.cue_compliance?.score ?? null,
-    cueComplianceNotes: analysis.cue_compliance?.notes ?? null,
+    structureScore: score("structure"),
+    structureUsed: review.structureUsed ?? "other",
+    structureNotes: notes("structure"),
+    relevanceScore: score("relevance"),
+    relevanceNotes: notes("relevance"),
+    coherenceScore: score("clarity"),
+    coherenceNotes: notes("clarity"),
+    rateScore: score("pace"),
+    rateWpmAvg: Math.round(opts.wpm ?? 0),
+    rateNotes: notes("pace"),
+    volumeScore: score("emphasis"),
+    volumeNotes: notes("emphasis"),
+    pitchMelodyScore: score("melody"),
+    pitchMelodyNotes: notes("melody"),
+    tonalityScore: score("tone"),
+    tonalityNotes: notes("tone"),
+    pausingScore: score("pauses"),
+    pausingNotes: notes("pauses"),
+    eyeContactScore: score("eye_contact"),
+    facialExpressivenessScore: score("expression"),
+    bodyLanguageNotes: notes("body"),
+    faceVoiceCongruenceScore: 0,
+    archetypeDetected: "Educator",
+    archetypeFitForTopic: "",
+    overallScore: 0,
+    coachingSummary: review.coaching.summary,
+    topStrength: review.coaching.strength,
+    topFocusArea: review.coaching.focus,
+    recommendedDrill: review.coaching.drill,
+    annotations: review.annotations,
+    cueComplianceScore: sub("cues") ? score("cues") : null,
+    cueComplianceNotes: sub("cues") ? notes("cues") : null,
   };
 }
 

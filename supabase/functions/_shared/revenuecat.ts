@@ -30,14 +30,19 @@ export async function syncEntitlement(userId: string): Promise<boolean> {
   const entitlement = await fetchEntitlement(userId);
   if (entitlement) {
     // The `where exists` keeps an id for a deleted account from raising.
+    const plan = entitlement.periodType === "trial" ? "trial" : "plus";
+    const started = entitlement.periodStartedAt?.toISOString() ?? null;
     await db()`
-      insert into public.entitlements (user_id, plan, environment, product_id, expires_at, updated_at)
-      select ${userId}::uuid, 'plus', ${entitlement.environment}::text, ${entitlement.productId}::text, ${entitlement.expiresAt.toISOString()}::timestamptz, now()
+      insert into public.entitlements (user_id, plan, environment, product_id, expires_at, period_started_at, updated_at)
+      select ${userId}::uuid, ${plan}::text, ${entitlement.environment}::text, ${entitlement.productId}::text,
+             ${entitlement.expiresAt.toISOString()}::timestamptz, ${started}::timestamptz, now()
       where exists (select 1 from auth.users where id = ${userId}::uuid)
       on conflict (user_id) do update
-        set environment = excluded.environment,
+        set plan = excluded.plan,
+            environment = excluded.environment,
             product_id = excluded.product_id,
             expires_at = excluded.expires_at,
+            period_started_at = excluded.period_started_at,
             updated_at = now()
     `;
   } else {

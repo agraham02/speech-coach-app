@@ -1,15 +1,23 @@
 import type { TonoAllowance } from "./aiAllowance";
 
-// What the app knows about the signed-in person, kept as one plain object so
-// screens can subscribe to it and the pipeline can read it without awaiting
+// What the app knows about the person's Tono account, kept as one plain object
+// so screens can subscribe to it and the pipeline can read it without awaiting
 // anything. Pure: services/account/accountStore.ts owns the storage.
+//
+// Nobody has to sign in. The free path needs no account at all. The first
+// time Tono AI or a purchase needs one, the app makes an anonymous account
+// behind the scenes (Supabase anonymous sign-in, linked to RevenueCat), so a
+// trial or a purchase never asks anyone to register. Signing in with Apple or
+// Google is optional and links that same account, so Plus can follow the
+// person to another phone.
 
 export type AccountProvider = "apple" | "google";
+// "signedIn" means there is a session, anonymous or linked.
 export type AccountStatus = "unknown" | "signedOut" | "signedIn";
 
 // Which kinds of call the server would accept right now (from its `me`).
 export interface AccountAllowed {
-  review: boolean;
+  take: boolean;
   text: boolean;
   insight: boolean;
 }
@@ -18,24 +26,29 @@ export interface AccountSnapshot {
   // "unknown" only until the stored session has been read at launch.
   status: AccountStatus;
   userId: string | null;
+  // True for the behind-the-scenes account nobody signed in to.
+  anonymous: boolean;
+  // The sign-in linked to it, when there is one.
   provider: AccountProvider | null;
   email: string | null;
   allowance: TonoAllowance | null;
   allowed: AccountAllowed;
   mode: "beta" | "launch" | null;
   killSwitch: boolean;
-  // Whether the server has Tono Plus on sale (its launch switch). Off during
-  // the beta: the purchase code is in the app but nothing offers it.
+  // Whether the server has Tono Plus on sale (its launch switch).
   plusPurchasable: boolean;
+  // Whether someone who said they are under 18 may use Tono AI (server policy).
+  minorsMayUseAi: boolean;
 }
 
 // Until the server says otherwise a call is assumed possible, so a stale or
-// missing answer never blocks someone who has reviews left.
-export const ALL_ALLOWED: AccountAllowed = { review: true, text: true, insight: true };
+// missing answer never blocks someone who has takes left.
+export const ALL_ALLOWED: AccountAllowed = { take: true, text: true, insight: true };
 
 export const SIGNED_OUT: AccountSnapshot = {
   status: "signedOut",
   userId: null,
+  anonymous: false,
   provider: null,
   email: null,
   allowance: null,
@@ -43,6 +56,7 @@ export const SIGNED_OUT: AccountSnapshot = {
   mode: null,
   killSwitch: false,
   plusPurchasable: false,
+  minorsMayUseAi: false,
 };
 
 export const UNKNOWN_ACCOUNT: AccountSnapshot = { ...SIGNED_OUT, status: "unknown" };
@@ -51,15 +65,19 @@ export function providerFromAuth(raw: string | null | undefined): AccountProvide
   return raw === "apple" || raw === "google" ? raw : null;
 }
 
+const PLANS = ["free", "trial", "plus"];
+const TIERS = ["free", "beta", "trial", "plus"];
+
 function isAllowance(v: unknown): v is TonoAllowance {
   const a = v as TonoAllowance | null;
   return (
     !!a &&
-    (a.plan === "free" || a.plan === "plus") &&
-    (a.tier === "starter" || a.tier === "beta" || a.tier === "plus") &&
-    typeof a.reviewsLeft === "number" &&
-    typeof a.reviewsTotal === "number" &&
-    (a.resetsAt === null || typeof a.resetsAt === "string")
+    PLANS.includes(a.plan) &&
+    TIERS.includes(a.tier) &&
+    typeof a.takesLeft === "number" &&
+    typeof a.takesTotal === "number" &&
+    typeof a.resetsAt === "string" &&
+    (a.trialEndsAt === null || typeof a.trialEndsAt === "string")
   );
 }
 
@@ -74,37 +92,45 @@ export function parseAccountCache(raw: string | null | undefined): AccountSnapsh
     return {
       status: "signedIn",
       userId: v.userId,
+      anonymous: v.anonymous === true,
       provider: providerFromAuth(v.provider),
       email: typeof v.email === "string" ? v.email : null,
       allowance: isAllowance(v.allowance) ? v.allowance : null,
       allowed: {
-        review: allowed?.review !== false,
+        take: allowed?.take !== false,
         text: allowed?.text !== false,
         insight: allowed?.insight !== false,
       },
       mode: v.mode === "beta" || v.mode === "launch" ? v.mode : null,
       killSwitch: v.killSwitch === true,
       plusPurchasable: v.plusPurchasable === true,
+      minorsMayUseAi: v.minorsMayUseAi === true,
     };
   } catch {
     return null;
   }
 }
 
-// Only a signed-in account is worth keeping; a signed-out copy is just absent.
+// Only an account is worth keeping; a signed-out copy is just absent.
 export function serializeAccountCache(a: AccountSnapshot): string | null {
   return a.status === "signedIn" ? JSON.stringify(a) : null;
 }
 
 // A new allowance arrived (with a response or from `me`): the flags follow it.
-// Reviews are the metered kind; text and insights keep the server's word.
+// Judged takes are the metered kind; text and insights keep the server's word.
 export function withAllowance(a: AccountSnapshot, allowance: TonoAllowance): AccountSnapshot {
-  return { ...a, allowance, allowed: { ...a.allowed, review: allowance.reviewsLeft > 0 } };
+  return { ...a, allowance, allowed: { ...a.allowed, take: allowance.takesLeft > 0 } };
 }
 
-// A short "Signed in with Apple" style line for Settings.
+// A short line for Settings: who this is, or that nothing is linked.
 export function signedInLabel(a: AccountSnapshot): string {
+  if (a.status !== "signedIn" || a.anonymous) return "Not signed in";
   const via = a.provider === "apple" ? "Apple" : a.provider === "google" ? "Google" : null;
   if (a.email && !/privaterelay\.appleid\.com$/i.test(a.email)) return a.email;
   return via ? `Signed in with ${via}` : "Signed in";
+}
+
+// Signed in with Apple or Google (not just the anonymous account).
+export function isLinked(a: AccountSnapshot): boolean {
+  return a.status === "signedIn" && !a.anonymous;
 }

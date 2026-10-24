@@ -6,8 +6,9 @@ import { callsThisMonth, describeUsage, formatTokens, sumUsage, type CloudUsageC
 import { getAllUsageCalls } from "../../services/cloud/usageStore";
 import { makeStyles } from "../../theme/ThemeProvider";
 
-// What deep reviews have used, in tokens: the unit AI providers bill by, on
-// your own account. This month, all time, and the latest one.
+// What Tono AI has used for your takes, in tokens (the unit AI is billed
+// by): this month, all time, and the latest one. Informational: your plan
+// counts judged takes, not tokens.
 export function DeepReviewUsage() {
   const styles = useStyles();
   const [calls, setCalls] = useState<CloudUsageCall[] | null>(null);
@@ -28,7 +29,7 @@ export function DeepReviewUsage() {
       <Txt variant="headline">Usage</Txt>
       {calls.length === 0 ? (
         <Txt variant="footnote" tone="secondary">
-          No deep reviews yet. Each one shows here, in tokens: the unit your AI provider bills by, on your own account.
+          No judged takes yet. Each one shows here, in tokens: the unit AI is billed by.
         </Txt>
       ) : (
         <>
@@ -40,7 +41,7 @@ export function DeepReviewUsage() {
             </Txt>
           ) : null}
           <Txt variant="caption1" tone="muted">
-            Tokens are how a provider measures what it reads and writes. A review of video costs more than one of text. What each costs in money depends on the model you pick, so check your provider.
+            Tokens are how an AI model measures what it reads and writes. Your plan counts judged takes, not tokens: one take is one, whatever it used.
           </Txt>
         </>
       )}
@@ -56,7 +57,7 @@ function Row({ label, totals }: { label: string; totals: UsageTotals }) {
         {label}
       </Txt>
       <Txt variant="subhead" tabular>
-        {totals.reviews + (totals.reviews === 1 ? " review" : " reviews") + ", " + formatTokens(totals.totalTokens) + " tokens"}
+        {totals.reviews + (totals.reviews === 1 ? " judged take" : " judged takes") + ", " + formatTokens(totals.totalTokens) + " tokens"}
       </Txt>
     </View>
   );

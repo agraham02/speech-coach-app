@@ -19,11 +19,11 @@ Deno.serve(
     if (!parsed.success) throw new HttpError(400, "bad_request", parsed.error.issues[0]?.message);
 
     // Refuse before storing anything for someone who could not review it anyway.
-    const snapshot = await peekSnapshot(user.id);
-    const decision = decideAllowance({ config, kind: "review", snapshot, estCostUsd: 0.01 });
+    const { snapshot, trialEndsAt } = await peekSnapshot(user.id);
+    const decision = decideAllowance({ config, kind: "take", snapshot, estCostUsd: 0.01 });
     if (!decision.ok) {
       throw new HttpError(statusForDeny(decision.reason), decision.reason, undefined, {
-        allowance: describeAllowance(config, snapshot, new Date()),
+        allowance: describeAllowance(config, snapshot, new Date(), trialEndsAt),
       });
     }
 

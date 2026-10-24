@@ -22,20 +22,22 @@ export function whyNotChecked(reason: Unavailable, message?: string): string {
   switch (reason) {
     case "signed_out":
     case "not_entitled":
-      return "Tono AI can check that each link makes sense. Without it, your words are just counted.";
+      return "With Tono Plus, Tono AI checks that each link makes sense. For now your words were counted.";
     case "quota":
     case "cost_cap":
     case "budget_paused":
       return "You've used your Tono AI checks for now, so your words were just counted.";
     case "no_consent":
-      return "Allow Tono AI in Settings → Deep reviews to have your links checked. For now your words were just counted.";
+      return "Allow Tono AI in Settings → Tono AI to have your links checked. For now your words were just counted.";
     case "offline":
       return "Couldn't reach Tono AI, so your words were just counted.";
     case "kill_switch":
       return "Tono AI is paused right now, so your words were just counted.";
+    case "age_gate":
+      return "Your words were counted on this phone.";
     case "unsupported":
     case "opted_out":
-      return "Switch to Tono AI in Settings → Deep reviews to have your links checked. For now your words were just counted.";
+      return "Your words were counted on this phone. Tono AI can check each link.";
     default:
       return message ? `${message} Your words were just counted.` : "Couldn't check your links this time, so your words were just counted.";
   }

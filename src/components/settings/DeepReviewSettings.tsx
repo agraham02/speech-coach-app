@@ -1,161 +1,113 @@
-import { useEffect, useState } from "react";
-import { cleanApiKey, isValidModelId, MAX_KEY_LENGTH, MAX_MODEL_LENGTH, providerForKey } from "../../services/cloud/inputGuards";
-import { Linking, View } from "react-native";
+import { useState } from "react";
+import { View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Card } from "../common/Card";
-import { ChoiceList } from "../common/ChoiceList";
 import { PrimaryButton } from "../common/PrimaryButton";
-import { TextField } from "../common/TextField";
 import { Txt } from "../common/Txt";
-import { useToast } from "../common/ToastProvider";
-import { SignInOptions } from "../account/SignInOptions";
-import { PROVIDER_ORDER, PROVIDERS, whatGetsSent, type KeyProviderId, type ProviderId } from "../../services/cloud/providers";
-import { askCloudConsent } from "../../services/cloud/consent";
-import { checkProviderKey } from "../../services/cloud/textProviders";
-import { useAccount } from "../../services/account/accountStore";
-import { signedInLabel } from "../../domain/account";
-import { navigationRef } from "../../navigation/navigationRef";
-import { purchasesEnabled } from "../../services/purchases/purchases";
-import { allowanceLine } from "../../domain/aiAllowance";
-import {
-  getCloudConsent,
-  getCloudModel,
-  getCloudProvider,
-  getCloudReviewDefault,
-  getShareProfileWithReviews,
-  getNextEvent,
-  getUserProfile,
-  setCloudConsent,
-  setCloudModel,
-  setCloudProvider,
-  setCloudReviewDefault,
-  setShareProfileWithReviews,
-} from "../../services/prefs/prefsStore";
-import { buildSpeakerContext } from "../../domain/reviewerContext";
-import { todayISODate } from "../../utils/dateUtils";
 import { SwitchRow } from "../common/ListRow";
 import { DeepReviewUsage } from "./DeepReviewUsage";
-import { getProviderKey, setProviderKey } from "../../services/secrets/secretsStore";
+import { allowanceLine, isPaidPlan } from "../../domain/aiAllowance";
+import { speakerFacts, speakerLines } from "../../domain/reviewerContext";
+import { useAccount } from "../../services/account/accountStore";
+import { askTonoConsent, openPaywall } from "../../services/cloud/consent";
+import { whatGetsSent } from "../../services/cloud/disclosure";
+import { tonoAgeGated } from "../../services/cloud/routing";
+import { purchasesEnabled } from "../../services/purchases/purchases";
+import {
+  getCloudReviewDefault,
+  getNextEvent,
+  getShareProfileWithReviews,
+  getUserProfile,
+  hasTonoConsent,
+  setCloudReviewDefault,
+  setShareProfileWithReviews,
+  setTonoConsent,
+} from "../../services/prefs/prefsStore";
+import { todayISODate } from "../../utils/dateUtils";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
-// Settings → Deep reviews: who writes the AI coach's notes. Tono AI (sign in,
-// nothing to paste) is the first choice; the other four bring your own key,
-// which needs no account and is billed to the person directly.
+// Settings → Tono AI: whether takes are judged, what is sent, and what's
+// left. Your phone measures every take on its own, free, with no account;
+// Tono AI adds the judgement (Plus and the trial, and one free judged take a
+// month for everyone).
 export function DeepReviewSettings() {
   const styles = useStyles();
   const { colors } = useTheme();
-  const showToast = useToast();
   const account = useAccount();
-  const [selected, setSelected] = useState<ProviderId>(getCloudProvider());
-  // The own-key card shows the last own-key provider picked (Gemini to start).
-  const [keyId, setKeyId] = useState<KeyProviderId>(() => {
-    const stored = getCloudProvider();
-    return stored === "tono" ? "gemini" : stored;
-  });
-  const provider = PROVIDERS[keyId];
-  const [key, setKey] = useState("");
-  const [model, setModel] = useState("");
-  const [allowed, setAllowed] = useState(false);
-  const [tonoAllowed, setTonoAllowed] = useState(getCloudConsent().includes("tono"));
-  const [checking, setChecking] = useState(false);
+  const [allowed, setAllowed] = useState(hasTonoConsent());
   const [shareProfile, setShareProfile] = useState(getShareProfileWithReviews());
   const [everyTake, setEveryTake] = useState(getCloudReviewDefault());
-  const usingTono = selected === "tono";
-  const consented = usingTono ? tonoAllowed : allowed;
-  const company = usingTono ? PROVIDERS.tono.name : PROVIDERS[selected].company;
-  // Exactly what would be added to a review's prompt, minus its framing.
-  const contextPreview = buildSpeakerContext(getUserProfile(), todayISODate(), getNextEvent())
-    .split("\n")
-    .filter((line) => line.startsWith("- "))
-    .map((line) => line.slice(2))
-    .join("\n");
-
-  useEffect(() => {
-    let cancelled = false;
-    getProviderKey(keyId).then((k) => !cancelled && setKey(k ?? ""));
-    setModel(getCloudModel(keyId) ?? "");
-    setAllowed(getCloudConsent().includes(keyId));
-    return () => {
-      cancelled = true;
-    };
-  }, [keyId]);
-
-  function choose(id: ProviderId) {
-    setCloudProvider(id);
-    setSelected(id);
-    if (id !== "tono") setKeyId(id);
-  }
-
-  async function commitKey() {
-    const cleaned = cleanApiKey(key);
-    setKey(cleaned);
-    await setProviderKey(keyId, cleaned);
-    return cleaned;
-  }
-
-  function commitModel() {
-    const trimmed = model.trim();
-    if (trimmed && !isValidModelId(trimmed)) {
-      showToast("That doesn't look like a model ID — letters, numbers, dots, dashes, colons and slashes only.", "error");
-      setModel(getCloudModel(keyId) ?? "");
-      return;
-    }
-    setModel(trimmed);
-    setCloudModel(keyId, trimmed);
-  }
-
-  async function check() {
-    const cleaned = await commitKey();
-    if (!cleaned) {
-      showToast(`Paste your ${provider.name} key first.`, "error");
-      return;
-    }
-    const looksLike = providerForKey(cleaned);
-    if (looksLike && looksLike !== keyId) {
-      const other = PROVIDERS[looksLike].name;
-      showToast(`That looks like ${/^[aeiou]/i.test(other) ? "an" : "a"} ${other} key. Choose ${other} above, or paste your ${provider.name} key.`, "error");
-      return;
-    }
-    setChecking(true);
-    const problem = await checkProviderKey(keyId, cleaned).catch(() => "Couldn't check the key — check your connection and try again.");
-    setChecking(false);
-    showToast(problem ?? `${provider.name} accepted the key.`, problem ? "error" : "success");
-  }
+  const minor = tonoAgeGated();
+  const paying = isPaidPlan(account.allowance);
+  // Exactly what goes with a take about you, one fact per line.
+  const contextPreview = speakerLines(speakerFacts(getUserProfile(), todayISODate(), getNextEvent())).join("\n");
 
   async function toggleAllowed() {
-    if (usingTono) {
-      if (tonoAllowed) {
-        setCloudConsent("tono", false);
-        setTonoAllowed(false);
-        return;
-      }
-      setTonoAllowed(await askCloudConsent(PROVIDERS.tono));
-      return;
-    }
     if (allowed) {
-      setCloudConsent(keyId, false);
+      setTonoConsent(false);
       setAllowed(false);
       return;
     }
-    setAllowed(await askCloudConsent(provider));
+    setAllowed(await askTonoConsent());
+  }
+
+  if (minor) {
+    return (
+      <View style={styles.wrap}>
+        <Txt variant="footnote" weight="500" tone="secondary" style={styles.groupTitle}>
+          Tono AI
+        </Txt>
+        <Card style={styles.section}>
+          <Txt variant="subhead" tone="secondary">
+            Tono AI is for people 18 and over, so nothing you record leaves this phone. Your phone still measures every take and gives you tips. If you gave the wrong age, change it in Settings → Practice.
+          </Txt>
+        </Card>
+      </View>
+    );
   }
 
   return (
     <View style={styles.wrap}>
       <Txt variant="footnote" weight="500" tone="secondary" style={styles.groupTitle}>
-        Deep reviews
+        Tono AI
       </Txt>
       <Txt variant="subhead" tone="secondary" style={styles.intro}>
-        Your phone measures pace, pauses, fillers and eye contact. A deep review adds the judgment calls — structure, tone, presence — and Tono leans on it for your scores and your
-        plan. Sign in and Tono AI does it with nothing to set up, or connect your own key from one of the other providers; you pay them directly, usually a few cents a review.
+        Your phone measures pace, pauses, fillers, pitch and eye contact on every take, free. Tono AI adds what a phone can't judge: whether your answer had a shape, stayed on the point and came
+        across with conviction, and what to change next. It comes with Tono Plus, and everyone gets one judged take a month free.
       </Txt>
+
+      <Card style={styles.section}>
+        <Txt variant="headline">Tono AI</Txt>
+        {account.allowance ? (
+          <Txt variant="subhead" tone="secondary">
+            {allowanceLine(account.allowance)}
+          </Txt>
+        ) : null}
+        <View style={styles.disclosure}>
+          <Ionicons name="document-text-outline" size={18} color={colors.textSecondary} />
+          <Txt variant="footnote" tone="secondary" style={styles.flex}>
+            {whatGetsSent()}
+          </Txt>
+        </View>
+        <PrimaryButton
+          label={allowed ? "Stop sending to Tono AI" : "Allow Tono AI"}
+          variant={allowed ? "ghost" : "secondary"}
+          size="sm"
+          onPress={toggleAllowed}
+          style={styles.allow}
+        />
+        {!paying && purchasesEnabled() ? (
+          <PrimaryButton label="See Tono Plus" variant="ghost" size="sm" icon="sparkles-outline" onPress={openPaywall} style={styles.allow} />
+        ) : null}
+      </Card>
+
       <Card style={styles.section}>
         <SwitchRow
-          title="Review every take"
+          title="Have Tono AI judge every take"
           subtitle={
-            consented
-              ? "Each take you keep gets a deep review. You can still turn it off for one take on its save screen."
-              : `On once ${company} is allowed below. Until then, everything stays on this phone.`
+            allowed
+              ? "Each take you keep is judged while you have judged takes left. Turn it off for one take on its save screen."
+              : "On once Tono AI is allowed above. Until then, everything stays on this phone."
           }
           value={everyTake}
           onValueChange={(on) => {
@@ -164,18 +116,10 @@ export function DeepReviewSettings() {
           }}
         />
       </Card>
-      <ChoiceList
-        options={[
-          { key: "tono" as ProviderId, label: PROVIDERS.tono.name, detail: PROVIDERS.tono.blurb },
-          ...PROVIDER_ORDER.map((id) => ({ key: id as ProviderId, label: `${PROVIDERS[id].name} (your own key)`, detail: PROVIDERS[id].blurb })),
-        ]}
-        value={selected}
-        onChange={choose}
-      />
 
       <Card style={styles.section}>
         <SwitchRow
-          title="Tell reviews about you"
+          title="Tell Tono AI about you"
           subtitle="What you said in setup, so feedback fits what you're working on."
           value={shareProfile}
           onValueChange={(on) => {
@@ -185,92 +129,10 @@ export function DeepReviewSettings() {
         />
         {shareProfile ? (
           <Txt variant="footnote" tone="secondary">
-            {contextPreview || "Nothing to share yet — answer the profile questions in Settings → Practice."}
+            {contextPreview || "Nothing to share yet: answer the profile questions in Settings → Practice."}
           </Txt>
         ) : null}
       </Card>
-
-      {usingTono ? (
-        <Card style={styles.section}>
-          <Txt variant="headline">{PROVIDERS.tono.name}</Txt>
-          {account.status === "signedIn" ? (
-            <Txt variant="subhead" tone="secondary">
-              {signedInLabel(account)}
-              {account.allowance ? ` · ${allowanceLine(account.allowance)}` : ""}
-            </Txt>
-          ) : (
-            <>
-              <Txt variant="subhead" tone="secondary">
-                Sign in and AI reviews just work: no key to find, copy or paste. An account is only for this.
-              </Txt>
-              <SignInOptions
-                onSignedIn={async () => {
-                  if (!getCloudConsent().includes("tono")) setTonoAllowed(await askCloudConsent(PROVIDERS.tono));
-                }}
-              />
-            </>
-          )}
-          <View style={styles.disclosure}>
-            <Ionicons name="videocam-outline" size={18} color={colors.textSecondary} />
-            <Txt variant="footnote" tone="secondary" style={styles.flex}>
-              {whatGetsSent(PROVIDERS.tono)}
-            </Txt>
-          </View>
-          {account.status === "signedIn" && account.allowance?.plan !== "plus" && purchasesEnabled() ? (
-            <PrimaryButton label="Get Tono Plus for more reviews" variant="secondary" size="sm" icon="sparkles-outline" onPress={() => {
-                if (navigationRef.isReady()) navigationRef.navigate("Paywall");
-              }}
-              style={styles.allow}
-            />
-          ) : null}
-          <PrimaryButton
-            label={tonoAllowed ? "Stop sending to Tono AI" : "Allow sending to Tono AI"}
-            variant={tonoAllowed ? "ghost" : "secondary"}
-            size="sm"
-            onPress={toggleAllowed}
-            style={styles.allow}
-          />
-        </Card>
-      ) : (
-        <Card style={styles.section}>
-          <Txt variant="headline">{provider.name}</Txt>
-          <TextField
-            label="API key"
-            caption={`${provider.keyHint}. Stored in this phone's keychain only.`}
-            value={key}
-            onChangeText={setKey}
-            onCommit={commitKey}
-            secret
-            maxLength={MAX_KEY_LENGTH}
-          />
-          <View style={styles.buttons}>
-            <PrimaryButton label="Get a key" variant="secondary" size="sm" icon="open-outline" onPress={() => Linking.openURL(provider.keyUrl)} />
-            <PrimaryButton label="Check key" variant="secondary" size="sm" icon="checkmark-done-outline" loading={checking} onPress={check} />
-          </View>
-          <TextField
-            label="Model"
-            caption={provider.modelHint}
-            value={model}
-            onChangeText={setModel}
-            onCommit={commitModel}
-            placeholder={provider.defaultModel}
-            maxLength={MAX_MODEL_LENGTH}
-          />
-          <View style={styles.disclosure}>
-            <Ionicons name={provider.input === "video" ? "videocam-outline" : "document-text-outline"} size={18} color={colors.textSecondary} />
-            <Txt variant="footnote" tone="secondary" style={styles.flex}>
-              {whatGetsSent(provider)}
-            </Txt>
-          </View>
-          <PrimaryButton
-            label={allowed ? `Stop sending to ${provider.company}` : `Allow sending to ${provider.company}`}
-            variant={allowed ? "ghost" : "secondary"}
-            size="sm"
-            onPress={toggleAllowed}
-            style={styles.allow}
-          />
-        </Card>
-      )}
       <DeepReviewUsage />
     </View>
   );
@@ -281,7 +143,6 @@ const useStyles = makeStyles((t) => ({
   groupTitle: { paddingHorizontal: 4, marginBottom: -t.space.sm },
   intro: { paddingHorizontal: 4 },
   section: { gap: t.space.md },
-  buttons: { flexDirection: "row", gap: t.space.sm, flexWrap: "wrap" },
   disclosure: { flexDirection: "row", gap: t.space.sm, alignItems: "flex-start" },
   flex: { flex: 1 },
   allow: { alignSelf: "flex-start" },

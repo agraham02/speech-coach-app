@@ -144,7 +144,7 @@ describe("the other notifications", () => {
   });
   it("a finished take never puts a score on the lock screen", () => {
     for (const kind of ["take", "review", "feeling"] as const) expect(JSON.stringify(sessionReadyText("Sam", kind))).not.toMatch(/\d|\/10/);
-    expect(sessionReadyText("Sam", "review").title).toBe("Sam, your deep review is in");
+    expect(sessionReadyText("Sam", "review").title).toBe("Sam, Tono AI has judged your take");
     expect(sessionReadyText(null, "take").title).toBe("Your take is ready");
     expect(sessionReadyText("Sam", "feeling").body).not.toMatch(/score|pace|filler/i);
   });

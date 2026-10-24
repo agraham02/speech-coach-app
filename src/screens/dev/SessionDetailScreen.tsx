@@ -84,7 +84,7 @@ export function SessionDetailScreen({ navigation, route }: Props) {
       requestStep(sessionId, step).catch((error) => Alert.alert("Couldn't re-run", (error as Error).message));
     };
     if (step === "cloud_review") {
-      Alert.alert("Re-run the deep review?", "It sends this take to your AI provider again and counts toward today's limit.", [
+      Alert.alert("Have Tono AI judge it again?", "It sends this take to Tono AI again and uses one more judged take.", [
         { text: "Cancel", style: "cancel" },
         { text: "Re-run", onPress: start },
       ]);

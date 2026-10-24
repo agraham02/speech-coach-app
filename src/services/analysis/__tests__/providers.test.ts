@@ -2,36 +2,42 @@ import type { AnalysisContext } from "../../../domain/analysis/types";
 import type { Session } from "../../../domain/sessionTypes";
 import type { TakeReviewInput } from "../kinds";
 
-const mockGenerateContent = jest.fn();
-const mockCallTextProvider = jest.fn();
-let mockCallsToday = 0;
+const mockGenerate = jest.fn();
+const mockEnsure = jest.fn(async () => undefined);
+const mockResolveUpload = jest.fn();
 
-jest.mock("../../secrets/secretsStore", () => ({ getProviderKey: jest.fn(async () => "key") }));
 jest.mock("../../prefs/prefsStore", () => ({
-  getCloudProvider: () => "tono",
-  getCloudModel: () => null,
-  getCloudConsent: () => [],
   getUserProfile: () => null,
   getShareProfileWithReviews: () => false,
   getNextEvent: () => null,
-  getCloudCallsToday: () => mockCallsToday,
-  noteCloudCall: jest.fn(),
 }));
 jest.mock("../../sessions/sessionScoreService", () => ({ measuredVoice: () => ({ wpmAvg: 142, pitchRangeSt: 5 }) }));
-jest.mock("../../gemini/geminiClient", () => ({ generateContent: (...a: unknown[]) => mockGenerateContent(...a) }));
-jest.mock("../../cloud/textProviders", () => ({ callTextProvider: (...a: unknown[]) => mockCallTextProvider(...a) }));
-jest.mock("../providers/videoReview", () => ({ reviewFromVideo: jest.fn() }));
+jest.mock("../../tono/tonoApi", () => ({ tonoGenerate: (...a: unknown[]) => mockGenerate(...a) }));
+jest.mock("../../tono/upload", () => ({ resolveUploadForGrading: (...a: unknown[]) => mockResolveUpload(...a) }));
+jest.mock("../../account/accountStore", () => ({ ensureAccount: () => mockEnsure() }));
+jest.mock("../../pipeline/earlyUpload", () => ({ earlyUploadSettled: async () => undefined }));
+jest.mock("../../db/sessionsRepo", () => ({ getSessionById: async () => null, updateSessionGeminiFile: jest.fn() }));
+jest.mock("../../storage/videoStorage", () => ({ resolveVideoUri: () => "file:///take.mp4", videoExists: () => true }));
+jest.mock("expo-file-system", () => ({
+  File: class {
+    size = 1000;
+  },
+}));
+jest.mock("expo-crypto", () => ({ randomUUID: () => "uuid-0001-0002" }));
 jest.mock("../../../utils/logger", () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
 
 import { tonoAiProvider } from "../providers/tonoAi";
-import { ownKeyProvider } from "../providers/ownKey";
 import { rulesProvider } from "../providers/rules";
-import { reviewFromVideo } from "../providers/videoReview";
+
+// What the server sends back for a task.
+const reply = (output: unknown, model = "gemini-3.5-flash-lite", promptVersion = "p/1") => ({ output, model, usedFallback: false, promptVersion, schemaVersion: 1, usage: null, allowance: null });
+const problemsOf = (call: number) => ((mockGenerate.mock.calls[call][0] as { inputs: { problems?: string[] } }).inputs.problems ?? []).join(" ");
 
 const ctx = (patch: Partial<AnalysisContext> = {}): AnalysisContext => ({
-  wantsTono: true,
-  tono: { signedIn: true, consent: true, allowed: { review: true, text: true, insight: true }, killSwitch: false },
-  ownKey: null,
+  tier: "plus",
+  tono: { consent: true, allowed: { take: true, text: true, insight: true }, killSwitch: false },
+  isAdult: true,
+  minorsMayUseAi: false,
   takeOptIn: true,
   judgeInput: "text",
   hasVideo: true,
@@ -64,56 +70,62 @@ const take: TakeReviewInput = {
   stutterMode: false,
 };
 
-const note = (score: number) => ({ score, notes: "n" });
-const rubricAnswer = {
+const sub = (score: number) => ({ score, notes: "n", evidence: "start small" });
+const judgedAnswer = {
   transcript_clean: "So my point is simple: start small and keep going.",
-  structure: { score: 6, structure_used: "what/why/how", notes: "n" },
-  content: { relevance_score: 7, relevance_notes: "n", coherence_score: 6, coherence_notes: "n" },
-  delivery: { rate: { ...note(7), wpm_avg: 142 }, volume: note(5), pitch_melody: note(5), tonality: note(5), pausing: note(6) },
-  presence: { eye_contact_score: 5, facial_expressiveness_score: 5, body_language_notes: "n" },
-  combined: { face_voice_congruence_score: 5, archetype_detected: "Friend", archetype_fit_for_topic: "n", overall_score: 6 },
-  annotations: [],
-  coaching: { summary: "s", top_strength: "t", top_focus_area: "f", recommended_drill: "d" },
+  structure_used: "what/why/how",
+  subscores: { pace: sub(7), pauses: sub(6), melody: sub(5), emphasis: sub(5), structure: sub(6), relevance: sub(7), clarity: sub(6), eye_contact: sub(5), expression: sub(5), conviction: sub(6) },
+  annotations: [
+    { quote: "start small and keep going", subcategory: "structure", note: "A clear point." },
+    { quote: "words never said", subcategory: "clarity", note: "Made up." },
+  ],
+  coaching: { summary: "s", strength: "t", focus: "f", drill: "d" },
   quick_coach: { strength: "Clear point.", tip: "Pause after it.", focus_skill: "cadence", follow_up_question: "Why?" },
 };
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockCallsToday = 0;
 });
 
 describe("Tono AI take review from the transcript (the default)", () => {
-  it("sends the words and the measurements as one hosted text call, never the video", async () => {
-    mockGenerateContent.mockImplementation(async (args: { onHosted?: (r: unknown) => void }) => {
-      args.onHosted?.({ model: "gemini-3.5-flash-lite", usedFallback: false });
-      return JSON.stringify(rubricAnswer);
-    });
+  it("sends the task and structured inputs, never a prompt or the video", async () => {
+    mockGenerate.mockResolvedValue(reply(judgedAnswer, "gemini-3.5-flash-lite", "take-review/2026-10-23/text"));
     const out = await tonoAiProvider.run("take_review", take, ctx(), { producers: ["tono_ai"], blocked: null, tonoInput: "text" });
-    expect(reviewFromVideo).not.toHaveBeenCalled();
-    const call = mockGenerateContent.mock.calls[0][0];
-    expect(call).toMatchObject({ transport: "hosted", kind: "text" });
-    expect(call.fileUri).toBeUndefined();
-    expect(call.systemPrompt).toContain("start small and keep going");
-    expect(call.systemPrompt).toContain("MEASURED ON THE PHONE");
-    expect(call.systemPrompt).toContain("quick_coach");
-    expect(call.responseSchema.required).toContain("quick_coach");
+    const request = mockGenerate.mock.calls[0][0];
+    expect(mockEnsure).toHaveBeenCalled();
+    expect(request).toMatchObject({ task: "take_review", schemaVersion: 3, inputs: { takeKind: "impromptu", prompt: "What should a beginner do first?", transcript: session.transcriptVerbatim } });
+    expect(request.media).toBeUndefined();
+    expect(JSON.stringify(request)).not.toMatch(/You are a/);
+    expect(request.inputs.measurements).toMatchObject({ durationSeconds: 60, pace: { wpm: 142 } });
     expect(out).toMatchObject({
       ok: true,
-      value: { heardAudio: false, providerId: "tono", quickCoach: rubricAnswer.quick_coach, analysis: { transcript_verbatim: session.transcriptVerbatim } },
-      provenance: { producer: "tono_ai", model: "gemini-3.5-flash-lite", judged: true, input: "text" },
+      value: { heardAudio: false, review: { subscores: { structure: { score: 6 }, conviction: { score: 6 } }, quickCoach: judgedAnswer.quick_coach } },
+      provenance: { producer: "tono_ai", model: "gemini-3.5-flash-lite", promptVersion: "take-review/2026-10-23/text", judged: true, input: "text" },
     });
+    // Only annotations that quote the real words are kept.
+    expect(out.ok && out.value.review.annotations.map((x) => x.quote)).toEqual(["start small and keep going"]);
   });
 
-  it("goes through the video path when routing says video", async () => {
-    (reviewFromVideo as jest.Mock).mockResolvedValue({ analysis: {}, quickCoach: null, heardAudio: true, usage: null, elapsedMs: 1, videoBytes: 10, model: "m" });
+  it("uploads the video and still sends the phone transcript when routing says video", async () => {
+    mockResolveUpload.mockResolvedValue({ uploaded: { name: "files/abc", uri: "u", mimeType: "video/mp4", state: "ACTIVE" }, reused: false });
+    mockGenerate.mockResolvedValue(reply(judgedAnswer));
     const out = await tonoAiProvider.run("take_review", take, ctx(), { producers: ["tono_ai"], blocked: null, tonoInput: "video" });
-    expect(reviewFromVideo).toHaveBeenCalledWith(take, "hosted");
-    expect(out).toMatchObject({ ok: true, value: { providerId: "tono", heardAudio: true }, provenance: { input: "video", model: "m" } });
+    const request = mockGenerate.mock.calls[0][0];
+    expect(request.media).toEqual({ fileName: "files/abc", videoSeconds: 60 });
+    expect(request.inputs.transcript).toBe(session.transcriptVerbatim);
+    expect(out).toMatchObject({ ok: true, value: { heardAudio: false, videoBytes: 1000 }, provenance: { input: "video" } });
   });
 
-  it("can't judge a take with no transcript from the words", async () => {
+  it("cannot judge a take with no transcript from the words", async () => {
     const out = await tonoAiProvider.run("take_review", { ...take, session: { ...session, transcriptVerbatim: null } as Session }, ctx(), { producers: ["tono_ai"], blocked: null, tonoInput: "text" });
     expect(out).toMatchObject({ ok: false, reason: "no_input" });
+    expect(mockGenerate).not.toHaveBeenCalled();
+  });
+
+  it("refuses an answer with too little in it", async () => {
+    mockGenerate.mockResolvedValue(reply({ ...judgedAnswer, subscores: { pace: sub(7) } }));
+    const out = await tonoAiProvider.run("take_review", take, ctx(), { producers: ["tono_ai"], blocked: null, tonoInput: "text" });
+    expect(out).toMatchObject({ ok: false, reason: "error" });
   });
 });
 
@@ -137,48 +149,39 @@ describe("Tono AI notes on a Rewind", () => {
   const route = { producers: ["tono_ai" as const], blocked: null };
 
   it("keeps notes that check out, with the coverage worded by the phone", async () => {
-    mockGenerateContent.mockImplementation(async (args: { onHosted?: (r: unknown) => void }) => {
-      args.onHosted?.({ model: "gemini-3.5-flash-lite" });
-      return JSON.stringify(dayAnswer());
-    });
+    mockGenerate.mockResolvedValue(reply(dayAnswer()));
     const out = await tonoAiProvider.run("rewind_notes", { transcript: DAY }, ctx(), route);
-    expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+    expect(mockGenerate).toHaveBeenCalledTimes(1);
     expect(out).toMatchObject({
       ok: true,
       value: { coverage: expect.stringMatching(/^All three parts/), parts: { evening: { status: "covered" } } },
       provenance: { producer: "tono_ai", model: "gemini-3.5-flash-lite", input: "text" },
     });
-    expect(mockGenerateContent.mock.calls[0][0].systemPrompt).toContain("morning: from waking up until about noon");
+    expect(mockGenerate.mock.calls[0][0]).toMatchObject({ task: "rewind_notes", schemaVersion: 2, inputs: { transcript: DAY } });
   });
 
   it("asks once more, naming the problem, when the first answer calls the evening missing", async () => {
-    mockGenerateContent
-      .mockResolvedValueOnce(JSON.stringify(dayAnswer({ parts: { ...dayAnswer().parts, evening: { status: "missing", evidence: "" } } })))
-      .mockResolvedValueOnce(JSON.stringify(dayAnswer()));
+    mockGenerate.mockResolvedValueOnce(reply(dayAnswer({ parts: { ...dayAnswer().parts, evening: { status: "missing", evidence: "" } } }))).mockResolvedValueOnce(reply(dayAnswer()));
     const out = await tonoAiProvider.run("rewind_notes", { transcript: DAY }, ctx(), route);
-    expect(mockGenerateContent).toHaveBeenCalledTimes(2);
-    expect(mockGenerateContent.mock.calls[1][0].systemPrompt).toContain("evening as missing");
+    expect(mockGenerate).toHaveBeenCalledTimes(2);
+    expect(problemsOf(1)).toContain("evening as missing");
     expect(out).toMatchObject({ ok: true, value: { parts: { evening: { status: "covered" } } } });
   });
 
   it("shows no notes at all when a quote is made up twice", async () => {
     const made = dayAnswer({ parts: { ...dayAnswer().parts, morning: { status: "covered", evidence: "I ran five miles before sunrise" } } });
-    mockGenerateContent.mockResolvedValue(JSON.stringify(made));
+    mockGenerate.mockResolvedValue(reply(made));
     const out = await tonoAiProvider.run("rewind_notes", { transcript: DAY }, ctx(), route);
-    expect(mockGenerateContent).toHaveBeenCalledTimes(2);
+    expect(mockGenerate).toHaveBeenCalledTimes(2);
     expect(out).toMatchObject({ ok: false, reason: "error" });
   });
 
   it("rejects notes that turn into a score", async () => {
-    mockGenerateContent.mockResolvedValue(JSON.stringify(dayAnswer({ storytelling: "8/10" })));
+    mockGenerate.mockResolvedValue(reply(dayAnswer({ storytelling: "8/10" })));
     const out = await tonoAiProvider.run("rewind_notes", { transcript: DAY }, ctx(), route);
     expect(out).toMatchObject({ ok: false, reason: "error" });
   });
 
-  it("is not something an own key does any more", async () => {
-    expect(ownKeyProvider.supports("rewind_notes")).toBe(false);
-    expect(ownKeyProvider.supports("word_chain")).toBe(false);
-  });
 });
 
 describe("Tono AI judging a Word Chain", () => {
@@ -192,22 +195,20 @@ describe("Tono AI judging a Word Chain", () => {
     ],
   };
 
-  it("sends only the numbered pairs, as a short hosted text call", async () => {
-    mockGenerateContent.mockResolvedValue(JSON.stringify(good));
+  it("sends only the numbered pairs, as a short text task", async () => {
+    mockGenerate.mockResolvedValue(reply(good));
     const out = await tonoAiProvider.run("word_chain", input, ctx(), route);
-    const call = mockGenerateContent.mock.calls[0][0];
-    expect(call).toMatchObject({ transport: "hosted", kind: "text" });
-    expect(call.systemPrompt).toContain("1. pen -> ink");
-    expect(call.systemPrompt).toContain("3. octopus -> banana");
-    expect(call.fileUri).toBeUndefined();
+    const call = mockGenerate.mock.calls[0][0];
+    expect(call).toMatchObject({ task: "word_chain", inputs: { pairs: [{ n: 1, from: "pen", to: "ink" }, { n: 2, from: "ink", to: "octopus" }, { n: 3, from: "octopus", to: "banana" }] } });
+    expect(call.media).toBeUndefined();
     expect(out).toMatchObject({ ok: true, value: { links: [{ from: "pen", to: "ink", verdict: "strong" }, {}, { to: "banana", verdict: "none" }] }, provenance: { producer: "tono_ai", judged: true } });
   });
 
   it("asks again when a link is missing, and gives up if it still is", async () => {
-    mockGenerateContent.mockResolvedValue(JSON.stringify({ links: good.links.slice(0, 2) }));
+    mockGenerate.mockResolvedValue(reply({ links: good.links.slice(0, 2) }));
     const out = await tonoAiProvider.run("word_chain", input, ctx(), route);
-    expect(mockGenerateContent).toHaveBeenCalledTimes(2);
-    expect(mockGenerateContent.mock.calls[1][0].systemPrompt).toContain("left out link number 3");
+    expect(mockGenerate).toHaveBeenCalledTimes(2);
+    expect(problemsOf(1)).toContain("left out link number 3");
     expect(out).toMatchObject({ ok: false, reason: "error" });
   });
 
@@ -221,32 +222,21 @@ describe("Tono AI judging a Bridge Chain", () => {
   const input = { segments: [{ seed: "pen", said: "ink because pens write with ink octopus because they go together" }] };
 
   it("keeps grounded steps and sends what was said", async () => {
-    mockGenerateContent.mockResolvedValue(
-      JSON.stringify({
-        steps: [
-          { word: "ink", reason: "pens write with ink", verdict: "explained", note: "A real use." },
-          { word: "octopus", reason: "they go together", verdict: "thin", note: "Circular." },
-        ],
-      }),
+    mockGenerate.mockResolvedValue(
+      reply(
+        {
+          steps: [
+            { word: "ink", reason: "pens write with ink", verdict: "explained", note: "A real use." },
+            { word: "octopus", reason: "they go together", verdict: "thin", note: "Circular." },
+          ],
+        },
+        "m",
+        "bridge-chain/2026-10-23",
+      ),
     );
     const out = await tonoAiProvider.run("bridge_chain", input, ctx(), route);
-    expect(mockGenerateContent.mock.calls[0][0].systemPrompt).toContain("ink because pens write with ink octopus");
+    expect(mockGenerate.mock.calls[0][0].inputs.segments[0].said).toContain("ink because pens write with ink octopus");
     expect(out).toMatchObject({ ok: true, value: { steps: [{ verdict: "explained" }, { verdict: "thin" }] }, provenance: { promptVersion: expect.stringContaining("bridge-chain") } });
-  });
-});
-
-describe("own key", () => {
-  it("stops at the daily cap before calling anything", async () => {
-    mockCallsToday = 1000;
-    const out = await ownKeyProvider.run("rewind_notes", { transcript: "words" }, ctx({ ownKey: "openai" }), { producers: ["own_key"], blocked: null });
-    expect(out).toMatchObject({ ok: false, reason: "quota" });
-    expect(mockCallTextProvider).not.toHaveBeenCalled();
-  });
-
-  it("reads the transcript with a text provider and labels it with the provider's name", async () => {
-    mockCallTextProvider.mockResolvedValue(JSON.stringify(rubricAnswer));
-    const out = await ownKeyProvider.run("take_review", take, ctx({ ownKey: "anthropic" }), { producers: ["own_key"], blocked: null });
-    expect(out).toMatchObject({ ok: true, value: { providerId: "anthropic", quickCoach: null }, provenance: { producer: "own_key", provider: "Anthropic Claude", input: "text" } });
   });
 });
 

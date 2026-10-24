@@ -14,7 +14,30 @@ describe("parseSubscriber", () => {
       { expires_date: "2026-12-10T12:00:00Z", product_identifier: "tono_plus_monthly" },
       { tono_plus_monthly: { is_sandbox: false } },
     );
-    expect(parseSubscriber(body, NOW)).toEqual({ productId: "tono_plus_monthly", expiresAt: new Date("2026-12-10T12:00:00Z"), environment: "production" });
+    expect(parseSubscriber(body, NOW)).toEqual({
+      productId: "tono_plus_monthly",
+      expiresAt: new Date("2026-12-10T12:00:00Z"),
+      environment: "production",
+      periodType: "normal",
+      periodStartedAt: null,
+    });
+  });
+
+  it("knows the 14-day trial and when it started, on either plan", () => {
+    for (const product of ["com.ahmadgraham.tono.plus.monthly", "com.ahmadgraham.tono.plus.annual"]) {
+      const body = subscriber(
+        { expires_date: "2026-11-20T12:00:00Z", product_identifier: product, purchase_date: "2026-11-06T12:00:00Z" },
+        { [product]: { is_sandbox: true, period_type: "trial", purchase_date: "2026-11-06T12:00:00Z" } },
+      );
+      expect(parseSubscriber(body, NOW)).toMatchObject({ periodType: "trial", periodStartedAt: new Date("2026-11-06T12:00:00Z"), environment: "sandbox" });
+    }
+  });
+
+  it("treats a paid introductory price, or a renewal after the trial, as Plus", () => {
+    const intro = subscriber({ expires_date: "2026-12-10T12:00:00Z", product_identifier: "p" }, { p: { period_type: "intro" } });
+    expect(parseSubscriber(intro, NOW)?.periodType).toBe("normal");
+    const renewed = subscriber({ expires_date: "2026-12-10T12:00:00Z", product_identifier: "p" }, { p: { period_type: "normal", purchase_date: "2026-11-20T12:00:00Z" } });
+    expect(parseSubscriber(renewed, NOW)).toMatchObject({ periodType: "normal", periodStartedAt: new Date("2026-11-20T12:00:00Z") });
   });
 
   it("marks a sandbox purchase", () => {

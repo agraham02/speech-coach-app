@@ -27,7 +27,7 @@ The idea in one line: **the phone hears and counts, Tono AI says whether it made
 | Rewind "The day you covered" | phone keywords only; **showed 1 of 3 on the full-day transcript** | wider keywords (office, meetings, drove home, in bed, nap ...) and, once notes exist, the judge's checked read |
 | Intro text of both chains | one paragraph each, no mention of how they differ or how they are scored | rewritten (section 3), plus a "how it's scored" line |
 
-New analysis kinds `word_chain` and `bridge_chain`; `rewind_notes` reworked. All three are **Tono AI only** (`SUPPORTED` in `domain/analysis/routing.ts`): judging them is part of Plus and was never built for an own key. The prompts are in `services/analysis/prompts.ts` (one place for session 08 to move).
+New analysis kinds `word_chain` and `bridge_chain`; `rewind_notes` reworked. All three are **Tono AI only** (`SUPPORTED` in `domain/analysis/routing.ts`): judging them is part of Plus and was never built for an own key. The prompts are on the server, in `supabase/functions/_shared/prompts/exercises.ts` (moved there by session 08).
 
 No migration was needed.
 
@@ -97,7 +97,7 @@ The phone drops a step whose word was never said, and downgrades a step whose qu
 
 ## 4. Rewind: what was wrong and what is checked now
 
-**Where reviews are produced.** `services/rewind/rewindReview.ts` asks the AnalysisService for `rewind_notes`; the Tono AI provider (`services/analysis/providers/tonoAi.ts`) sends the prompt in `services/analysis/prompts.ts`; the result is stored by `RewindResultScreen` in `day_recalls.review_json`.
+**Where reviews are produced.** `services/rewind/rewindReview.ts` asks the AnalysisService for `rewind_notes`; the Tono AI provider (`services/analysis/providers/tonoAi.ts`) names the task and sends the transcript; the server writes the prompt (`supabase/functions/_shared/prompts/exercises.ts`); the result is stored by `RewindResultScreen` in `day_recalls.review_json`.
 
 **What went wrong on your transcript.** Two things, not one:
 
@@ -141,7 +141,7 @@ Test files: `src/domain/__tests__/rewindJudging.test.ts` (20 tests, 2 of them re
 
 **Test transcripts** are in `spikes/inference-eval/cases_synthetic.json`: morning-only, thin, rich and afternoon-and-evening from session 04, plus `rewind_day_with_nap` (a made-up lookalike of your transcript with the same shape), and four Bridge Chain cases with gold verdicts (all explained, no reasons, mixed, "because" gaming).
 
-**The hosted run you do next** measures the judge itself. The eval now sends the app's real prompts (`spikes/inference-eval/app_prompts.json`, generated from `prompts.ts` and kept equal by `services/analysis/__tests__/evalPrompts.test.ts`; after changing a prompt run `UPDATE_EVAL_PROMPTS=1 npx jest evalPrompts`):
+**The hosted run you do next** measures the judge itself. The eval now sends the app's real prompts (`spikes/inference-eval/app_prompts.json`, generated from the server prompts and kept equal by `services/analysis/__tests__/evalPrompts.test.ts`; after changing a prompt run `UPDATE_EVAL_PROMPTS=1 npx jest evalPrompts`):
 
 ```bash
 export GEMINI_API_KEY=...   # your paid key; never commit it

@@ -61,7 +61,7 @@ REWIND_APP_SCHEMA = {
     "required": ["specificity", "storytelling", "flow", "coverage", "vividDetail", "tryTomorrow"],
 }
 
-# The prompts the app sends now (src/services/analysis/prompts.ts). Generated
+# The prompts the app sends now (supabase/functions/_shared/prompts/exercises.ts, on the server). Generated
 # into app_prompts.json by the jest test evalPrompts.test.ts, so this eval
 # always tests what the app really asks. Scoring also applies the checks the
 # phone makes (verbatim quotes, one verdict per link).

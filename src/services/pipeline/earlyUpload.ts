@@ -1,16 +1,14 @@
 import { File } from "expo-file-system";
-import { uploadVideoForGrading } from "../gemini/transcribeSession";
+import { uploadVideoForGrading } from "../tono/upload";
 import { getSessionById, isSessionLive, updateSessionGeminiFile } from "../db/sessionsRepo";
 import { tonoDeleteFile } from "../tono/tonoApi";
 import { analysisContext } from "../cloud/routing";
 import { routeAnalysis } from "../../domain/analysis/routing";
-import { MAX_REVIEW_VIDEO_BYTES, reviewsLeft } from "../cloud/inputGuards";
-import { getCloudCallsToday } from "../prefs/prefsStore";
+import { MAX_REVIEW_VIDEO_BYTES } from "../cloud/inputGuards";
 import { resolveVideoUri, videoExists } from "../storage/videoStorage";
-import { todayISODate } from "../../utils/dateUtils";
 import { logger } from "../../utils/logger";
 
-// The video upload is the slowest part of a Gemini deep review, and it used
+// The video upload is the slowest part of a take judged from its video, and it used
 // to wait until every on-device step (transcript, voice, face, coaching) had
 // finished. When a take is saved with a deep review wanted, the upload now
 // starts straight away and runs alongside them; the review step picks up the
@@ -23,33 +21,29 @@ export function startEarlyUpload(sessionId: string): void {
   if (inFlight.has(sessionId)) return;
 
   const task = (async () => {
-    // Only a review that will watch the video is worth an early upload: Tono
-    // AI judges from the transcript by default, so this is the "video"
-    // setting or a person's own Gemini key. And only when the review would
-    // not be refused anyway (an own key has a daily cap; Tono AI's server
-    // says no by itself). The transcript doesn't exist yet at save time, so
-    // a text review is assumed to find one.
+    // Only a judgement that will watch the video is worth an early upload:
+    // Tono AI judges from the transcript by default, so this is the Dev
+    // "video" setting. The transcript doesn't exist yet at save time, so a
+    // text judgement is assumed to find one. The server refuses the upload
+    // by itself for someone with nothing left.
     const ctx = await analysisContext({ hasVideo: true, hasTranscript: true, takeOptIn: true });
     const route = routeAnalysis("take_review", ctx);
-    const first = route.producers[0];
-    const transport = first === "tono_ai" && route.tonoInput === "video" ? "hosted" : first === "own_key" && ctx.ownKey === "gemini" ? "direct" : null;
-    if (!transport) return;
-    if (transport === "direct" && reviewsLeft(getCloudCallsToday(todayISODate())) === 0) return;
+    if (route.producers[0] !== "tono_ai" || route.tonoInput !== "video") return;
     const session = await getSessionById(sessionId);
     if (!session || session.geminiFileName || session.videoDeletedAt) return;
     const videoUri = resolveVideoUri(session);
     if (!videoExists(videoUri) || (new File(videoUri).size ?? 0) > MAX_REVIEW_VIDEO_BYTES) return;
     const started = Date.now();
-    const uploaded = await uploadVideoForGrading(videoUri, undefined, transport);
+    const uploaded = await uploadVideoForGrading(videoUri);
     // Deleted while it uploaded: don't leave the video at Google.
     if (!(await isSessionLive(sessionId))) {
       await tonoDeleteFile(uploaded.name).catch(() => undefined);
       return;
     }
     await updateSessionGeminiFile(sessionId, { name: uploaded.name, uri: uploaded.uri, uploadedAt: new Date().toISOString() });
-    logger.info(`[gemini] early upload for ${sessionId} ready in ${((Date.now() - started) / 1000).toFixed(1)} s`);
+    logger.info(`[upload] early upload for ${sessionId} ready in ${((Date.now() - started) / 1000).toFixed(1)} s`);
   })()
-    .catch((error) => logger.warn(`[gemini] early upload failed, the review step will upload instead: ${(error as Error).message}`))
+    .catch((error) => logger.warn(`[upload] early upload failed, the judging step will upload instead: ${(error as Error).message}`))
     .finally(() => inFlight.delete(sessionId));
   inFlight.set(sessionId, task);
 }

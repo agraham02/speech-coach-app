@@ -307,13 +307,13 @@ export function eventAfterText(name: string | null | undefined, kind: EventKind,
 
 export type ReadyKind = "take" | "review" | "feeling";
 
-// A finished analysis or deep review, when the app was in the background.
+// A finished analysis or Tono AI judgement, when the app was in the background.
 // No score on the lock screen: the Result screen has it.
 export function sessionReadyText(name: string | null | undefined, kind: ReadyKind): NotificationText {
   const who = firstName(name);
   if (kind === "feeling") return { title: "Saved", body: "Your feeling take is saved, just for you." };
   if (kind === "review") {
-    return { title: who ? `${who}, your deep review is in` : "Your deep review is in", body: "What landed, and one thing to try next time. Tap to read it." };
+    return { title: who ? `${who}, Tono AI has judged your take` : "Tono AI has judged your take", body: "What landed, and one thing to try next time. Tap to read it." };
   }
   return { title: who ? `${who}, your take is ready` : "Your take is ready", body: "Pace, pauses and fillers are in. Tap to see what stood out." };
 }

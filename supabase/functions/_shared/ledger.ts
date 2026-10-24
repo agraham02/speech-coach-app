@@ -1,15 +1,15 @@
 import postgres from "npm:postgres@3.4.5";
-import { decideAllowance, type Tier, type UsageSnapshot } from "./allowance.ts";
+import { decideAllowance, type UsageSnapshot } from "./allowance.ts";
 import { parseServerConfig, type ServerConfig } from "./config.ts";
 import { env } from "./http.ts";
 import type { ModelChoice } from "./models.ts";
 import type { TokenCounts } from "./pricing.ts";
 import { utcDayStart, utcMonthStart } from "./time.ts";
-import type { AiKind, DenyReason, Plan } from "./types.ts";
+import { isPaid, type CountKind, type DenyReason, type Plan, type Tier } from "./types.ts";
 
 // All database access for AI calls. The reservation runs inside ONE
 // transaction that holds a row lock on the account, so two calls at once
-// cannot both take the last review.
+// cannot both take the last judged take.
 
 let connection: ReturnType<typeof postgres> | null = null;
 
@@ -44,31 +44,37 @@ export async function loadConfig(): Promise<ServerConfig> {
 
 interface SnapshotRow {
   plan: Plan;
-  starter_reviews_used: number;
-  starter_text_used: number;
-  month_reviews: number;
-  month_insights: number;
-  month_text: number;
-  month_cost_usd: string | number;
-  day_reviews: number;
+  trial_ends_at: Date | string | null;
+  takes: number;
+  text_calls: number;
+  insights: number;
+  cost_usd: string | number;
+  day_takes: number;
   free_spend_month_usd: string | number;
 }
 
-function toSnapshot(row: SnapshotRow): UsageSnapshot {
+export interface SnapshotWithTrial {
+  snapshot: UsageSnapshot;
+  // When the trial ends (it renews into Plus then, unless cancelled).
+  trialEndsAt: Date | null;
+}
+
+function toSnapshot(row: SnapshotRow): SnapshotWithTrial {
   return {
-    plan: row.plan,
-    starterReviewsUsed: row.starter_reviews_used,
-    starterTextUsed: row.starter_text_used,
-    monthReviews: row.month_reviews,
-    monthInsights: row.month_insights,
-    monthText: row.month_text,
-    monthCostUsd: Number(row.month_cost_usd),
-    dayReviews: row.day_reviews,
-    freeSpendMonthUsd: Number(row.free_spend_month_usd),
+    snapshot: {
+      plan: row.plan,
+      takes: row.takes,
+      text: row.text_calls,
+      insights: row.insights,
+      costUsd: Number(row.cost_usd),
+      dayTakes: row.day_takes,
+      freeSpendMonthUsd: Number(row.free_spend_month_usd),
+    },
+    trialEndsAt: row.trial_ends_at ? new Date(row.trial_ends_at) : null,
   };
 }
 
-async function readSnapshot(sql: Sql | Tx, userId: string, now: Date): Promise<UsageSnapshot | null> {
+async function readSnapshot(sql: Sql | Tx, userId: string, now: Date): Promise<SnapshotWithTrial | null> {
   const rows = (await sql`
     select * from public.usage_snapshot(${userId}, ${utcMonthStart(now)}, ${utcDayStart(now)})
   `) as unknown as SnapshotRow[];
@@ -77,7 +83,7 @@ async function readSnapshot(sql: Sql | Tx, userId: string, now: Date): Promise<U
 
 // Read-only (no lock, no reservation): for pages and checks that only need to
 // know what a person has left.
-export async function peekSnapshot(userId: string, now = new Date()): Promise<UsageSnapshot> {
+export async function peekSnapshot(userId: string, now = new Date()): Promise<SnapshotWithTrial> {
   const snap = await readSnapshot(db(), userId, now);
   if (!snap) throw new Error("account row missing");
   return snap;
@@ -87,7 +93,7 @@ export async function peekSnapshot(userId: string, now = new Date()): Promise<Us
 
 export interface ReserveArgs {
   userId: string;
-  kind: AiKind;
+  kind: CountKind;
   idempotencyKey: string;
   config: ServerConfig;
   choice: ModelChoice;
@@ -106,20 +112,20 @@ export async function reserve(args: ReserveArgs): Promise<ReserveResult> {
     await tx`insert into public.accounts (user_id) values (${args.userId}) on conflict do nothing`;
     await tx`select 1 from public.accounts where user_id = ${args.userId} for update`;
 
-    let snapshot = await readSnapshot(tx, args.userId, now);
+    let snapshot = (await readSnapshot(tx, args.userId, now))?.snapshot;
     if (!snapshot) throw new Error("account row missing");
 
-    // Everyone who is not on Plus shares one monthly spend budget, so those
+    // Everyone who is not paying shares one monthly spend budget, so those
     // calls also queue on one global lock (always taken after the account lock).
-    if (snapshot.plan !== "plus") {
+    if (!isPaid(snapshot.plan)) {
       await tx`select pg_advisory_xact_lock(hashtext('tono_free_budget'))`;
-      snapshot = (await readSnapshot(tx, args.userId, now))!;
+      snapshot = (await readSnapshot(tx, args.userId, now))!.snapshot;
     }
 
     const existing = (await tx`
-      select id, status, tier, created_at from public.ai_calls
+      select id, status, created_at from public.ai_calls
       where user_id = ${args.userId} and idempotency_key = ${args.idempotencyKey} for update
-    `) as unknown as { id: string; status: string; tier: Tier; created_at: Date }[];
+    `) as unknown as { id: string; status: string; created_at: Date }[];
     const prior = existing[0];
     if (prior?.status === "done") return { ok: false, reason: "already_done", snapshot };
     const staleMs = 15 * 60 * 1000;
@@ -135,7 +141,7 @@ export async function reserve(args: ReserveArgs): Promise<ReserveResult> {
     if (prior) {
       await tx`
         update public.ai_calls
-        set status = 'reserved', tier = ${tier}, model = ${args.choice.model}, is_candidate = ${args.choice.isCandidate},
+        set status = 'reserved', kind = ${args.kind}, tier = ${tier}, model = ${args.choice.model}, is_candidate = ${args.choice.isCandidate},
             used_fallback = false, est_cost_usd = ${args.estCostUsd}, cost_usd = null, error = null,
             created_at = now(), finished_at = null
         where id = ${prior.id}
@@ -148,17 +154,6 @@ export async function reserve(args: ReserveArgs): Promise<ReserveResult> {
         returning id
       `) as unknown as { id: string }[];
       callId = inserted[0].id;
-    }
-
-    // A stale reservation that was already counted against the starter pack
-    // (its function died before refunding) must not be counted twice.
-    const alreadyCounted = prior?.status === "reserved" && prior.tier === "starter";
-    if (tier === "starter" && !alreadyCounted) {
-      if (args.kind === "review") {
-        await tx`update public.accounts set starter_reviews_used = starter_reviews_used + 1 where user_id = ${args.userId}`;
-      } else if (args.kind === "text") {
-        await tx`update public.accounts set starter_text_used = starter_text_used + 1 where user_id = ${args.userId}`;
-      }
     }
     return { ok: true, callId, tier, snapshot };
   });
@@ -179,19 +174,10 @@ export async function finish(
   `;
 }
 
-// A failed call gives its review back, including a starter-pack one.
-export async function refund(callId: string, userId: string, error: string): Promise<void> {
-  await db().begin(async (tx) => {
-    const rows = (await tx`
-      update public.ai_calls set status = 'refunded', error = ${error.slice(0, 300)}, finished_at = now()
-      where id = ${callId} and status = 'reserved' returning tier, kind
-    `) as unknown as { tier: Tier; kind: AiKind }[];
-    const row = rows[0];
-    if (row?.tier !== "starter") return;
-    if (row.kind === "review") {
-      await tx`update public.accounts set starter_reviews_used = greatest(starter_reviews_used - 1, 0) where user_id = ${userId}`;
-    } else if (row.kind === "text") {
-      await tx`update public.accounts set starter_text_used = greatest(starter_text_used - 1, 0) where user_id = ${userId}`;
-    }
-  });
+// A failed call gives its count back: a refunded call never counts.
+export async function refund(callId: string, error: string): Promise<void> {
+  await db()`
+    update public.ai_calls set status = 'refunded', error = ${error.slice(0, 300)}, finished_at = now()
+    where id = ${callId} and status = 'reserved'
+  `;
 }

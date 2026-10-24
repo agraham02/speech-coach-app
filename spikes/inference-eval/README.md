@@ -15,7 +15,7 @@ The tasks Tono actually asks a model to do, with checks a script can make:
 | Coaching tip from measured stats | 2 synthetic, plus your own take exports | focus skill matches the expected one, every number in the tip appears in the measurements |
 | Mark it up | 3 synthetic texts | words come back exactly, sentence ends marked |
 
-The Rewind, Word Chain and Bridge Chain prompts are not written in the Python: `app_prompts.json` is generated from `src/services/analysis/prompts.ts` by a jest test, so this always tests what the app sends (after changing a prompt: `UPDATE_EVAL_PROMPTS=1 npx jest evalPrompts`).
+The Rewind, Word Chain and Bridge Chain prompts are not written in the Python: `app_prompts.json` is generated from `supabase/functions/_shared/prompts/exercises.ts` by a jest test, so this always tests what the app sends (after changing a prompt: `UPDATE_EVAL_PROMPTS=1 npx jest evalPrompts`).
 
 Real takes are read from your take exports (`--samples-dir`) and the real Rewind transcript is read from the session 10 prompt file (`--rewind-prompt`) at run time. Neither is copied into this repository, which is public. Write results (`--out`) outside the repo, because they quote that content.
 

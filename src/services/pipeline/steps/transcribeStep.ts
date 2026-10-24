@@ -54,7 +54,7 @@ export async function transcribeStep(sessionId: string): Promise<void> {
   if (missingModel) throw new StepError(new TranscriptionModelMissingError().message);
   throw new StepError(
     decoded
-      ? "On-device transcription didn't finish. Retry, or get a deep review to transcribe in the cloud."
-      : "Couldn't read this recording's audio on the device. Retry, or get a deep review to transcribe in the cloud.",
+      ? "On-device transcription didn't finish. Retry, or have Tono AI judge it from the video."
+      : "Couldn't read this recording's audio on the device. Retry, or have Tono AI judge it from the video.",
   );
 }

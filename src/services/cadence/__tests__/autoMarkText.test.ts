@@ -1,12 +1,13 @@
 import type { AnalysisContext } from "../../../domain/analysis/types";
 
-const mockGenerateContent = jest.fn();
+const mockGenerate = jest.fn();
 let mockCtx: AnalysisContext;
 
 const baseCtx = (patch: Partial<AnalysisContext> = {}): AnalysisContext => ({
-  wantsTono: true,
-  tono: { signedIn: true, consent: true, allowed: { review: true, text: true, insight: true }, killSwitch: false },
-  ownKey: null,
+  tier: "plus",
+  tono: { consent: true, allowed: { take: true, text: true, insight: true }, killSwitch: false },
+  isAdult: true,
+  minorsMayUseAi: false,
   takeOptIn: true,
   judgeInput: "text",
   hasVideo: false,
@@ -19,14 +20,12 @@ jest.mock("../../prefs/prefsStore", () => ({
   getUserProfile: () => null,
   getShareProfileWithReviews: () => false,
   getNextEvent: () => null,
-  getCloudCallsToday: () => 0,
-  noteCloudCall: jest.fn(),
-  getCloudModel: () => null,
 }));
-jest.mock("../../secrets/secretsStore", () => ({ getProviderKey: async () => null }));
+jest.mock("../../account/accountStore", () => ({ ensureAccount: async () => undefined }));
+jest.mock("expo-crypto", () => ({ randomUUID: () => "uuid-0001-0002" }));
 jest.mock("../../cloud/routing", () => ({ analysisContext: async () => mockCtx }));
-jest.mock("../../gemini/geminiClient", () => ({ generateContent: (...a: unknown[]) => mockGenerateContent(...a) }));
-jest.mock("../../analysis/providers/videoReview", () => ({ reviewFromVideo: jest.fn() }));
+jest.mock("../../tono/tonoApi", () => ({ tonoGenerate: (...a: unknown[]) => mockGenerate(...a) }));
+jest.mock("../../tono/upload", () => ({ resolveUploadForGrading: jest.fn() }));
 jest.mock("../../analysis/store", () => ({ recordAnalysis: jest.fn(async () => undefined), watchTake: () => () => undefined, envelopeOf: () => ({}) }));
 jest.mock("../../../utils/logger", () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
 
@@ -34,7 +33,7 @@ import { autoMarkText } from "../autoMarkText";
 
 beforeEach(() => {
   jest.resetAllMocks();
-  mockCtx = baseCtx({ wantsTono: false, tono: { signedIn: false, consent: false, allowed: { review: false, text: false, insight: false }, killSwitch: false } });
+  mockCtx = baseCtx({ tier: "free", tono: { consent: false, allowed: { take: false, text: false, insight: false }, killSwitch: false } });
 });
 
 describe("autoMarkText through the AnalysisService", () => {
@@ -43,26 +42,23 @@ describe("autoMarkText through the AnalysisService", () => {
     expect(by).toBe("rules");
     expect(provenance?.producer).toBe("rules");
     expect(marked.text).toBe("Hello there, friend.");
-    expect(mockGenerateContent).not.toHaveBeenCalled();
+    expect(mockGenerate).not.toHaveBeenCalled();
   });
 
   it("asks Tono AI, as a text call, and keeps its marks when the words are unchanged", async () => {
     mockCtx = baseCtx();
-    mockGenerateContent.mockResolvedValue(JSON.stringify({ marked: "Hello | *there* friend.↘" }));
+    mockGenerate.mockResolvedValue({ output: { marked: "Hello | *there* friend.↘" }, model: "m", promptVersion: "mark-up/1" });
     const { by, marked, provenance } = await autoMarkText("Hello there friend.");
     expect(by).toBe("tono");
     expect(provenance).toMatchObject({ producer: "tono_ai", judged: true });
     expect(marked.text).toBe("Hello there friend.");
     expect(marked.marks.length).toBeGreaterThan(0);
-    const call = mockGenerateContent.mock.calls[0][0];
-    expect(call).toMatchObject({ transport: "hosted", kind: "text" });
-    expect(call.systemPrompt).toContain("Hello there friend.");
-    expect(call.systemPrompt).toMatch(/ignore them/);
+    expect(mockGenerate.mock.calls[0][0]).toMatchObject({ task: "mark_up", inputs: { text: "Hello there friend." } });
   });
 
   it("falls back to the rules when Tono AI changes the words", async () => {
     mockCtx = baseCtx();
-    mockGenerateContent.mockResolvedValue(JSON.stringify({ marked: "Goodbye *there* friend↘." }));
+    mockGenerate.mockResolvedValue({ output: { marked: "Goodbye *there* friend↘." }, model: "m", promptVersion: "p" });
     const { by, marked } = await autoMarkText("Hello there friend.");
     expect(by).toBe("rules");
     expect(marked.text).toBe("Hello there friend.");
@@ -70,15 +66,15 @@ describe("autoMarkText through the AnalysisService", () => {
 
   it("falls back when Tono AI is refused or returns junk", async () => {
     mockCtx = baseCtx();
-    mockGenerateContent.mockRejectedValueOnce(Object.assign(new Error("no reviews left"), { code: "quota_exhausted" }));
+    mockGenerate.mockRejectedValueOnce(Object.assign(new Error("no reviews left"), { code: "quota_exhausted" }));
     expect((await autoMarkText("Hello there friend.")).by).toBe("rules");
-    mockGenerateContent.mockResolvedValueOnce("not json");
+    mockGenerate.mockResolvedValueOnce({ output: "not json", model: "m", promptVersion: "p" });
     expect((await autoMarkText("Hello there friend.")).by).toBe("rules");
   });
 
-  it("never sends a marking to an own-key provider", async () => {
-    mockCtx = baseCtx({ wantsTono: false, ownKey: "openai" });
+  it("marks with the rules for a free user, without asking Tono AI", async () => {
+    mockCtx = baseCtx({ tier: "free" });
     expect((await autoMarkText("Hello there friend.")).by).toBe("rules");
-    expect(mockGenerateContent).not.toHaveBeenCalled();
+    expect(mockGenerate).not.toHaveBeenCalled();
   });
 });

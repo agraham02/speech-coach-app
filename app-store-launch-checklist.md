@@ -1,111 +1,114 @@
 # App Store launch checklist
 
-From this repo to "Ready for Sale" on the App Store, iPhone only. The Apple Developer Program membership is already in place. Items marked `[x]` are already done in the repo.
+From this repo to "Ready for Sale" on the App Store, iPhone only. The Apple Developer Program membership is already in place. Items marked `[x]` are already done in the repo or the dashboards.
 
-The app's shape matters for several answers below: there is **no account and no server**. Everything runs on the phone, and the only network traffic is (a) a one-time speech-model download and (b) optional AI deep reviews, which the user sends with **their own API key** to a provider they choose (Google Gemini, OpenAI, Anthropic or OpenRouter), after an in-app consent prompt.
+The app's shape matters for several answers below:
+
+- **Free, no account:** recording, the on-device transcript, every measurement, scores and tips, the curriculum and the drills. Nothing leaves the phone.
+- **Tono AI** (optional, after one in-app consent): the take's transcript and the phone's measurements go, as text, through Tono's Supabase backend to Google Gemini (paid tier). The video stays on the phone (a Dev setting can send it; not in production builds).
+- **Accounts:** none is ever required. The first Tono AI call or purchase makes an **anonymous** Supabase account behind the scenes (linked to RevenueCat by its id), so App Review never sees forced registration before a purchase (Guideline 5.1.1(v)). Sign in with Apple or Google is optional and links that account.
+- **Tono Plus:** auto-renewing subscriptions, $4.99 a month and $49.99 a year, both with a **14-day free trial** (an introductory offer). Free users get one judged take a month.
+- **Age:** onboarding asks an age range. Under 18, Tono AI is off (the Gemini API terms ask for 18 or older; `docs/decisions/tiers-and-trial.md`).
 
 ---
 
 ## 1. Decide before you build
 
-- [x] **App name.** The App Store listing is **Tono: Speaking Coach**, and the app calls itself **Tono** (`name` in `app.config.ts`). Names are unique across the store, so reserve it as soon as you create the App Store Connect record (step 3). Run a quick USPTO trademark search first. Limits: name 30 characters, subtitle 30.
-- [ ] **Where the privacy policy and support pages live.** Both URLs are required. A free GitHub Pages site or any simple one-page host is enough. You need the URLs before you can submit.
+- [x] **App name.** The App Store listing is **Tono: Speaking Coach**, and the app calls itself **Tono** (`name` in `app.config.ts`).
+- [ ] **Where the privacy policy and support pages live.** `docs/privacy.md` and `docs/terms.md` publish to `www.ahmadgraham.me/tono/...` (the URLs in `src/domain/plus.ts`). Republish them from this branch: the live privacy page still describes own keys and "no account".
 - [ ] **Category.** Education as primary, with Productivity as an optional secondary.
-- [ ] **Price.** Free, no in-app purchases.
+- [x] **Price.** Free download with in-app subscriptions: Tono Plus monthly ($4.99) and yearly ($49.99).
+- [ ] **Age rating.** See section 3: answer honestly (AI-generated text, no user-to-user content). Decide with legal advice whether to rate the app 18+ (see `docs/decisions/tiers-and-trial.md`, "Minors").
 
 ## 2. Repo prep
 
 Already done:
 
 - [x] Permission prompts say what each one is for and where the data goes: camera, microphone, speech recognition (`app.config.ts`, Guideline 5.1.1).
-- [x] Face ID prompt removed. The app never uses Face ID, so declaring it would be an unused permission.
-- [x] Consent before anything goes to an AI provider, per provider (Guideline 5.1.2(i)).
-- [x] Export compliance: `ITSAppUsesNonExemptEncryption: false`. The app only uses HTTPS, which is exempt, so no export questions come up at upload.
-- [x] The Dev tab and lab screens are hidden in production builds (`SHOW_DEV_TOOLS` is only on for `__DEV__` or the `preview` profile).
-- [x] No API keys are bundled. `.env` is gitignored and never uploaded to EAS, and nothing reads it at runtime.
-- [x] Build numbers auto-increment on EAS (`eas.json` → production `autoIncrement: true`, version source `remote`).
-- [x] Reset app exists (Settings → Start over), and old installs are offered a fresh start.
-- [x] Built-in quotes are all public domain: Lincoln, Shakespeare, Dickens, JFK and others. The speeches are original writing.
-- [x] New app icon in the Quiet Studio palette: a spoken phrase that rises, falls and lands, then a red full stop. It's 1024×1024 with no transparency, and Android gets adaptive and themed (monochrome) layers. The masters are in `assets/brand/`, and `python assets/brand/render.py` regenerates every PNG.
-- [x] Splash screen (`expo-splash-screen`): the mark on paper in light mode and on ink in dark mode. It stays up until fonts load and the first screen is ready, then fades. Check it on the TestFlight build; development builds don't show every splash setting.
+- [x] One consent before anything goes to Tono AI, with exactly what is sent shown above the button (Guideline 5.1.2(i)); the save screen has a per-take switch.
+- [x] No sign-in before purchase: the anonymous account is made behind the scenes (Guideline 5.1.1(v)). Account deletion is in Settings → Account & Plus for any account, anonymous or linked.
+- [x] The paywall shows trial length, price after the trial, that it renews, how to cancel, Restore, Terms and Privacy next to the button (Guideline 3.1.2). It promises a trial only when the App Store says the Apple ID is eligible.
+- [x] Export compliance: `ITSAppUsesNonExemptEncryption: false`. HTTPS only.
+- [x] The Dev tab and lab screens are hidden in production builds (`SHOW_DEV_TOOLS` is only on for `__DEV__` or the `preview` profile). That includes the "judge from the video" setting.
+- [x] No secret keys are bundled. `src/config/backend.ts` holds only the public Supabase URL, the publishable key and RevenueCat's public iOS key.
+- [x] Bring-your-own-key is gone; testers' stored keys are deleted from the keychain at launch (`src/services/secrets/secretsStore.ts`).
+- [x] Build numbers auto-increment on EAS.
+- [x] Built-in quotes are public domain; the speeches are original writing.
+- [x] App icon and splash screen.
 
 Still to do:
 
-- [ ] **Version.** `version` in `app.config.ts` is `1.0.0`, which is what users see. Bump it in the app config for each App Store release. EAS only bumps the build number.
+- [ ] **Version.** Bump `version` in `app.config.ts` for this build: `react-native-purchases` and the sign-in plugins are native.
 - [ ] **Health check.** Run `npx expo-doctor` and `npx expo install --check`, and fix anything they flag.
-- [ ] **Privacy manifest.** Expo packages and React Native ship their own `PrivacyInfo.xcprivacy` files, but Apple doesn't read all of them from static CocoaPods. After the first upload (step 4), watch your email: Apple lists any missing "required reason" APIs within minutes. Add those reasons under `ios.privacyManifests` in `app.config.ts` and rebuild. Expo's guide: docs.expo.dev/guides/apple-privacy.
+- [ ] **Privacy manifest.** After the first upload, watch your email for missing "required reason" APIs and add them under `ios.privacyManifests` in `app.config.ts`.
 
 ## 3. App Store Connect record
 
-- [ ] App Store Connect → Apps → **+** → New App. Choose iOS, your app name, primary language English (U.S.), bundle ID `com.ahmadgraham.tono`, and a SKU such as `tono`. The bundle ID has to be registered first. EAS registers it on the first build, or you can register it under Certificates, Identifiers & Profiles. `eas submit` can also create the record for you when it doesn't find one.
-- [ ] Under **App Information**, set the subtitle, category, content rights (answer **Yes**, it shows third-party content, and **Yes**, you have the rights: the built-in quotes are public domain, and AI review text comes from the user's own provider account), and the age rating questionnaire. Nothing in the app should push the age rating above the lowest tier. Answer honestly that it shows AI-generated text, though only in user-requested deep reviews.
-- [ ] Under **Pricing and Availability**, choose Free and pick countries. All countries is fine: the app is English-only, but that doesn't block other storefronts.
+- [x] App record exists (app id 6824105151), bundle ID `com.ahmadgraham.tono`.
+- [ ] **App Information:** subtitle, category, content rights (Yes, third-party content: public-domain quotes; AI text is generated for the user), and the age rating questionnaire (AI-generated text: yes, in Tono AI's notes).
+- [ ] **Agreements:** sign the Paid Apps Agreement, add banking and tax, complete EU trader status. Join the Small Business Program (15%).
+- [x] **Subscriptions:** group "Tono Plus" with `com.ahmadgraham.tono.plus.monthly` ($4.99) and `com.ahmadgraham.tono.plus.annual` ($49.99).
+- [ ] **Introductory offer on both:** Subscriptions → each product → Subscription Prices → Introductory Offers → Free, 2 weeks, all countries, starting today, no end date.
+- [ ] **Review screenshot** for each subscription: a real iPhone paywall shot (with the trial line).
+- [ ] **Pricing and Availability:** Free, all countries.
 
-## 4. Build and get it on your iPhone
+## 4. Backend and RevenueCat (see `supabase/README.md`)
 
-- [ ] `eas build -p ios --profile production`. The first run asks you to log in to your Apple account. Let EAS create and manage the distribution certificate and provisioning profile.
-- [ ] `eas submit -p ios --latest`, which uploads to App Store Connect. Processing takes 5–30 minutes.
-- [ ] Check your email for privacy-manifest warnings (see step 2).
-- [ ] **TestFlight → Internal Testing.** Add yourself and install from the TestFlight app. Internal testers need no Beta App Review. External testers, for example friends without App Store Connect access, need a one-time beta review.
-- [ ] If the iPhone still has the old development build, the TestFlight build keeps its data (same bundle ID). Use **Start fresh** when it's offered, or Settings → Start over.
+- [ ] Supabase → Authentication → Sign In / Providers → **Allow anonymous sign-ins: on**, and **Allow manual linking: on** (needed to link Apple or Google to the anonymous account). Consider turning on CAPTCHA for anonymous sign-ins later if abuse shows up.
+- [ ] Run migration `supabase/migrations/20261023000000_tiers_and_trial.sql` in the SQL editor (it replaces the config row: check `mode` and `plusPurchasable` afterwards).
+- [ ] Deploy the functions: `npx supabase functions deploy --use-api`.
+- [ ] RevenueCat webhook to `.../functions/v1/revenuecat-webhook` with the Authorization secret; set `REVENUECAT_SECRET_KEY` and `REVENUECAT_WEBHOOK_SECRET` as function secrets.
+- [ ] RevenueCat: after the Paid Apps Agreement is signed, re-import the products so they stop showing "Could not check", and confirm both are in the `plus` entitlement and the `default` offering.
 
-## 5. Test the release build on a real iPhone
+## 5. Build and get it on your iPhone
 
-A production build behaves differently from the dev client: there's no Metro, no dev menu and no fast refresh, and it runs at release speed. Test these on the TestFlight build:
+- [ ] `eas build -p ios --profile production` (or `testflight` first).
+- [ ] `eas submit -p ios --latest`. Processing takes 5–30 minutes.
+- [ ] TestFlight → Internal Testing. Install from the TestFlight app.
 
-- [ ] **First launch with no network:** onboarding works, and recording works.
-- [ ] **First transcription:** the speech model downloads once (100–200 MB). Try it on cellular and on a weak connection, and make sure a failed download recovers with a retry instead of hanging.
-- [ ] **Each permission denied in turn** (camera, microphone, speech recognition, notifications): the app explains what's missing and doesn't crash. Re-enabling access in iOS Settings works without reinstalling.
-- [ ] **Every practice mode, end to end:** record a take, then Line reps, Word Chain, Mark It Up, Move It, Rehearse, the drills, Conversation, feelings and the daily goal.
-- [ ] **Deep review with each provider you can get a key for:** wrong key, no credit, airplane mode mid-review, then a successful review. The consent prompt appears the first time per provider.
-- [ ] **Interrupted takes:** take a phone call during a recording, background the app mid-take, lock the screen.
-- [ ] **Long take:** 5+ minutes. Watch storage, review time, and whether the phone runs hot.
-- [ ] **Appearance and text:** light and dark mode, and the largest Dynamic Type size (nothing clipped on key screens).
-- [ ] **VoiceOver pass** on the main flow: Today → record → result.
-- [ ] **Reset app:** everything is cleared and onboarding starts again.
-- [ ] **iPad compatibility mode, if you can borrow one.** iPhone-only apps still run on iPads in a phone-sized window, and App Review sometimes tests on iPad. The camera and teleprompter should work there.
-- [ ] Note any crashes. App Store Connect → TestFlight → Crashes shows reports from testers who share data. No crash SDK is needed for v1. Adding one such as Sentry would change your privacy answers.
+## 6. Test the release build on a real iPhone
 
-## 6. Store listing
+The device test plan (`docs/testing/device-test-plan.md`, section J) has the full list for tiers and the trial. In short:
 
-- [ ] **Screenshots:** 6.9-inch iPhone, 1320 × 2868 portrait, between 3 and 10. App Store Connect scales them for smaller phones, and no iPad shots are needed. Take them from the simulator (iPhone 17 Pro Max) or your phone with real practice data, not lorem ipsum. Suggested set: Today, recording with the teleprompter, a result with scores, a drill, progress.
-- [ ] **Description:** what it does, then what's on-device, then the optional bring-your-own-key review. Avoid medical or therapy claims. Stuttering mode is a practice setting, not treatment. The current in-app copy is already clean on this, so keep the listing the same.
-- [ ] **Keywords** (100 characters, comma-separated, no spaces after commas, and don't repeat words already in the name). For example: public speaking, presentation, filler words, pace, teleprompter, rehearse, confidence.
-- [ ] **Support URL** (required), marketing URL (optional), and copyright, e.g. "2026 Ahmad Graham".
-- [ ] **Accessibility Nutrition Labels** (optional). Only claim what you tested in step 5.
+- [ ] **The free path, offline and online:** onboarding with "Not now" on Tono AI, a take, the result with measurements and tips, nothing that looks broken or locked twice.
+- [ ] **The free judged take:** allow Tono AI, judge one take, then see the next take's save screen say when the next free one comes.
+- [ ] **Sandbox trial purchase** on both plans, restore on a reinstall, cancel, and no second trial.
+- [ ] **The age question:** under 18 keeps Tono AI and Plus out of sight.
+- [ ] **Each permission denied in turn**, interrupted takes, a long take, light and dark mode, the largest Dynamic Type, VoiceOver on the main flow, Reset app.
 
-## 7. Privacy
+## 7. Store listing
 
-- [ ] **Privacy policy page.** It must say:
-  - Recordings, transcripts and scores stay on the phone. There's no account, no analytics and no tracking.
-  - Deep reviews are optional and need your own API key. What gets sent: to Google Gemini, the video; to OpenAI, Anthropic or OpenRouter, the transcript and on-device measurements (never the video). It's sent only after you allow it per provider. The provider handles it under your agreement with them. Link each provider's API data policy, and note that **Gemini's free tier may use submitted content to improve Google's products**.
-  - API keys are stored in the iOS keychain on the device.
-  - The one-time model download sends no user data.
-  - Deletion: delete a take, or Settings → Start over → Reset app, or delete the app.
-  - A contact email.
-- [ ] **App Privacy questionnaire** in App Store Connect. You never receive any data, but the deep review sends user content to a third party chosen in the app, and those providers keep it for some time. The safe answer is to declare it rather than claim "Data Not Collected":
-  - **Audio Data** (Gemini sends the video's audio), **Photos or Videos** (Gemini), **Other User Content** (transcripts).
-  - Purpose: App Functionality. Linked to the user's identity: No. Used for tracking: No.
+- [ ] **Screenshots:** 6.9-inch iPhone, 1320 × 2868 portrait, 3 to 10, with real practice data. Suggested: Today, recording, a result with scores, a judged take, a drill.
+- [ ] **Description:** what it does, what's on the phone and free, then Tono AI and Tono Plus with the trial. No medical or therapy claims.
+- [ ] **Keywords**, support URL, copyright.
+- [ ] **In-app purchase promotion** (optional).
 
-  Over-declaring has no penalty. Under-declaring is a rejection or removal risk.
+## 8. Privacy
 
-## 8. Submit for review
+- [ ] **Privacy policy page:** republish `docs/privacy.md` (effective 2026-10-24). It says: recordings stay on the phone; free use sends nothing; Tono AI sends the transcript and measurements as text to Tono's server and Google; the anonymous account; RevenueCat; Tono AI is 18+.
+- [ ] **App Privacy questionnaire.** For the free path nothing leaves the phone, but the app as a whole collects when Tono AI is used:
+  - **Other User Content** (the transcript and exercise text sent to be judged), **Audio Data**: no (not in production; the video setting is Dev-only). If the video setting ever ships, add Audio Data and Photos or Videos.
+  - **User ID** (the anonymous account id), **Email Address** (only when the user signs in with Apple or Google), **Purchases** (RevenueCat).
+  - Purpose: App Functionality. Linked to the user: Yes (account id). Tracking: No.
 
-- [ ] Choose the build, fill in the **App Review Information** contact, and add review notes. Draft:
+## 9. Submit for review
 
-  > Tono is a public-speaking practice app. It needs no account and works fully offline after a one-time speech-model download (100–200 MB), which starts with the first transcription.
+- [ ] Before submitting, flip the launch switch (`supabase/README.md`): `mode` launch and `plusPurchasable` true, so the reviewer sees the paywall.
+- [ ] Choose the build, fill in App Review Information, and attach both subscriptions to the version. Review notes, draft:
+
+  > Tono is a public-speaking practice app. No account or sign-in is needed for anything, including purchases: the app makes an anonymous account behind the scenes when the AI feature or a purchase first needs one. Sign in with Apple or Google in Settings is optional and only lets a subscription follow the user to another phone.
   >
-  > To try it: finish onboarding, tap Record on Today, speak for 30 seconds, and stop — the result screen shows pace, pauses, filler words and eye contact, all computed on the device.
+  > To try it: finish onboarding, tap Record on Today, speak for 30 seconds, and stop. The result shows pace, pauses, filler words and eye contact, all computed on the device.
   >
-  > Optional "deep reviews" use the user's own API key for an AI provider they choose (Settings → Deep reviews). The app sells nothing and has no in-app purchases; the key is the user's own account with that provider, like an email app's login. Before anything is sent, the app shows which provider receives what and asks for permission. [Optional: a test key with a spending cap: …]
+  > Tono AI judges a take from its transcript and measurements (text only). Everyone gets one judged take a month free; Tono Plus (monthly or yearly, each with a 14-day free trial) gives more. Before anything is sent, the app shows exactly what is sent and asks for permission. Use a sandbox account to start the trial from Settings → Account & Plus → Tono Plus.
+  >
+  > Onboarding asks an age range: under 18, the AI feature is not offered, as Google's Gemini API terms require.
 
-- [ ] Including a capped test key (e.g. an OpenRouter key with $2 of credit) lets the reviewer see the full feature. It isn't required, because the core app works without one.
-- [ ] **Known review risk:** Guideline 3.1.1 and bring-your-own-key. Many bring-your-own-key AI apps are on the store, but a reviewer could read the Settings line "you pay them directly, usually a few cents a review" as steering users to outside payment. If it's rejected on that, drop the sentence and keep "connect your own key". The feature itself can stay.
-- [ ] Release option: choose **manual release**, so you control the launch day after approval.
-- [ ] Submit. First reviews usually take 1–3 days. Reply to any rejection in Resolution Center. Most first rejections are metadata or permission-wording issues that you fix without a new build.
+- [ ] Release option: **manual release**.
+- [ ] Submit. Reply to any rejection in Resolution Center.
 
-## 9. After launch
+## 10. After launch
 
-- [ ] Watch Crashes and Ratings in App Store Connect for the first week.
-- [ ] Every update follows the same steps: bump `version` in `app.config.ts`, then `eas build --profile production`, then `eas submit --latest`, then add notes and submit for review.
-- [ ] Before each submission, check that the privacy answers still match the app. A new provider or SDK can change them.
+- [ ] Watch Crashes, Ratings, and the `ai_calls` table (real cost per judged take; see `docs/decisions/tiers-and-trial.md` for what to re-cost).
+- [ ] Every update: bump `version` if anything native changed, build, submit.
+- [ ] Before each submission, check that the privacy answers still match the app.

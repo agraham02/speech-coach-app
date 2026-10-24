@@ -31,7 +31,7 @@ export const STEP_LABELS: Record<SessionStep, string> = {
   audio_metrics: "Voice analysis",
   presence: "Video analysis",
   coach: "Coaching",
-  cloud_review: "Deep review",
+  cloud_review: "Tono AI",
 };
 
 export function isActive(status: StepStatus | undefined): boolean {

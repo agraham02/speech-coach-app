@@ -47,7 +47,7 @@ function confirmFreeUpSpace(
 ): void {
   Alert.alert(
     "Free up space?",
-    "This deletes only the video and its audio. The transcript, scores and progress stay. A deep review of this take won't be possible afterwards.",
+    "This deletes only the video and its audio. The transcript, scores and progress stay. Tono AI can still judge it from your words.",
     [
       { text: "Cancel", style: "cancel" },
       {

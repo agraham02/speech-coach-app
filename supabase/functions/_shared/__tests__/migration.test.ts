@@ -9,13 +9,15 @@ describe("migration seed", () => {
   const dir = join(__dirname, "..", "..", "..", "migrations");
   const sql = readdirSync(dir)
     .filter((f) => f.endsWith(".sql"))
+    .sort()
     .map((f) => readFileSync(join(dir, f), "utf8"))
     .join("\n");
 
   it("seeds a config row equal to DEFAULT_CONFIG", () => {
-    const match = sql.match(/-- config-seed-begin[\s\S]*?\$json\$([\s\S]*?)\$json\$[\s\S]*?-- config-seed-end/);
-    expect(match).not.toBeNull();
-    const seeded = parseServerConfig(JSON.parse(match![1]));
+    // The newest migration's seed is what the live row holds.
+    const matches = [...sql.matchAll(/-- config-seed-begin[\s\S]*?\$json\$([\s\S]*?)\$json\$[\s\S]*?-- config-seed-end/g)];
+    expect(matches.length).toBeGreaterThan(0);
+    const seeded = parseServerConfig(JSON.parse(matches[matches.length - 1][1]));
     expect(seeded).toEqual(DEFAULT_CONFIG);
   });
 

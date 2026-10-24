@@ -178,11 +178,11 @@ async function eraseRewind(r: { id: string; audioFile: string | null }): Promise
   }
 }
 
-// The video a deep review uploaded. The Tono AI server removes it right after
-// a successful review; this covers a take deleted before that, or after a
-// failed review (which keeps it for a retry). Google deletes any file after
-// 48 hours by itself, so a failure here (offline, signed out, or an upload
-// made with the person's own key) is only logged.
+// The video uploaded for Tono AI to watch (the Dev video setting). The server
+// removes it right after a successful judgement; this covers a take deleted
+// before that, or after a failed one (which keeps it for a retry). Google
+// deletes any file after 48 hours by itself, so a failure here (offline, no
+// account) is only logged.
 async function removeRemoteCopy(fileName: string | null): Promise<void> {
   if (!fileName) return;
   try {
@@ -193,8 +193,8 @@ async function removeRemoteCopy(fileName: string | null): Promise<void> {
 }
 
 // "Free up space": deletes only the video (and the audio inside it) and keeps
-// the take's transcript, scores and progress. Also drops the copy uploaded for
-// a deep review. A deep review of the take isn't possible afterwards. Used by
+// the take's transcript, scores and progress. Also drops any copy uploaded for
+// Tono AI to watch. Tono AI can still judge the take from its words. Used by
 // the Library, the Result screen and the old-video cleanup.
 export async function freeUpSessionVideo(session: { id: string; videoFile: string | null; videoPath: string; geminiFileName?: string | null }): Promise<void> {
   await deleteSessionVideo(session.id);

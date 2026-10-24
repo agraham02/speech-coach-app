@@ -35,7 +35,7 @@ export interface ServiceDeps {
   watch?: typeof watchTake;
 }
 
-const JUDGES: Producer[] = ["tono_ai", "own_key"];
+const JUDGES: Producer[] = ["tono_ai"];
 
 export function createAnalysisService(deps: ServiceDeps): AnalysisService {
   const record = deps.record ?? recordAnalysis;

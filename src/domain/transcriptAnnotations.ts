@@ -1,8 +1,8 @@
 import { countFillerTypes, detectTypedFillers, type FillerType } from "./fillers";
 
 // "repeated_words" is app-local only (like "filler") — Gemini never emits
-// it; see the Gemini-schema-constrained AnnotationCategory in
-// services/gemini/types.ts, which must NOT gain this value.
+// it; the judge annotates by subcategory, mapped to these in
+// domain/analysis/judgedReview.ts.
 export type AnnotationCategory =
   | "filler"
   | "filler_contextual"

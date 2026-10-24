@@ -303,7 +303,7 @@ export const SUBCATEGORIES: Record<SubcategoryId, SubcategoryDef> = {
     label: "Conviction",
     definition: "Saying it like you mean it: few hedges, and an ending that lands instead of trailing off.",
     measured: true,
-    judged: null,
+    judged: "text",
     rollsUp: true,
     appliesTo: IMPROMPTU,
     weight: 0.8,

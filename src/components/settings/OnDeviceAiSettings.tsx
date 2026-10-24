@@ -30,7 +30,7 @@ export function OnDeviceAiSettings() {
         <FaceCalibrationRows />
       </ListGroup>
       <Txt variant="footnote" tone="secondary" style={styles.note}>
-        All of this runs on your phone. Nothing leaves it unless you ask for a deep review.
+        All of this runs on your phone. Nothing leaves it unless you let Tono AI judge a take.
       </Txt>
     </>
   );

@@ -1,5 +1,4 @@
 import type { SkillId } from "../../theme/tokens";
-import type { SessionScores } from "../sessionTypes";
 import type { Provenance } from "../analysis/types";
 import {
   convictionScore,
@@ -372,27 +371,14 @@ export function sheetFor(scores: TakeScores, layer: Layer): ScoreSheet {
   return (layer === "judged" ? scores.judged : scores.measured) ?? headlineSheet(scores);
 }
 
-// What the stored review rubric (the `scores` row) says, by subcategory. The
-// judge's own overall, the face-voice match and the archetype are left out:
-// they were cut from the scores (taxonomy.ts CUT_FROM_SCORES).
-export function judgedFromRubric(s: SessionScores, kind: TakeKind): JudgedSubscores {
-  const out: JudgedSubscores = {
-    pace: { score: s.rateScore, notes: s.rateNotes || null },
-    pauses: { score: s.pausingScore, notes: s.pausingNotes || null },
-    melody: { score: s.pitchMelodyScore, notes: s.pitchMelodyNotes || null },
-    emphasis: { score: s.volumeScore, notes: s.volumeNotes || null },
-    tone: { score: s.tonalityScore, notes: s.tonalityNotes || null },
-    eye_contact: { score: s.eyeContactScore, notes: null },
-    // The rubric's body-language note is about posture and gestures, not the
-    // face, so it isn't hung on Expression; the Scores tab shows it as is.
-    expression: { score: s.facialExpressivenessScore, notes: null },
-  };
-  if (kind === "impromptu") {
-    out.structure = { score: s.structureScore, notes: s.structureNotes || null };
-    out.relevance = { score: s.relevanceScore, notes: s.relevanceNotes || null };
-    out.clarity = { score: s.coherenceScore, notes: s.coherenceNotes || null };
+// What Tono AI's judgement says, by subcategory (domain/analysis/judgedReview.ts).
+// Only subcategories that apply to this kind of take count.
+export function judgedFromReview(review: { subscores: Partial<Record<SubcategoryId, { score: number; notes: string }>> }, kind: TakeKind): JudgedSubscores {
+  const out: JudgedSubscores = {};
+  for (const [id, sub] of Object.entries(review.subscores) as [SubcategoryId, { score: number; notes: string }][]) {
+    if (!SUBCATEGORIES[id]?.appliesTo.includes(kind) || !Number.isFinite(sub.score)) continue;
+    out[id] = { score: sub.score, notes: sub.notes || null };
   }
-  if (s.cueComplianceScore != null) out.cues = { score: s.cueComplianceScore, notes: s.cueComplianceNotes };
   return out;
 }
 

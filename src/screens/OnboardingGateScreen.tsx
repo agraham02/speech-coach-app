@@ -51,7 +51,7 @@ export function OnboardingGateScreen({ navigation }: NativeStackScreenProps<Root
   function startFresh() {
     Alert.alert(
       "Start fresh?",
-      "This deletes your old recordings, videos, scores and progress, then sets the app up from scratch. Your API keys are kept. This can't be undone.",
+      "This deletes your old recordings, videos, scores and progress, then sets the app up from scratch. This can't be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {

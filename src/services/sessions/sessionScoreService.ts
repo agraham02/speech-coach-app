@@ -3,8 +3,8 @@ import { defaultsFromProfile } from "../../domain/profile";
 import { getScoreVersion, getUserProfile, setScoreVersion } from "../prefs/prefsStore";
 import { getDatabase } from "../db/database";
 import { getSessionById, isSessionLive } from "../db/sessionsRepo";
-import { getScoresBySessionId } from "../db/scoresRepo";
-import { headlineSheet, judgedFromRubric, SCORE_SHEET_VERSION, takeScores, type MeasuredFacts, type TakeScores } from "../../domain/scoring/takeScore";
+import { headlineSheet, judgedFromReview, SCORE_SHEET_VERSION, takeScores, type MeasuredFacts, type TakeScores } from "../../domain/scoring/takeScore";
+import type { JudgedReview } from "../../domain/analysis/judgedReview";
 import type { Provenance } from "../../domain/analysis/types";
 import type { CloudTranscriptArtifact } from "../pipeline/steps/cloudReviewStep";
 import type { TakeAnalyses } from "../analysis/store";
@@ -82,8 +82,8 @@ function judgedBy(analyses: TakeAnalyses | null, transcript: CloudTranscriptArti
   if (stored?.status === "done" && stored.provenance) return stored.provenance;
   if (!transcript) return undefined;
   return {
-    producer: transcript.provider === "tono" ? "tono_ai" : "own_key",
-    provider: transcript.provider === "tono" ? "Tono AI" : transcript.provider,
+    producer: "tono_ai",
+    provider: "Tono AI",
     model: transcript.model,
     promptVersion: "unknown",
     judged: true,
@@ -106,12 +106,12 @@ export async function refreshSessionScore(sessionId: string): Promise<TakeScores
       getArtifact<PauseAnalysis>(sessionId, "pauses"),
       getArtifact<PresenceMetrics>(sessionId, "presence"),
       getArtifact<CoachOutput>(sessionId, "coach"),
-      getScoresBySessionId(sessionId),
+      getArtifact<JudgedReview>(sessionId, "judged_review"),
       getArtifact<CloudTranscriptArtifact>(sessionId, "cloud_transcript"),
       getArtifact<TakeAnalyses>(sessionId, "analysis"),
     ]);
     const facts = measuredFacts(session, { pauses, presence, coach, stutterMode, pitchBand: await pitchBandFor(session) });
-    const scores = takeScores(facts, review ? judgedFromRubric(review, facts.takeKind) : null, review ? judgedBy(analyses, transcript) : undefined);
+    const scores = takeScores(facts, review ? judgedFromReview(review, facts.takeKind) : null, review ? judgedBy(analyses, transcript) : undefined);
     if (!scores) return null;
     await putArtifact(sessionId, "session_score", scores);
     const db = await getDatabase();

@@ -13,6 +13,11 @@ export interface PlusEntitlement {
   productId: string | null;
   expiresAt: Date;
   environment: "production" | "sandbox";
+  // "trial": the 14-day free trial (Apple's introductory offer), which has its
+  // own, smaller counts. Anything else ("normal", a paid "intro" price) is Plus.
+  periodType: "normal" | "trial";
+  // When this period began: the trial's counts run from here.
+  periodStartedAt: Date | null;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -44,8 +49,11 @@ export function parseSubscriber(body: unknown, now: Date): PlusEntitlement | nul
 
   const productId = typeof plus.product_identifier === "string" ? plus.product_identifier : null;
   const subscriptions = subscriber.subscriptions as Record<string, Record<string, unknown>> | undefined;
-  const sandbox = productId ? subscriptions?.[productId]?.is_sandbox === true : false;
-  return { productId, expiresAt, environment: sandbox ? "sandbox" : "production" };
+  const subscription = productId ? subscriptions?.[productId] : undefined;
+  const sandbox = subscription?.is_sandbox === true;
+  const periodType = subscription?.period_type === "trial" ? "trial" : "normal";
+  const periodStartedAt = asDate(subscription?.purchase_date) ?? asDate(plus.purchase_date);
+  return { productId, expiresAt, environment: sandbox ? "sandbox" : "production", periodType, periodStartedAt };
 }
 
 // Every account a webhook event could be about: the buyer, and on a transfer

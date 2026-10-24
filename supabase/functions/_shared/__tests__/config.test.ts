@@ -6,9 +6,15 @@ describe("parseServerConfig", () => {
     expect(parseServerConfig(DEFAULT_CONFIG)).toEqual(DEFAULT_CONFIG);
   });
 
-  it("reads a config row written before the launch switch existed as not for sale", () => {
-    const { plusPurchasable: _omitted, ...old } = structuredClone(DEFAULT_CONFIG);
-    expect(parseServerConfig(old).plusPurchasable).toBe(false);
+  it("needs the launch switch and the minors policy written down", () => {
+    const { plusPurchasable: _a, ...noSwitch } = structuredClone(DEFAULT_CONFIG);
+    expect(() => parseServerConfig(noSwitch)).toThrow();
+    const { minorsMayUseAi: _b, ...noPolicy } = structuredClone(DEFAULT_CONFIG);
+    expect(() => parseServerConfig(noPolicy)).toThrow();
+  });
+
+  it("keeps minors off Tono AI by default (the Gemini API terms)", () => {
+    expect(DEFAULT_CONFIG.minorsMayUseAi).toBe(false);
   });
 
   it("turns the switch on when asked", () => {

@@ -1,10 +1,15 @@
 import type { AnalysisContext, AnalysisKind, Producer, ShowLevel, Unavailable } from "./types";
 
 // Which producers handle a kind of analysis, in order. One pure function, so
-// the order is written down once and tested: Tono AI first (when it's the
-// chosen provider, signed in, allowed and consented), then the person's own
-// key (until session 08 removes it), then the rules where the rules have a
-// version. Replaces domain/aiRouting.ts.
+// the order is written down once and tested: Tono AI first (when the person
+// consented, it's allowed for their tier and their age, and there's something
+// left), then the rules where the rules have a version.
+//
+// The tiers (docs/decisions/tiers-and-trial.md): the measured layer is free
+// for everyone. The judged layer is Plus and the trial, plus one free judged
+// take a month for everyone else. Exercise judging (Rewind, Word Chain,
+// Bridge Chain, Say it short) and mark-ups are judged only for Plus and the
+// trial (and testers in beta).
 
 export interface Route {
   producers: Producer[];
@@ -18,14 +23,12 @@ export interface Route {
 // (the measured layer is always computed by the pipeline, not requested) and
 // no notes on a Rewind or a summary (their counts are shown regardless).
 export const SUPPORTED: Record<AnalysisKind, Producer[]> = {
-  take_review: ["tono_ai", "own_key"],
+  take_review: ["tono_ai"],
   coaching: ["rules"],
-  // The exercise judges are Tono AI only: judging them is part of Plus, and
-  // they were never built for a person's own key.
   rewind_notes: ["tono_ai"],
   word_chain: ["tono_ai"],
   bridge_chain: ["tono_ai"],
-  summary_notes: ["tono_ai", "own_key"],
+  summary_notes: ["tono_ai"],
   mark_up: ["tono_ai", "rules"],
 };
 
@@ -38,18 +41,22 @@ export function tonoInputFor(ctx: AnalysisContext): "text" | "video" | null {
   return null;
 }
 
-function tonoBlock(ctx: AnalysisContext, allowance: "review" | "text"): Unavailable | null {
-  if (ctx.tono.killSwitch) return "kill_switch";
-  if (!ctx.tono.signedIn) return "signed_out";
-  if (!ctx.tono.consent) return "no_consent";
-  if (!ctx.tono.allowed[allowance]) return "quota";
-  return null;
+// Under 18, and the server's policy keeps Tono AI off for minors. An
+// unanswered age question never blocks anyone.
+export function ageGated(ctx: Pick<AnalysisContext, "isAdult" | "minorsMayUseAi">): boolean {
+  return ctx.isAdult === false && !ctx.minorsMayUseAi;
 }
 
-function ownKeyCan(kind: AnalysisKind, ctx: AnalysisContext): boolean {
-  if (!ctx.ownKey) return false;
-  if (kind === "take_review") return ctx.ownKey === "gemini" ? ctx.hasVideo : ctx.hasTranscript;
-  return kind === "summary_notes";
+function tonoBlock(kind: AnalysisKind, ctx: AnalysisContext): Unavailable | null {
+  if (ctx.tono.killSwitch) return "kill_switch";
+  if (ageGated(ctx)) return "age_gate";
+  // Exercise notes and mark-ups are Plus (and trial, and beta) features.
+  if (kind !== "take_review" && ctx.tier === "free") return "not_entitled";
+  if (!ctx.tono.consent) return "no_consent";
+  // One take, one count, whatever the judge is sent.
+  const count = kind === "take_review" ? "take" : "text";
+  if (!ctx.tono.allowed[count]) return "quota";
+  return null;
 }
 
 export function routeAnalysis(kind: AnalysisKind, ctx: AnalysisContext): Route {
@@ -62,32 +69,29 @@ export function routeAnalysis(kind: AnalysisKind, ctx: AnalysisContext): Route {
   if (!ctx.takeOptIn) return { producers: rules, blocked: "opted_out" };
 
   let tonoInput: "text" | "video" | undefined;
-  let allowance: "review" | "text" = "text";
   if (kind === "take_review") {
     const input = tonoInputFor(ctx);
     if (!input) return { producers: [], blocked: "no_input" };
     tonoInput = input;
-    allowance = input === "video" ? "review" : "text";
   }
 
-  const judged: Producer[] = [];
-  let blocked: Unavailable | null = null;
-  if (ctx.wantsTono) {
-    blocked = tonoBlock(ctx, allowance);
-    if (!blocked) judged.push("tono_ai");
-  }
-  if (ownKeyCan(kind, ctx)) judged.push("own_key");
-  if (!judged.length && !blocked) blocked = "unsupported";
-  return { producers: [...judged, ...rules], blocked: judged.length ? null : blocked, ...(tonoInput ? { tonoInput } : {}) };
+  const blocked = tonoBlock(kind, ctx);
+  if (blocked) return { producers: rules, blocked };
+  return { producers: ["tono_ai", ...rules], blocked: null, ...(tonoInput ? { tonoInput } : {}) };
 }
 
-const LOCKED: Unavailable[] = ["not_entitled", "signed_out", "quota", "cost_cap", "budget_paused"];
+// Blocks that Plus or the trial would lift: the screen shows a quiet locked
+// line. Everything else (opted out, under 18, the kill switch, no consent)
+// shows the facts and nothing locked.
+const LOCKED: Unavailable[] = ["not_entitled", "quota"];
 
-// What a screen can show for a kind: "judged" when an AI will judge it,
-// "locked" when one would with an account or Plus, "facts" otherwise.
-// Coaching follows the take review: its judged version comes with the review.
+// What a screen can show for a kind: "judged" when Tono AI will judge it,
+// "locked" when Plus or the trial would, "facts" otherwise. Coaching follows
+// the take review: its judged version comes with the review. A subscriber
+// who used their count sees "facts": there's nothing more to buy.
 export function whatCanShow(kind: AnalysisKind, ctx: AnalysisContext): ShowLevel {
   const route = routeAnalysis(kind === "coaching" ? "take_review" : kind, ctx);
-  if (route.producers[0] === "tono_ai" || route.producers[0] === "own_key") return "judged";
-  return route.blocked && LOCKED.includes(route.blocked) ? "locked" : "facts";
+  if (route.producers[0] === "tono_ai") return "judged";
+  const paying = ctx.tier === "plus" || ctx.tier === "trial";
+  return route.blocked && LOCKED.includes(route.blocked) && !paying ? "locked" : "facts";
 }
