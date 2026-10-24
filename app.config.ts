@@ -32,7 +32,9 @@ export default (): ExpoConfig => ({
     // 1.4.0: the local device-metrics module (Dev → Metrics).
     // 1.5.0: Tono AI sign-in (expo-apple-authentication, expo-web-browser) and
     // Plus purchases (react-native-purchases) are native code too.
-    version: "1.5.0",
+    // 1.6.0: the first real build of everything since: signal capture, hosted
+    // Tono AI with the trial, live conversation, and SDK 57 patch updates.
+    version: "1.6.0",
     scheme: "tono",
     orientation: "portrait",
     // Follows the system light/dark setting (needs expo-system-ui on
