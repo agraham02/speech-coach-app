@@ -7,7 +7,7 @@ import type { SessionStatus } from "../../domain/sessionTypes";
 import { logger } from "../../utils/logger";
 
 // Bump this and add a new numbered migration when the schema changes.
-export const LATEST_DB_VERSION = 37;
+export const LATEST_DB_VERSION = 35;
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(
@@ -868,14 +868,13 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
     currentVersion = await commitVersion(db, 34);
   }
 
-  // v35 and v36 are left for the sessions building in parallel (trial and
-  // tiers, impromptu results); this one is the waiting-on-analysis session's.
-  if (currentVersion < 37) {
+  // The waiting-on-analysis session's migration.
+  if (currentVersion < 35) {
     // A Rewind that is still being processed keeps what it needs to start
     // again if the app is closed first: the recognizer's audio files, what it
     // heard, the volume readings, and how many times it was resumed.
     await addColumnIfMissing(db, "day_recalls", "pending_json", "TEXT");
-    currentVersion = await commitVersion(db, 37);
+    currentVersion = await commitVersion(db, 35);
   }
 }
 

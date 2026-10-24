@@ -325,9 +325,9 @@ On the laptop (no phone):
   Data to send back: the `--score` summary.
   Notes:
 
-## H. Waiting on analysis (session 09)
+## I. Waiting on analysis (session 09)
 
-**Needs build:** a normal build with the v37 migration (no native changes). Items marked (Plus) need Tono AI signed in and allowed. What was built and why: `docs/decisions/waiting-on-analysis.md`. Timings matter more than pass/fail here: the time estimates in the app are guesses for the text review until you send these back.
+**Needs build:** a normal build with the v35 migration (no native changes). Items marked (Plus) need Tono AI signed in and allowed. What was built and why: `docs/decisions/waiting-on-analysis.md`. Timings matter more than pass/fail here: the time estimates in the app are guesses for the text review until you send these back.
 
 Take analysis (record any impromptu take, 1 to 2 minutes):
 
@@ -392,4 +392,4 @@ Word and Bridge Chain:
 
 ## Sections to be added by later sessions
 
-Each new build session adds its own section here: 08 (trial, tiers, age range), 11 (impromptu results), 12 (conversation voice).
+Each new build session adds its own section here: 08 (trial, tiers, age range), 12 (conversation voice).

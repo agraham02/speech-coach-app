@@ -91,7 +91,7 @@ Initial assessment (`StartingPointScreen.tsx`):
 
 Rewind:
 - The recording screen no longer waits for Whisper: `startRewind` saves the take and returns at once; the result screen opens and shows "Step 2 of 3: Writing out your words" (`RewindWorkCard.tsx`) until it is done.
-- Migration **v37** adds `day_recalls.pending_json` (the recognizer's audio files, its live text, the volume readings, a resume count). A take cut off by the app closing is processed again at launch, at most twice, then kept as "failed" with what the recognizer heard (`resumeRewinds`). v35 and v36 are left for sessions 08 and 11; if they land after this, a phone already at v37 skips them, which does not matter for test data that can be wiped.
+- Migration **v35** adds `day_recalls.pending_json` (the recognizer's audio files, its live text, the volume readings, a resume count). A take cut off by the app closing is processed again at launch, at most twice, then kept as "failed" with what the recognizer heard (`resumeRewinds`). Session 08 should use v36 or higher.
 - Notes: the request lives in `services/rewind/rewindNotes.ts`, not in the screen, so it carries on if you leave, shows "Writing your notes" with an honest time and the retry caveat, and a failure (including the phone refusing two drafts) stays on the card with the reason and "Try again" instead of vanishing as a toast.
 
 Exercise judging: while a Word or Bridge Chain is being checked the screen says what Tono AI is doing; after 5 seconds a "Count them without the check" button scores by counting at once.
@@ -113,6 +113,6 @@ Each is built as recommended and reversible.
 2. **A review that failed for lack of a connection is sent again by itself.** It is the only automatic retry; every other failure waits for the button. The retry is free if it fails again offline (no request reaches the server). If you'd rather every send be a tap, delete the `watchForOfflineReviews` line in `App.tsx`.
 3. **"Ready" rows on Today, until opened.** One extra block on the home screen after each take. If it feels like clutter, the `ActiveTakesCard` line in `TodayScreen.tsx` is the whole feature.
 4. **No server job and no push yet** (section 4). Revisit if the real review time on a phone is over about 30 seconds.
-5. **A killed Rewind is processed again at launch** (twice at most) instead of staying "processing" for ever. It costs a migration (v37).
+5. **A killed Rewind is processed again at launch** (twice at most) instead of staying "processing" for ever. It costs a migration (v35).
 6. **The time estimates for the text review (4 to 25 s) and the notes (5 to 40 s) are guesses** until the device test plan returns real timings; the phone-step ranges come from three real takes.
 7. **Chains: a person may skip the check after 5 seconds.** The request still runs to its end and counts against the allowance; its answer is dropped.
