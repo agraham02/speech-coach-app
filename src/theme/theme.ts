@@ -45,9 +45,12 @@ export const darkColors = buildColors("dark");
 // badges, high scores, checkmarks).
 export function getAnnotationColors(
   c: Colors,
-): Record<"filler" | "structure" | "delivery" | "presence" | "content" | "restated_point" | "repeated_words", string> {
+): Record<"filler" | "filler_contextual" | "structure" | "delivery" | "presence" | "content" | "restated_point" | "repeated_words", string> {
   return {
     filler: c.warning,
+    // "like", "actually", "you know": fillers only in some uses, so a
+    // different hue from um and uh.
+    filler_contextual: c.pink,
     structure: c.violet,
     delivery: c.blue,
     presence: c.pink,

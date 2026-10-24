@@ -367,6 +367,11 @@ export function headlineSheet(scores: TakeScores): ScoreSheet {
   return (scores.headline === "judged" ? scores.judged : scores.measured) ?? (scores.judged ?? scores.measured)!;
 }
 
+// One layer's sheet, for the Scores tab's switch; the headline when that layer is absent.
+export function sheetFor(scores: TakeScores, layer: Layer): ScoreSheet {
+  return (layer === "judged" ? scores.judged : scores.measured) ?? headlineSheet(scores);
+}
+
 // What the stored review rubric (the `scores` row) says, by subcategory. The
 // judge's own overall, the face-voice match and the archetype are left out:
 // they were cut from the scores (taxonomy.ts CUT_FROM_SCORES).
