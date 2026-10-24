@@ -64,7 +64,7 @@ describe("the route, from the live facts", () => {
   });
 
   it("stops at the used-up free take, and asks the server once in case a month began", async () => {
-    mockAccount = account({ allowed: { take: false, text: false, insight: false } });
+    mockAccount = account({ allowed: { take: false, text: false, insight: false, conversation: false } });
     expect(await route("take_review")).toMatchObject({ producers: [], blocked: "quota" });
     await analysisContext({ ...take, refresh: true });
     expect(mockRefresh).toHaveBeenCalledTimes(1);

@@ -13,6 +13,9 @@ export interface AllowanceView {
   // Judged takes: one take, one count, whatever the judge was sent.
   takesLeft: number;
   takesTotal: number;
+  // Live conversation, in whole minutes (rounded down while left).
+  conversationMinutesLeft: number;
+  conversationMinutesTotal: number;
   // When the counts refill (ISO): the 1st of next month (UTC). For a trial,
   // when it ends (it turns into Plus then, unless cancelled).
   resetsAt: string;
@@ -27,13 +30,16 @@ export function describeAllowance(
   trialEndsAt: Date | null = null,
 ): AllowanceView {
   const tier = tierFor(config, snapshot.plan);
-  const total = limitsFor(config.limits, tier).take;
+  const limits = limitsFor(config.limits, tier);
+  const total = limits.take;
   const trialEnd = tier === "trial" && trialEndsAt ? trialEndsAt.toISOString() : null;
   return {
     plan: snapshot.plan,
     tier,
     takesTotal: total,
     takesLeft: Math.max(0, total - snapshot.takes),
+    conversationMinutesTotal: Math.round(limits.conversation / 60),
+    conversationMinutesLeft: Math.max(0, Math.floor((limits.conversation - snapshot.conversationSeconds) / 60)),
     resetsAt: trialEnd ?? utcNextMonthStart(now).toISOString(),
     trialEndsAt: trialEnd,
   };
@@ -41,7 +47,7 @@ export function describeAllowance(
 
 // HTTP status for each refusal. Out-of-allowance is 402 so the app can tell it
 // apart from a real failure and offer the next step instead of a retry.
-export function statusForDeny(reason: DenyReason | "in_flight" | "already_done"): number {
+export function statusForDeny(reason: DenyReason | "in_flight" | "already_done" | "conversation_over"): number {
   switch (reason) {
     case "quota_exhausted":
     case "plus_required":
@@ -51,6 +57,7 @@ export function statusForDeny(reason: DenyReason | "in_flight" | "already_done")
       return 429;
     case "in_flight":
     case "already_done":
+    case "conversation_over":
       return 409;
     case "budget_paused":
     case "disabled":

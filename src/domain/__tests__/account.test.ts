@@ -62,7 +62,7 @@ describe("providerFromAuth", () => {
 describe("withAllowance", () => {
   it("stops judged takes at zero and keeps the other kinds as they were", () => {
     const out = withAllowance(signedIn, { ...allowance, takesLeft: 0 });
-    expect(out.allowed).toEqual({ take: false, text: true, insight: true });
+    expect(out.allowed).toEqual({ take: false, text: true, insight: true, conversation: true });
     expect(withAllowance(out, { ...allowance, takesLeft: 2 }).allowed.take).toBe(true);
   });
 });

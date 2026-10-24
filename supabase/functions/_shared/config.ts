@@ -5,11 +5,20 @@ import type { Mode, ModelRole } from "./types.ts";
 // change touches lives here, so changing any of it needs no app update and no
 // redeploy. Money is USD; token prices are per million tokens.
 
-const price = z.object({
+const rates = {
   inputPerM: z.number().nonnegative(),
   // Audio is sometimes billed higher than text and video. Omitted means the same.
   audioPerM: z.number().nonnegative().optional(),
+  // For a speech model this is the audio it writes (25 tokens a second).
   outputPerM: z.number().nonnegative(),
+};
+
+const price = z.object({
+  ...rates,
+  // A price change Google has announced (3.8 Flash and the TTS models double
+  // on 2027-01-01): from that UTC day on, these rates apply. Written down now
+  // so the cost cap stays honest on the day without anyone editing the row.
+  next: z.object({ from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), ...rates }).optional(),
 });
 
 const roleModels = z.object({
@@ -43,6 +52,15 @@ const limits = z.object({
   plusMonthlyTextCalls: z.number().int().nonnegative(),
   plusMonthlyInsights: z.number().int().nonnegative(),
   plusMonthlyConversationMinutes: z.number().int().nonnegative(),
+  // Live conversation for everyone not paying (0: the lesson content only)
+  // and for testers in beta mode.
+  freeMonthlyConversationMinutes: z.number().int().nonnegative(),
+  betaMonthlyConversationMinutes: z.number().int().nonnegative(),
+  // One conversation stops at this length, whatever is left in the month.
+  conversationMaxMinutes: z.number().int().positive(),
+  // The most one turn can be charged: a long silence or the app left open
+  // between turns never eats minutes beyond this (_shared/conversation.ts).
+  conversationMaxTurnSeconds: z.number().int().positive(),
   // The real AI cost one subscriber may run up in a month (or in the trial).
   paidCostCapUsd: z.number().nonnegative(),
   // Judged takes in a UTC day, for everyone: stops a stuck retry loop.
@@ -68,7 +86,7 @@ export const serverConfigSchema = z.object({
   // Monthly spend ceiling for everyone who is not paying (free and beta).
   freeBudgetUsd: z.number().nonnegative(),
   limits,
-  models: z.object({ review_video: roleModels, text: roleModels, insight: roleModels }),
+  models: z.object({ review_video: roleModels, text: roleModels, insight: roleModels, conversation: roleModels, tts: roleModels }),
   prices: z.record(z.string(), price),
 });
 
@@ -99,6 +117,10 @@ export const DEFAULT_CONFIG: ServerConfig = {
     plusMonthlyTextCalls: 300,
     plusMonthlyInsights: 12,
     plusMonthlyConversationMinutes: 120,
+    freeMonthlyConversationMinutes: 0,
+    betaMonthlyConversationMinutes: 30,
+    conversationMaxMinutes: 8,
+    conversationMaxTurnSeconds: 120,
     paidCostCapUsd: 2.5,
     dailyJudgedTakes: 6,
     maxVideoSeconds: 300,
@@ -117,11 +139,19 @@ export const DEFAULT_CONFIG: ServerConfig = {
       maxOutputTokens: 4000,
     },
     insight: { primary: "gemini-3.5-flash-lite", fallback: "gemini-3.8-flash", maxOutputTokens: 4000 },
+    // The conversation partner: one or two short spoken sentences, so a small
+    // answer and no thinking (it is the latency of every turn).
+    conversation: { primary: "gemini-3.5-flash-lite", fallback: "gemini-3.1-flash-lite", maxOutputTokens: 400, thinkingBudget: 0 },
+    // The partner's voice. maxOutputTokens bounds one line's audio: 25 tokens a
+    // second, so 750 is 30 seconds (a partner line is 2 to 8).
+    tts: { primary: "gemini-3.8-flash-lite-tts", fallback: "gemini-3.8-flash-tts", maxOutputTokens: 750 },
   },
   prices: {
     "gemini-3.5-flash-lite": { inputPerM: 0.3, outputPerM: 2.5 },
     "gemini-3.1-flash-lite": { inputPerM: 0.25, audioPerM: 0.5, outputPerM: 1.5 },
-    "gemini-3.8-flash": { inputPerM: 0.75, outputPerM: 3.75 },
+    "gemini-3.8-flash": { inputPerM: 0.75, outputPerM: 3.75, next: { from: "2027-01-01", inputPerM: 1.5, outputPerM: 7.5 } },
+    "gemini-3.8-flash-lite-tts": { inputPerM: 0.5, outputPerM: 6, next: { from: "2027-01-01", inputPerM: 1, outputPerM: 12 } },
+    "gemini-3.8-flash-tts": { inputPerM: 0.5, outputPerM: 9, next: { from: "2027-01-01", inputPerM: 1, outputPerM: 18 } },
   },
 };
 
@@ -129,7 +159,7 @@ export const DEFAULT_CONFIG: ServerConfig = {
 // no price: an unpriced call would make the budgets wrong.
 export function parseServerConfig(raw: unknown): ServerConfig {
   const config = serverConfigSchema.parse(raw);
-  const roles: ModelRole[] = ["review_video", "text", "insight"];
+  const roles: ModelRole[] = ["review_video", "text", "insight", "conversation", "tts"];
   for (const role of roles) {
     const r = config.models[role];
     for (const model of [r.primary, r.fallback, r.candidate?.model]) {
@@ -137,6 +167,15 @@ export function parseServerConfig(raw: unknown): ServerConfig {
     }
   }
   return config;
+}
+
+// The rates for a model on a given day: the announced change once its day
+// has come (UTC), else today's.
+export function priceAt(price: ModelPrice, now: Date): Omit<ModelPrice, "next"> {
+  const { next, ...current } = price;
+  if (!next) return current;
+  const { from, ...later } = next;
+  return now.toISOString().slice(0, 10) >= from ? later : current;
 }
 
 export function modeLabel(mode: Mode): string {

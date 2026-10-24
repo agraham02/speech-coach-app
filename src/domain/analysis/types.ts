@@ -5,10 +5,12 @@ import type { AllowanceTier } from "../aiAllowance";
 // the rules) produce it; the UI knows only the shape and its provenance, never
 // which model or prompt made it.
 
-// The kinds built so far. Later sessions add theirs here (session 12:
-// "conversation_turn", "conversation_debrief", "tts"; insights: "insight")
-// with an input and an output type in services/analysis/kinds.ts, and a task
-// on the server (supabase/functions/_shared/prompts).
+// The kinds built so far. A kind has an input and an output type in
+// services/analysis/kinds.ts, and a task on the server
+// (supabase/functions/_shared/prompts). The live conversation's partner line
+// and voice are not analyses (they are the conversation itself, streamed by
+// services/conversation/converseClient.ts); they share the gate below
+// (routing.ts liveConversationGate). Insights will add "insight".
 export type AnalysisKind =
   | "take_review" // the judged layer of a recorded take: sub-scores, notes, coaching
   | "coaching" // the coach card for a take: strength, tip, focus skill, follow-up
@@ -16,7 +18,8 @@ export type AnalysisKind =
   | "word_chain" // each link of a Word Chain attempt: does it make sense
   | "bridge_chain" // each step of a Bridge Chain attempt: was the link explained
   | "summary_notes" // Say it short
-  | "mark_up"; // delivery marks for a text to read aloud
+  | "mark_up" // delivery marks for a text to read aloud
+  | "conversation_debrief"; // the moves in a live conversation, after it
 
 // Who produced a result. Room for "on_device_llm" or "apple_pcc" later
 // without touching a screen.
@@ -74,7 +77,8 @@ export interface AnalysisContext {
     consent: boolean;
     // Last known: which kinds the server would accept. The server has the
     // final say.
-    allowed: { take: boolean; text: boolean; insight: boolean };
+    // `conversation` absent: assumed allowed (the server has the final say).
+    allowed: { take: boolean; text: boolean; insight: boolean; conversation?: boolean };
     killSwitch: boolean;
   };
   // From the age question in onboarding: false for under 18, null when it

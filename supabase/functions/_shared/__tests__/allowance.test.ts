@@ -10,6 +10,7 @@ const empty: UsageSnapshot = {
   costUsd: 0,
   dayTakes: 0,
   freeSpendMonthUsd: 0,
+  conversationSeconds: 0,
 };
 
 const launch: ServerConfig = { ...DEFAULT_CONFIG, mode: "launch" };
@@ -37,7 +38,7 @@ describe("tiers", () => {
   });
 
   it("gives free accounts judged takes only", () => {
-    expect(limitsFor(launch.limits, "free")).toEqual({ take: 1, text: 0, insight: 0 });
+    expect(limitsFor(launch.limits, "free")).toEqual({ take: 1, text: 0, insight: 0, conversation: 0 });
   });
 });
 
@@ -152,5 +153,47 @@ describe("the cost cap and the text-call cost", () => {
   it("leaves room for the full Plus counts at expected cost", () => {
     const heavy = 60 * 0.006 + 300 * 0.0035;
     expect(heavy).toBeLessThan(DEFAULT_CONFIG.limits.paidCostCapUsd);
+  });
+
+  it("still leaves room with every conversation minute used, at the 2027 voice price", () => {
+    // A typical minute is about 0.75 cents from 2027 (docs/decisions/conversation-voice.md, cost;
+    // src/domain/conversation/live/cost.ts). A chatty one, about 1.2 cents, can meet the cap
+    // at every other count too: the cap then stops it, which is what it is for.
+    const heavy = 60 * 0.006 + 300 * 0.0035 + 120 * 0.0075;
+    expect(heavy).toBeLessThan(DEFAULT_CONFIG.limits.paidCostCapUsd);
+  });
+});
+
+describe("conversation minutes", () => {
+  const plus = { plan: "plus" as const };
+
+  it("are Plus and trial only at launch (free gets none by default), and beta testers get some", () => {
+    expect(decide(launch, "conversation", {})).toEqual({ ok: false, reason: "plus_required" });
+    expect(decide(launch, "conversation", plus).ok).toBe(true);
+    expect(decide(launch, "conversation", { plan: "trial" }).ok).toBe(true);
+    expect(decide(beta, "conversation", {}).ok).toBe(true);
+  });
+
+  it("stop when the month's seconds are used", () => {
+    expect(decide(launch, "conversation", { ...plus, conversationSeconds: 120 * 60 - 1 }).ok).toBe(true);
+    expect(decide(launch, "conversation", { ...plus, conversationSeconds: 120 * 60 })).toEqual({ ok: false, reason: "quota_exhausted" });
+    expect(decide(launch, "conversation", { plan: "trial", conversationSeconds: 30 * 60 })).toEqual({ ok: false, reason: "quota_exhausted" });
+  });
+
+  it("let a conversation finish (its voice and debrief) when the minutes run out, but never past the cost cap", () => {
+    const done = { ...plus, conversationSeconds: 120 * 60 + 40 };
+    expect(decideAllowance({ config: launch, kind: "conversation", snapshot: { ...empty, ...done }, estCostUsd: 0.01, finishing: true }).ok).toBe(true);
+    expect(decideAllowance({ config: launch, kind: "conversation", snapshot: { ...empty, ...done, costUsd: 2.5 }, estCostUsd: 0.01, finishing: true })).toEqual({
+      ok: false,
+      reason: "plus_cost_cap",
+    });
+    // Finishing never opens a kind the tier doesn't have.
+    expect(decideAllowance({ config: launch, kind: "conversation", snapshot: empty, estCostUsd: 0.01, finishing: true })).toEqual({ ok: false, reason: "plus_required" });
+  });
+
+  it("follow the server setting for free users", () => {
+    const sample: ServerConfig = { ...launch, limits: { ...launch.limits, freeMonthlyConversationMinutes: 3 } };
+    expect(decide(sample, "conversation", {}).ok).toBe(true);
+    expect(limitsFor(sample.limits, "free").conversation).toBe(180);
   });
 });

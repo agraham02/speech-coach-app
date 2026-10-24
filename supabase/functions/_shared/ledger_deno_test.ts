@@ -142,5 +142,56 @@ Deno.test({ name: "ledger", ignore: !enabled, sanitizeOps: false, sanitizeResour
     assertEquals(!third.ok && third.reason, "rate_limited");
   });
 
+  await t.step("conversation seconds are charged from the conversation's own calls, and stop at the limit", async () => {
+    const cfg = config((c) => {
+      c.mode = "launch";
+      c.limits.plusMonthlyConversationMinutes = 1;
+    });
+    const user = await newUser();
+    await db()`insert into public.entitlements (user_id, plan, environment, expires_at) values (${user}, 'plus', 'sandbox', now() + interval '5 days')`;
+    const spans: (unknown | null)[] = [];
+    const turn = (id: string, seconds: number, finishing = false) =>
+      reserve({
+        userId: user,
+        kind: "conversation",
+        idempotencyKey: crypto.randomUUID(),
+        config: cfg,
+        choice,
+        estCostUsd: 0.001,
+        conversation: { id, charge: (span) => (spans.push(span), seconds) },
+        finishing,
+      });
+    const first = await turn("conv-aaaa1111", 40);
+    assertEquals(first.ok && first.chargedSeconds, 40);
+    assertEquals(spans[0], null);
+    // Another conversation starts with no span of its own.
+    await turn("conv-bbbb2222", 0);
+    assertEquals(spans[1], null);
+    const second = await turn("conv-aaaa1111", 25);
+    assertEquals(second.ok && second.chargedSeconds, 25);
+    assertEquals(spans[2] !== null, true);
+    // 65 s of a 60 s month: a new turn is refused, a finishing call is not.
+    const third = await turn("conv-aaaa1111", 5);
+    assertEquals(!third.ok && third.reason, "quota_exhausted");
+    assertEquals((await turn("conv-aaaa1111", 0, true)).ok, true);
+    const rows = await db()`select conversation_seconds from public.usage_snapshot(${user}, date_trunc('month', now()), date_trunc('day', now()))`;
+    assertEquals(Number(rows[0].conversation_seconds), 65);
+  });
+
+  await t.step("a conversation past its length is refused", async () => {
+    const cfg = config(() => {});
+    const user = await newUser();
+    const r = await reserve({
+      userId: user,
+      kind: "conversation",
+      idempotencyKey: crypto.randomUUID(),
+      config: cfg,
+      choice,
+      estCostUsd: 0.001,
+      conversation: { id: "conv-cccc3333", charge: () => null },
+    });
+    assertEquals(!r.ok && r.reason, "conversation_over");
+  });
+
   await db().end();
 });

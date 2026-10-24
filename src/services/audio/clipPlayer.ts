@@ -31,13 +31,20 @@ const DECODE_TIMEOUT_MS = 10_000;
 // How often a playing clip reports where it is.
 const POSITION_INTERVAL_MS = 100;
 
+// The session options are the audio library's one global setting, and the
+// live conversation (partnerAudio.ts) sets its own, so they are set again
+// before every start rather than once.
+function setPlaybackSession(): void {
+  try {
+    AudioManager.setAudioSessionOptions({ ...PLAYBACK_SESSION_IOS, iosOptions: [...PLAYBACK_SESSION_IOS.iosOptions] });
+  } catch (error) {
+    logger.warn(`[clipPlayer] couldn't set the playback session — ${(error as Error).message}`);
+  }
+}
+
 function getContext(): AudioContext {
   if (!context) {
-    try {
-      AudioManager.setAudioSessionOptions({ ...PLAYBACK_SESSION_IOS, iosOptions: [...PLAYBACK_SESSION_IOS.iosOptions] });
-    } catch (error) {
-      logger.warn(`[clipPlayer] couldn't set the playback session — ${(error as Error).message}`);
-    }
+    setPlaybackSession();
     context = new AudioContext();
   }
   return context;
@@ -46,6 +53,8 @@ function getContext(): AudioContext {
 // Restarts the engine, which sets the playback session first.
 async function readyContext(): Promise<AudioContext> {
   if (suspending) await suspending;
+  // A new context sets it as it's made; an existing one again here.
+  if (context) setPlaybackSession();
   const ctx = getContext();
   await ctx.resume();
   return ctx;
