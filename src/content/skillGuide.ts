@@ -27,7 +27,7 @@ export const SKILL_GUIDE: Record<SkillId, SkillGuide> = {
     feeds: [
       "Pace and pause reading, Mark it up, Move it and shadowing",
       "Every recorded take: your pace, pauses at full stops and pitch range",
-      "Your AI coach's scores for rate, pitch and melody, pausing and tonality, which lead when there's a review",
+      "Tono AI's scores for pace, pauses, pitch variety and emphasis, which lead when a take is judged",
     ],
     raises: ["A pace of 130 to 160 words a minute", "A beat of silence at most full stops", "A voice that rises and falls instead of staying level"],
     lowers: ["Racing past about 175 words a minute", "Sentences that run into each other", "A flat, narrow pitch"],
@@ -37,7 +37,7 @@ export const SKILL_GUIDE: Record<SkillId, SkillGuide> = {
     feeds: [
       "Category and letter sprints, word chains, random-word stories and Sixty seconds",
       "Every recorded take: filler words and mid-sentence stalls",
-      "Your AI coach's scores for structure, relevance and coherence, which lead when there's a review",
+      "Tono AI's scores for structure, staying on the point and clarity, which lead when a take is judged",
     ],
     raises: ["Leading with your point, then a reason or an example", "A closed-mouth pause in place of \"um\"", "Finishing each sentence before pausing"],
     lowers: ["More than a few filler words a minute", "Long gaps in the middle of a phrase", "Answers that circle without a clear point"],
@@ -47,7 +47,7 @@ export const SKILL_GUIDE: Record<SkillId, SkillGuide> = {
     feeds: [
       "Projection and one-breath drills, guided exercises and warm-ups",
       "Every recorded take with video: eye contact, expression and head position",
-      "Your AI coach's scores for eye contact, expression and volume, which lead when there's a review",
+      "Tono AI's scores for eye contact, expression and conviction, which lead when a take is judged",
     ],
     raises: ["Looking at the lens most of the time", "Letting your face move with what you say", "Ending on a clear statement, then stopping"],
     lowers: ["Looking away for long stretches", "Hedges like \"I think\" and \"kind of\"", "Trailing off at the end"],

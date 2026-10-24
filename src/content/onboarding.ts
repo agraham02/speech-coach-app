@@ -1,4 +1,4 @@
-import type { EventKind, Obstacle, PracticePlace, SpeakingContext } from "../domain/profile";
+import type { AgeRange, EventKind, Obstacle, PracticePlace, SpeakingContext } from "../domain/profile";
 
 // Onboarding questions (docs/history/practice-expansion-plan.md §8). One question per
 // screen, most answered with a tap. Every question changes something — see
@@ -6,6 +6,7 @@ import type { EventKind, Obstacle, PracticePlace, SpeakingContext } from "../dom
 
 export type QuestionId =
   | "name"
+  | "age"
   | "contexts"
   | "obstacles"
   | "event"
@@ -47,6 +48,14 @@ export const CHAPTERS = ["About you", "How you speak", "Your practice"] as const
 
 export const QUESTIONS: Question[] = [
   { id: "name", chapter: 0, title: "What should we call you?", optional: true, changes: "Used in the app's messages to you." },
+  {
+    id: "age",
+    chapter: 0,
+    title: "How old are you?",
+    subtitle: "A range is enough.",
+    optional: true,
+    changes: "Tono AI, the coach that judges your takes, is for people 18 and over. Under 18, everything stays on your phone and the rest of Tono is the same.",
+  },
   {
     id: "contexts",
     chapter: 0,
@@ -137,10 +146,10 @@ export const QUESTIONS: Question[] = [
   {
     id: "cloud",
     chapter: 2,
-    title: "Turn on your AI coach",
-    subtitle: "Your phone can count. It can't tell whether your answer made sense or your tone landed — an AI coach can, so Tono leans on it for your scores, your starting point and your plan.",
+    title: "Meet Tono AI, your coach",
+    subtitle: "Your phone measures every take on its own. It can't tell whether your answer made sense or landed. Tono AI can, and Tono leans on it for your scores and your plan.",
     optional: true,
-    changes: "Skip it and everything runs on this phone. Turn it on any time in Settings → Deep reviews.",
+    changes: "Skip it and everything runs on this phone, free. Turn it on any time in Settings → Tono AI.",
   },
   { id: "retention", chapter: 2, title: "How long should full videos be kept?", changes: "Older videos are cleared automatically; the best and the toughest take from each month are always kept." },
   {
@@ -206,6 +215,16 @@ export const EXPERIENCE_OPTIONS: Option<"none" | "little" | "course" | "lots">[]
   { key: "little", label: "A little — videos, books" },
   { key: "course", label: "A course or Toastmasters" },
   { key: "lots", label: "Lots" },
+];
+
+export const AGE_OPTIONS: Option<AgeRange>[] = [
+  { key: "under_13", label: "Under 13" },
+  { key: "13_17", label: "13 to 17" },
+  { key: "18_24", label: "18 to 24" },
+  { key: "25_34", label: "25 to 34" },
+  { key: "35_49", label: "35 to 49" },
+  { key: "50_plus", label: "50 or over" },
+  { key: "unsaid", label: "Prefer not to say" },
 ];
 
 export const ENGLISH_OPTIONS: Option<"yes" | "no" | "unsaid">[] = [

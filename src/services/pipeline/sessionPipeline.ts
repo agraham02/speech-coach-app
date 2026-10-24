@@ -223,7 +223,7 @@ async function announceCompletion(sessionId: string, ranCloudReview: boolean): P
 
   syncDailyReminder().catch(() => undefined);
   const scores = ranCloudReview ? await getScoresBySessionId(sessionId) : null;
-  const title = scores ? "Deep review ready" : "Session ready";
+  const title = scores ? "Judged by Tono AI" : "Session ready";
   // The OS notification is personal; the in-app toast above keeps its short form.
   const ready = sessionReadyText(getUserProfile()?.name, session.sessionType === "feeling" ? "feeling" : scores ? "review" : "take");
   notifySessionComplete(sessionId, ready.title, ready.body).catch(() => undefined);

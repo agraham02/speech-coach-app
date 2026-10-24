@@ -40,8 +40,10 @@ import { getPrompt } from "../services/db/promptsRepo";
 import { getScriptById } from "../services/db/scriptsRepo";
 import { resolveVideoUri, videoExists } from "../services/storage/videoStorage";
 import { requestStep } from "../services/pipeline/sessionPipeline";
-import { currentProvider, reviewBlockedReason } from "../services/cloud/providers";
-import { readyForDeepReview } from "../services/cloud/consent";
+import { openPaywall, readyForTono } from "../services/cloud/consent";
+import { tonoAgeGated } from "../services/cloud/routing";
+import { useAccount } from "../services/account/accountStore";
+import { purchasesEnabled } from "../services/purchases/purchases";
 import { setVideoKeepsake } from "../services/data/videoKeepsakes";
 import { getArtifact } from "../services/db/artifactsRepo";
 import { describeSessionSubject, subjectFromSession, type SessionSubjectSummary } from "../services/sessions/sessionSubject";
@@ -104,6 +106,7 @@ export function ResultScreen({ route, navigation }: Props) {
   const { colors } = useTheme();
   const { sessionId } = route.params;
   const showToast = useToast();
+  const account = useAccount();
   const [session, setSession] = useState<Session | null>(null);
   const [prompt, setPrompt] = useState<Prompt | undefined>(undefined);
   const [scores, setScores] = useState<SessionScores | null>(null);
@@ -187,7 +190,7 @@ export function ResultScreen({ route, navigation }: Props) {
       ];
 
   async function handleRunStep(step: SessionStep) {
-    if (step === "cloud_review" && !(await readyForDeepReview(() => navigation.navigate("Settings", { section: "deepReviews" })))) return;
+    if (step === "cloud_review" && !(await readyForTono({ exercise: false }))) return;
     requestStep(sessionId, step).catch((error) => {
       logger.error(`[result] ${step} failed to start — ${(error as Error).message}`);
       showToast("Couldn't start that — try again", "error");
@@ -252,7 +255,11 @@ export function ResultScreen({ route, navigation }: Props) {
   if (session.sessionType === "feeling") {
     return <FeelingResultView session={session} steps={steps} hasVideo={hasVideo} videoUri={videoUri} onDone={handleDone} onDelete={handleDelete} />;
   }
-  const deepReviewBlocked = reviewBlockedReason(currentProvider(), { hasVideo, hasDeviceTranscript: !!session.transcriptVerbatim });
+  const deepReviewBlocked = tonoAgeGated()
+    ? "Tono AI is for people 18 and over, so this take stays on your phone."
+    : !hasVideo && !session.transcriptVerbatim
+      ? "Tono AI needs the transcript or the video, and this take has neither."
+      : undefined;
   // Pace over the speaking span, and pitch range in semitones: the same
   // numbers the score reads.
   const { wpmAvg: avgWpm, pitchRangeSt: pitchRange } = measuredVoice(session);
@@ -272,6 +279,9 @@ export function ResultScreen({ route, navigation }: Props) {
   };
   const measuring = steps.length === 0 || (["transcribe", "audio_metrics", "presence", "coach"] as SessionStep[]).some(working);
   const reviewing = working("cloud_review");
+  // A free take that wasn't judged: one quiet line where the judged layer
+  // would be. Nothing for a subscriber who chose not to, or for under-18s.
+  const judgedLocked = !!takeScores && !takeScores.judged && !reviewing && (account.allowance?.tier ?? "free") === "free" && !tonoAgeGated();
   // The total waits until every part is in: averaging only what has finished
   // makes it jump (a lone voice score read 10, then settled at 9). A take that
   // already has a review keeps its score while it is reviewed again.
@@ -321,25 +331,25 @@ export function ResultScreen({ route, navigation }: Props) {
                   </Txt>
                   <Text style={styles.scoreHeroOutOf}>out of 10</Text>
                 </ProgressRing>
-                {scores ? (
+                {scores?.archetypeFitForTopic ? (
                   <Text style={[styles.scoreHeroArchetype, { color: colorForScore(overall, colors) }]}>
                     {scores.archetypeDetected}
                   </Text>
                 ) : null}
                 {movesSkills ? null : <ScoreDelta current={overall} previous={previousOverallScore} />}
-                {scores ? <Text style={styles.scoreHeroFit}>{scores.archetypeFitForTopic}</Text> : null}
+                {scores?.archetypeFitForTopic ? <Text style={styles.scoreHeroFit}>{scores.archetypeFitForTopic}</Text> : null}
                 {reviewing ? (
                   <View style={styles.reviewingRow}>
                     <ActivityIndicator size="small" color={colors.textMuted} />
                     <Txt variant="footnote" tone="muted">
-                      Deep review on the way — this score will sharpen.
+                      Tono AI is judging this take. The score will update.
                     </Txt>
                   </View>
                 ) : null}
               </HeroCard>
             </Reveal>
           ) : measuring || reviewing ? (
-            <SkeletonHero key="hero-skeleton" note={measuring ? "Listening back and measuring, on this phone…" : "Waiting for the deep review…"} />
+            <SkeletonHero key="hero-skeleton" note={measuring ? "Listening back and measuring, on this phone…" : "Waiting for Tono AI…"} />
           ) : coach ? null : (
             <Reveal key="numbers">
               <Card style={styles.numbersCard}>
@@ -352,7 +362,7 @@ export function ResultScreen({ route, navigation }: Props) {
                   />
                   <NumberTile value={pitchRange != null ? `${Math.round(pitchRange * 10) / 10} st` : "—"} label="pitch range" />
                 </View>
-                <Text style={styles.rowSubtitle}>Measured on this phone. A deep review adds structure and presence scores.</Text>
+                <Text style={styles.rowSubtitle}>Measured on this phone.</Text>
               </Card>
             </Reveal>
           )}
@@ -370,6 +380,16 @@ export function ResultScreen({ route, navigation }: Props) {
           {takeScores ? (
             <Reveal key="breakdown">
               <ScoreBreakdownCard scores={takeScores} pending={!scoreSettled} />
+              {judgedLocked ? (
+                <View style={styles.lockedLine}>
+                  <Txt variant="footnote" tone="muted">
+                    {account.allowed.take
+                      ? "Measured on this phone. Tono AI would judge what you said and how it came across: you get one judged take free each month."
+                      : "Measured on this phone. Tono AI judging comes with Tono Plus, and your free judged take comes back next month."}
+                  </Txt>
+                  {purchasesEnabled() ? <PrimaryButton label="See Tono Plus" variant="ghost" size="sm" onPress={openPaywall} /> : null}
+                </View>
+              ) : null}
             </Reveal>
           ) : measuring ? (
             <SkeletonCard key="breakdown-skeleton" lines={4} />
@@ -476,28 +496,34 @@ export function ResultScreen({ route, navigation }: Props) {
               every other category starts collapsed — the radar chart above
               already gives the at-a-glance summary, so this replaces what used
               to be all ~9 factors expanded in one long scroll (confirmed live). */}
-          <AccordionSection title="Structure" scoreLabel={`${scores.structureScore}/10`} defaultOpen>
-            <ScoreBar
-              label={scores.structureUsed === "none detected" ? "No clear structure" : scores.structureUsed}
-              score={scores.structureScore}
-              notes={scores.structureNotes}
-            />
-          </AccordionSection>
+          {/* A 0 is a subcategory the judge didn't score on this take (a
+              scripted reading has no Structure; Tone fit needs the video). */}
+          {scores.structureScore > 0 ? (
+            <AccordionSection title="Structure" scoreLabel={`${scores.structureScore}/10`} defaultOpen>
+              <ScoreBar
+                label={scores.structureUsed === "none detected" ? "No clear structure" : scores.structureUsed}
+                score={scores.structureScore}
+                notes={scores.structureNotes}
+              />
+            </AccordionSection>
+          ) : null}
 
-          <AccordionSection title="Content" scoreLabel={`${avgScore(scores.relevanceScore, scores.coherenceScore)}/10`}>
-            <ScoreBar label="Relevance to prompt" score={scores.relevanceScore} notes={scores.relevanceNotes} />
-            <ScoreBar label="Coherence & storytelling" score={scores.coherenceScore} notes={scores.coherenceNotes} />
-          </AccordionSection>
+          {scores.relevanceScore > 0 ? (
+            <AccordionSection title="Content" scoreLabel={`${avgScore(scores.relevanceScore, scores.coherenceScore)}/10`}>
+              <ScoreBar label="Relevance to prompt" score={scores.relevanceScore} notes={scores.relevanceNotes} />
+              <ScoreBar label="Coherence & storytelling" score={scores.coherenceScore} notes={scores.coherenceNotes} />
+            </AccordionSection>
+          ) : null}
 
           <AccordionSection
             title="Delivery"
-            scoreLabel={`${avgScore(scores.rateScore, scores.volumeScore, scores.pitchMelodyScore, scores.tonalityScore, scores.pausingScore)}/10`}
+            scoreLabel={`${avgScore(...[scores.rateScore, scores.volumeScore, scores.pitchMelodyScore, scores.tonalityScore, scores.pausingScore].filter((n) => n > 0))}/10`}
           >
             <ScoreBar label="Rate" score={scores.rateScore} notes={scores.rateNotes} suffix={`${scores.rateWpmAvg} wpm`} />
             <WpmSparkline wpmCurve={session.wpmCurve} />
             <ScoreBar label="Volume" score={scores.volumeScore} notes={scores.volumeNotes} />
             <ScoreBar label="Pitch & Melody" score={scores.pitchMelodyScore} notes={scores.pitchMelodyNotes} />
-            <ScoreBar label="Tonality" score={scores.tonalityScore} notes={scores.tonalityNotes} />
+            {scores.tonalityScore > 0 ? <ScoreBar label="Tonality" score={scores.tonalityScore} notes={scores.tonalityNotes} /> : null}
             <ScoreBar label="Pausing" score={scores.pausingScore} notes={scores.pausingNotes} />
             <PitchVolumeChart
               dspStatus={session.dspStatus}
@@ -509,12 +535,14 @@ export function ResultScreen({ route, navigation }: Props) {
           <AccordionSection title="Presence" scoreLabel={`${avgScore(scores.eyeContactScore, scores.facialExpressivenessScore)}/10`}>
             <ScoreBar label="Eye Contact" score={scores.eyeContactScore} />
             <ScoreBar label="Facial Expressiveness" score={scores.facialExpressivenessScore} />
-            <Text style={styles.bodyLanguageNotes}>{scores.bodyLanguageNotes}</Text>
+            {scores.bodyLanguageNotes ? <Text style={styles.bodyLanguageNotes}>{scores.bodyLanguageNotes}</Text> : null}
           </AccordionSection>
 
-          <AccordionSection title="Face-Voice Congruence" scoreLabel={`${scores.faceVoiceCongruenceScore}/10`}>
-            <ScoreBar label="Congruence" score={scores.faceVoiceCongruenceScore} />
-          </AccordionSection>
+          {scores.faceVoiceCongruenceScore > 0 ? (
+            <AccordionSection title="Face-Voice Congruence" scoreLabel={`${scores.faceVoiceCongruenceScore}/10`}>
+              <ScoreBar label="Congruence" score={scores.faceVoiceCongruenceScore} />
+            </AccordionSection>
+          ) : null}
 
           {scores.cueComplianceScore !== null ? (
             <AccordionSection title="Cue Compliance" scoreLabel={`${scores.cueComplianceScore}/10`}>
@@ -592,6 +620,7 @@ const useStyles = makeStyles(({ colors }) => ({
   scoreHeroNumber: { fontSize: 60, lineHeight: 66, letterSpacing: -2.4 },
   scoreHeroOutOf: { ...font("400"), color: colors.textMuted, fontSize: 13, marginTop: 2 },
   scoreHeroArchetype: { fontSize: 15, ...font("600"), marginTop: spacing.sm },
+  lockedLine: { gap: spacing.xs, marginTop: spacing.sm, alignItems: "flex-start" },
   scoreHeroFit: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17, textAlign: "center", marginTop: spacing.xs },
   reviewingRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.sm },
   deltaRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },

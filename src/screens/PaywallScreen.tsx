@@ -9,28 +9,29 @@ import { ListGroup, ListRow } from "../components/common/ListRow";
 import { PrimaryButton } from "../components/common/PrimaryButton";
 import { Txt } from "../components/common/Txt";
 import { useToast } from "../components/common/ToastProvider";
-import { SignInOptions } from "../components/account/SignInOptions";
-import { allowanceLine } from "../domain/aiAllowance";
-import { MANAGE_SUBSCRIPTIONS_URL, planDetail, planPriceLine, PLUS_MONTHLY_REVIEWS, PRIVACY_URL, renewalNotice, TERMS_URL, type PlusPlan } from "../domain/plus";
+import { allowanceLine, dayLabel, isPaidPlan } from "../domain/aiAllowance";
+import { buyLabel, MANAGE_SUBSCRIPTIONS_URL, planDetail, PLUS_MONTHLY_JUDGED_TAKES, PRIVACY_URL, renewalNotice, TERMS_URL, trialLine, type PlusPlan } from "../domain/plus";
 import { useAccount } from "../services/account/accountStore";
-import { askCloudConsent } from "../services/cloud/consent";
-import { hasConsent, PROVIDERS } from "../services/cloud/providers";
+import { askTonoConsent } from "../services/cloud/consent";
+import { tonoAgeGated } from "../services/cloud/routing";
+import { hasTonoConsent } from "../services/prefs/prefsStore";
 import { buyPlus, loadPlusOffer, purchasesEnabled, restorePlus, type PlusOffer } from "../services/purchases/purchases";
 import { makeStyles } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Paywall">;
 
-// Tono Plus: what it adds, the two plans at the store's own prices, and, right
-// by the button, what App Review needs shown (length, price, that it renews,
-// how to stop it, Restore, Terms and Privacy). Plus belongs to the Tono
-// account, so a signed-out visitor signs in first.
+// Tono Plus: what it adds, the two plans at the store's own prices, the free
+// trial when the App Store says this Apple ID can still have it, and, right
+// by the button, what App Review needs shown (trial length, price after it,
+// that it renews, how to stop it, Restore, Terms and Privacy). No sign-in:
+// the purchase belongs to the Tono account made behind the scenes.
 export function PaywallScreen({ navigation }: Props) {
   const styles = useStyles();
   const showToast = useToast();
   const account = useAccount();
-  const signedIn = account.status === "signedIn";
-  const isPlus = account.allowance?.plan === "plus";
+  const paying = isPaidPlan(account.allowance);
   const enabled = purchasesEnabled();
+  const minor = tonoAgeGated();
 
   const [offer, setOffer] = useState<PlusOffer | null>(null);
   const [failed, setFailed] = useState(false);
@@ -50,8 +51,8 @@ export function PaywallScreen({ navigation }: Props) {
   }, []);
 
   useEffect(() => {
-    if (enabled && signedIn && !isPlus && !offer) void load();
-  }, [enabled, signedIn, isPlus, offer, load]);
+    if (enabled && !paying && !minor && !offer) void load();
+  }, [enabled, paying, minor, offer, load]);
 
   const plan = offer?.plans.find((p) => p.id === choice) ?? offer?.plans[0] ?? null;
 
@@ -61,7 +62,9 @@ export function PaywallScreen({ navigation }: Props) {
     const result = await buyPlus(plan, offer);
     setBusy(null);
     if (result.ok) {
-      showToast(result.plus ? "You have Tono Plus." : "Thank you. Tono Plus switches on in a moment.", result.plus ? "success" : "info");
+      showToast(result.plus ? (plan.trialDays ? "Your free trial has started." : "You have Tono Plus.") : "Thank you. Tono Plus switches on in a moment.", result.plus ? "success" : "info");
+      // Plus is Tono AI: ask the one consent now rather than at the first take.
+      if (!hasTonoConsent()) await askTonoConsent();
       navigation.goBack();
     } else if (!result.cancelled) {
       showToast(result.message, "error");
@@ -87,31 +90,49 @@ export function PaywallScreen({ navigation }: Props) {
 
   const included = (
     <ListGroup title="What Plus adds">
-      <ListRow icon="videocam-outline" title={`${PLUS_MONTHLY_REVIEWS} AI video reviews a month`} subtitle="Tono AI watches your take and scores it, the way a coach would." />
-      <ListRow icon="sparkles-outline" title="Coaching on every take" subtitle="Your strength, one change to make, and the skill to work on next." />
-      <ListRow icon="chatbubble-ellipses-outline" title="Say it short, Rewind and Mark it up" subtitle="Notes on these come with Plus too." />
-      <ListRow icon="lock-closed-outline" title="Your recordings stay on your phone" subtitle="Only the take being reviewed is sent, and it is deleted afterward." />
+      <ListRow
+        icon="sparkles-outline"
+        title={`${PLUS_MONTHLY_JUDGED_TAKES} judged takes a month`}
+        subtitle="Tono AI judges what you said and how it came across, from your words and your phone's measurements, and coaches the next take."
+      />
+      <ListRow icon="link-outline" title="Your drills, checked" subtitle="Word Chain, Bridge Chain, Rewind and Say it short get notes on what you said." />
+      <ListRow icon="create-outline" title="Mark it up with Tono AI" subtitle="Delivery marks written for your own text." />
+      <ListRow icon="lock-closed-outline" title="Your recordings stay on your phone" subtitle="Only the words and numbers of a take are sent, and nothing is kept after it's judged." />
     </ListGroup>
   );
 
-  if (!enabled) {
+  const legal = (
+    <View style={styles.links}>
+      <PrimaryButton label="Restore purchases" variant="ghost" size="sm" loading={busy === "restore"} disabled={!!busy} onPress={restore} />
+      <PrimaryButton label="Terms" variant="ghost" size="sm" onPress={() => Linking.openURL(TERMS_URL)} />
+      <PrimaryButton label="Privacy" variant="ghost" size="sm" onPress={() => Linking.openURL(PRIVACY_URL)} />
+    </View>
+  );
+
+  if (!enabled || minor) {
     return (
       <Screen title="Tono Plus" onBack={() => navigation.goBack()}>
         <Txt variant="subhead" tone="secondary">
-          Tono Plus isn't available yet.
+          {minor ? "Tono Plus is Tono AI, which is for people 18 and over. Everything your phone measures, and its tips, work as always." : "Tono Plus isn't available yet."}
         </Txt>
       </Screen>
     );
   }
 
-  if (isPlus) {
+  if (paying) {
+    const trial = account.allowance?.plan === "trial";
     return (
       <Screen title="Tono Plus" onBack={() => navigation.goBack()}>
         <Card style={styles.card}>
-          <Txt variant="headline">You have Tono Plus</Txt>
+          <Txt variant="headline">{trial ? "Your free trial is on" : "You have Tono Plus"}</Txt>
           {account.allowance ? (
             <Txt variant="subhead" tone="secondary">
               {allowanceLine(account.allowance)}
+            </Txt>
+          ) : null}
+          {trial && account.allowance?.trialEndsAt ? (
+            <Txt variant="footnote" tone="secondary">
+              It turns into your plan on {dayLabel(account.allowance.trialEndsAt)} unless you cancel at least 24 hours before.
             </Txt>
           ) : null}
         </Card>
@@ -123,48 +144,30 @@ export function PaywallScreen({ navigation }: Props) {
     );
   }
 
+  const anyTrial = offer?.plans.some((p) => p.trialDays);
+
   return (
     <Screen
       title="Tono Plus"
-      eyebrow="More AI reviews"
+      eyebrow={anyTrial ? "Try it free" : "Judged takes and coaching"}
       onBack={() => navigation.goBack()}
       footer={
-        signedIn && plan ? (
+        plan ? (
           <View style={styles.footer}>
-            <PrimaryButton label={`Continue · ${planPriceLine(plan)}`} loading={busy === "buy"} disabled={!!busy} onPress={subscribe} />
+            <PrimaryButton label={buyLabel(plan)} loading={busy === "buy"} disabled={!!busy} onPress={subscribe} />
             <Txt variant="caption1" tone="muted" style={styles.notice}>
               {renewalNotice(plan)}
             </Txt>
-            <View style={styles.links}>
-              <PrimaryButton label="Restore purchases" variant="ghost" size="sm" loading={busy === "restore"} disabled={!!busy} onPress={restore} />
-              <PrimaryButton label="Terms" variant="ghost" size="sm" onPress={() => Linking.openURL(TERMS_URL)} />
-              <PrimaryButton label="Privacy" variant="ghost" size="sm" onPress={() => Linking.openURL(PRIVACY_URL)} />
-            </View>
+            {legal}
           </View>
         ) : undefined
       }
     >
       {included}
 
-      {!signedIn ? (
-        <Card style={styles.card}>
-          <Txt variant="headline">Plus belongs to your Tono account</Txt>
-          <Txt variant="subhead" tone="secondary">
-            Sign in first, so Plus follows you to a new phone. The rest of Tono doesn't need an account.
-          </Txt>
-          <SignInOptions
-            onSignedIn={async () => {
-              if (!hasConsent("tono")) await askCloudConsent(PROVIDERS.tono);
-            }}
-          />
-          <View style={styles.links}>
-            <PrimaryButton label="Terms" variant="ghost" size="sm" onPress={() => Linking.openURL(TERMS_URL)} />
-            <PrimaryButton label="Privacy" variant="ghost" size="sm" onPress={() => Linking.openURL(PRIVACY_URL)} />
-          </View>
-        </Card>
-      ) : offer ? (
+      {offer ? (
         <ChoiceList
-          options={offer.plans.map((p) => ({ key: p.id, label: `${p.title} · ${planPriceLine(p)}`, detail: planDetail(p) }))}
+          options={offer.plans.map((p) => ({ key: p.id, label: `${p.title} · ${trialLine(p)}`, detail: planDetail(p) }))}
           value={choice}
           onChange={setChoice}
         />
@@ -174,12 +177,16 @@ export function PaywallScreen({ navigation }: Props) {
             Couldn't load the prices from the App Store. Check your connection and try again.
           </Txt>
           <PrimaryButton label="Try again" variant="secondary" size="sm" onPress={load} />
+          {legal}
         </Card>
       ) : (
         <Txt variant="subhead" tone="secondary">
           Loading prices…
         </Txt>
       )}
+      <Txt variant="footnote" tone="secondary">
+        No account needed. To keep Plus on another phone, you can sign in with Apple or Google later in Settings.
+      </Txt>
     </Screen>
   );
 }

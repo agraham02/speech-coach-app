@@ -3,12 +3,19 @@ import type { PurchasesPackage } from "react-native-purchases";
 import { REVENUECAT_IOS_KEY } from "../../config/backend";
 import { plansFromPackages, purchaseFailure, type PlusPlan } from "../../domain/plus";
 import { logger } from "../../utils/logger";
-import { getAccount, refreshAccount, subscribeAccount } from "../account/accountStore";
+import { ensureAccount, getAccount, refreshAccount, subscribeAccount } from "../account/accountStore";
 
 // Tono Plus purchases through RevenueCat, on iPhone. RevenueCat talks to the
 // App Store; the server learns the result from RevenueCat (webhook and the
 // `me` refresh) and is the only thing that decides what Plus allows. This file
 // never decides the plan: it buys, then asks the server what the person has.
+//
+// No sign-in is needed to buy: the purchase belongs to the anonymous Tono
+// account made behind the scenes (its id is the RevenueCat app user id), so
+// App Review never sees registration before a purchase (guideline 5.1.1(v)).
+// The 14-day trial is Apple's introductory offer on both plans; Apple allows
+// one per Apple ID per subscription group, so a new Tono account or a
+// reinstall doesn't bring a second trial.
 
 // The SDK's native half only exists in builds made after it was added, so it
 // is loaded when first needed rather than when the app starts.
@@ -29,7 +36,7 @@ export const purchasesConfigurable = (): boolean => Platform.OS === "ios" && REV
 export const purchasesEnabled = (): boolean => {
   if (!purchasesConfigurable()) return false;
   const account = getAccount();
-  return account.plusPurchasable || account.allowance?.plan === "plus";
+  return account.plusPurchasable || account.allowance?.plan === "plus" || account.allowance?.plan === "trial";
 };
 
 let configured = false;
@@ -72,6 +79,14 @@ export function initPurchases(): void {
   subscribeAccount(follow);
 }
 
+// The account the purchase belongs to (made anonymously when there's none),
+// with RevenueCat logged in as it.
+async function readyAccount(): Promise<void> {
+  await ensureAccount();
+  follow();
+  await login;
+}
+
 export interface PlusOffer {
   plans: PlusPlan[];
   // The RevenueCat packages, to hand back to buy().
@@ -83,8 +98,22 @@ export async function loadPlusOffer(): Promise<PlusOffer> {
   if (!configured) throw new Error("Purchases aren't available.");
   const offerings = await purchases().getOfferings();
   const available = offerings.current?.availablePackages ?? [];
-  const plans = plansFromPackages(available);
+  const plans = plansFromPackages(available, await trialEligible(available.map((p) => p.product.identifier)));
   return { plans, packages: new Map(available.map((p) => [p.identifier, p])) };
+}
+
+// The products this Apple ID may still start the free trial on. Unknown or an
+// error counts as no, so the paywall never promises a trial the store won't give.
+async function trialEligible(productIds: string[]): Promise<Set<string>> {
+  if (!productIds.length) return new Set();
+  try {
+    const eligibility = await purchases().checkTrialOrIntroductoryPriceEligibility(productIds);
+    const eligible = sdk!.INTRO_ELIGIBILITY_STATUS.INTRO_ELIGIBILITY_STATUS_ELIGIBLE;
+    return new Set(productIds.filter((id) => eligibility[id]?.status === eligible));
+  } catch (error) {
+    logger.info(`[purchases] couldn't check trial eligibility — ${(error as Error).message}`);
+    return new Set();
+  }
 }
 
 export type PurchaseResult = { ok: true; plus: boolean } | { ok: false; cancelled: true } | { ok: false; cancelled: false; message: string };
@@ -94,7 +123,8 @@ export type PurchaseResult = { ok: true; plus: boolean } | { ok: false; cancelle
 async function waitForPlus(): Promise<boolean> {
   for (let attempt = 0; attempt < 4; attempt++) {
     await refreshAccount({ syncPurchases: true });
-    if (getAccount().allowance?.plan === "plus") return true;
+    const plan = getAccount().allowance?.plan;
+    if (plan === "plus" || plan === "trial") return true;
     await new Promise((resolve) => setTimeout(resolve, 1500));
   }
   return false;
@@ -102,9 +132,13 @@ async function waitForPlus(): Promise<boolean> {
 
 export async function buyPlus(plan: PlusPlan, offer: PlusOffer): Promise<PurchaseResult> {
   const pkg = offer.packages.get(plan.packageId);
-  if (!pkg || getAccount().status !== "signedIn") return { ok: false, cancelled: false, message: "Sign in to your Tono account first." };
+  if (!pkg) return { ok: false, cancelled: false, message: "That plan isn't available right now. Try again in a little while." };
   try {
-    await login;
+    await readyAccount();
+  } catch {
+    return { ok: false, cancelled: false, message: "Couldn't reach Tono. Check your connection and try again." };
+  }
+  try {
     await purchases().purchasePackage(pkg);
   } catch (error) {
     const failure = purchaseFailure(error);
@@ -117,9 +151,12 @@ export async function buyPlus(plan: PlusPlan, offer: PlusOffer): Promise<Purchas
 
 // Brings back a subscription bought earlier, on this or another phone.
 export async function restorePlus(): Promise<PurchaseResult> {
-  if (getAccount().status !== "signedIn") return { ok: false, cancelled: false, message: "Sign in to your Tono account first." };
   try {
-    await login;
+    await readyAccount();
+  } catch {
+    return { ok: false, cancelled: false, message: "Couldn't reach Tono. Check your connection and try again." };
+  }
+  try {
     await purchases().restorePurchases();
   } catch (error) {
     const failure = purchaseFailure(error);
@@ -128,5 +165,6 @@ export async function restorePlus(): Promise<PurchaseResult> {
     return { ok: false, cancelled: false, message: failure.message };
   }
   await refreshAccount({ syncPurchases: true });
-  return { ok: true, plus: getAccount().allowance?.plan === "plus" };
+  const now = getAccount().allowance?.plan;
+  return { ok: true, plus: now === "plus" || now === "trial" };
 }

@@ -14,6 +14,9 @@ export type ArtifactKind =
   // The Tono AI review's own coaching, kept apart so a re-run of the phone's
   // coach step can lay it back over the rules (coachStep.ts).
   | "cloud_coach"
+  // Tono AI's judgement of the take in the taxonomy's terms
+  // (domain/analysis/judgedReview.ts): what the judged score sheet is read from.
+  | "judged_review"
   | "progress"
   | "felt_observed"
   | "session_score"

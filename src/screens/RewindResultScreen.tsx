@@ -21,7 +21,10 @@ import { RewindPlayer } from "../components/rewind/RewindPlayer";
 import { confirmDeleteRewind } from "../components/rewind/confirmDeleteRewind";
 import { retranscribeRewind } from "../services/rewind/rewindProcessor";
 import { getAudioRetentionDays } from "../services/prefs/prefsStore";
-import { currentProvider } from "../services/cloud/providers";
+import { useAccount } from "../services/account/accountStore";
+import { openPaywall } from "../services/cloud/consent";
+import { tonoAgeGated } from "../services/cloud/routing";
+import { purchasesEnabled } from "../services/purchases/purchases";
 import { formatDuration } from "../utils/dateUtils";
 import { dayLabel } from "../domain/rewind/labels";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
@@ -124,7 +127,9 @@ export function RewindResultScreen({ route }: Props) {
   const coverage = aiParts ? { morning: aiParts.morning.status !== "missing", midday: aiParts.midday.status !== "missing", evening: aiParts.evening.status !== "missing" } : stats?.coverage;
   const processing = rewind.status === "processing";
   const details = stats?.details;
-  const provider = currentProvider();
+  // Notes are Tono AI, a Plus (and trial) feature; under 18 there are none.
+  const tier = useAccount().allowance?.tier ?? "free";
+  const minor = tonoAgeGated();
   const hasAudio = rewindAudioExists(rewind.audioFile);
 
   return (
@@ -196,19 +201,27 @@ export function RewindResultScreen({ route }: Props) {
             <Txt variant="callout">{rewind.review.tryTomorrow}</Txt>
           </View>
           <Txt variant="caption1" tone="muted">
-            {`Written by ${rewind.reviewSource ?? provider.name} from your transcript, with every quote checked against your words. Not a score.`}
+            {`Written by ${rewind.reviewSource ?? "Tono AI"} from your transcript, with every quote checked against your words. Not a score.`}
           </Txt>
         </Card>
-      ) : !processing && rewind.transcript ? (
-        <Card style={styles.notes}>
-          <Txt variant="headline">Notes</Txt>
-          <Txt variant="subhead" tone="secondary">
-            {provider.id === "tono"
-              ? "This phone can't write notes on its own. Tono AI can: only the words of this take are sent."
-              : "This phone can't write notes on its own. You can ask for them with your own AI key — only the words of this take are sent."}
-          </Txt>
-          <PrimaryButton label={`Get notes from ${provider.name}`} variant="secondary" size="md" icon="cloud-outline" onPress={askCloud} loading={asking} />
-        </Card>
+      ) : !processing && rewind.transcript && !minor ? (
+        tier === "free" ? (
+          <Card style={styles.notes}>
+            <Txt variant="headline">Notes</Txt>
+            <Txt variant="subhead" tone="secondary">
+              Notes on what you said come with Tono Plus: which parts of the day you covered, the most vivid moment, and one thing to try tomorrow. Your counts above are from this phone.
+            </Txt>
+            {purchasesEnabled() ? <PrimaryButton label="See Tono Plus" variant="ghost" size="sm" icon="sparkles-outline" onPress={openPaywall} /> : null}
+          </Card>
+        ) : (
+          <Card style={styles.notes}>
+            <Txt variant="headline">Notes</Txt>
+            <Txt variant="subhead" tone="secondary">
+              This phone can't write notes on its own. Tono AI can: only the words of this take are sent.
+            </Txt>
+            <PrimaryButton label="Get notes from Tono AI" variant="secondary" size="md" icon="cloud-outline" onPress={askCloud} loading={asking} />
+          </Card>
+        )
       ) : null}
 
       {!processing && !rewind.transcript ? (

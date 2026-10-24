@@ -309,7 +309,7 @@ export function ProgressScreen() {
 
       <ListGroup>
         <ListRow icon="trophy-outline" title="Your level" subtitle="Your speaker level and each skill's stage" chevron onPress={() => navigation.navigate("Level")} />
-        <ListRow icon="analytics-outline" title="Deep review trends" subtitle="Scores from cloud deep reviews" chevron onPress={() => navigation.navigate("Trends")} />
+        <ListRow icon="analytics-outline" title="Judged trends" subtitle="Scores from takes Tono AI judged" chevron onPress={() => navigation.navigate("Trends")} />
       </ListGroup>
       <GuideTip id="progress" />
     </Screen>

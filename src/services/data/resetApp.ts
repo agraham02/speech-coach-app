@@ -12,8 +12,8 @@ import { logger } from "../../utils/logger";
 // Puts the app back to a fresh install: every session, video, score, drill
 // level, lesson, plan, skill check and feeling rep (every table is dropped
 // and the migrations rebuild the database), every preference including the
-// onboarding profile, the logs, the Dev tab's data and any reminders. API keys
-// (Keychain/Keystore) and the downloaded on-device models are kept. Callers
+// onboarding profile, the logs, the Dev tab's data and any reminders. The
+// Tono account and the downloaded on-device models are kept. Callers
 // then send the user to onboarding.
 // Videos uploaded for a deep review that Google still holds (a review that
 // failed keeps its upload for a retry). Best effort: Google drops any file

@@ -22,6 +22,7 @@ import {
   ANCHOR_OPTIONS,
   CHAPTERS,
   CONTEXT_OPTIONS,
+  AGE_OPTIONS,
   ENGLISH_OPTIONS,
   EVENT_OPTIONS,
   EVENT_WHEN,
@@ -45,29 +46,25 @@ import {
   getPracticeAnchor,
   getReminderSettings,
   getUserProfile,
-  setCloudConsent,
-  setCloudProvider,
+  hasTonoConsent,
   setCloudReviewDefault,
   setDailySessionGoal,
   setPlanMinutes,
   setPracticeAnchor,
   setRecordBlindPref,
   setReminderSettings,
+  setTonoConsent,
   setUserProfile,
   setVideoRetentionDays,
   setWarmUpEnabled,
 } from "../services/prefs/prefsStore";
 import { requestNotificationPermission, syncDailyReminder } from "../services/notifications/reminderScheduler";
 import { anchorOption } from "../domain/notificationCopy";
-import { AiCoachSetup, providerForPastedKey } from "../components/onboarding/AiCoachSetup";
+import { AiCoachSetup } from "../components/onboarding/AiCoachSetup";
 import { TranscriptionSetup } from "../components/onboarding/TranscriptionSetup";
 import { useTranscriptionModel } from "../hooks/useTranscriptionModel";
-import { cleanApiKey } from "../services/cloud/inputGuards";
-import { checkProviderKey } from "../services/cloud/textProviders";
-import { currentProvider, hasConsent, hasProviderKey, PROVIDERS } from "../services/cloud/providers";
-import { askCloudConsent } from "../services/cloud/consent";
-import { getAccount } from "../services/account/accountStore";
-import { setProviderKey } from "../services/secrets/secretsStore";
+import { tonoAgeGated } from "../services/cloud/routing";
+import { ensureAccount } from "../services/account/accountStore";
 import { isoDateFromDate, todayISODate } from "../utils/dateUtils";
 import { DatePicker, formatEventDate } from "../components/common/DatePicker";
 import { createEvent, deleteEvent, listEvents, updateEvent } from "../services/db/eventsRepo";
@@ -101,12 +98,8 @@ export function OnboardingScreen({ route, navigation }: Props) {
   const [remind, setRemind] = useState(reminder.enabled);
   const [hour, setHour] = useState(reminder.hour);
   const [extraHours, setExtraHours] = useState<number[]>(reminder.extraHours ?? []);
-  const [cloudKey, setCloudKey] = useState("");
-  const [cloudError, setCloudError] = useState<string | null>(null);
-  // Paste-a-key instead of signing in to Tono AI.
-  const [ownKey, setOwnKey] = useState(false);
-  // Already set up (profile mode, or a key added before onboarding).
-  const [connected, setConnected] = useState<string | null>(null);
+  // Tono AI already allowed (profile mode, or allowed earlier).
+  const [connected, setConnected] = useState(hasTonoConsent());
   const [retention, setRetention] = useState<string | null>(null);
   // The event question: a kind, a day (a quick chip or one picked from the
   // calendar) and an optional name. Editing the next event when there is one.
@@ -131,15 +124,6 @@ export function OnboardingScreen({ route, navigation }: Props) {
         setEventNote(next.title ?? "");
       })
       .catch(() => undefined);
-  }, []);
-
-  useEffect(() => {
-    const provider = currentProvider();
-    if (provider.id === "tono") {
-      setConnected(getAccount().status === "signedIn" && hasConsent("tono") ? provider.name : null);
-      return;
-    }
-    hasProviderKey(provider.id).then((has) => setConnected(has && hasConsent(provider.id) ? provider.name : null));
   }, []);
 
   // 1 = forward, -1 = back: which way the next question slides in.
@@ -180,8 +164,6 @@ export function OnboardingScreen({ route, navigation }: Props) {
       // Required, but only to start: the download carries on in the background.
       case "transcription":
         return transcriptionModel.status !== "missing";
-      case "cloud":
-        return !!connected || cleanApiKey(cloudKey).length > 0;
       // Optional, but a kind needs a day before it can count.
       case "event":
         return !eventKind || !!eventDate;
@@ -190,39 +172,18 @@ export function OnboardingScreen({ route, navigation }: Props) {
     }
   })();
 
-  // The AI coach step: checks the pasted key with its provider before going
-  // on. Turning it on here is the user's permission to send takes there, so
-  // reviews run by default from now on. Returns false to stay on the step.
-  async function connectAiCoach(): Promise<boolean> {
-    const cleaned = cleanApiKey(cloudKey);
-    if (!cleaned) return true;
-    const providerId = providerForPastedKey(cleaned);
-    setCloudError(null);
-    const problem = await checkProviderKey(providerId, cleaned).catch(() => "Couldn't check the key — check your connection and try again.");
-    if (problem) {
-      setCloudError(problem);
-      return false;
-    }
-    await setProviderKey(providerId, cleaned);
-    setCloudProvider(providerId);
-    setCloudConsent(providerId, true);
+  // The Tono AI step. What is sent is spelled out right above the button, so
+  // "Allow Tono AI" is the person's explicit permission (App Review 5.1.2(i)).
+  // It also makes the account behind the scenes (no sign-in) so the free
+  // judged take can be counted. Under 18 (with the server's policy) there's
+  // nothing to allow.
+  function allowTono(): boolean {
+    if (tonoAgeGated()) return true;
+    setTonoConsent(true);
     setCloudReviewDefault(true);
-    setConnected(PROVIDERS[providerId].name);
-    setCloudKey("");
+    setConnected(true);
+    void ensureAccount().catch(() => undefined);
     return true;
-  }
-
-  // Signed in to Tono AI. Signing in is not yet permission to send takes, so
-  // the person is asked, with what is sent spelled out, before anything is.
-  async function onTonoSignedIn() {
-    setCloudError(null);
-    if (!hasConsent("tono") && !(await askCloudConsent(PROVIDERS.tono))) {
-      setCloudError("You're signed in, but nothing is sent until you allow it. You can do that later in Settings → Deep reviews.");
-      return;
-    }
-    setCloudProvider("tono");
-    setCloudReviewDefault(true);
-    setConnected(PROVIDERS.tono.name);
   }
 
   // Applies one answer to the app, right away. False keeps you on the step.
@@ -283,7 +244,7 @@ export function OnboardingScreen({ route, navigation }: Props) {
         setReminderSettings({ ...getReminderSettings(), practiceDays: days.length === 7 ? [] : days });
         return true;
       case "cloud":
-        return connectAiCoach();
+        return connected ? true : allowTono();
       case "retention": {
         const option = RETENTION_OPTIONS.find((r) => r.key === retention);
         if (option) setVideoRetentionDays(option.days);
@@ -293,14 +254,13 @@ export function OnboardingScreen({ route, navigation }: Props) {
     return true;
   }
 
-  // `skip`: an optional question left unanswered. The AI coach step then
-  // sends nothing anywhere, even if a key was half-pasted.
+  // `skip`: an optional question left unanswered. The Tono AI step then
+  // sends nothing anywhere.
   async function next(skip = false) {
     if (busy) return;
     setBusy(true);
     try {
       if (question && !(skip && question.id === "cloud") && !(await apply(question.id))) return;
-      if (skip && question?.id === "cloud") setCloudKey("");
       const nextStep = step + 1;
       if (nextStep >= QUESTIONS.length) {
         await finish();
@@ -418,6 +378,8 @@ export function OnboardingScreen({ route, navigation }: Props) {
         return <Choices options={VIDEO_OPTIONS} value={profile.videoComfort} onPick={(videoComfort) => update({ videoComfort })} />;
       case "experience":
         return <Choices options={EXPERIENCE_OPTIONS} value={profile.experience} onPick={(experience) => update({ experience })} />;
+      case "age":
+        return <Choices options={AGE_OPTIONS} value={profile.ageRange} onPick={(ageRange) => update({ ageRange })} />;
       case "english":
         return <Choices options={ENGLISH_OPTIONS} value={profile.englishFirst} onPick={(englishFirst) => update({ englishFirst })} />;
       case "speech":
@@ -555,33 +517,28 @@ export function OnboardingScreen({ route, navigation }: Props) {
       case "transcription":
         return <TranscriptionSetup />;
       case "cloud":
-        return connected && !cloudKey ? (
+        return tonoAgeGated() ? (
+          <View style={styles.phoneOnly}>
+            <Ionicons name="phone-portrait-outline" size={20} color={colors.textSecondary} />
+            <View style={styles.flex}>
+              <Txt variant="headline">Everything stays on your phone</Txt>
+              <Txt variant="footnote" tone="secondary">
+                Tono AI is for people 18 and over. Your phone still measures every take and gives you tips, and the whole curriculum is yours.
+              </Txt>
+            </View>
+          </View>
+        ) : connected ? (
           <View style={styles.phoneOnly}>
             <Ionicons name="checkmark-circle" size={20} color={colors.success} />
             <View style={styles.flex}>
-              <Txt variant="headline">Connected to {connected}</Txt>
+              <Txt variant="headline">Tono AI is on</Txt>
               <Txt variant="footnote" tone="secondary">
-                {connected === PROVIDERS.tono.name
-                  ? "You're signed in and your AI coach is ready. Change the provider, or whether every take gets a review, in Settings → Deep reviews."
-                  : "Your AI coach is ready. Change the provider, the key, or whether every take gets a review in Settings → Deep reviews."}
+                Change whether every take is judged, or turn it off, in Settings → Tono AI.
               </Txt>
             </View>
           </View>
         ) : (
-          <AiCoachSetup
-            apiKey={cloudKey}
-            onChangeKey={(k) => {
-              setCloudKey(k);
-              setCloudError(null);
-            }}
-            error={cloudError}
-            ownKey={ownKey}
-            onOwnKeyChange={(own) => {
-              setOwnKey(own);
-              setCloudError(null);
-            }}
-            onSignedIn={onTonoSignedIn}
-          />
+          <AiCoachSetup />
         );
       case "retention":
         return <Choices options={RETENTION_OPTIONS.map((r) => ({ key: r.key, label: r.label }))} value={retention} onPick={setRetention} />;
@@ -661,11 +618,11 @@ export function OnboardingScreen({ route, navigation }: Props) {
           </Animated.View>
         </ScrollView>
         <View style={styles.actions}>
-          {question.optional && !(question.id === "cloud" && connected && !cloudKey)  ? (
+          {question.optional && !(question.id === "cloud" && (connected || tonoAgeGated())) ? (
             <PrimaryButton label={question.id === "cloud" ? "Not now" : "Skip"} variant="ghost" style={styles.flex} onPress={() => next(true)} disabled={busy} />
           ) : null}
           <PrimaryButton
-            label={step === QUESTIONS.length - 1 ? "Done" : question.id === "cloud" && cloudKey ? "Allow and turn on" : "Continue"}
+            label={step === QUESTIONS.length - 1 ? "Done" : question.id === "cloud" && !connected && !tonoAgeGated() ? "Allow Tono AI" : "Continue"}
             style={styles.flexWide}
             onPress={() => next()}
             disabled={!answered}

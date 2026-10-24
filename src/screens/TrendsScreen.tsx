@@ -146,7 +146,7 @@ export function TrendsScreen() {
 
   return (
     <ScreenContainer style={styles.container}>
-      <Header title="Deep review trends" onBack={() => navigation.goBack()} backIcon="chevron-back"
+      <Header title="Judged trends" onBack={() => navigation.goBack()} backIcon="chevron-back"
       />
       <ScrollView
         style={styles.scroll}

@@ -12,12 +12,12 @@ import { createSessionFromTake } from "../services/pipeline/sessionPipeline";
 import { setVideoKeepsake } from "../services/data/videoKeepsakes";
 import { logger } from "../utils/logger";
 import { completePracticeStep } from "../services/practice/practiceEvents";
-import { getCloudReviewDefault } from "../services/prefs/prefsStore";
-import { currentProvider, hasConsent } from "../services/cloud/providers";
+import { getCloudReviewDefault, getJudgeInput, hasTonoConsent } from "../services/prefs/prefsStore";
 import { showLevelFor } from "../services/analysis";
 import { getAccount, useAccount } from "../services/account/accountStore";
-import { usesOneLine } from "../domain/aiAllowance";
-import { readyForDeepReview } from "../services/cloud/consent";
+import { usedUpLine, usesOneLine } from "../domain/aiAllowance";
+import { readyForTono } from "../services/cloud/consent";
+import { tonoAgeGated } from "../services/cloud/routing";
 import { spacing, typography, font, fontDisplay } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import { TranscriptionBanner } from "../components/common/TranscriptionBanner";
@@ -25,8 +25,8 @@ import { TranscriptionBanner } from "../components/common/TranscriptionBanner";
 type Props = NativeStackScreenProps<RootStackParamList, "Preview">;
 
 // Use the take, retake it, or throw it away. Nothing is final here: on-device
-// analysis always runs, and a deep review can be added from the session at
-// any time later.
+// analysis always runs, and Tono AI can judge the take later from the
+// session, while there are judged takes left.
 export function PreviewScreen({ route, navigation }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -34,22 +34,25 @@ export function PreviewScreen({ route, navigation }: Props) {
   // A feeling rep is private by default: nothing leaves the phone unless
   // switched on here.
   const isFeeling = subject.kind === "prompt" && !!subject.feeling;
-  // On by default only once a provider is set up and allowed.
-  const provider = currentProvider();
   const account = useAccount();
-  // Tono AI also needs someone signed in, with reviews left.
+  const minor = tonoAgeGated();
+  // On by default only once Tono AI is allowed and there's a judged take left.
   const [wantsCloudReview, setWantsCloudReview] = useState(
-    () => !isFeeling && getCloudReviewDefault() && hasConsent(provider.id) && (provider.id !== "tono" || (getAccount().status === "signedIn" && getAccount().allowed.review)),
+    () => !isFeeling && !minor && getCloudReviewDefault() && hasTonoConsent() && getAccount().allowed.take,
   );
-  // What a review costs the person: a review from their allowance, or their own key.
-  const paidBy = provider.id === "tono" ? (account.allowance && usesOneLine(account.allowance)) || "Counts toward your Tono AI reviews." : "Uses your own key.";
+  // What judging costs: exactly one judged take, whatever is sent. With none
+  // left, the line says when the next one comes instead.
+  const allowance = account.allowance;
+  const cost = allowance ? (allowance.takesLeft > 0 ? usesOneLine(allowance) : usedUpLine(allowance)) : "Uses 1 judged take. Everyone gets one free a month.";
+  const what = subject.kind === "script" ? "your reading: pace, pauses, emphasis and how well you followed the marks" : "what you said and how it came across";
+  const from = getJudgeInput() === "video" ? "from the video, your words and the phone's measurements" : "from your words and the phone's measurements; the video stays here";
 
   async function toggleCloudReview(on: boolean) {
     if (!on) {
       setWantsCloudReview(false);
       return;
     }
-    if (await readyForDeepReview(() => navigation.navigate("Settings", { section: "deepReviews" }))) setWantsCloudReview(true);
+    if (await readyForTono({ exercise: false })) setWantsCloudReview(true);
   }
   const [isSaving, setIsSaving] = useState(false);
   // Set once the take has been saved or deliberately thrown away, so leaving
@@ -115,8 +118,8 @@ export function PreviewScreen({ route, navigation }: Props) {
         subject,
         previewUri: videoUri,
         durationSecondsLocal,
-        // A key removed, or Tono AI signed out of, since the switch went on:
-        // save without the review.
+        // Tono AI turned off, or the count used up, since the switch went on:
+        // save without judging.
         wantsCloudReview: wantsCloudReview && (await showLevelFor("take_review", { hasVideo: true, hasTranscript: true, takeOptIn: true })) === "judged",
       });
       // A lesson / daily-plan rep counts as done once the take is kept.
@@ -148,27 +151,27 @@ export function PreviewScreen({ route, navigation }: Props) {
           <Text style={styles.note}>
             Your transcript, pace, pauses and voice analysis run on this phone either way.
           </Text>
-          <View style={styles.row}>
-            <View style={styles.rowText}>
-              <Text style={styles.rowTitle}>Deep review</Text>
-              <Text style={styles.rowSubtitle}>
-                {provider.input === "video"
-                  ? `${provider.name} scores ${subject.kind === "script" ? "delivery, presence and how well you followed the marks" : "structure, delivery and presence"} from the video. ${paidBy}`
-                  : `${provider.name} scores ${subject.kind === "script" ? "your reading" : "structure, content and delivery"} from your transcript and the phone's measurements — the video stays here. ${paidBy}`}
+          {minor ? null : (
+            <>
+              <View style={styles.row}>
+                <View style={styles.rowText}>
+                  <Text style={styles.rowTitle}>Have Tono AI judge this take</Text>
+                  <Text style={styles.rowSubtitle}>{`Tono AI judges ${what}, ${from}. ${cost}`}</Text>
+                </View>
+                <Switch
+                  value={wantsCloudReview}
+                  onValueChange={toggleCloudReview}
+                  trackColor={{ true: colors.success, false: colors.switchTrackOff }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+              <Text style={styles.hint}>
+                {isFeeling
+                  ? "This is a private feeling rep: Tono AI stays off unless you turn it on. You can still have it judged later."
+                  : "Off keeps this take private to your phone. You can have it judged later from the session."}
               </Text>
-            </View>
-            <Switch
-              value={wantsCloudReview}
-              onValueChange={toggleCloudReview}
-              trackColor={{ true: colors.success, false: colors.switchTrackOff }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-          <Text style={styles.hint}>
-            {isFeeling
-              ? "This is a private feeling rep — the deep review stays off unless you turn it on. You can still add it later."
-              : "You can add a deep review later from the session."}
-          </Text>
+            </>
+          )}
         </Card>
       </ScrollView>
 

@@ -219,6 +219,9 @@ function subscoreSchema(label: string) {
   };
 }
 
+// The subcategories whose moments are marked on the transcript.
+const ANNOTATED: JudgedSubcategoryId[] = ["structure", "relevance", "clarity", "conviction"];
+
 export function takeReviewResponseSchema(ids: JudgedSubcategoryId[], opts: { kind: TakeKind; transcribe: boolean }): Record<string, unknown> {
   const properties: Record<string, unknown> = {};
   const required: string[] = [];
@@ -240,14 +243,18 @@ export function takeReviewResponseSchema(ids: JudgedSubcategoryId[], opts: { kin
     properties: Object.fromEntries(ids.map((id) => [id, subscoreSchema(JUDGED_SUBCATEGORIES[id].label)])),
     required: ids,
   };
+  // The transcript only marks what a reader can act on in the words: the
+  // shape, the content and restated points. Delivery and presence moments
+  // aren't shown, so they aren't asked for (output tokens cost money).
+  const marked = ANNOTATED.filter((id) => ids.includes(id));
   properties.annotations = {
     type: "array",
-    description: "4-8 of the most impactful moments behind the scores, plus every restated-point pair.",
+    description: "Up to 5 of the most telling moments for structure and content, plus every restated-point pair.",
     items: {
       type: "object",
       properties: {
         quote: { type: "string", description: "3-12 words copied EXACTLY from the plain transcript (it is found by exact search). Enough words to pin down one occurrence." },
-        subcategory: { type: "string", enum: [...ids, "restated_point"], description: "Which subcategory this moment is evidence for, or restated_point." },
+        subcategory: { type: "string", enum: [...marked, "restated_point"], description: "Which subcategory this moment is evidence for, or restated_point." },
         note: { type: "string", description: "One short, specific sentence: what happened here and what to do instead." },
       },
       required: ["quote", "subcategory", "note"],
@@ -327,7 +334,7 @@ Don't score filler words, stalls or repeated words: the phone measures Fluency i
 ${scripted ? "" : "\nSet structure_used to the structure the take followed: what/why/how, story arc, none detected, or other.\n"}
 Write transcript_clean: the transcript rewritten as clean prose, fillers and false starts removed, meaning and word choice preserved, nothing summarized or added.
 
-ANNOTATIONS: 4-8 of the most impactful moments behind the scores, plus the restated-point pairs. Each quote is 3-12 words copied EXACTLY from the plain transcript (not the timed one), because it is found by exact string search; if a phrase occurs more than once, include enough words to pin down the one you mean. Any subcategory scored 6 or below gets at least one annotation at the moment that caused it. Don't annotate filler words.
+ANNOTATIONS: up to 5 of the most telling moments for ${scripted ? "the reading (only restated points apply to a script, so usually none)" : "Structure, On the point, Clarity and Conviction"}, plus every restated-point pair. Each quote is 3-12 words copied EXACTLY from the plain transcript (not the timed one), because it is found by exact string search, and it must occur only once in it: include enough words to pin down the one you mean. Don't annotate delivery, eye contact or filler words: the phone shows those itself.
 
 COACHING: a 2-3 sentence summary (honest, not softened), the single top strength, the single most useful focus, and one concrete drill for next time.
 

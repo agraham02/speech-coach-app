@@ -1,11 +1,10 @@
 import { getSessionById, updateTranscriptFields } from "../../db/sessionsRepo";
-import { analysisToSessionScores, upsertScores } from "../../db/scoresRepo";
+import { judgedReviewToScores, upsertScores } from "../../db/scoresRepo";
 import { getArtifact, putArtifact } from "../../db/artifactsRepo";
-import { whyNoDeepReview } from "../../cloud/routing";
+import { whyNotJudged } from "../../cloud/routing";
 import { applyCloudCoach } from "./coachStep";
 import { recordCloudUsage } from "../../cloud/usageStore";
 import { requestAnalysis } from "../../analysis";
-import type { ProviderId } from "../../cloud/providers";
 import type { PauseAnalysis } from "../../../domain/dsp/pauses";
 import type { PresenceMetrics } from "../../../domain/presenceMetrics";
 import { defaultsFromProfile } from "../../../domain/profile";
@@ -14,27 +13,26 @@ import { setStepStatus } from "../../db/stepsRepo";
 import { resolveVideoUri, videoExists } from "../../storage/videoStorage";
 import { gradingContextFromSession } from "../../sessions/sessionSubject";
 import { emitStepEvent } from "../processingEvents";
-import { refreshSessionScore } from "../../sessions/sessionScoreService";
+import { measuredVoice, refreshSessionScore } from "../../sessions/sessionScoreService";
 import { StepError } from "../stepRunner";
 
 export interface CloudTranscriptArtifact {
   verbatim: string;
   clean: string;
   durationSeconds: number;
-  // Which provider and model wrote the review.
-  provider?: ProviderId;
   model?: string;
-  // True when the judge transcribed the audio itself (a review from the
-  // video). A judge that read the transcript returns the phone's.
+  // True when the judge wrote the transcript from the audio (a video take
+  // with no phone transcript). Otherwise `verbatim` is the phone's.
   heardAudio?: boolean;
 }
 
-// The judged layer of a take: Tono AI's review (or, until session 08, the
-// person's own key), through the AnalysisService. The step only gathers the
-// take and stores what comes back: the scores row, the judge's copy of the
-// transcript, token usage, the coach card from the same call, and the take's
-// score sheets. Which judge, which model, whether it read the transcript or
-// watched the video: all inside the providers (services/analysis/providers).
+// The judged layer of a take: Tono AI's judgement, through the
+// AnalysisService. The step only gathers the take and stores what comes
+// back: the judgement (the `judged_review` artifact, in the taxonomy's
+// terms), its copy for the Scores tab, the clean transcript, token usage, the
+// coach card from the same call, and the take's score sheets. Which model,
+// whether it read the transcript or watched the video: all inside the
+// provider (services/analysis/providers/tonoAi.ts).
 export async function cloudReviewStep(sessionId: string): Promise<void> {
   const session = await getSessionById(sessionId);
   if (!session) throw new StepError("Session not found.");
@@ -55,35 +53,31 @@ export async function cloudReviewStep(sessionId: string): Promise<void> {
   );
   if (result.status !== "done") {
     if (result.status === "unavailable") {
-      const message =
-        result.message ??
-        (result.reason === "no_input"
-          ? "There's no transcript and no video to review."
-          : await whyNoDeepReview());
-      throw new StepError(message);
+      throw new StepError(result.message ?? whyNotJudged(result.reason));
     }
     throw new StepError("The review is still under way.");
   }
 
-  const { value: review, provenance } = result;
-  const { analysis } = review;
+  const { value: out, provenance } = result;
+  const { review } = out;
+  const transcript = review.transcriptVerbatim ?? session.transcriptVerbatim ?? "";
   // Before the scores land, so the usage is there when the screen updates.
   await recordCloudUsage(sessionId, {
-    provider: review.providerId,
+    provider: "tono",
     model: provenance.model ?? "unknown",
     input: provenance.input === "video" ? "video" : "measurements",
-    elapsedMs: review.elapsedMs,
-    videoBytes: review.videoBytes,
-    usage: review.usage,
+    elapsedMs: out.elapsedMs,
+    videoBytes: out.videoBytes,
+    usage: out.usage,
   });
-  await upsertScores(analysisToSessionScores(sessionId, analysis));
+  await putArtifact(sessionId, "judged_review", review);
+  await upsertScores(judgedReviewToScores(sessionId, review, { wpm: measuredVoice(session).wpmAvg }));
   await putArtifact(sessionId, "cloud_transcript", {
-    verbatim: analysis.transcript_verbatim,
-    clean: analysis.transcript_clean,
-    durationSeconds: analysis.duration_seconds,
-    provider: review.providerId,
+    verbatim: transcript,
+    clean: review.transcriptClean,
+    durationSeconds: session.durationSeconds,
     model: provenance.model,
-    heardAudio: review.heardAudio,
+    heardAudio: out.heardAudio,
   } satisfies CloudTranscriptArtifact);
   await refreshSessionScore(sessionId);
   // Tono AI wrote the coach card in the same call: no second request.
@@ -91,11 +85,11 @@ export async function cloudReviewStep(sessionId: string): Promise<void> {
 
   // No device transcript at all (on-device transcription failed): the
   // judge's transcript, heard from the audio, becomes the session's.
-  if (!session.transcriptVerbatim && review.heardAudio) {
+  if (!session.transcriptVerbatim && review.transcriptVerbatim) {
     await updateTranscriptFields(sessionId, {
-      verbatim: analysis.transcript_verbatim,
-      clean: analysis.transcript_clean,
-      durationSeconds: analysis.duration_seconds,
+      verbatim: review.transcriptVerbatim,
+      clean: review.transcriptClean,
+      durationSeconds: session.durationSeconds,
       source: "gemini",
       words: null,
     });

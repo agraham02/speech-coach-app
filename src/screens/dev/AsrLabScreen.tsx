@@ -86,9 +86,9 @@ export function AsrLabScreen({ navigation }: Props) {
       .catch(() => setDeepReview(null));
   }
 
-  // Only a review that transcribed the audio itself says anything about
-  // what the model heard; older Gemini ones copied the phone transcript.
-  const reviewHeardAudio = !!deepReview && (deepReview.heardAudio === true || (deepReview.provider !== undefined && deepReview.provider !== "gemini"));
+  // Only a judgement that transcribed the audio itself says anything about
+  // what the model heard; otherwise it's the phone's own transcript.
+  const reviewHeardAudio = !!deepReview && deepReview.heardAudio === true;
 
   function saveRecord(record: AsrRunRecord) {
     setHistory((h) => {
@@ -207,7 +207,7 @@ export function AsrLabScreen({ navigation }: Props) {
         device: runs[e.id].device,
       })),
       deepReview: deepReview
-        ? { provider: deepReview.provider ?? "gemini", model: deepReview.model ?? null, heardAudio: reviewHeardAudio, text: deepReview.verbatim }
+        ? { provider: "tono", model: deepReview.model ?? null, heardAudio: reviewHeardAudio, text: deepReview.verbatim }
         : null,
       history,
       models: WHISPER_MODELS.map((m) => ({ id: m.id, label: m.label, bytes: m.bytes, license: m.license, downloaded: isModelDownloaded(m.id) })),
@@ -377,7 +377,7 @@ export function AsrLabScreen({ navigation }: Props) {
         <Card style={styles.result} onPress={() => setExpanded(expanded === DEEP_REVIEW_ID ? null : DEEP_REVIEW_ID)} accessibilityLabel="Deep review transcript">
           <View style={styles.sectionHead}>
             <Txt variant="headline" style={styles.engineCol}>
-              {"Deep review (" + (deepReview.model ?? deepReview.provider ?? "AI") + ")"}
+              {"Tono AI (" + (deepReview.model ?? "AI") + ")"}
             </Txt>
             {typed && reviewHeardAudio ? (
               <IconButton icon="add" variant="plain" size={32} accessibilityLabel="Add the deep review to the comparison" onPress={addDeepReviewToComparison} />
