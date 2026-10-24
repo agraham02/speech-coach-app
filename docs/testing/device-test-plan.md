@@ -418,6 +418,9 @@ Word and Bridge Chain:
 - [ ] **Library and Trends.** Pass: judged takes in the Library say "Judged by Tono AI" on their row; a month's average says "· Tono AI" when it averages judged takes; Progress → Score trends draws the judged and measured lines separately, with a gap (not a zero) in the judged line for unjudged takes.
   Notes:
 - [ ] **Dark mode, large text, a small phone.** Open the Scores tab in dark mode, at the largest text size, on the smallest phone you have. Pass: chart labels are readable, nothing overlaps, the zoom buttons are easy to hit.
+  Notes:
+
+---
 
 ## J. Tiers, the trial, the optional account and the age question (session 08)
 
