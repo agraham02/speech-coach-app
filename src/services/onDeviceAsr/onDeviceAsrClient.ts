@@ -1,6 +1,7 @@
 import { logger } from "../../utils/logger";
 import { withTimeout } from "../../utils/withTimeout";
 import { DEFAULT_ASR_MODEL, isModelDownloaded } from "../asr/whisperModels";
+import { skipModelDownloadActive } from "../dev/skipModel";
 
 // The app's speech-to-text: Whisper large-v3-turbo through whisper.rn
 // (whisper.cpp), primed with a filler-heavy prompt. In the ASR Lab it kept
@@ -23,7 +24,13 @@ export interface OnDeviceTranscriptResult {
 // The transcription model has not been downloaded yet.
 export class TranscriptionModelMissingError extends Error {
   constructor() {
-    super("The transcription model isn't on this phone yet. Download it in Settings, Coaching & AI, then retry.");
+    // Dev builds with the model download skipped say so, instead of sending a
+    // tester to a download they chose to skip.
+    super(
+      skipModelDownloadActive()
+        ? "Dev: the transcription model download is skipped, so this take can't be turned into text. Turn it off in Dev, App tools, State presets, or download the model in Settings, Coaching & AI."
+        : "The transcription model isn't on this phone yet. Download it in Settings, Coaching & AI, then retry.",
+    );
     this.name = "TranscriptionModelMissingError";
   }
 }
