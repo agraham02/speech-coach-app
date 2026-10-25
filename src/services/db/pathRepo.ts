@@ -1,4 +1,4 @@
-import { getDatabase } from "./database";
+import { getDatabase, inTransaction } from "./database";
 import { generateId } from "../../utils/generateId";
 import type { PathChange, PathReason, PathStatus, PathUnit } from "../../domain/path";
 
@@ -49,7 +49,7 @@ export async function writePath(path: PathUnit[]): Promise<void> {
   const db = await getDatabase();
   const existing = new Map((await readPath()).map((p) => [p.unitId, p]));
   const now = new Date().toISOString();
-  await db.withTransactionAsync(async () => {
+  await inTransaction(db, async () => {
     await db.runAsync(`DELETE FROM path_units`);
     for (const [position, p] of path.entries()) {
       const prev = existing.get(p.unitId);

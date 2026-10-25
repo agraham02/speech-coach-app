@@ -180,6 +180,7 @@ export function LiveConversationScreen({ route, navigation }: Props) {
   if (!setup) {
     return (
       <ScreenContainer>
+        <Header onBack={() => navigation.goBack()} backIcon="close" />
         <SkeletonCard lines={4} />
       </ScreenContainer>
     );

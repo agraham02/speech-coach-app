@@ -1,4 +1,4 @@
-import { getDatabase } from "./database";
+import { getDatabase, inTransaction } from "./database";
 import { rowToSession, type SessionRow } from "./mappers";
 import type {
   DspStatus,
@@ -313,7 +313,7 @@ export const SESSION_CHILD_TABLES = ["scores", "session_steps", "session_artifac
 // here on can count the take.
 export async function eraseSessionRows(id: string): Promise<void> {
   const db = await getDatabase();
-  await db.withTransactionAsync(async () => {
+  await inTransaction(db, async () => {
     const row = await db.getFirstAsync<{ recorded_at: string; status: string }>(`SELECT recorded_at, status FROM sessions WHERE id = ?`, [id]);
     if (row?.status === "done") await markPracticeDay(isoDateFromDate(new Date(row.recorded_at)));
     for (const table of SESSION_CHILD_TABLES) await db.runAsync(`DELETE FROM ${table} WHERE session_id = ?`, [id]);
@@ -329,7 +329,7 @@ export async function eraseSessionRows(id: string): Promise<void> {
 export async function sweepOrphanedSessionRows(): Promise<number> {
   const db = await getDatabase();
   let removed = 0;
-  await db.withTransactionAsync(async () => {
+  await inTransaction(db, async () => {
     for (const table of SESSION_CHILD_TABLES) {
       removed += (await db.runAsync(`DELETE FROM ${table} WHERE session_id IS NOT NULL AND session_id NOT IN (SELECT id FROM sessions)`)).changes;
     }

@@ -10,7 +10,10 @@ const mockRemoteDeletes: string[] = [];
 let mockDb: ReturnType<typeof createTestDatabase>;
 
 jest.mock("../../../utils/logger", () => ({ logger: { info: () => undefined, warn: () => undefined, error: () => undefined, debug: () => undefined } }));
-jest.mock("../database", () => ({ getDatabase: async () => mockDb }));
+jest.mock("../database", () => ({
+  getDatabase: async () => mockDb,
+  inTransaction: (db: { withTransactionAsync: (task: () => Promise<void>) => Promise<void> }, task: () => Promise<void>) => db.withTransactionAsync(task),
+}));
 jest.mock("../../prefs/prefsStore", () => ({
   getNextEvent: () => null,
   getReminderSettings: () => ({ practiceDays: [] }),

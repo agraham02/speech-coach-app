@@ -1,5 +1,5 @@
 import { AppState } from "react-native";
-import { getDatabase } from "../db/database";
+import { getDatabase, inTransaction } from "../db/database";
 import { VACUUM_FREE_BYTES } from "../../domain/storage";
 import { finishPendingDeletes } from "./takeDeletion";
 import { logger } from "../../utils/logger";
@@ -19,7 +19,7 @@ export async function purgeDeletedData(options: { vacuum?: boolean } = {}): Prom
 
   const db = await getDatabase();
   let removed = 0;
-  await db.withTransactionAsync(async () => {
+  await inTransaction(db, async () => {
     for (const table of OTHER_DELETABLE_TABLES) {
       removed += (await db.runAsync(`DELETE FROM ${table} WHERE deleted_at IS NOT NULL`)).changes;
     }

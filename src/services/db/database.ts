@@ -22,6 +22,22 @@ export function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   return dbPromise;
 }
 
+// One transaction at a time. expo-sqlite's withTransactionAsync is not
+// exclusive: two callers at once (the launch reconcile and the path sync, say)
+// each send BEGIN on the one connection, and the second fails with "cannot
+// start a transaction within a transaction", whose own ROLLBACK then fails
+// with "no transaction is active". Every transaction outside the migrations
+// goes through here, so they queue instead. Do not call it from inside a
+// transaction's own callback (it would wait for itself).
+let transactions: Promise<unknown> = Promise.resolve();
+
+export function inTransaction(db: Pick<SQLite.SQLiteDatabase, "withTransactionAsync">, task: () => Promise<void>): Promise<void> {
+  const run = transactions.then(() => db.withTransactionAsync(task));
+  // A failed transaction must not block the ones queued behind it.
+  transactions = run.catch(() => undefined);
+  return run;
+}
+
 // Empties the database back to a fresh install (Reset app): every table is
 // dropped, the schema version goes back to 0, and the migrations run again
 // (they also seed the built-in prompts and starting ratings). Done in place
@@ -34,7 +50,7 @@ export async function wipeDatabase(): Promise<void> {
   // foreign keys are enforced; it can't change inside a transaction.
   const fk = await db.getFirstAsync<{ foreign_keys: number }>("PRAGMA foreign_keys");
   await db.execAsync("PRAGMA foreign_keys = OFF;");
-  await db.withTransactionAsync(async () => {
+  await inTransaction(db, async () => {
     for (const { name } of tables) await db.execAsync(`DROP TABLE IF EXISTS "${name}";`);
     await db.execAsync("PRAGMA user_version = 0;");
   });

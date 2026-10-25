@@ -1,4 +1,4 @@
-import { getDatabase } from "./database";
+import { getDatabase, inTransaction } from "./database";
 import { generateId } from "../../utils/generateId";
 import type { PredictionPair } from "../../domain/conversation/realWorld";
 
@@ -133,7 +133,7 @@ export async function saveDebrief(input: {
   const db = await getDatabase();
   const now = new Date().toISOString();
   let id = input.eventId ?? null;
-  await db.withTransactionAsync(async () => {
+  await inTransaction(db, async () => {
     if (id) {
       await db.runAsync(`UPDATE social_events SET debrief_json = ?, actual_awkward = ?, happened_at = COALESCE(happened_at, ?), completed_at = ? WHERE id = ?`, [
         JSON.stringify(input.debrief),
@@ -178,7 +178,7 @@ export async function getEventBlankMoments(eventId: string): Promise<BlankMoment
 export async function deleteEvent(id: string): Promise<void> {
   const db = await getDatabase();
   const now = new Date().toISOString();
-  await db.withTransactionAsync(async () => {
+  await inTransaction(db, async () => {
     await db.runAsync(`UPDATE social_events SET deleted_at = ? WHERE id = ?`, [now, id]);
     await db.runAsync(`UPDATE blank_moments SET deleted_at = ? WHERE event_id = ? AND deleted_at IS NULL`, [now, id]);
   });

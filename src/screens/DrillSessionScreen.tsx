@@ -121,6 +121,9 @@ export function DrillSessionScreen({ route, navigation }: Props) {
   if (!twisterId || level == null) {
     return (
       <ScreenContainer style={styles.container}>
+        <Pressable onPress={() => navigation.goBack()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
+          <Ionicons name="close" size={24} color={colors.textPrimary} />
+        </Pressable>
         <Text style={styles.missingText}>Loading…</Text>
       </ScreenContainer>
     );
