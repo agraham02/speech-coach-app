@@ -56,8 +56,7 @@ describe("daily plan", () => {
     const plan = buildDailyPlan(input({ skills }));
     expect(plan.focusSkill).toBe("cadence");
     const kinds = plan.steps.map((s) => s.kind);
-    // It opens with a warm-up or the line of the day, whichever fits the 8 minutes.
-    expect(["warmup", "line"]).toContain(kinds[0]);
+    expect(kinds[0]).toBe("warmup");
     expect(kinds).toContain("rep");
     expect(kinds[kinds.length - 1]).toBe("review");
   });
@@ -179,42 +178,12 @@ describe("curriculum content", () => {
         const plan = buildDailyPlan(input({ minutes, date: `2026-10-${String(day).padStart(2, "0")}` }));
         const kinds = plan.steps.map((s) => s.kind);
         if (minutes === 5) expect(kinds.filter((k) => k === "warmup" || k === "line").length).toBeLessThanOrEqual(1);
-        // A lesson that opens with its own warm-up can fill the minutes without it.
-        else if (kinds[0] !== "warmup") expect(kinds).toContain("line");
+        else expect(kinds).toContain("line");
       }
     }
-    const plan = buildDailyPlan(input({ minutes: 12 }));
+    const plan = buildDailyPlan(input({ minutes: 8 }));
     const line = plan.steps.find((s) => s.kind === "line")!;
     expect(line.lessonStep).toMatchObject({ kind: "drill", drill: "marked_reading" });
-  });
-});
-
-describe("the minutes picked add up", () => {
-  const skills = ["articulation", "cadence", "impromptu", "confidence", "conversation"] as const;
-
-  it("adds up to exactly 5, 8 or 12 minutes for every lesson of every skill", () => {
-    let checked = 0;
-    for (const minutes of [5, 8, 12] as const) {
-      for (const skill of skills) {
-        const track = LESSONS.filter((l) => l.skill === skill);
-        for (let k = 0; k < track.length; k++) {
-          const lessons: PlanInput["lessons"] = {};
-          track.slice(0, k).forEach((l) => (lessons[l.id] = { done: true, nextReviewAt: "2027-01-01" }));
-          const rated = Object.fromEntries(skills.map((s) => [s, { rating: s === skill ? 1 : 90, lastPracticedAt: "2026-10-01T00:00:00Z" }])) as PlanInput["skills"];
-          const plan = buildDailyPlan(input({ minutes, skills: rated, lessons }));
-          if (plan.focusSkill !== skill) continue;
-          expect(plan.steps.reduce((sum, s) => sum + s.minutes, 0)).toBe(minutes);
-          checked++;
-        }
-      }
-    }
-    expect(checked).toBeGreaterThan(150);
-  });
-
-  it("gives the 12-minute plan more to do than the 8-minute one", () => {
-    const eight = buildDailyPlan(input({ minutes: 8 }));
-    const twelve = buildDailyPlan(input({ minutes: 12 }));
-    expect(twelve.steps.length).toBeGreaterThan(eight.steps.length);
   });
 });
 

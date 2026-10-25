@@ -48,9 +48,8 @@ export interface PlanStep {
 
 // Bumped when the plan's shape changes, so a stored plan nobody has started
 // yet is rebuilt (v2: line of the day; v3: a lesson's own warm-up no longer
-// takes one of its practice slots; v4: lessons come from your path; v5: the
-// steps add up to the 5, 8 or 12 minutes picked).
-export const PLAN_VERSION = 5;
+// takes one of its practice slots; v4: lessons come from your path).
+export const PLAN_VERSION = 4;
 
 // This many lessons due for review make the day a review day.
 export const REVIEW_DAY_DUE = 3;
@@ -172,111 +171,61 @@ export function buildDailyPlan(input: PlanInput): DailyPlan {
   const focusSkill = fromPath?.lesson.skill ?? chooseFocusSkill(input);
   const { lesson, isReview } = fromPath ? { lesson: fromPath.lesson, isReview: false } : chooseLesson(focusSkill, input);
   const unitId = fromPath?.unitId;
-  const make = (step: LessonStep): PlanStep => ({ id: "", ...describeStep(step), lessonStep: step });
-  const target = input.minutes;
-  const isConversation = focusSkill === "conversation";
-
-  // What the session is made of. Some parts are always there; the rest are
-  // chosen below so the minutes add up to the tab you picked (5, 8 or 12).
-  //   always: the lesson's own warm-up when it opens with one, the apply step
-  //   (an impromptu rep, or on a conversation day a partner drill), and the
-  //   quick review of the rep from 8 minutes up.
-  //   chosen: the generic warm-up, the line of the day, the lesson's practice
-  //   steps (at least one), and from 12 minutes a second apply step.
-  const lessonHasWarmup = lesson.steps[0]?.kind === "warmup";
-  const practice = lesson.steps.filter((s) => s.kind !== "rep" && s.kind !== "warmup");
-  const lessonRep = lesson.steps.find((s): s is Extract<LessonStep, { kind: "rep" }> => s.kind === "rep");
-  const framework = DEFAULT_FRAMEWORKS[hashString(input.date) % DEFAULT_FRAMEWORKS.length];
-  const frameworkRep = (f: FrameworkId): LessonStep => ({ kind: "rep", framework: f, focus: `Use ${FRAMEWORK_LABELS[f]}.` });
-
-  const line = lineOfTheDay(getLines(), input.date, hashString);
-  const lineStep: PlanStep = {
-    id: "",
-    kind: "line",
-    title: "Line of the day",
-    detail: line.text,
-    minutes: 1,
-    lessonStep: { kind: "drill", drill: "marked_reading", contentId: line.id },
+  const steps: PlanStep[] = [];
+  const push = (step: LessonStep) => {
+    const d = describeStep(step);
+    steps.push({ id: `${steps.length}`, ...d, lessonStep: step });
   };
 
-  // The apply step(s).
-  const applySteps: PlanStep[] = [];
-  let practiceOptions = practice;
-  if (isConversation) {
-    // The lesson's own drill is the apply step (a short plan may keep only its
-    // guided step as practice, and finishing the plan marks the lesson done);
-    // a second partner drill is there for the longest session.
-    const lessonDrill = practice.find((s): s is Extract<LessonStep, { kind: "drill" }> => s.kind === "drill");
-    const first = lessonDrill?.drill ?? CONVERSATION_APPLY[0];
-    const inLesson = new Set(practice.map((s) => (s.kind === "drill" ? s.drill : null)));
-    const second = CONVERSATION_APPLY.find((d) => d !== first && !inLesson.has(d)) ?? CONVERSATION_APPLY[1];
-    applySteps.push(make({ kind: "drill", drill: first }), make({ kind: "drill", drill: second }));
-    practiceOptions = practice.filter((s) => !(s.kind === "drill" && s.drill === first));
-    if (!practiceOptions.length) practiceOptions = [{ kind: "drill", drill: CONVERSATION_APPLY.find((d) => d !== first && d !== second) ?? second }];
+  // 1. Warm-up — the lesson's own if it opens with one — then the line of
+  // the day. A 5-minute plan swaps the generic warm-up for the line, so it
+  // stays at 5 minutes; if the lesson brings its own warm-up, a 5-minute
+  // plan skips the line. Either way the warm-up never takes a practice slot
+  // below — otherwise a short plan would mark "Breathe low" done without
+  // ever reaching its drill.
+  const lessonHasWarmup = lesson.steps[0]?.kind === "warmup";
+  if (lessonHasWarmup) push(lesson.steps[0]);
+  else if (input.minutes !== 5) push({ kind: "warmup", warmupId: WARMUP_FOR[focusSkill] });
+  if (!lessonHasWarmup || input.minutes !== 5) {
+    const line = lineOfTheDay(getLines(), input.date, hashString);
+    steps.push({
+      id: `${steps.length}`,
+      kind: "line",
+      title: "Line of the day",
+      detail: line.text,
+      minutes: 1,
+      lessonStep: { kind: "drill", drill: "marked_reading", contentId: line.id },
+    });
+  }
+
+  // 2. Lesson practice (drills / guided), more of it in longer sessions.
+  const practice = lesson.steps.filter((s) => s.kind !== "rep" && s.kind !== "warmup");
+  const practiceCount = input.minutes === 5 ? 1 : input.minutes === 8 ? 2 : practice.length;
+  practice.slice(0, Math.max(1, practiceCount)).forEach(push);
+
+  // 3. One apply step. Conversation: a partner drill. Otherwise one
+  // impromptu rep: the lesson's own, or a framework rep.
+  const lessonRep = lesson.steps.find((s): s is Extract<LessonStep, { kind: "rep" }> => s.kind === "rep");
+  if (focusSkill === "conversation") {
+    // The lesson's own drill comes first — a short plan may have kept only
+    // its guided step, and finishing the plan marks the lesson done.
+    const used = new Set(steps.map((s) => (s.lessonStep?.kind === "drill" ? s.lessonStep.drill : null)));
+    const lessonDrill = practice.find((s): s is Extract<LessonStep, { kind: "drill" }> => s.kind === "drill" && !used.has(s.drill));
+    push(lessonDrill ?? { kind: "drill", drill: CONVERSATION_APPLY.find((d) => !used.has(d)) ?? "conv_reply" });
+    // No video rep to review on a conversation day.
+    return { version: PLAN_VERSION, date: input.date, minutes: input.minutes, focusSkill, lessonId: lesson.id, isReview, steps, unitId, followsPath: !!input.path?.length };
+  }
+  if (lessonRep) {
+    push(lessonRep);
   } else {
-    applySteps.push(make(lessonRep ?? frameworkRep(framework)));
-    const second = DEFAULT_FRAMEWORKS[(hashString(input.date) + 1) % DEFAULT_FRAMEWORKS.length];
-    applySteps.push(make(frameworkRep(second)));
+    const framework = DEFAULT_FRAMEWORKS[hashString(input.date) % DEFAULT_FRAMEWORKS.length];
+    push({ kind: "rep", framework, focus: `Use ${FRAMEWORK_LABELS[framework]}.` });
   }
-  // A conversation day has no video rep, so nothing to review.
-  const hasReview = target >= 8 && !isConversation;
 
-  interface Option {
-    step: PlanStep;
-    order: number;
-    // Higher is kept first when two choices fit the minutes equally well.
-    weight: number;
-    kind: "warmup" | "line" | "practice" | "spare" | "second";
+  // 4. Quick review of today's rep (the three-pass method).
+  if (input.minutes >= 8) {
+    steps.push({ id: `${steps.length}`, kind: "review", title: "Quick review", detail: "Watch, listen, then both — at 1.5×.", minutes: 1 });
   }
-  const options: Option[] = [];
-  if (!lessonHasWarmup) options.push({ step: make({ kind: "warmup", warmupId: WARMUP_FOR[focusSkill] }), order: 1, weight: 1, kind: "warmup" });
-  options.push({ step: lineStep, order: 2, weight: 4, kind: "line" });
-  practiceOptions.forEach((s, i) => options.push({ step: make(s), order: 10 + i, weight: 8 - i, kind: "practice" }));
-  // Some lessons are short. Rather than a session that falls under the minutes
-  // asked for, up to two drills of the same skill from other lessons fill the
-  // gap ("more of the same"). They are the last thing chosen.
-  const owned = new Set<string>(practice.map((s) => (s.kind === "drill" ? s.drill : "")));
-  if (isConversation) applySteps.forEach((a) => a.lessonStep?.kind === "drill" && owned.add(a.lessonStep.drill));
-  const spares: Extract<LessonStep, { kind: "drill" }>[] = [];
-  for (const other of LESSONS) {
-    if (other.skill !== focusSkill || other.id === lesson.id) continue;
-    for (const st of other.steps) {
-      if (st.kind === "drill" && !owned.has(st.drill) && !spares.some((x) => x.drill === st.drill)) spares.push(st);
-    }
-  }
-  const offset = spares.length ? hashString(input.date) % spares.length : 0;
-  for (let i = 0; i < Math.min(2, spares.length); i++) {
-    const st = spares[(offset + i) % spares.length];
-    const step = make(st);
-    step.detail = "More of the same skill";
-    options.push({ step, order: 20 + i, weight: 0.3, kind: "spare" });
-  }
-  if (target >= 12) options.push({ step: applySteps[1], order: 40, weight: 2, kind: "second" });
-
-  const fixed: { step: PlanStep; order: number }[] = [];
-  if (lessonHasWarmup) fixed.push({ step: make(lesson.steps[0]), order: 0 });
-  fixed.push({ step: applySteps[0], order: 50 });
-  const reviewStep: PlanStep = { id: "", kind: "review", title: "Quick review", detail: "Watch, listen, then both — at 1.5×.", minutes: 1 };
-  const fixedMinutes = fixed.reduce((sum, f) => sum + f.step.minutes, 0) + (hasReview ? reviewStep.minutes : 0);
-
-  // The review also covers a second rep, which costs a minute more.
-  const secondReviewMinutes = hasReview ? 1 : 0;
-  let best: { picked: Option[]; cost: number } | null = null;
-  for (let mask = 0; mask < 1 << options.length; mask++) {
-    const picked = options.filter((_, i) => mask & (1 << i));
-    if (!picked.some((o) => o.kind === "practice" || o.kind === "spare")) continue;
-    const minutes = fixedMinutes + picked.reduce((sum, o) => sum + o.step.minutes + (o.kind === "second" ? secondReviewMinutes : 0), 0);
-    // Close to the minutes asked for matters most, then not over, then the
-    // parts that matter most (practice, then the line, then the warm-up).
-    const cost = Math.abs(minutes - target) * 100 + (minutes > target ? 50 : 0) - picked.reduce((sum, o) => sum + o.weight, 0);
-    if (!best || cost < best.cost) best = { picked, cost };
-  }
-  const chosen = best!.picked;
-
-  const ordered = [...fixed, ...chosen.map((o) => ({ step: o.step, order: o.order }))].sort((a, b) => a.order - b.order);
-  const steps: PlanStep[] = ordered.map((o) => o.step);
-  if (hasReview) steps.push({ ...reviewStep, minutes: reviewStep.minutes + (chosen.some((o) => o.kind === "second") ? secondReviewMinutes : 0) });
-  steps.forEach((s, i) => (s.id = `${i}`));
 
   return { version: PLAN_VERSION, date: input.date, minutes: input.minutes, focusSkill, lessonId: lesson.id, isReview, steps, unitId, followsPath: !!input.path?.length };
 }
