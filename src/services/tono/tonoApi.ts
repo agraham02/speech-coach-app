@@ -3,6 +3,7 @@ import type { TonoAllowance } from "../../domain/aiAllowance";
 import { fetchWithTimeout, TimeoutError } from "../../utils/fetchWithTimeout";
 import { getSupabase } from "../account/supabaseClient";
 import { TonoApiError } from "./tonoError";
+import { refuseTonoCallWhenMocked } from "../dev/mockAccount";
 
 export { isDenyCode, TonoApiError } from "./tonoError";
 
@@ -29,6 +30,8 @@ interface ErrorBody {
 }
 
 async function call<T>(fn: string, body: unknown, timeoutMs: number): Promise<T> {
+  // Dev builds with a mock account: refused here, before any request is made.
+  refuseTonoCallWhenMocked(fn);
   // A 401 may only mean the token aged out between getSession and the server:
   // refresh once and try again.
   for (let attempt = 0; ; attempt++) {
@@ -77,6 +80,7 @@ async function call<T>(fn: string, body: unknown, timeoutMs: number): Promise<T>
 // when nothing has arrived for that long; `signal` cancels (the person ended
 // the conversation).
 export async function tonoStream(fn: string, body: unknown, onText: (text: string) => void, options: { idleMs: number; signal?: AbortSignal }): Promise<void> {
+  refuseTonoCallWhenMocked(fn);
   for (let attempt = 0; ; attempt++) {
     const token = await accessToken();
     const controller = new AbortController();
@@ -218,6 +222,7 @@ export interface AppConfigResponse {
 }
 
 export async function tonoAppConfig(): Promise<AppConfigResponse> {
+  refuseTonoCallWhenMocked("app-config");
   const response = await fetchWithTimeout(`${SUPABASE_URL}/functions/v1/app-config`, { method: "GET", headers: { apikey: SUPABASE_PUBLISHABLE_KEY } }, 15_000, "Tono");
   if (!response.ok) throw new TonoApiError(response.status, `http_${response.status}`);
   return (await response.json()) as AppConfigResponse;

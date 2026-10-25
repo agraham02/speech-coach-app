@@ -3,6 +3,7 @@ import * as Crypto from "expo-crypto";
 import * as WebBrowser from "expo-web-browser";
 import { logger } from "../../utils/logger";
 import { setTonoConsent } from "../prefs/prefsStore";
+import { refuseTonoCallWhenMocked } from "../dev/mockAccount";
 import { tonoAppleToken, tonoDeleteAccount } from "../tono/tonoApi";
 import { clearAccount, getAccount, refreshAccount } from "./accountStore";
 import { parseAuthCallback } from "./oauthCallback";
@@ -38,6 +39,7 @@ function randomNonce(): string {
 }
 
 export async function signInWithApple(): Promise<SignInResult> {
+  refuseTonoCallWhenMocked("the Apple sign-in");
   // Apple signs the hash into its token; Supabase checks the plain value
   // against it, so a stolen token cannot be replayed.
   const raw = randomNonce();
@@ -79,6 +81,8 @@ function isIdentityTaken(error: { code?: string; message?: string }): boolean {
 }
 
 export async function signInWithGoogle(): Promise<SignInResult> {
+  // Dev builds with a mock account: no browser, no request.
+  refuseTonoCallWhenMocked("the Google sign-in");
   const auth = getSupabase().auth;
   const options = { provider: "google" as const, options: { redirectTo: AUTH_REDIRECT, skipBrowserRedirect: true } };
   const link = getAccount().anonymous;

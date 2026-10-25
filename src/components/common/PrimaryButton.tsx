@@ -22,6 +22,8 @@ interface PrimaryButtonProps {
   // color/appearance rules.
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
+  // A stable handle for automated testing.
+  testID?: string;
 }
 
 const HEIGHT = { lg: 56, md: 46, sm: 36 } as const;
@@ -37,6 +39,7 @@ export function PrimaryButton({
   iconRight,
   style,
   accessibilityLabel,
+  testID,
 }: PrimaryButtonProps) {
   const isDisabled = disabled || loading;
   const pending = useRef(false);
@@ -68,6 +71,7 @@ export function PrimaryButton({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled: !!isDisabled, busy: !!loading }}
+      testID={testID}
       style={[
         styles.button,
         { minHeight: HEIGHT[size], paddingHorizontal: size === "sm" ? 14 : 22 },

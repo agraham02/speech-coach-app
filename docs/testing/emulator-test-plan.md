@@ -2,6 +2,8 @@
 
 A plan for an AI agent (with the `android-emulator` MCP tools) to run against Tono on the Pixel_10a emulator. It covers everything the emulator can check. What it cannot check is listed in section 9 and lives in `device-test-plan.md`, the human phone checklist.
 
+Updated 2026-10-24 on `feature/dev-test-helpers`: the dev-only test helpers P1, P2, P6 and P8 are built (section 5), so scored takes, account tiers and fast setup are testable on the emulator; sections 4, 5 and 7 were rewritten for them, with new groups DEMO, MOCK and PRESET (7.22 to 7.24). Anything marked (verify) was written from the code and not yet run on the emulator.
+
 Written 2026-10-24 against `staging` at version 1.6.0, after PRs #21 to #25 (sessions 07, 08, 09, 11, 12 and 13 merged). Session 12 (live conversation with a voice) is Plus-only, so on this emulator only its locked state, intro, offline and error states and the Dev partner voices lab screen can be checked: section 8.
 
 ## Contents
@@ -10,7 +12,7 @@ Written 2026-10-24 against `staging` at version 1.6.0, after PRs #21 to #25 (ses
 2. [Environment setup (Windows, exact commands)](#2-environment-setup-windows-exact-commands)
 3. [Tool habits and emulator gotchas](#3-tool-habits-and-emulator-gotchas)
 4. [What the emulator can and cannot test](#4-what-the-emulator-can-and-cannot-test)
-5. [Suggested prerequisites (not built)](#5-suggested-prerequisites-not-built)
+5. [Test helpers (built) and what is still missing](#5-test-helpers-built-and-what-is-still-missing)
 6. [Smoke test (10 minutes, run first)](#6-smoke-test-10-minutes-run-first)
 7. [Test cases by area](#7-test-cases-by-area)
 8. [Live conversation (session 12)](#8-live-conversation-session-12)
@@ -27,7 +29,7 @@ Written 2026-10-24 against `staging` at version 1.6.0, after PRs #21 to #25 (ses
 **How to use it.**
 
 1. Do section 2 (setup) once. Then run section 6 (smoke). If any smoke test fails, stop and report; do not run the rest on a broken build.
-2. Run the suites in section 7 in this order of value: ONB, FREE, NAV, SET, TODAY, REC, PRV, RES, LIB, DEL, STR, INPUT, PRAC, TRD, DEV, THEME, FONT, NET, LIFE, DSN, PAY. IDs are stable; run any one alone if its precondition state (below) is met.
+2. Run the suites in section 7 in this order of value: PRESET, DEMO, MOCK (they build the states the rest need), ONB, FREE, NAV, SET, TODAY, REC, PRV, RES, LIB, DEL, STR, INPUT, PRAC, TRD, DEV, THEME, FONT, NET, LIFE, DSN, PAY. IDs are stable; run any one alone if its precondition state (below) is met.
 3. Each test has a precondition state:
 
 | State | Meaning | How to get it |
@@ -35,9 +37,12 @@ Written 2026-10-24 against `staging` at version 1.6.0, after PRs #21 to #25 (ses
 | S0 | Fresh install, Welcome intro showing | `clear_app_data`, re-grant permissions, relaunch (2.7) |
 | S1 | Onboarded with the standard answers, tips off, on Today | ONB-1 (the recipe is in 11.1) |
 | S2 | S1 plus one recorded 10 s take saved (it will show Failed on this AVD; that is expected, see 4) | S1, then REC-4 and PRV-4 |
+| S1p | S1 in seconds (model step skipped) | the **Dev: skip onboarding** pill on S0, or PRESET-1 |
+| S3 | S1 plus the demo takes (13 scored takes, 2 Rewinds, a streak) | S1 or S1p, then DEMO-1 |
+| S4 | S3 with a mock account on | S3, then MOCK-1 and the tier a test names |
 
-4. Tests marked **[server-touching]** would send something to the real Tono backend or create an account. They are on the stop list in the rules. Do not run them unless the human who started you says so in writing.
-5. A test is **blocked** when its precondition cannot be reached on this emulator (for example a Result screen with scores). Mark it blocked, say why in one line, move on. Section 5 says what would unblock them.
+4. Tests marked **[server-touching]** would send something to the real Tono backend or create an account. They are on the stop list in the rules. Do not run them unless the human who started you says so in writing. **Exception:** while the mock account is on (MOCK-1, banner "Mock account · ..." visible) every call to Tono's server, and the Google and Apple sign-in, is refused on the phone before it is sent, so the tests marked (mock) in 7.23 are not server-touching. Check the banner first, and keep the log check in MOCK-2.
+5. A test is **blocked** when its precondition cannot be reached on this emulator (for example a Result screen with scores built from real speech, which needs the fake mic or an import, section 5). Mark it blocked, say why in one line, move on. Scored takes are no longer a reason: add the demo takes (DEMO-1).
 
 **What to report** (write it as your final message; no file needed unless asked).
 
@@ -158,6 +163,8 @@ Use the `clear_app_data` tool (or `adb shell pm clear com.ahmadgraham.tono`). It
 
 A cheaper reset that keeps permissions and the dev-client server: Settings -> Help & data -> **Reset app** (alert "Reset the app?" with Cancel, Export first, Reset). Per `resetApp.ts` it drops the database, deletes videos and Rewind audio and temp files, clears every preference (so tips and onboarding start over), the logs and the Dev tab's data, and cancels reminders; it keeps the Tono account and any downloaded models. It then lands on onboarding. Use `clear_app_data` when a test says S0 and a different reset when it says "Reset app".
 
+Fastest reset (built): Dev -> App tools -> State presets -> **Reset to fresh install**, then the **Dev: skip onboarding** pill that shows at the top of the onboarding screens (PRESET-1, PRESET-6). That gives S1p in a few seconds and keeps the permissions and the dev-client server. The permission grants are the phone's: run 2.6 if they are missing.
+
 Optional baseline snapshot (verify): after reaching S1 you can save the app's files so the next reset takes seconds instead of a 3-minute onboarding:
 
 ```bash
@@ -223,49 +230,56 @@ Reading text: `get_all_text` is the primary assertion tool (exact strings below 
 
 ## 4. What the emulator can and cannot test
 
-### 4.1 Why recording is limited here
+### 4.1 Why recording is limited here, and what the dev test helpers change
 
 - The AVD's mic path is silent, and `adb emu avd hostmicon` cannot route speech into it (the PC mic does not hear its own speakers). **Live speech recognition and real voice input cannot be tested.**
-- This AVD (Pixel_10a, API 37.1, `google_apis_playstore_ps16k`, x86_64) records video with **AMR-NB** audio. `react-native-audio-api`'s decoder has no AMR support, so `decodeAudioData` fails on every take. The take saves, but its Transcript step fails with "Couldn't read this recording's audio on the device. Retry, or have Tono AI judge it from the video." (or, if decode ever worked, "The transcription model isn't on this phone yet..."). The take's status becomes **Failed** in the Library. **That is expected on this AVD, not a bug.** Try a second AVD only if the human asks (a non-`ps16k` google_apis image may record AAC; unverified).
-- A Failed take has no score sheet, so the Result screen shows no Scores tab, no hero score and no charts. Everything that needs a scored take is **blocked** until a seeding prerequisite exists (section 5).
-- The app has **no seeding, import or injection path**: nothing in the Dev tab, the ASR Lab or App tools can create a take, import audio, inject a transcript or fake a signal. (The ASR Lab and Voice Lab only analyse takes that already exist. `insertSession` is called only by the recording pipeline.) Checked in the code for this plan.
-- The paid pieces are iPhone-only or server-only: `purchasesConfigurable()` is `Platform.OS === "ios"`, so on Android Tono Plus is never for sale. Tono AI needs the real Supabase backend, and merely asking for it (the switch, **Allow**) creates an anonymous account there.
+- This AVD (Pixel_10a, API 37.1, `google_apis_playstore_ps16k`, x86_64) records video with **AMR-NB** audio. `react-native-audio-api`'s decoder has no AMR support, so `decodeAudioData` fails on every take. The take saves, but its Transcript step fails with "Couldn't read this recording's audio on the device. Retry, or have Tono AI judge it from the video." (or, if decode ever worked, "The transcription model isn't on this phone yet..."). The take's status becomes **Failed** in the Library. **That is expected on this AVD, not a bug.** A take you record yourself is therefore only good for the failure and waiting states.
+- **Scored takes now come from the dev test helpers** (built 2026-10-24, section 5): Dev -> App tools -> **Add demo takes** writes 13 made-up takes, 2 Rewinds and 2 chain attempts through the app's own data path (same tables, same score code, same artifacts the pipeline writes). With them the Result tabs, Scores, charts, the layer switch, transcript marks, Library scores, month averages, Trends, the streak and the delete/undo flow can all be tested (sections 7.9, 7.11, 7.12, 7.14, 7.22). The data is synthetic: it proves the screens and the plumbing, not the accuracy of any measurement.
+- **Account and tier states now come from Dev -> App tools -> Mock account**: free, trial, Plus or beta, allowances, kill switch, minors, server unreachable, and Tono Plus shown as for sale on Android (paywall, **See Tono Plus** buttons). While a mock is on, the app asks Tono's server for nothing and refuses every call to it on the phone (section 7.23). It tests what the app *shows and gates*, not what the server decides.
+- **Fast setup comes from Dev -> App tools -> State presets**: "Onboarded, standard answers" (S1 in one tap, no 574 MB download), age answer, consent, tips, theme, reminders off, and **Reset to fresh install** (section 7.24).
+- **Still not possible:** real speech, real transcripts, real pitch/pace/face on an emulator, the paid server, iPhone purchases. The fake microphone (P4), importing a real clip (P5) and route links (P7) are not built (section 5).
+- The demo takes have **no video file** by default: Result shows "Video removed to save space" and nothing plays. The option **Placeholder video files** writes a 2 KB non-video file per take so file sizes and file removal can be checked; the player is expected to fail on it, not play (verify what it shows).
+- The paid pieces are iPhone-only or server-only: `purchasesConfigurable()` is `Platform.OS === "ios"`, so on Android Tono Plus is never for sale unless the dev mock says so. Tono AI needs the real Supabase backend, and merely asking for it (the switch, **Allow**) creates an anonymous account there, unless the mock account is on.
 
 ### 4.2 Decision table
 
-**Yes** = test fully. **Partly** = test what is listed, mark the rest blocked. **No** = do not test; see section 9.
+**Yes** = test fully. **Partly** = test what is listed, mark the rest blocked. **No** = do not test; see section 9. "Demo" means it needs the demo takes (DEMO-1); "mock" means the mock account (MOCK-1).
 
 | Area | Verdict | What you can check, and the workaround |
 |---|---|---|
 | Navigation, every tab and screen, empty states, labels, copy | Yes | Everything reachable by tapping. |
-| Onboarding, all 22 questions, the age question, the Tono AI step with **Not now**, setup check, skill-check "Tomorrow" | Yes | Mic step: the app reports it cannot hear; skip it. Face check: camera shows the emulator's virtual scene, no face; use **Skip for now**. |
+| Onboarding, all 22 questions, the age question, the Tono AI step with **Not now**, setup check, skill-check "Tomorrow" | Yes | Mic step: the app reports it cannot hear; skip it. Face check: camera shows the emulator's virtual scene, no face; use **Skip for now**. Skip the 574 MB step with State presets first (PRESET-5), or just Pause the download as the recipe does. |
 | Permissions (camera, mic, notifications) | Yes | `pm grant` / `pm revoke`, and the system dialogs. Settings -> Permissions rows. |
-| Settings: all seven sections, reminders picker, practice days, daily goal, tips, storage rows, reset | Yes | Apple sign-in does not exist on Android (only **Continue with Google**, which is on the stop list). |
+| Settings: all seven sections, reminders picker, practice days, daily goal, tips, storage rows, reset | Yes | Apple sign-in does not exist on Android (only **Continue with Google**). With the mock account on, Account & Plus and Tono AI show the mocked tier (7.23). |
 | Recording flow: camera preview, prep, warm-up, timer, stop, restart, discard, retake, save | Yes | Virtual camera. Audio and face detection are meaningless. Short-take behaviour is observed, not specified (REC-8). |
-| Preview/save screen wording, the per-take switch (off state), one-count wording | Yes | Switch **on** is airplane-only (AIOFF-1). |
-| The analysis pipeline running and failing gracefully | Yes | This is the main thing a recorded take gives you: failure messages, "Try again", Library "Failed", resume after kill. |
-| Result screen: failure/waiting states, tabs present (Overview, Transcript), header actions, delete from Result | Partly | No scores, so Scores tab, layer switch, charts, transcript marks, hero ring, coach card are **blocked**. |
-| Library: list, search, filters sheet, long-press delete, undo, free up space | Yes | With Failed takes. Score-dependent parts (score on row, "Judged by Tono AI", month averages) blocked. |
-| Delete flow, 8-second undo, files really removed | Yes | `run-as ls files/sessions` and Settings -> Help & data -> Storage show the Videos size drop. |
-| Streak and daily goal | Partly | Drills and Guided exercises count (any drill attempt counts as practice). A Failed take does not count, so "streak keeps the day after deleting a done take" is blocked. |
-| Trends, Progress charts, Skill detail "Recent changes" | Partly | Empty states and layout yes; real lines/charts blocked. |
-| Typed-input features: Mark it up (own text), Phrasebook, Three things, Talk back, Prompts, Plan your point, Events, Prime, Debrief | Yes | Fully testable with `set_text`. These are the best mic-free coverage. |
+| Preview/save screen wording, the per-take switch (off state), one-count wording | Yes | Switch **on**: airplane (AIOFF-1) or with the mock account on. Its wording for used-up and trial states: MOCK-3. |
+| The analysis pipeline running and failing gracefully | Yes | A recorded take gives failure messages, "Try again", Library "Failed", resume after kill. A successful pipeline run is Demo only (the data is written, not run). |
+| Result screen: failure/waiting states | Yes | Recorded take (RES-1 to RES-8). |
+| Result screen: Overview, Scores, Transcript with marks, charts, layer switch, coach card, locked footnote | Yes (demo) | RES-B1 to RES-B6 on the demo takes. Accuracy of the numbers: No. |
+| Library: list, search, filters sheet, long-press delete, undo, free up space | Yes | Failed takes (recorded) and demo takes. |
+| Library: scores on rows, "Judged by Tono AI", month groups and averages | Yes (demo) | LIB-8. |
+| Delete flow, 8-second undo, files really removed | Yes | `run-as ls files/sessions` and Settings -> Help & data -> Storage. File removal needs real recordings or **Placeholder video files**. |
+| Streak and daily goal | Yes (demo) | Demo takes give a 6-day streak ending today; DEL-B checks the day is kept after delete. |
+| Trends, Progress charts, Skill detail "Recent changes" | Yes (demo) | TRD-B. "Recent changes" needs the demo option **Also move skill ratings** (verify). |
+| Typed-input features: Mark it up (own text), Phrasebook, Three things, Talk back, Prompts, Plan your point, Events, Prime, Debrief | Yes | Fully testable with `set_text`. |
 | Guided exercises, warm-ups, daily plan steps that need no speech | Yes | Warm-up and Guided exercise complete and record a drill attempt. |
-| Speech-driven drills (Word Chain, Bridge Chain, Category sprint, Twisters, Move It, Mark it up reads, Shadowing, conversation drills, Rewind) | Partly | Intro, Start, timer, Finish, the "Didn't catch anything." state, Try again, Done. Scoring and "Link by link" lists are blocked. |
-| Rewind | Partly | Intro, 3-2-1, waveform screen, **Keep going** countdown to 1:00, then End; result shows "No words came through" or a failed state. A full Rewind with words is blocked. |
-| Transcription model download (574 MB) | Partly | Start, Pause, Resume, failure when offline. A full download is optional and slow; the model has never been run on this AVD (verify). |
-| Dev tab: hub, Logs, Pipeline, App tools (tours, previews, scheduled list, storage), Metrics, Face Lab, ASR Lab, Voice Lab | Yes / Partly | Screens load and navigate. Metrics values and Face Lab readings are meaningless on an emulator. Dev tab hidden-in-production rule: DEV-9 (verify). |
+| Speech-driven drills (Word Chain, Bridge Chain, Category sprint, Twisters, Move It, Mark it up reads, Shadowing, conversation drills, Rewind) | Partly | Intro, Start, timer, Finish, the "Didn't catch anything." state, Try again, Done. Scoring and "Link by link" lists need the fake mic (P4, not built). The demo Word Chain and Bridge Chain attempts only feed the streak and progress counts. |
+| Rewind | Partly | Recording: intro, 3-2-1, waveform screen, **Keep going** countdown to 1:00, then End; result shows "No words came through" or a failed state. The demo Rewinds give the result screen, the Your days list and Delete or free up space; one has Tono AI notes (DEMO-6). |
+| Transcription model download (574 MB) | Partly | Start, Pause, Resume, failure when offline. A full download is optional and slow; the model has never been run on this AVD (verify). The skip switch (PRESET-5) satisfies onboarding and hides the banners without a download. |
+| Dev tab: hub, Logs, Pipeline, App tools (tours, previews, scheduled list, storage, test helpers), Metrics, Face Lab, ASR Lab, Voice Lab | Yes / Partly | Screens load and navigate. Metrics values and Face Lab readings are meaningless on an emulator. Dev Pipeline lists demo takes with all steps done (verify). Dev tab hidden-in-production rule: DEV-9 (verify). |
 | Notifications | Partly | Scheduling visible in Dev -> App tools "scheduled" list; "Send a test in 5 seconds" posts a real notification you can read in the shade. Timing/behaviour of reminders: No. |
-| Dark and light mode, font scale, small screen, rotation, display cutouts | Yes | System switches in 2.8. |
+| Dark and light mode, font scale, small screen, rotation, display cutouts | Yes | System switches in 2.8, or State presets -> Theme (verify it follows on Android). |
 | Offline / airplane behaviour | Yes | Includes the safe way to exercise the Tono AI switch and consent alert. |
 | Kill and relaunch, background and return, resume of analysis | Yes | `force_stop`, HOME. |
 | Share sheets (export, diagnostics, logs) | Partly | The Android share sheet opens; press BACK. Content of the file: not checked. |
+| Free, trial, Plus, beta, used-up, kill switch, under-18 and offline gating as the UI shows it | Yes (mock) | MOCK-1 to MOCK-9. The server's real decisions: No. |
+| Paywall display states | Partly (mock) | Made-up prices through the real plan builder: with and without a trial, prices failing to load, paying and minor states (MOCK-7). Real prices, the purchase, Restore: No. |
 | Speech recognition accuracy, fillers, pitch, pauses on real speech | No | Section 9 (device plan sections D, F, G). |
 | Real transcription (Whisper) | No | AMR plus model. Optional model download only. |
 | Face tracking quality, gaze, expression | No | Device plan sections D and F. |
-| Sign in with Apple, purchases, trial, Restore, paywall with real prices | No | iOS only. The Paywall route is unreachable on Android (PAY-1 checks that). Device plan section J. |
-| Google sign-in | No | Opens a browser to the real backend. Stop list. |
-| Tono AI judging, exercise notes, allowances, quotas, consent after account | No | Needs the paid server. Device plan sections E, G, I, J. |
+| Sign in with Apple, purchases, trial start/renew, Restore, paywall with real prices | No | iOS only. Device plan section J. |
+| Google sign-in | No | Opens a browser to the real backend. Refused on the phone while the mock account is on; otherwise on the stop list. |
+| Tono AI judging, exercise notes, allowances, quotas, consent after account | No | Needs the paid server (the mock shows the UI for these states only). Device plan sections E, G, I, J. |
 | Dynamic Island, Live Activity, Lock Screen timer | No | iOS. Device plan A. |
 | Speaker routing, earpiece, AirPods, volume drills | No | Device plan A. |
 | Haptics, VoiceOver | No | |
@@ -273,25 +287,32 @@ Reading text: `get_all_text` is the primary assertion tool (exact strings below 
 
 ### 4.3 Things that look broken on Android but are expected
 
-Do not file these: Tono Plus rows absent in Settings and a Paywall that says "Tono Plus isn't available yet."; no Apple button; face check finding no face; Metrics showing zeros or odd numbers; the transcript step failing on every take; "Live speech recognition isn't available here" in the setup check; no Dynamic Island. If they are *wrong in some other way* (crash, overlap, wrong words), file those.
+Do not file these: Tono Plus rows absent in Settings and a Paywall that says "Tono Plus isn't available yet." (when the mock does not show Plus); no Apple button; face check finding no face; Metrics showing zeros or odd numbers; the transcript step failing on every take you record; "Live speech recognition isn't available here" in the setup check; no Dynamic Island. With demo takes: "Video removed to save space" on their Result (no file), the model name "demo-synthetic" in the "Judged by Tono AI (...)" label, a Result with no progress moment, and numbers that look too tidy (they are synthetic). If they are *wrong in some other way* (crash, overlap, wrong words), file those.
 
 ---
 
-## 5. Suggested prerequisites (not built)
+## 5. Test helpers (built) and what is still missing
 
-None of these exist. If they did, most of the blocked tests would run. Listed by value. Do not build them as part of a test run; hand the list to the human.
+Built on `feature/dev-test-helpers` (2026-10-24). All of them live under Dev -> **App tools** -> group "Test helpers (development and preview builds only)", behind the same flag as the Dev tab (`SHOW_DEV_TOOLS`: `__DEV__` or `EXPO_PUBLIC_DEV_TOOLS=1`). In a production build the screens are not registered, the banner is not rendered and the services refuse (unit-tested; DEV-9 checks the Dev tab is gone). They change app state only; no source edit is needed to use them, so they do not trigger hot reloads.
+
+| # | Helper | Where | What it unlocks |
+|---|---|---|---|
+| P1 | **Add demo takes** / **Remove demo takes** (`DEMO-*`, 7.22) | `src/services/dev/seedDemo.ts`, `src/domain/dev/demoTakes.ts`, `src/screens/dev/DemoTakesScreen.tsx` | The whole Result screen for scored takes, Library scores and months, Trends, Progress charts, the streak, delete and undo with scored takes, Dev Pipeline details. |
+| P2 | **Mock account state** (`MOCK-*`, 7.23) | `src/services/dev/mockAccount.ts`, `src/domain/dev/mockAccount.ts`, `src/screens/dev/MockAccountScreen.tsx`; hooks in `accountStore.ts`, `tonoApi.ts`, `purchases.ts`, `signIn.ts` | Free, beta, trial and Plus rows and wording, allowance lines, the save-screen switch wording, the Result locked footnote, under-18 gating, every denial message, kill switch, offline, the paywall states (the old P3 for Android). |
+| P6 | **State presets** (`PRESET-*`, 7.24), plus a pill **Dev: skip onboarding** on the onboarding screens (`src/components/dev/OnboardingShortcut.tsx`) | `src/services/dev/statePresets.ts`, `src/domain/dev/statePresets.ts`, `src/screens/dev/StatePresetsScreen.tsx` | S1 in seconds, age answer, consent, tips, reminders off, theme, Reset to fresh install. |
+| P8 | **Skip the model download** (`PRESET-5`) | `src/services/dev/skipModel.ts`, hook in `useTranscriptionModel.ts` | Onboarding's transcription step and the banners no longer wait for 574 MB. whisper.rn setup supports one model only (`whisperModels.ts` lists just `turbo-q5`), so there is no tiny model to switch to; instead the skip makes the step and banners count as satisfied, and where audio decodes a take then fails with a clear "Dev: ... skipped" message (on this AVD decode fails first, so you will not see it). |
+| P9 (part) | Stable `testID`s on the new screens' controls (`dev-demo-*`, `dev-mock-*`, `dev-preset-*`, `dev-tools-*`) | `Chip`, `PrimaryButton`, `ListRow`, `SwitchRow` accept an optional `testID` | `get_clickable_elements` / `tap_element` by id on those screens. The rest of the app (`SegmentedControl`, settings switches) is not done. |
+
+How the helpers are stored: demo rows are tagged by an id that starts with `demo-` (no schema change; database stays at v35). The mock account choice and the skip switch are kept in their own on-device store, which **Reset app does not clear** (so a reset to onboarding still has the model step skipped, and the mock stays on). Clear them in their own screens.
+
+Not built (unchanged from the earlier list; do not build them as part of a test run):
 
 | # | Small dev-only addition | Where it would go | What it unlocks |
 |---|---|---|---|
-| P1 | **Seed demo data**: a row in Dev -> App tools ("Add demo takes" and "Clear demo takes") that writes through the real repos: a measured take, a judged take, a take with ums and a "like", a short take, a Rewind with words, a streak of several days (`practice_days`), drill attempts and `skill_events`. Use the helpers and fixtures the existing real-SQLite tests already build (`src/services/db/__tests__/sqliteTestDb.ts`, `deleteTake.test.ts`, `waitingOnAnalysis.test.ts`, and the score-sheet fixtures under `src/domain/__tests__`), writing `sessions`, `session_steps`, `session_artifacts` kinds `session_score`, `signals`, `coach`, `judged_review`, plus `sessions.wpm_curve_json` and `transcript_words`. Gate on `SHOW_DEV_TOOLS`. | `src/services/dev/seedDemo.ts` and one `ListRow` in `ToolsScreen.tsx` | The whole Result screen (Overview vs Scores agreement, layer switch, charts and their gestures, transcript marks, locked line), Library scores and "Judged by Tono AI", month averages, Trends lines, Progress charts, Skill detail, "Gone everywhere" after delete, streak keeps the day after delete, Dev Pipeline details. By far the biggest unlock. |
-| P2 | **Mock account state**: a Dev sheet that sets the account snapshot (`status`, `tier`, `plan`, allowance numbers, `plusPurchasable`, `minorsMayUseAi`, `killSwitch`, `mode`) without a server, via `accountStore`'s `commit`. | `src/services/account/accountStore.ts` (a dev-only exported setter) and a row in App tools | Account & Plus rows for free, trial, plus and beta; Tono AI allowance lines; the save-screen switch wording ("Uses your free judged take for this month.", "You've used this month's free judged take. The next one comes on 1 ..."); the Result locked footnote; under-18 gating with `minorsMayUseAi` on and off; every denial message. All server states in device plan J without a server. |
-| P3 | **Force the paywall on Android**: a Dev row "Preview the paywall" that renders `PaywallScreen` with a mock `PlusOffer` (annual with trial, monthly without, failed load, paying, minor) and `purchasesEnabled()` forced true in dev. | `PaywallScreen.tsx` accepts a dev `offer` param; `ToolsScreen` row | Paywall display states, notice text, Restore/Terms/Privacy buttons. Today the route is unreachable on Android. |
-| P4 | **Fake microphone**: a dev flag that swaps `liveSpeechSession` for a stub driven by a text box ("Say this: ...") that emits words with timings and volume samples. | `src/services/speech/liveSpeechSession.ts` (implementation choice by `devStore` flag); a "Fake mic" switch in App tools | Word Chain and Bridge Chain scoring ("N words in a row (target T) · counted, not checked"), Category sprint, Move It, LineRep, conversation drills, setup-check mic step, skill check, Rewind live text. Everything speech-driven that is now only reachable to its "Didn't catch anything." state. |
-| P5 | **Import a take from a file**: a Dev row that picks an AAC-in-mp4 clip (a short CC0 speech sample committed under `assets/dev/`, or a file pushed with `adb push` into `files/import/`) and calls `createSessionFromTake` with it. | `ToolsScreen.tsx`, `src/services/dev/importTake.ts` | The real pipeline on real speech with working decode: voice analysis, pitch and loudness charts, (with a model) transcript. Works around the AMR problem without a second AVD. |
-| P6 | **Skip-onboarding and state presets**: a Dev row or an intent extra (`adb shell am start ... --es preset s1`) that completes onboarding with the standard answers, turns tips off, and optionally sets age range, dark mode, reminder prefs. | `OnboardingScreen.tsx`/`prefsStore.ts` dev hook; or a `tono://dev/preset?name=s1` link | Saves 3 minutes per reset (S1 in seconds), removes the biggest source of flaky taps. |
+| P4 | **Fake microphone**: a dev flag that swaps `liveSpeechSession` for a stub driven by a text box ("Say this: ...") that emits words with timings and volume samples. | `src/services/speech/liveSpeechSession.ts` (implementation choice by `devStore` flag); a "Fake mic" switch in App tools | Word Chain and Bridge Chain scoring ("N words in a row (target T) · counted, not checked"), Category sprint, Move It, LineRep, conversation drills, setup-check mic step, skill check, Rewind live text. |
+| P5 | **Import a take from a file**: a Dev row that picks an AAC-in-mp4 clip (a short CC0 speech sample committed under `assets/dev/`, or a file pushed with `adb push`) and calls `createSessionFromTake` with it. | `ToolsScreen.tsx`, `src/services/dev/importTake.ts` | The real pipeline on real speech with working decode: voice analysis, pitch and loudness charts, (with a model) transcript. Works around the AMR problem without a second AVD. |
 | P7 | **Route links**: dev-only `tono://dev/route?name=Result&sessionId=...` handling through `navigationRef`. | `src/navigation/index.tsx` linking config under `SHOW_DEV_TOOLS` | Jump to any screen after a hot reload; deterministic screenshots. |
-| P8 | **Small whisper model switch**: a dev toggle to use a tiny GGML model (about 75 MB) for transcription. | `src/services/asr/whisperModels.ts` | A transcript on the emulator within seconds once P5 exists; makes the transcript tab and fillers testable on x86_64. |
-| P9 | **Stable test labels** (`accessibilityLabel`/`testID`) on `SegmentedControl` options, chips and settings switches. | `src/components/common/SegmentedControl.tsx`, `Chip.tsx`, `SwitchRow` | Removes `tap_text` substring collisions ("Scores", "Start"). |
+| P9 (rest) | Stable test labels on `SegmentedControl` options and the settings switches. | `SegmentedControl.tsx`, `SwitchRow` callers | Removes `tap_text` substring collisions ("Scores", "Start"). |
 
 ---
 
@@ -423,10 +444,10 @@ Pre for all: S1 (Tono AI skipped with **Not now**), airplane mode off unless sta
 **Expect:** every locked/unavailable thing is a calm sentence with a way forward or nothing. No alert on screen entry. Plus is not mentioned with a button anywhere (it is not on sale on Android): search every screen's text for "Tono Plus": it may appear in plain sentences ("It comes with Tono Plus...") but there must be no **See Tono Plus** button.
 **Evidence:** list of screens checked and one quote from the Settings -> Tono AI intro.
 
-**FREE-4 - Measured-only wording.** On a take Result (blocked unless P1): "Measured on this phone" hero label and the quiet line "Measured on this phone. Tono AI would judge what you said and how it came across: you get one judged take free each month." Mark blocked on this AVD; on a Failed take check that none of these appear as errors.
+**FREE-4 - Measured-only wording.** Pre: S3, no mock (or mock Free). Open the `free-measured` demo take (Library, today). **Expect:** the "Measured on this phone" hero label and the quiet line "Measured on this phone. Tono AI would judge what you said and how it came across: you get one judged take free each month." (the Result locked footnote, RES-B6), no "Judged by Tono AI" anywhere, no **See Tono Plus** button. On a Failed recorded take check that none of these appear as errors.
 
 **FREE-5 - Exercises without Plus.** Pre: S1. Do a Rewind (7.14) and a Word Chain (7.13) to their result screens.
-**Expect:** counts and a calm card, no error, no spinner that never ends. A Rewind with a transcript shows a "Notes" card "Notes on what you said come with Tono Plus: which parts of the day you covered, the most vivid moment, and one thing to try tomorrow. Your counts above are from this phone." and no **See Tono Plus** button on Android; but a Rewind recorded here has no words, so it shows "No words came through" and no Notes card (the card needs a transcript: blocked unless P4/P5). Word Chain result says "counted, not checked"-style text (blocked unless P4).
+**Expect:** counts and a calm card, no error, no spinner that never ends. A Rewind with a transcript shows a "Notes" card "Notes on what you said come with Tono Plus: which parts of the day you covered, the most vivid moment, and one thing to try tomorrow. Your counts above are from this phone." and no **See Tono Plus** button on Android; but a Rewind recorded here has no words, so it shows "No words came through" and no Notes card (the card needs a transcript: the demo Rewind `plain` has one, DEMO-6; a Rewind recorded here does not). Word Chain result says "counted, not checked"-style text (blocked unless the fake mic, P4, exists).
 
 ### 7.3 NAV - Navigation of every tab and main screen
 
@@ -496,9 +517,9 @@ Pre: S1. Open via You -> Settings rows.
 **Expect:** none exist (the code hides them when `purchasesEnabled()` is false: iOS-only). With the server unreachable (airplane on, cold launch) nothing changes. No screen mentions a price.
 **Evidence:** statement of each place checked.
 
-**PAY-2 - The PaywallScreen "not available" state.** Needs P3 or a route link (P7) to open the route; blocked otherwise. If available: expect title "Tono Plus" and the single sentence "Tono Plus isn't available yet." (or the minor sentence "Tono Plus is Tono AI, which is for people 18 and over..." when age-gated), a working back button, nothing else. Blocked here.
+**PAY-2 - The PaywallScreen "not available" state.** Pre: S4. Mock Free + Anonymous, **Show Tono Plus as for sale** on, **Tono Plus is on sale** off, **Open the paywall**. **Expect:** title "Tono Plus" and the single sentence "Tono Plus isn't available yet." (or the minor sentence "Tono Plus is Tono AI, which is for people 18 and over..." with the under-18 age answer), a working back button, nothing else. (Mock-only: the route has no other way in on Android.)
 
-**PAY-3 - Plus states (trial, paying, price failed to load, loading prices).** Blocked without P3/P2. Reference strings for later: "Try it free" eyebrow, "What Plus adds" group with "60 judged takes a month", "Your drills, checked", "Mark it up with Tono AI", "Your recordings stay on your phone"; buttons "Start 14-day free trial"/"Subscribe for ..."; "Couldn't load the prices from the App Store. Check your connection and try again." with **Try again**; footer **Restore purchases**, **Terms**, **Privacy**; line "No account needed. To keep Plus on another phone, you can sign in with Apple or Google later in Settings." Device plan section J has the real-store checks.
+**PAY-3 - Plus states (trial, paying, price failed to load, loading prices).** Run MOCK-7. Reference strings: "Try it free" eyebrow, "What Plus adds" group with "60 judged takes a month", "Your drills, checked", "Mark it up with Tono AI", "Your recordings stay on your phone"; buttons "Start 14-day free trial"/"Subscribe for ..."; "Couldn't load the prices from the App Store. Check your connection and try again." with **Try again**; footer **Restore purchases**, **Terms**, **Privacy**; line "No account needed. To keep Plus on another phone, you can sign in with Apple or Google later in Settings." Device plan section J has the real-store checks.
 
 ### 7.6 TODAY - The Today screen and "Your takes"
 
@@ -577,7 +598,7 @@ Pre: a recording just finished (REC-4).
 
 ### 7.9 RES - Result screen
 
-**What exists on this AVD:** Overview and Transcript tabs only (no Scores tab: the take has no score sheet). Tests for scores, the layer switch, charts and marks are listed at the end as blocked with their pass conditions, ready for when P1 exists.
+**What exists on this AVD:** a take you record yourself has Overview and Transcript tabs only (no Scores tab: the take has no score sheet), RES-1 to RES-8. The scored Result screen is tested on the demo takes (S3), RES-B1 to RES-B7 at the end of this section.
 
 **RES-1 - A take that cannot be read (expected failure).** Pre: S2 (just saved). `wait_for_ui_stable`; `get_all_text` at 5 s and 40 s.
 **Expect:** header shows the type line and the prompt title; two tabs **Overview** and **Transcript** (no **Scores**); top card with a headline "Some parts didn't finish" (or "One part didn't finish"), a bar, a problem line per failed step in red with a **Try again** button each (Transcript: "Couldn't read this recording's audio on the device. Retry, or have Tono AI judge it from the video." or the model-missing sentence; Voice analysis: "Couldn't read this recording's audio, and there's no transcript to analyze yet."; Coaching: whatever the code reports, copy it), and the reassurance "Nothing is lost. Try again when you're ready."; the "Analysis" card lists Transcript, Voice analysis, Video analysis (omitted when skipped: the emulator's face timeline is usually empty), Coaching, Tono AI with detail text and action buttons **Retry**/**Run**/**Get**; the skeleton hero "Listening back and measuring, on this phone…" may show first, for a few seconds. No score ring. The video player shows the recorded video (play it). Buttons **Practice this prompt again** and **Done**.
@@ -597,14 +618,15 @@ Pre: a recording just finished (REC-4).
 
 **RES-8 - Kill while processing.** Save a take and `force_stop` within 3 seconds; reopen; open the take. **Expect:** the pipeline resumes (the Transcript step shows working or failed, not stuck "interrupted" without a button); after the third kill on the same take it stops resuming by itself and shows **Try again** (from device plan I). Report the step states.
 
-**Blocked until P1 (scored takes); conditions to check then:**
+**On the demo takes (S3, DEMO-1).** The numbers are synthetic and come from the app's own score code; check that the screens agree with each other and read right, not that a value is "correct".
 
-- RES-B1 Overview and Scores agree: the Overview's "Your scores" card lists Cadence, Impromptu, Confidence with sub-scores ("Pace 7 · Pauses 5.5 ..."); **See every score** opens the Scores tab; every Overview number appears with the same name and value on Scores; the hero number is between the lowest and highest skill; hero says "Judged by Tono AI" or "Measured on this phone", no archetype.
-- RES-B2 Layer switch: on a take with both layers the Scores header shows a switch **Tono AI** / **This phone**; each layer's overall and skill scores change; the other layer's score is shown small under the skill name; sub-scores say who gave them.
-- RES-B3 Charts: pace, pitch and loudness charts each show the whole take with no sideways scrolling, aligned time axes (0:00, 0:30 ...), labelled y axes with units in the title; flat voice shows within about 2 semitones; gaps are gaps; a coverage line ("Pitch read for N% of your speaking (N s)"); "not enough clear voice" under 3 voiced seconds.
-- RES-B4 Chart gestures (drag one finger, double tap, pinch with `pinch_zoom`, the minus, plus and "whole take" buttons, vertical scroll over a chart still scrolls; cursor line on all three charts; readout; **Play from here** opens the Overview player).
-- RES-B5 Transcript marks: um/uh and like/you know/actually in two colours with counts matching; no AI highlights until the switch "Tono AI's notes" (judged takes only); tapping a mark shows a note headed "Structure · Tono AI".
-- RES-B6 Locked footnote on a free measured take: "Measured on this phone. Tono AI would judge what you said and how it came across: you get one judged take free each month." and no **See Tono Plus** on Android.
+- **RES-B1 Overview and Scores agree.** Open `free-measured`. The Overview's "Your scores" card lists Cadence, Impromptu, Confidence with sub-scores ("Pace 7 · Pauses 5.5 ..."); **See every score** opens the Scores tab. **Expect:** every Overview number appears with the same name and value on Scores; the hero number lies between the lowest and the highest skill; the hero says "Measured on this phone" (no archetype, no "Judged by Tono AI"). Repeat on `judged`, whose hero says "Judged by Tono AI" (the full label reads "Judged by Tono AI (demo-synthetic) from your words and your phone's measurements.").
+- **RES-B2 Layer switch.** Open `judged` and `m1-b` (the two takes with both layers). The Scores header shows a switch **Tono AI** / **This phone**. **Expect:** each layer's overall and skill scores change when switched (the judged overall is lower than the measured one on `judged`, by construction); the other layer's score is shown small under the skill name; sub-scores say who gave them; the judged notes ("A comfortable pace that was easy to follow...") show. On `free-measured` there is no switch (only one layer).
+- **RES-B3 Charts.** Open `lively` (wide pitch), then `flat` (narrow pitch), then `silent`, then `very-short`. Find the pace, pitch and loudness charts (on the Scores tab or the Overview; verify which). **Expect:** each chart shows the whole take with no sideways scrolling and aligned time axes (0:00, 0:30 ...), labelled y axes with units; `lively` spans a clearly larger range than `flat` (about 7 against about 1 semitone; flat stays within about 2); pauses are gaps, not zeros; a coverage line like "Pitch read for N% of your speaking (N s)"; `silent` shows "not enough clear voice" in place of the pitch and loudness lines (the pace chart still draws from the words); `very-short` shows what its few voiced seconds allow without error.
+- **RES-B4 Chart gestures.** On `lively`: drag one finger across a chart, double tap, pinch with `pinch_zoom`, use the minus, plus and "whole take" buttons; a vertical swipe over a chart still scrolls the page; the cursor line moves on all three charts and a readout shows; **Play from here** opens the Overview player (there is no video: expect the "Video removed to save space" row or a placeholder error, not a crash; verify). The emulator's gesture injection may be coarse: record what works.
+- **RES-B5 Transcript marks.** On `fillers` open the Transcript tab. **Expect:** um/uh and like/you know/actually marked in two colours with counts matching the Voice analysis/Overview numbers; the toggle "Show cleaned-up response" / "Hide cleaned-up response" works; on `judged` the switch "Tono AI's notes" adds highlights for the four annotated quotes ("Then I made a quick choice.", "I learned that staying calm is a skill you can practice." ...), and tapping one shows its note with a heading like "Structure · Tono AI". Measured-only takes have no such switch.
+- **RES-B6 Locked footnote.** On `free-measured`: "Measured on this phone. Tono AI would judge what you said and how it came across: you get one judged take free each month." and no **See Tono Plus** (Android, Plus not on sale). With the mock account's "Show Tono Plus as for sale" on (MOCK-7) the **See Tono Plus** button appears and opens the paywall.
+- **RES-B7 The pair and the odd takes.** `flat` against `lively`: the same words, `lively` has the higher melody sub-score and the higher overall; `fillers`: the lowest fluency, fillers and 2 stalls listed; `silent`: no pitch numbers, no error, the Overview does not say "NaN" or "undefined"; `very-short`: scores or the short-take wording (observed, not specified); `concise`: the concise label and about 27 s. Scan each with `get_all_text` for "NaN", "undefined", "null".
 
 ### 7.10 INPUT - Typed-input features (no microphone needed)
 
@@ -649,13 +671,15 @@ Pre: S2 plus two more recorded takes (so three Failed takes; record with differe
 
 **LIB-3 - Filters sheet.** Open **Filters**. Chip groups: "Show ..." (type), "Recorded Any time / Past 7 days / Past 30 days / Past 3 months", "Show All / Progress videos / Done / Processing / Failed", "Filter by ..." category chips ("All Topics" first), "Filter by All / Under 2 min / 2-4 min / Over 4 min", **Reset**. Select **Failed**, then **Done**. **Expect:** Failed shows the takes, Done shows "Nothing matches"; a dot appears on the Filters button when a filter is active; **Reset** clears; all months open while filtered.
 
-**LIB-4 - Month grouping.** With takes in one month only, one group. (Older months need backdated data: blocked.) The two newest months open by default; tap a month header to collapse/expand.
+**LIB-4 - Month grouping.** With takes in one month only, one group. With the demo takes (S3) there are groups for about five months (older months are backdated rows). The two newest months open by default; tap a month header to collapse/expand.
 
 **LIB-5 - Long-press menu.** Long-press a row. **Expect:** the delete alert of 7.12.
 
 **LIB-6 - Pull to refresh.** `swipe` down on the list top. **Expect:** spinner, list stays, no duplicates.
 
 **LIB-7 - Progress videos strip.** With a keepsake (RES-5 bookmark on): the strip above the list shows it; filter "Progress videos" lists it; empty filter shows "No progress videos yet" and the explanation "Pin a take from its results, or clear old videos in Settings — the best and the toughest take from each month are kept."
+
+**LIB-8 - Scores in the Library (S3).** Pre: DEMO-1. **Expect:** header `13 takes` in "Your recordings"; every row shows its score; the two judged takes (`judged`, `m1-b`) are marked as judged ("Judged by Tono AI"; verify the wording) and the others are not; month headers show an average, with a "· Tono AI" marker only on a month whose average includes a judged take (verify); search for "yeast" finds the bread takes (`free-measured`, `concise`, `m3-a`) and "stomach" finds the train takes (`judged`, `m1-a`, `m4-a`), since the demo transcripts are searchable; the filter **Done** lists all 13 and **Failed** shows "Nothing matches. Try a different search or filter."; no row says Failed.
 
 ### 7.12 DEL - The delete flow
 
@@ -681,7 +705,7 @@ Pre: S2 plus extra Failed takes as needed. For file checks note `adb shell run-a
 
 **DEL-9 - Delete while it is still analysing.** Save a take and delete it from Library within 3 seconds. **Expect:** disappears; no later "score ready" toast or notification for it; after 60 s and a relaunch it has not come back; Today's "Your takes" row is gone.
 
-**DEL-10 - Gone everywhere (partial).** After DEL-3: Library, Library search for its prompt, filters, Today "Your takes", Dev -> Pipeline list, Dev -> Pipeline problems filter, Result via a stale route (not reachable). **Expect:** absent in all reachable places. (Trends, Progress, skill lists: blocked until P1.)
+**DEL-10 - Gone everywhere (partial).** After DEL-3: Library, Library search for its prompt, filters, Today "Your takes", Dev -> Pipeline list, Dev -> Pipeline problems filter, Result via a stale route (not reachable). **Expect:** absent in all reachable places. On S3 also: delete the judged demo take `judged`, wait 10 s, and Progress -> **Score trends** has one judged point fewer, the Library month average updates, a search for "stomach" no longer finds it, and Dev -> Pipeline no longer lists it.
 
 **DEL-11 - Many deletes.** Delete three takes quickly one after another. **Expect:** only the latest undo toast is shown (the toast is exclusive); the earlier ones are erased after their windows; no crash. (verify what the earlier takes do.)
 
@@ -693,7 +717,7 @@ Pre: S2 plus extra Failed takes as needed. For file checks note `adb shell run-a
 
 **DEL-15 - Reset app erases everything.** SET-13. **Expect:** covered there.
 
-**DEL-B - Streak keeps the day (blocked).** Needs a done take on a streak day (P1). Condition: after deleting the only done take of a day the streak number and "You've practiced today" do not drop.
+**DEL-B - Streak keeps the day.** Pre: S3 (the demo takes give a streak of about 9 days, and today's only take is `free-measured`). Note the streak number (Today pill, You tab "day streak"). Delete `free-measured` (long-press, **Delete take**) and wait 10 s. **Expect:** the streak number and "You've practiced today" do not drop (the app keeps a bare date marker); the take is gone from the Library; Remove demo takes later removes the markers this created (DEMO-7).
 
 ### 7.13 STR - Streak and the daily goal
 
@@ -703,7 +727,7 @@ Pre: S2 plus extra Failed takes as needed. For file checks note `adb shell run-a
 
 **STR-3 - Daily goal pill.** SET-7 goal 3x/day. **Expect:** Today pill "0 of 3 today" with three dots; completing the warm-up alone does not complete a session.
 
-**STR-4 - Freeze display.** Not reachable (needs seven practice days).
+**STR-4 - Freeze display.** With the demo takes the streak is long enough for freezes to apply (about nine days; verify what the You and Today screens show for a freeze). Without them not reachable.
 
 ### 7.14 TRD - Trends, Progress, skill pages
 
@@ -717,7 +741,7 @@ Pre: S1 and S2.
 
 **TRD-4 - By skill chips.** Progress -> "By skill" chips for the five skills switch the charts ("Drill scores" with "Do a few drills in this track to see a trend.").
 
-**TRD-B - Score trends with data (blocked, P1).** "Score trends" draws judged and measured lines separately; gaps, not zeros; month averages "· Tono AI" only when they average judged takes; Library "Judged by Tono AI".
+**TRD-B - Score trends with data (S3).** Progress -> **Score trends**. **Expect:** a measured line with 13 points over about four months and a separate judged line with 2 points (`judged`, `m1-b`); gaps where there is no data, never zeros; month averages "· Tono AI" only when they average judged takes (verify); Progress -> "By skill" charts and the pace, filler and eye-contact charts have points (12 impromptu and concise takes; `silent` has no eye-contact gap issue); Skill detail "Recent changes" stays empty unless DEMO-9 was used; no "NaN"/"undefined" in `get_all_text`.
 
 ### 7.15 PRAC - Drills and exercises (as far as the mic allows)
 
@@ -763,7 +787,7 @@ All speech drills share the same shape here: the screen works up to listening; n
 
 **DEV-3 - Pipeline.** Dev -> Pipeline: segmented "Last 30" / "Problems N", the dots legend ("Dots: transcript, voice, video, coaching, deep review. Filled is done; hollow is skipped."), a row per take ("Take from <date>"), type · seconds · id. Open a take -> "Take" screen: copyable ID, Steps with per-step re-run icons ("Re-run Transcript" etc.), Export ("Copy analysis as JSON", "Share analysis as a file"), Labs -> Voice Lab, "Stored results" list (artifact kinds), the open-result icon. Voice Lab: **Run the analysis** on a take (the audio cannot be decoded on this AVD, so it should report an error alert "Voice Lab" with a message, not crash). **Do not** use Re-run on the Tono AI row (stop list: it asks "Have Tono AI judge it again?").
 
-**DEV-4 - App tools.** Rows: "Judge from" (toggles Words and measurements / Video: toggle it and put it back to Words and measurements, since it changes the what-is-sent wording everywhere), "Over-the-air updates" (Channel/Runtime/Running: "A development build: JS comes from Metro, not from updates"), "Tours" (one row per tour id with seen/new; tap a seen one to show it again; **Show every tour again**), "Previews" (live waveform with chips for reading rates; welcome intro; progress moment with chips Stage earned / Personal best / Off day and **Replay**/**Close**; stage celebration; unit celebration; path finale), "Notifications" (**Send a test in 5 seconds**), the scheduled list ("N scheduled" with times), "Storage" rows. **Expect:** each preview opens and closes; confetti/celebrations render and can be closed; the path finale preview shows its screen and its close button works and does not mark itself seen.
+**DEV-4 - App tools.** First the group "Test helpers (development and preview builds only)" with **Add demo takes**, **Mock account state** and **State presets** (7.22 to 7.24). Then rows: "Judge from" (toggles Words and measurements / Video: toggle it and put it back to Words and measurements, since it changes the what-is-sent wording everywhere), "Over-the-air updates" (Channel/Runtime/Running: "A development build: JS comes from Metro, not from updates"), "Tours" (one row per tour id with seen/new; tap a seen one to show it again; **Show every tour again**), "Previews" (live waveform with chips for reading rates; welcome intro; progress moment with chips Stage earned / Personal best / Off day and **Replay**/**Close**; stage celebration; unit celebration; path finale), "Notifications" (**Send a test in 5 seconds**), the scheduled list ("N scheduled" with times), "Storage" rows. **Expect:** each preview opens and closes; confetti/celebrations render and can be closed; the path finale preview shows its screen and its close button works and does not mark itself seen.
 
 **DEV-5 - Test notification.** Tap **Send a test in 5 seconds** (allow the notification permission if asked), toast "Sending in 5 seconds. Lock the phone or leave the app.", press HOME, wait 7 s, pull down the shade (`adb shell cmd statusbar expand-notifications`), `get_all_text`. **Expect:** a notification "Tono" "Test notification from the Dev tab." Collapse it (`adb shell cmd statusbar collapse`).
 
@@ -857,6 +881,115 @@ Run alongside other suites: every screenshot is also a DSN check. Reference: the
 
 ---
 
+### 7.22 DEMO - Demo takes (Dev -> App tools -> Add demo takes)
+
+What the set holds (13 takes, 2 Rewinds, 2 chain attempts; ids start with `demo-`; all words are made up for the app, none is a real person's). Times are relative to the day you add them, in the phone's local time:
+
+| Key | When | What it is for |
+|---|---|---|
+| `free-measured` | today | a free take: measured scores only, a few ums, no Tono AI |
+| `judged` | 1 day ago | a take judged by Tono AI (demo): judged scores, notes, annotations, coach card, usage |
+| `lively` and `flat` | 2 days ago | the same words with a wide and a narrow pitch range (about 7 against about 1 semitones) |
+| `fillers` | 3 days ago | many ums, uhs, likes and you knows, slower, two long stalls |
+| `very-short` | 4 days ago | about 9 seconds |
+| `silent` | 5 days ago | the microphone heard nothing: no pitch, no loudness |
+| `concise` | 7 days ago | a concise 45-second take (about 27 s long) |
+| `m1-a`, `m1-b` | about 24 and 31 days ago | the previous month; `m1-b` is judged |
+| `m2-a`, `m3-a`, `m4-a` | about 52, 84 and 118 days ago | older months |
+| Rewinds `with-notes`, `plain` | 1 and 3 days ago | one with Tono AI notes (demo), one with counts only |
+| Word Chain, Bridge Chain attempt | 6 and 8 days ago | drill attempts that feed the streak and progress counts |
+
+Every number comes out of the app's own code (the pitch, loudness, pause, fluency and face summaries, the score sheet constructors and the taxonomy), run on made-up frames, so use the **relations** (lively above flat, fillers lowest on fluency, judged differs from measured) and not exact values. The streak should read about 9 days (takes on days 0 to 5, 7, plus the two drill days 6 and 8; verify, since rest days or freezes can change it).
+
+**DEMO-1 - Add the set.** Pre: S1 (or PRESET-1). Dev -> **App tools** -> **Add demo takes** (title "Demo takes").
+1. `get_all_text`: the count line reads "No demo data on this phone"; the options "Placeholder video files" and "Also move skill ratings" are off.
+2. Tap **Add demo takes** (id `dev-demo-add`); wait for the toast (allow up to about 40 s on the emulator; verify).
+**Expect:** toast "Added 13 takes, 2 Rewinds and 2 drill attempts."; the count line reads "13 takes, 2 Rewinds, 2 drill attempts"; **Remove demo takes** is enabled. No crash, no red screen. This is state S3.
+**Evidence:** both strings; `adb logcat -d -s ReactNativeJS:V | grep "\[demo\]" | tail -3`.
+
+**DEMO-2 - Adding again changes nothing.** Tap **Add demo takes** again. **Expect:** toast "The demo takes are already here."; the count line is unchanged.
+
+**DEMO-3 - Every demo take opens.** Library -> open each of the 13 takes in turn (RES-B* below say what to look for). **Expect:** each Result opens with tabs **Overview**, **Scores**, **Transcript**; no take is Failed or stuck "processing"; no spinner that never ends; "Video removed to save space" instead of a player (no file); the Analysis card shows Transcript, Voice analysis, Video analysis (not for `m4-a` or on takes without a face track), Coaching done, and Tono AI done on `judged` and `m1-b` only (verify).
+
+**DEMO-4 - Dev Pipeline sees them.** Dev -> Pipeline. **Expect:** the demo takes are listed with filled dots (hollow for the skipped ones); "Problems" does not count them; a take's detail lists stored results (`signals`, `coach`, `session_score`, `pauses`, `presence`, and for judged takes `judged_review`, `cloud_usage`, `analysis`, `cloud_transcript`). Do not use Re-run on the Tono AI row (stop list; with the mock account on it is refused on the phone).
+
+**DEMO-5 - Delete and undo with scored takes.** Run DEL-2, DEL-3, DEL-6 and DEL-B on a demo take. **Expect:** as written there; Score trends and the Library month average lose that take at once.
+
+**DEMO-6 - The demo Rewinds.** You -> **Rewind**: "Your days" lists two. Open the one from yesterday (`with-notes`), then the one from three days ago (`plain`).
+**Expect:** the result screen shows the "Counted" group (Length, Concrete details, Longest pause) from the stored counts; `with-notes` has the Notes card with the three parts of the day covered, a most-vivid line ("when it finally worked I laughed out loud at my desk") and a try-tomorrow line, labelled as from Tono AI (demo) (verify the label); `plain` shows the free-path card "Notes on what you said come with Tono Plus: ..." (and no **See Tono Plus** button unless the mock shows Plus). **Delete or free up space** works as DEL-14 (the demo Rewinds have no audio file, so the free-up choice may be missing; verify).
+
+**DEMO-7 - Remove only the demo data.** Pre: DEMO-1, and optionally one take you recorded yourself (a Failed one is fine). Tap **Remove demo takes**.
+**Expect:** toast "Removed 13 takes, 2 Rewinds and 2 drill attempts."; the count line "No demo data on this phone"; Library shows only your own takes (or "No recordings yet"); Rewind "Your days" is empty; the streak is back to what your own takes give (no leftover day markers); your own take still opens. `adb logcat -d -s ReactNativeJS:V | grep "\[delete\]"` shows "erased take demo-take-..." lines: removal went through the app's real hard-delete. Removing takes that were already in an undo window finishes them too.
+**Evidence:** toast, Library text, the log lines.
+
+**DEMO-8 - Placeholder video files.** Remove, switch **Placeholder video files** on, Add. `adb shell run-as com.ahmadgraham.tono ls -la files/sessions`.
+**Expect:** 13 files named `demo-take-<key>.mp4` of 2048 bytes; Settings -> Help & data Storage "Videos" shows about 26 KB. Open a demo take's Result: there is a player or an error in the player's place, not a crash (verify exactly what shows; the file is not a video). The delete alert offers the third choice **Free up space, keep the transcript and scores**: DEL-5 on a demo take removes its file and Result then says "Video removed to save space". Remove demo takes deletes the rest (`ls` is empty of `demo-take-*`).
+
+**DEMO-9 - Move skill ratings (optional).** Remove, switch **Also move skill ratings** on, Add. **Expect:** Skill detail "Recent changes" lists entries labelled with the prompts of the demo takes; the Progress skill stages may move (verify); a stage toast or progress moment may appear for the takes (the Result screen plays it; verify). Removing the demo takes does **not** put ratings back (documented in the screen); Settings -> Help & data -> Reset app does.
+
+---
+
+### 7.23 MOCK - Mock account (Dev -> App tools -> Mock account)
+
+The mock replaces what the app *reads* as the account: `getAccount()` in `accountStore.ts` returns the mock snapshot, and `tonoApi.ts` refuses every request to Tono's server (`me`, `app-config`, `ai-generate`, uploads, the conversation stream, delete account) and `signIn.ts` refuses the Google and Apple sign-in, all on the phone, before anything is sent. "Server unreachable" makes those refusals look like a dead connection. The choice is saved on the phone and survives Reset app. A pill "Mock account · <summary>" is shown at the top left of every screen while it is on.
+
+**MOCK-1 - Turn it on and see the banner.** Dev -> App tools -> **Mock account** (title "Mock account").
+1. The card reads "Mock account is off" and **Clear overrides** is disabled.
+2. Tap the chip **Tono Plus** (id `dev-mock-tier-plus`).
+**Expect:** "Mock account is on" with a summary like "Tono Plus · 60/60 judged · 120/120 min"; the banner pill appears on every screen (check Today and Settings; it does not block taps); the sections Who, Judged takes left, Conversation minutes left, What the server says and Tono Plus on this phone appear. Tap **Clear overrides**: "Mock account is off", the banner goes.
+
+**MOCK-2 - Nothing reaches Tono's server.** Pre: airplane mode on (confirm with the ping check, 2.8), mock **Tono Plus** on, then `force_stop` and reopen the app.
+**Expect:** the app opens; `adb logcat -d -s ReactNativeJS:V | grep "\[account\]"` shows **no** "could not read the app config" and no "could not refresh" line (without the mock, NET-1 shows the first because the launch reads app-config). Then airplane off; with the mock still on, Settings -> Tono AI -> **Allow Tono AI** -> **Allow**: no "signed in" or "anonymous" line in `[account]`, no account is made, no crash. (Reading the log is the evidence; the guard is also unit-tested.) Clear overrides afterwards (the real startup then runs and reads the public app-config).
+**Evidence:** the empty grep; the screen texts.
+
+**MOCK-3 - Free tier wording.** Mock **Free**, Who **Anonymous**, age answered adult (PRESET-3).
+**Expect:** Settings -> Account & Plus shows the signed-in-anonymously state ("Not signed in"; verify); Settings -> Tono AI shows "Your free judged take this month is ready"; the Preview/save screen's per-take switch subtitle ends "Uses your free judged take for this month." (record a take and stop at Preview, or use the retake path; do not tap **Use this take** if you have judge-every-take on). Set Judged takes left to **0**: the save-screen switch is off and the line reads "You've used this month's free judged take. The next one comes on 1 <next month>. Your phone's measurements and tips are here as always."; Settings -> Tono AI reads "Free judged take used · the next one comes on 1 <next month>".
+**Evidence:** quote the three strings.
+
+**MOCK-4 - Trial, Plus and beta wording.** Pick each chip and read Settings -> Account & Plus and -> Tono AI.
+**Expect:** **Free trial**: "20 of 20 judged takes left in your trial · free until <date 9 days ahead>"; **Tono Plus**: "60 of 60 judged takes left this month"; **Beta tester**: "15 of 15 judged takes left this month" and the beta note in Account & Plus ("Tono AI is free while Tono is in beta..."; shown when Beta mode is on, verify); the conversation minutes line ("30 of 30 conversation minutes left in your trial" and similar) on the live conversation screen. Judged takes left **0** on Plus: "No judged takes left this month · more on 1 <next month>".
+
+**MOCK-5 - The gates and their alerts.** Use Settings -> Tono AI (**Allow Tono AI**) and the Result "Tono AI" row **Get** on a demo take, one state at a time. Read each alert; tap its safe button.
+1. **Kill switch** on, tier Plus: alert "Tono AI is switched off for a moment. Try again soon." with "Your phone's measurements and tips still work."
+2. Tier **Free**, Who **Anonymous**: exercise notes (Rewind result or Say it short) give the alert "Notes from Tono AI are part of Plus" (with **See Tono Plus** only if "Show Tono Plus as for sale" is on).
+3. Tier **Plus**, **Exercise notes allowed** off (or Judged takes left 0 on a judged flow): "You've used this month's judged takes." plus the used-up line.
+4. **Server unreachable** on, Who **No account**: **Allow Tono AI** / the switch gives "Couldn't reach Tono AI" with "Check your connection and try again. Your phone's measurements and tips work offline." (the same text as NET-2, without airplane mode).
+5. Age answer under 18 (PRESET-2) with **Minors may use Tono AI** off: "Tono AI is for 18 and over" and no switch; turn **Minors may use Tono AI** on and the adult flow returns (verify).
+**Expect:** exactly these strings; no crash; nothing is sent.
+
+**MOCK-6 - Asking for a judgement is refused on the phone.** Pre: S3, mock **Tono Plus**, consent given (PRESET-4). Open the `free-measured` demo take -> Analysis card -> Tono AI row -> **Get** (the stop list normally bans this; with the mock on it never leaves the phone, but check the banner first).
+**Expect:** the row ends failed with a plain sentence (the app's wording for the Dev refusal; verify the text, it starts from "Dev: the mock account is on..." or the generic "Tono AI isn't available right now"); the take keeps its measured score; `[analysis] take_review from tono_ai failed` appears in `adb logcat -d -s ReactNativeJS:V`; no new score. With the mock **off** this same tap would call the real server: never do that without the human's written go-ahead.
+
+**MOCK-7 - Paywall states on Android.** Mock **Free**, Who **Anonymous**, turn **Show Tono Plus as for sale** on; row **Open the paywall**.
+**Expect (offer "With free trial"):** title "Tono Plus", "What Plus adds" with "60 judged takes a month", "Your drills, checked", "Mark it up with Tono AI", "Your recordings stay on your phone"; plans Yearly ($49.99, "$4.17 a month", save 17%) and Monthly ($4.99); button "Start 14-day free trial"; the renewal notice "Free for 14 days, then Tono Plus, yearly: $49.99 per year. ..."; footer **Restore purchases**, **Terms**, **Privacy**. Tap the subscribe button: a toast "Dev: no purchase is made while the mock account shows Plus." (nothing is bought). **Restore purchases** gives the Dev toast too. Offer **No trial**: "Subscribe for $49.99 / year". Offer **Prices fail**: "Couldn't load the prices from the App Store. Check your connection and try again." with **Try again** (verify). Tier **Free trial** or **Tono Plus**: "Your free trial is on" / "You have Tono Plus" with the allowance line and the manage links. Age under 18: the single sentence "Tono Plus is Tono AI, which is for people 18 and over..."; **Tono Plus is on sale** off: "Tono Plus isn't available yet."
+With **Show Tono Plus as for sale** on, the **See Tono Plus** buttons also appear on the Result locked footnote (RES-B6), the Rewind result Notes card, Settings -> Tono AI and Account & Plus (a **Restore purchases** row); with it off they are gone (FREE-3, PAY-1). The real purchase and Restore code never run (iPhone only).
+
+**MOCK-8 - Server unreachable at launch.** Mock **Plus**, **Server unreachable** on, `force_stop`, reopen. **Expect:** opens, Today loads, Tono AI settings still show the mock's allowance; anything that needs the server fails like offline (MOCK-5.4).
+
+**MOCK-9 - It persists, and it clears.** With a mock on, `force_stop` and reopen: the banner is back and the tier is unchanged. Settings -> Help & data -> **Reset app** keeps it (the card on the Mock account screen is still "on"). **Clear overrides**: the banner goes, Settings -> Account & Plus shows the real state ("Sign in (optional)"), and a read of the public app-config follows (allowed, FREE-2).
+
+---
+
+### 7.24 PRESET - State presets (Dev -> App tools -> State presets)
+
+**PRESET-1 - Onboarded in one tap.** Pre: S0 (Welcome intro showing) or any state; permissions granted (2.6).
+1. On S0 the Dev tab does not exist yet, so the same preset is on a pill at the top of every onboarding screen: **Dev: skip onboarding** (id `dev-skip-onboarding`; hidden for "Your profile and goals" in Settings). Tap it. From any later state use Dev -> App tools -> **State presets** (title "State presets") -> **Onboarded, standard answers** (id `dev-preset-onboarded-adult`); the card at the top reads "Onboarding is finished" plus "Age: ... Tono AI consent: ... Reminders: ... Tips: ... Transcription model download: ...".
+**Expect:** toast "Onboarding finished with the standard answers." (from the Presets screen); the app shows Today (navigation resets to the tabs); no first-tip card (tips are off); the presets summary reads "Age: 25_34. Tono AI consent: not given. Reminders: off. Tips: off. Transcription model download: skipped."; Settings -> Practice -> "Your profile and goals" shows the answers (work meetings, filler words, comfort 4, fine on video, no training, a room to myself, "After work"); Goal & reminders shows 1x / day and Reminders off; Tono AI shows **Allow Tono AI** (do not tap); the skill-check card for tomorrow is on Today (verify). It is the same state as ONB-1 plus the model step skipped. The OS permissions are not touched: grant them with `pm grant` (2.6).
+**Evidence:** the toast or Today text, the summary line.
+
+**PRESET-2 - Under 18 in one tap.** **Onboarded, under 18**. **Expect:** as PRESET-1 with age "13_17"; no Tono AI switch on the save screen (PRV-3), Settings -> Tono AI shows only the 18-and-over card (SET-6), no live conversation card (CONV-4).
+
+**PRESET-3 - The age answer alone.** Tap each of **Under 18 (13 to 17)**, **Adult (25 to 34)**, **Prefer not to say**, **Question skipped**. **Expect:** a toast each; the summary line's "Age:" reads 13_17, 25_34, unsaid, "not answered"; the row shows "Current". Settings -> Tono AI follows after you leave and return (verify).
+
+**PRESET-4 - Consent, tips, reminders, theme.** **Consent given** then **Consent not given**; **Tips shown** (every tour shows again: Today's first tip card appears) then **Tips dismissed**; **Reminders off**; the Theme chips **Light**, **Dark**, **Follow the phone**.
+**Expect:** the summary updates and a toast each. Consent given sets what **Allow Tono AI** sets, without asking and without sending anything; with no mock account on, a later judged flow would reach the real server, so turn the mock account on (MOCK-1) first. The theme chips override the app's appearance (`Appearance.setColorScheme`); check the colours change on Today (verify on Android; `adb shell cmd uimode night yes` in 2.8 is the proven route). Reminders off also cancels scheduled reminders (the scheduled list in App tools shows none).
+
+**PRESET-5 - Skip the model download.** Switch **Skip the model download** on (id `dev-preset-skip-model`). **Expect:** the summary reads "Transcription model download: skipped"; Today and Preview show no "Download the transcription model" banner; in onboarding (after PRESET-6) the step "Get the transcription model" shows "Ready on this phone" with **Continue** enabled and no download button; Settings -> Coaching & AI still shows the real state and its Download button. A take's Transcript step still fails on this AVD with the decode message first ("Couldn't read this recording's audio..."); where audio does decode, the message is "Dev: the transcription model download is skipped, so this take can't be turned into text. ..." (not reachable here). Switch it off to get the normal banner back.
+
+**PRESET-6 - Reset to a fresh install.** Tap **Reset to fresh install** (red, id `dev-preset-reset`). **Expect:** alert "Reset to a fresh install?" with **Cancel** and **Reset**; **Reset** runs the app's own reset (the same code as Help & data -> Reset app) and lands on the onboarding gate (Welcome intro, with the **Dev: skip onboarding** pill); all takes, demo takes and settings are gone; the mock account and the skip switch are kept (their screens still show them on). The loop for a clean run is therefore: PRESET-6, then the pill, in a few seconds.
+
+---
+
 ## 8. Live conversation (session 12)
 
 Merged (PR #24). Design and decisions: `docs/decisions/conversation-voice.md`; the human checks are `docs/testing/device-test-plan.md`, **section K, "Live conversation with a voice (session 12)"**. Read both first. Live conversation is **Plus-only** (and beta/trial): a conversation needs the real server (partner text and voice), the real mic, and an account. So on this emulator you can check only: the lesson card and the locked screen for a free user, the free-path guarantees (no alert, no account), the offline gate, the age gate, the Dev partner voices lab screen (without playing), and design checks. Everything in the "A live conversation" and "Tiers and minutes" parts of section K that runs a conversation stays on the human list.
@@ -882,7 +1015,7 @@ Lessons with a live conversation card (from `LESSON_FOCUS`): every Conversation 
 **CONV-5 - Offline gate (only if the card reads "Talk it through", i.e. the server is in beta mode).** Pre: airplane mode on (verify it with the ping check, 2.8). Tap **Talk it through**, then **Start the conversation**.
 **Expect:** starting fails before anything is sent (no account can be made offline): an alert "Live conversation" with "Live conversation needs a connection. The drills in this lesson work offline." Tap OK. If the card says **See what it is** (launch mode), mark this test **skipped (locked state)**: there is no Start button to press.
 
-**CONV-6 - Kill switch / quota wording.** Needs a server state (kill switch on, minutes used up). Skipped; reference strings for a mocked account (P2): "Live conversation is switched off for a moment. Try again soon." and the minutes line from `conversationMinutesLine`; in the running screen: "Lost the connection", "That didn't come through", "That's this month's conversation minutes. You can still see how this one went.".
+**CONV-6 - Kill switch / quota wording (mock).** Pre: S4, mock Plus, Who Anonymous, consent given (PRESET-4), a Conversation lesson open. Set **Kill switch** on, then Conversation minutes left **0**, then **Server unreachable** (Who: No account), then the under-18 age answer, and try to start the conversation each time (do not go further than the gate alert; with a clean mock the start itself would be refused on the phone, not reach the server). The order the gates are checked in is not verified. Reference strings: "Live conversation is switched off for a moment. Try again soon." and the minutes line from `conversationMinutesLine`; in the running screen: "Lost the connection", "That didn't come through", "That's this month's conversation minutes. You can still see how this one went.".
 
 **CONV-7 - Dev -> Labs -> Partner voices (screen only).** Dev -> **Partner voices** ("Hear the conversation voices, time them, rate them").
 **Expect:** screen eyebrow "Dev", title "Partner voices"; voice chips (`<id> · <description>`), mood chips for the test lines, speed chips (`<speed>×`), session chips **Conversation (record + play)** and **Playback only**; buttons **Play line**, **Partner turn**, **Same line, phone's own voice**, rating chips (`<voice>: 1..5`), **Copy results**, **Clear runs**. Select a few chips and confirm the selection state changes. **Do not tap Play line or Partner turn** (server calls, stop list; with airplane mode on they should fail with a message, which you may check). **Same line, phone's own voice** uses the device speech engine and needs no server: you may tap it once (it may be silent on the emulator; no crash expected).
@@ -913,8 +1046,8 @@ Everything below stays on the human list in `docs/testing/device-test-plan.md` (
 | Pitch, loudness, pauses, fillers, pace, face: tracker accuracy, personal pitch band, breath handling, expression scale, nods, look up/down, head pose sign, storage shrink to 720p, smaller upload, Rewind AAC | Real speech and face | Section F |
 | Word Chain, Bridge Chain and Rewind judging by Tono AI; allowance; offline and signed-out wording of judged results; own key message | Server and speech | Section G |
 | Waiting-on-analysis timings, background and kill survival with a working pipeline, airplane-mode review that sends itself, failed review (not network), the initial assessment wait screen with a review | Needs a pipeline that succeeds, and the server | Section I |
-| Impromptu results screens: overview vs scores, layer switch, charts and gestures, pitch honesty, Play from here, no-voice charts, transcript marks, Library/Trends with judged layers, dark mode/large text on the Scores tab | Needs scored takes (P1) | Section H (run as RES-B1 to RES-B6 once P1 exists) |
-| Tiers, trial and account: free judged take, used-up state, server-set count, one-take-one-count, paywall with real prices, trial start/renew/no second trial, reinstall and restore, Apple/Google linking, account deletion, age question server switch, key removal | iOS purchases, sign-in, the server | Section J (the age question UI and free-path UI run here as ONB-5 to ONB-8, FREE-1 to FREE-5) |
+| Impromptu results screens on real speech: pitch honesty (are the charts right for a real voice), Play from here with a real video, real no-voice takes | Real audio and video | Section H (the screens, layer switch, charts, gestures, marks, Library and Trends run here on the demo takes as RES-B1 to RES-B7, LIB-8, TRD-B) |
+| Tiers, trial and account: the server's real decisions (free judged take counted, server-set count, one-take-one-count), paywall with real prices, trial start/renew/no second trial, reinstall and restore, Apple/Google linking, account deletion, age question server switch, key removal | iOS purchases, sign-in, the server | Section J (the age question UI, free-path UI and the UI of every tier and denial run here as ONB-5 to ONB-8, FREE-1 to FREE-5, MOCK-1 to MOCK-9) |
 | Live conversation with a voice: the partner's voice and timing, a full conversation, interruptions, safety, minutes, cost (the locked card, locked screen, offline gate and lab screen run here as CONV-1 to CONV-8) | Server, Plus-only, real audio | Section K |
 | Haptics, accessibility screen readers, real Android devices' vendor quirks, AAC recording on a real Android phone | No hardware | Various |
 
@@ -927,7 +1060,7 @@ Update this plan when:
 - a screen, route, button label or alert text changes (labels are quoted from the code on the date above; a label test failing after a copy change is a plan bug, fix the plan);
 - a session adds a feature: add a test group in section 7 and, if the feature is phone-only, add the item to `device-test-plan.md` and a line in section 9;
 - session 12's live conversation changes (labels in `LiveConversationScreen.tsx`, `LiveConversationCard.tsx`, the gate in `liveGate.ts`): update section 8;
-- any item in section 5 is built: delete the matching "blocked" notes, turn the `RES-B*`, `DEL-B`, `TRD-B` and `PAY-2/3` items into full tests, and rewrite section 4;
+- any item in section 5's "not built" table is built (P4 fake mic, P5 import, P7 route links, the rest of P9): delete the matching "blocked" notes and rewrite sections 4 and 5; when the demo set (`src/domain/dev/demoTakes.ts`) changes, update the table in 7.22 and the take names RES-B*, LIB-8 and TRD-B use; when an account string, tier count or paywall label changes, update MOCK-3 to MOCK-7;
 - the AVD changes (a new system image that records AAC would unblock real transcription: rewrite 4.1);
 - the onboarding questions change (update 11.1 and ONB-4);
 - the Dev tab rows change (7.16);
@@ -972,6 +1105,8 @@ From S0 (Welcome intro showing). Use `get_clickable_elements` to find buttons; t
 | 25 | All set | **Tomorrow** |
 | 26 | Today | tap **Turn off tips** on the first tip card |
 
+Shortcut: the **Dev: skip onboarding** pill on the onboarding screens (or State presets -> Onboarded, standard answers) writes the same answers in one tap, with Tono AI not allowed, tips off and the skill check put off to tomorrow, and skips the 574 MB model step; use the full recipe only when onboarding itself is under test.
+
 Count: the questions list in `src/content/onboarding.ts` has 22 entries (name, age, contexts, obstacles, event, comfort, video, experience, english, speech, voiceNote, innerCritic, goal, minutes, days, anchor, place, reminders, transcription, cloud, retention, why). Steps 2 to 23 above are those 22.
 
 ### 11.2 Result row template
@@ -981,7 +1116,7 @@ Count: the questions list in `src/content/onboarding.ts` has 22 entries (name, a
 |----|--------|----------|------|
 | SM-1 | pass | get_all_text: "Tono", "Skip" | |
 | REC-8 | fail | tapped Stop at 0.8 s; alert "Recording error" ... | see BUG-3 |
-| RES-B1 | blocked | needs a scored take (P1) | |
+| RES-B3 | blocked | needs a take with real speech (P5, not built) | |
 ```
 
 ### 11.3 Bug template
@@ -1018,8 +1153,8 @@ Logs: <filtered logcat lines, no keys>
 
 ### 11.5 Expected on this emulator (do not file)
 
-- The Transcript step of every recorded take fails ("Couldn't read this recording's audio on the device...") and the take is "Failed".
-- No Scores tab, no hero ring, no charts, no coach card on any take.
+- The Transcript step of every take you record fails ("Couldn't read this recording's audio on the device...") and the take is "Failed".
+- No Scores tab, no hero ring, no charts, no coach card on a take you record; the demo takes have them.
 - No Tono Plus row, no Restore, no Apple button, an unreachable Paywall.
 - The setup check cannot hear the mic.
 - Face detection finds no face.
