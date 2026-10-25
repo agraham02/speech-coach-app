@@ -187,6 +187,34 @@ describe("curriculum content", () => {
   });
 });
 
+describe("the minutes picked", () => {
+  const skills = ["articulation", "cadence", "impromptu", "confidence", "conversation"] as const;
+  const total = (plan: ReturnType<typeof buildDailyPlan>) => plan.steps.reduce((sum, s) => sum + s.minutes, 0);
+
+  it("makes the 12-minute plan longer than the 8-minute one, without dropping any of its steps, and never past 12", () => {
+    let checked = 0;
+    for (const skill of skills) {
+      const track = LESSONS.filter((l) => l.skill === skill);
+      for (let k = 0; k < track.length; k++) {
+        const lessons: PlanInput["lessons"] = {};
+        track.slice(0, k).forEach((l) => (lessons[l.id] = { done: true, nextReviewAt: "2027-01-01" }));
+        const rated = Object.fromEntries(skills.map((s) => [s, { rating: s === skill ? 1 : 90, lastPracticedAt: "2026-10-01T00:00:00Z" }])) as PlanInput["skills"];
+        const eight = buildDailyPlan(input({ minutes: 8, skills: rated, lessons }));
+        const twelve = buildDailyPlan(input({ minutes: 12, skills: rated, lessons }));
+        if (eight.focusSkill !== skill) continue;
+        expect(total(twelve)).toBeLessThanOrEqual(12);
+        expect(total(twelve)).toBeGreaterThan(total(eight));
+        // Everything in the 8-minute plan is still there.
+        for (const step of eight.steps.filter((x) => x.kind !== "review")) {
+          expect(twelve.steps.some((x) => x.title === step.title && x.kind === step.kind)).toBe(true);
+        }
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(20);
+  });
+});
+
 describe("previewPlans", () => {
   it("previews a week that rotates through the skills", () => {
     const week = previewPlans(input({ date: "2026-10-12" }), 7);

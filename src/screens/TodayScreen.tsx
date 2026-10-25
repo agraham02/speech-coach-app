@@ -255,6 +255,9 @@ export function TodayScreen() {
               </Txt>
             ) : null}
           </View>
+          <Txt variant="footnote" tone="secondary" tabular>
+            {`${plan.steps.reduce((sum, step) => sum + step.minutes, 0)} min in all`}
+          </Txt>
           <StepTimeline
             color={focus.fg}
             dense

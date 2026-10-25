@@ -48,8 +48,9 @@ export interface PlanStep {
 
 // Bumped when the plan's shape changes, so a stored plan nobody has started
 // yet is rebuilt (v2: line of the day; v3: a lesson's own warm-up no longer
-// takes one of its practice slots; v4: lessons come from your path).
-export const PLAN_VERSION = 4;
+// takes one of its practice slots; v4: lessons come from your path; v5: the
+// 12-minute plan adds steps instead of repeating the 8-minute one).
+export const PLAN_VERSION = 5;
 
 // This many lessons due for review make the day a review day.
 export const REVIEW_DAY_DUE = 3;
@@ -166,6 +167,24 @@ export function choosePathLesson(input: PlanInput): { lesson: Lesson; unitId: st
   return lesson ? { lesson, unitId } : null;
 }
 
+// The 12-minute plan used to be the 8-minute one whenever a lesson has only
+// two practice steps, and a short lesson left any plan under its minutes. A
+// plan now adds to what it has, never takes from it: drills of the same skill
+// from other lessons ("more of the same"), kept while the total stays within
+// the minutes picked.
+function spareDrills(lesson: Lesson, skill: SkillId, taken: Set<string>, date: string): Extract<LessonStep, { kind: "drill" }>[] {
+  const out: Extract<LessonStep, { kind: "drill" }>[] = [];
+  for (const other of LESSONS) {
+    if (other.skill !== skill || other.id === lesson.id) continue;
+    for (const st of other.steps) {
+      if (st.kind === "drill" && !taken.has(st.drill) && !out.some((x) => x.drill === st.drill)) out.push(st);
+    }
+  }
+  if (!out.length) return out;
+  const offset = hashString(date) % out.length;
+  return [...out.slice(offset), ...out.slice(0, offset)];
+}
+
 export function buildDailyPlan(input: PlanInput): DailyPlan {
   const fromPath = choosePathLesson(input);
   const focusSkill = fromPath?.lesson.skill ?? chooseFocusSkill(input);
@@ -212,6 +231,14 @@ export function buildDailyPlan(input: PlanInput): DailyPlan {
     const used = new Set(steps.map((s) => (s.lessonStep?.kind === "drill" ? s.lessonStep.drill : null)));
     const lessonDrill = practice.find((s): s is Extract<LessonStep, { kind: "drill" }> => s.kind === "drill" && !used.has(s.drill));
     push(lessonDrill ?? { kind: "drill", drill: CONVERSATION_APPLY.find((d) => !used.has(d)) ?? "conv_reply" });
+    {
+      const taken = new Set(steps.map((s) => (s.lessonStep?.kind === "drill" ? s.lessonStep.drill : "")));
+      const more = [...CONVERSATION_APPLY.filter((d) => !taken.has(d)).map((d): Extract<LessonStep, { kind: "drill" }> => ({ kind: "drill", drill: d })), ...spareDrills(lesson, focusSkill, taken, input.date)];
+      for (const extra of more.slice(0, 2)) {
+        if (steps.reduce((sum, x) => sum + x.minutes, 0) + 2 > input.minutes) break;
+        push(extra);
+      }
+    }
     // No video rep to review on a conversation day.
     return { version: PLAN_VERSION, date: input.date, minutes: input.minutes, focusSkill, lessonId: lesson.id, isReview, steps, unitId, followsPath: !!input.path?.length };
   }
@@ -222,9 +249,34 @@ export function buildDailyPlan(input: PlanInput): DailyPlan {
     push({ kind: "rep", framework, focus: `Use ${FRAMEWORK_LABELS[framework]}.` });
   }
 
-  // 4. Quick review of today's rep (the three-pass method).
-  if (input.minutes >= 8) {
-    steps.push({ id: `${steps.length}`, kind: "review", title: "Quick review", detail: "Watch, listen, then both — at 1.5×.", minutes: 1 });
+  // The longest session also gets a second rep (and a longer review for it),
+  // then more of the same skill, while it stays within 12 minutes.
+  let reviewMinutes = input.minutes >= 8 ? 1 : 0;
+  const spent = () => steps.reduce((sum, x) => sum + x.minutes, 0) + reviewMinutes;
+  if (input.minutes === 12) {
+    const first = DEFAULT_FRAMEWORKS[hashString(input.date) % DEFAULT_FRAMEWORKS.length];
+    const second = DEFAULT_FRAMEWORKS[(hashString(input.date) + 1) % DEFAULT_FRAMEWORKS.length];
+    if (spent() + 3 <= 12) {
+      push({ kind: "rep", framework: second === first ? DEFAULT_FRAMEWORKS[(hashString(input.date) + 2) % DEFAULT_FRAMEWORKS.length] : second, focus: "A second rep, with a different structure." });
+      reviewMinutes += 1;
+    }
+  }
+  // A short lesson would leave the session under the minutes picked; more of
+  // the same skill fills it, never past them.
+  {
+    const taken = new Set(steps.map((s) => (s.lessonStep?.kind === "drill" ? s.lessonStep.drill : "")));
+    for (const extra of spareDrills(lesson, focusSkill, taken, input.date).slice(0, 2)) {
+      if (spent() + 2 > input.minutes) break;
+      // Before the reps: practice, then apply, then review.
+      const at = steps.findIndex((s) => s.kind === "rep");
+      steps.splice(at, 0, { id: "", ...describeStep(extra), detail: "More of the same skill", lessonStep: extra });
+    }
+    steps.forEach((s, i) => (s.id = `${i}`));
+  }
+
+  // 4. Quick review of today's rep(s) (the three-pass method).
+  if (reviewMinutes > 0) {
+    steps.push({ id: `${steps.length}`, kind: "review", title: "Quick review", detail: "Watch, listen, then both — at 1.5×.", minutes: reviewMinutes });
   }
 
   return { version: PLAN_VERSION, date: input.date, minutes: input.minutes, focusSkill, lessonId: lesson.id, isReview, steps, unitId, followsPath: !!input.path?.length };
