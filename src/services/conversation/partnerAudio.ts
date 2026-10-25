@@ -56,7 +56,11 @@ function applySession(): void {
 function getContext(): AudioContext {
   if (!context) {
     applySession();
-    context = new AudioContext();
+    // At the voice's own rate (24 kHz). A buffer plays its samples at the
+    // context's rate without converting, so a 24 kHz voice on a 48 kHz context
+    // came out twice as fast and an octave up: a chipmunk at 1x.
+    context = new AudioContext({ sampleRate: SAMPLE_RATE });
+    if (context.sampleRate !== SAMPLE_RATE) logger.warn(`[partner] the audio engine runs at ${context.sampleRate} Hz, not ${SAMPLE_RATE}; slowing the voice to match`);
   }
   return context;
 }
@@ -124,8 +128,11 @@ export class PartnerLinePlayer {
     this.chunksDecoded += 1;
     if (this.ended) return;
     if (!this.source) {
-      const source = ctx.createBufferQueueSource({ pitchCorrection: this.rate !== 1 });
-      source.playbackRate.value = this.rate;
+      // If the engine would not run at the voice's rate, play slower by the
+      // difference (the pitch then moves with the speed setting; a fallback).
+      const mismatch = ctx.sampleRate / SAMPLE_RATE;
+      const source = ctx.createBufferQueueSource({ pitchCorrection: mismatch === 1 && this.rate !== 1 });
+      source.playbackRate.value = this.rate / mismatch;
       source.connect(ctx.destination);
       source.onBufferEnded = (event) => {
         this.pending = Math.max(0, this.pending - 1);
