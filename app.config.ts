@@ -69,9 +69,9 @@ export default (): ExpoConfig => ({
         },
         predictiveBackGestureEnabled: false,
     },
-    web: {
-        favicon: "./assets/favicon.png",
-    },
+    // iPhone and Android only. Without this (and with a `web` block), `eas
+    // update` also bundles for the web, which needs react-native-web and fails.
+    platforms: ["ios", "android"],
     // Over-the-air updates (EAS Update). JS and content changes ship with
     // `npm run update:production` / `update:testflight` and apply on the next
     // cold start. An update only reaches builds with the same runtime version,
