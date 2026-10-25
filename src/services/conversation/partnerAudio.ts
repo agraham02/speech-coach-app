@@ -1,5 +1,6 @@
 import { AudioContext, AudioManager, type AudioBufferQueueSourceNode } from "react-native-audio-api";
 import { logger } from "../../utils/logger";
+import { withTimeout } from "../../utils/withTimeout";
 import { CONVERSATION_SESSION_IOS, PLAYBACK_SESSION_IOS } from "../audio/audioSession";
 
 // Plays the conversation partner's voice as it streams in: 16-bit PCM chunks
@@ -22,9 +23,16 @@ export interface LineHandlers {
   onStart?: () => void;
   // The last chunk has played (after finish()), or stop() was called.
   onEnd?: (how: "played" | "stopped") => void;
+  // The audio engine did not do what it was asked (decode, start): said once,
+  // just before onEnd("stopped"), so a line never waits forever in silence.
+  onError?: (message: string) => void;
 }
 
 const SAMPLE_RATE = 24_000;
+// The audio library's native calls have no timeout of their own and have been
+// seen to never answer (utils/withTimeout.ts), so each is bounded.
+const DECODE_TIMEOUT_MS = 5_000;
+const ENGINE_TIMEOUT_MS = 5_000;
 export const DEFAULT_PREBUFFER_MS = 400;
 
 let context: AudioContext | null = null;
@@ -63,6 +71,10 @@ export class PartnerLinePlayer {
   private ended = false;
   private chain: Promise<void> = Promise.resolve();
   private readonly startedAt = Date.now();
+  // Where it is, for the lab: "waiting", "decoding 3", "starting", "playing".
+  stage = "waiting";
+  chunksIn = 0;
+  chunksDecoded = 0;
 
   constructor(
     private readonly rate: number,
@@ -72,17 +84,21 @@ export class PartnerLinePlayer {
 
   // Queues one chunk (base64 PCM). Chunks are decoded in order.
   push(pcmBase64: string): void {
-    this.chain = this.chain.then(() => this.enqueue(pcmBase64)).catch((error) => logger.warn(`[partner] chunk failed — ${(error as Error).message}`));
+    this.chunksIn += 1;
+    this.chain = this.chain.then(() => this.enqueue(pcmBase64)).catch((error) => this.fail((error as Error).message));
   }
 
   // No more chunks for this line.
   finish(): void {
-    this.chain = this.chain.then(async () => {
-      this.finished = true;
-      if (!this.source && this.queuedMs === 0) return this.end("played");
-      if (!this.started) await this.begin();
-      if (this.pending === 0) this.end("played");
-    });
+    this.chain = this.chain
+      .then(async () => {
+        this.finished = true;
+        if (this.ended) return;
+        if (!this.source && this.queuedMs === 0) return this.end("played");
+        if (!this.started) await this.begin();
+        if (this.pending === 0) this.end("played");
+      })
+      .catch((error) => this.fail((error as Error).message));
   }
 
   // Cut short (a tap, the conversation ending, an interruption).
@@ -102,7 +118,10 @@ export class PartnerLinePlayer {
   private async enqueue(pcmBase64: string): Promise<void> {
     if (this.ended) return;
     const ctx = getContext();
-    const buffer = await ctx.decodePCMInBase64(pcmBase64, SAMPLE_RATE, 1, true);
+    this.stage = `decoding ${this.chunksDecoded + 1}`;
+    const buffer = await withTimeout(ctx.decodePCMInBase64(pcmBase64, SAMPLE_RATE, 1, true), DECODE_TIMEOUT_MS, null);
+    if (!buffer) throw new Error(`the audio engine did not decode piece ${this.chunksDecoded + 1}`);
+    this.chunksDecoded += 1;
     if (this.ended) return;
     if (!this.source) {
       const source = ctx.createBufferQueueSource({ pitchCorrection: this.rate !== 1 });
@@ -123,12 +142,23 @@ export class PartnerLinePlayer {
   private async begin(): Promise<void> {
     if (this.started || this.ended || !this.source) return;
     this.started = true;
-    if (suspending) await suspending;
+    this.stage = "starting";
+    if (suspending) await withTimeout(suspending, ENGINE_TIMEOUT_MS, undefined);
     applySession();
-    await getContext().resume();
+    const resumed = await withTimeout(getContext().resume().then(() => true), ENGINE_TIMEOUT_MS, false);
+    if (!resumed) throw new Error("the audio engine did not start");
+    this.stage = "playing";
     this.source.start();
     this.firstSoundMs = Date.now() - this.startedAt;
     this.handlers.onStart?.();
+  }
+
+  // Something below did not answer: say so once and end the line.
+  private fail(message: string): void {
+    if (this.ended) return;
+    logger.warn(`[partner] ${message} (at ${this.stage}; ${this.chunksDecoded} of ${this.chunksIn} pieces decoded)`);
+    this.handlers.onError?.(`${message} (at ${this.stage})`);
+    this.stop();
   }
 
   private end(how: "played" | "stopped"): void {

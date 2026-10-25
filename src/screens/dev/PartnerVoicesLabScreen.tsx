@@ -91,9 +91,19 @@ export function PartnerVoicesLabScreen({ navigation }: NativeStackScreenProps<Ro
     try {
       await new Promise<void>((resolve, reject) => {
         let finished = false;
+        // A play that never ends is a bug to report, not a spinner to wait out.
+        const watchdog = setTimeout(() => {
+          if (finished) return;
+          const p = player as PartnerLinePlayer | null;
+          run.error = `still going after 30 s (player: ${p ? `${p.stage}, ${p.chunksDecoded} of ${p.chunksIn} pieces decoded` : "none, no words arrived"})`;
+          showToast(`No sound: ${run.error}`, "error");
+          p?.stop();
+          end();
+        }, 30_000);
         const end = () => {
           if (finished) return;
           finished = true;
+          clearTimeout(watchdog);
           run.totalMs = Date.now() - sentAt;
           resolve();
         };
@@ -111,6 +121,10 @@ export function PartnerVoicesLabScreen({ navigation }: NativeStackScreenProps<Ro
                     run.toFirstSoundMs = Date.now() - sentAt;
                   },
                   onEnd: end,
+                  onError: (message) => {
+                    run.error = message;
+                    showToast(`No sound: ${message}`, "error");
+                  },
                 });
                 playerRef.current = player;
               } else if (event.type === "audio") {
