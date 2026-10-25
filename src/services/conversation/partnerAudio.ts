@@ -148,7 +148,10 @@ export class PartnerLinePlayer {
     const resumed = await withTimeout(getContext().resume().then(() => true), ENGINE_TIMEOUT_MS, false);
     if (!resumed) throw new Error("the audio engine did not start");
     this.stage = "playing";
-    this.source.start();
+    // Not start(): react-native-audio-api 0.13's queue source defaults its offset
+    // to -1 and then refuses it ("offset must be a finite non-negative number:
+    // -1"), so a bare start() always throws. An explicit 0 starts at the front.
+    this.source.start(0, 0);
     this.firstSoundMs = Date.now() - this.startedAt;
     this.handlers.onStart?.();
   }
