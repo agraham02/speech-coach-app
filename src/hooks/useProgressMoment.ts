@@ -10,10 +10,12 @@ import { BEAT_GAP_MS } from "../components/celebrate/ProgressReveal";
 // celebration once the beats have landed. It plays when the card is on screen
 // (`visible`), not when it arrives: someone reading further down would miss the
 // whole thing. Leaving before then leaves it unseen, so Today offers it again.
-// `animate` is true for that first viewing only; `playing` once it has begun.
+// The beats play every time the screen is opened and the card is scrolled to
+// (`animate`; `playing` once it has begun), so it is never just there with
+// nothing to see; only the first viewing marks the moment seen and opens the
+// stage celebration.
 export function useProgressMoment(sessionId: string, enabled: boolean, visible = true) {
   const [moment, setMoment] = useState<LoadedMoment | null>(null);
-  const [animate, setAnimate] = useState(false);
   const [playing, setPlaying] = useState(false);
   const played = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -22,7 +24,6 @@ export function useProgressMoment(sessionId: string, enabled: boolean, visible =
     if (!enabled) return;
     loadMoment(sessionId).then((m) => {
       if (!m) return;
-      if (!m.seen && !played.current) setAnimate(true);
       setMoment(m);
     });
   }, [sessionId, enabled]);
@@ -42,17 +43,21 @@ export function useProgressMoment(sessionId: string, enabled: boolean, visible =
   }, [sessionId, enabled, load]);
 
   // The first time it is both there and in view, it plays.
+  const firstViewing = useRef<boolean | null>(null);
+  if (moment && firstViewing.current === null) firstViewing.current = !moment.seen;
   useEffect(() => {
-    if (!moment || !animate || !visible || played.current) return;
+    if (!moment || !visible || played.current) return;
     played.current = true;
     setPlaying(true);
+    // Seen before: the beats play again, quietly, with nothing to mark or celebrate.
+    if (!firstViewing.current) return;
     const landed = 200 + moment.beats.length * BEAT_GAP_MS + 900;
     const stage = moment.beats.find((b) => b.kind === "stage");
     timer.current = setTimeout(() => {
       markProgressSeen(sessionId).catch(() => undefined);
       if (stage && stage.kind === "stage") celebrate({ kind: "stage", skill: stage.skill, stage: stage.stage, speakerLevel: stage.speakerLevel });
     }, landed);
-  }, [moment, animate, visible, sessionId]);
+  }, [moment, visible, sessionId]);
 
-  return { moment, animate, playing };
+  return { moment, animate: moment !== null, playing };
 }
