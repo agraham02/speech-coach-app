@@ -66,10 +66,15 @@ export function FollowAlongTranscript({ words, fallbackText, positionMs, started
     lineTops.current[index] = top;
   }, []);
 
+  // Forget the measured lines only when the transcript really is another one.
+  // A screen that reloads its record hands over a new array of the same words
+  // every time; the words don't re-measure themselves then (they are memoized),
+  // so clearing on identity left no line positions and the box never followed.
+  const transcriptKey = words?.length ? `${words.length}:${words[0].startMs}:${words[words.length - 1].endMs}` : "";
   useEffect(() => {
     lineTops.current = [];
     lastScrolledTop.current = null;
-  }, [words]);
+  }, [transcriptKey]);
 
   // Scroll only when the current word moves to another line, so the box
   // steps line by line instead of twitching every word.
