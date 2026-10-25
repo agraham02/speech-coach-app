@@ -23,9 +23,9 @@ Not scheduled yet. When you're ready:
 
 **Needs build:** no for the audio fixes (an over-the-air update onto a 1.3.0+ build works); yes for the Dynamic Island on a fresh install.
 
-- [ ] **Speaker, not earpiece.** Line of the Day: record and play back 5 or more times in a row. Pass: every playback comes out of the loudspeaker, never the earpiece. Repeat in Move It and in a Rewind playback.
+- [x] **Speaker, not earpiece.** Line of the Day: record and play back 5 or more times in a row. Pass: every playback comes out of the loudspeaker, never the earpiece. Repeat in Move It and in a Rewind playback.
   Notes:
-- [ ] **Recording sounds full, not phone-like.** Record a Line of the Day and listen back. Pass: no thin "phone call" sound.
+- [x] **Recording sounds full, not phone-like.** Record a Line of the Day and listen back. Pass: no thin "phone call" sound.
   Notes:
 - [ ] **AirPods.** Playback is full quality in the AirPods; recording still works (it uses the iPhone's mic). Also try wired headphones: recognition still works.
   Notes:
@@ -35,7 +35,7 @@ Not scheduled yet. When you're ready:
   Notes:
 - [ ] **Volume drills** (projection, pause) feel the same as before: the meter thresholds didn't shift.
   Notes:
-- [ ] **Research timer.** Research a prompt, tap "Search the web". Pass: the Dynamic Island shows the countdown in Safari, and on the Lock Screen. Add time: the end moves. If nothing shows: Dev → Logs, look for `[prep]` lines, and check Settings → Tono → Live Activities.
+- [x] **Research timer.** Research a prompt, tap "Search the web". Pass: the Dynamic Island shows the countdown in Safari, and on the Lock Screen. Add time: the end moves. If nothing shows: Dev → Logs, look for `[prep]` lines, and check Settings → Tono → Live Activities.
   Notes:
 - [ ] **Come back early.** No notification arrives while you're in the app at the deadline, and Notification Center is empty. Leave again: the alert still fires while you're away.
   Notes:

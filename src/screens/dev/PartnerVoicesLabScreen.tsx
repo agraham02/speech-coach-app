@@ -37,7 +37,7 @@ export function PartnerVoicesLabScreen({ navigation }: NativeStackScreenProps<Ro
   const [voice, setVoice] = useState(ALL_VOICES[0].id);
   const [lineIndex, setLineIndex] = useState(0);
   const [speed, setSpeed] = useState(1);
-  const [session, setSession] = useState<PartnerSession>("conversation");
+  const [session, setSession] = useState<PartnerSession>("playback");
   const [history, setHistory] = useState<LabRun[]>(() => getDevJson<LabRun[]>(LAB_HISTORY_KEY, []));
   const [ratings, setRatings] = useState<Record<string, number>>(() => getDevJson<Record<string, number>>(LAB_RATINGS_KEY, {}));
   const [busy, setBusy] = useState(false);
@@ -52,7 +52,7 @@ export function PartnerVoicesLabScreen({ navigation }: NativeStackScreenProps<Ro
     () => () => {
       playerRef.current?.stop();
       Speech.stop();
-      setPartnerSession("conversation");
+      setPartnerSession("playback");
     },
     [],
   );

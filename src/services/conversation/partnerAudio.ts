@@ -12,9 +12,13 @@ import { CONVERSATION_SESSION_IOS, PLAYBACK_SESSION_IOS } from "../audio/audioSe
 //   complete.
 // - The engine is suspended between lines, so when the mic opens the
 //   recognizer has the session to itself.
-// - iPhone session: by default the recognizer's own (CONVERSATION_SESSION_IOS),
-//   so the switch from listening to the partner and back changes nothing. The
-//   Dev lab can pick plain playback to compare (test plan K).
+// - iPhone session: plain playback by default (PLAYBACK_SESSION_IOS). That
+//   category has no earpiece route, so the partner is always on the speaker (or
+//   headphones). The recognizer's own record-and-play session
+//   (CONVERSATION_SESSION_IOS) was meant to avoid a session switch between
+//   turns, but in it iOS sometimes sent the voice to the earpiece. The mic is
+//   closed while the partner speaks, and the recognizer sets its own session
+//   again when it opens. The Dev lab can still pick the other one to compare.
 
 export type PartnerSession = "conversation" | "playback";
 
@@ -38,7 +42,7 @@ export const DEFAULT_PREBUFFER_MS = 400;
 let context: AudioContext | null = null;
 // A suspend in flight, so the next line waits for it before resuming.
 let suspending: Promise<unknown> | null = null;
-let session: PartnerSession = "conversation";
+let session: PartnerSession = "playback";
 
 export function setPartnerSession(next: PartnerSession): void {
   session = next;
