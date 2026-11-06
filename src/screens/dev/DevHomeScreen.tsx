@@ -147,6 +147,13 @@ function DevHome() {
 
       <ListGroup title="Labs">
         <ListRow
+          icon="analytics-outline"
+          title="Signal Lab"
+          subtitle="Tests that decide which readings can be trusted"
+          chevron
+          onPress={() => navigation.navigate("DevSignalLab")}
+        />
+        <ListRow
           icon="scan-outline"
           title="Face Lab"
           subtitle="Live eye and face tracking, calibration, thresholds"
