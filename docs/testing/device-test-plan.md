@@ -616,7 +616,7 @@ Tiers and minutes:
 On the laptop, after a week:
 
 - [ ] **Real cost per minute.** Sum `cost_usd` over `kind = 'conversation'` rows and divide by `units_seconds / 60`.
-  Pass: under 0.7 cents a minute (the model says 0.48 typical, 0.72 chatty). If it's more than 50% off, update `src/domain/conversation/live/cost.ts` and the decision doc.
+  Pass: under 0.7 cents a minute (the model says 0.48 typical, 0.72 chatty). If it's more than 50% off, update the decision doc.
   Data to send back: the totals, by model.
   Notes:
 - [ ] **Optional: voice barge-in spike.** Only if tap-to-cut-in feels wrong: try a `voiceChat` session with the mic open during playback (see section 5 of the decision doc).

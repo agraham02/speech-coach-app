@@ -156,8 +156,8 @@ describe("the cost cap and the text-call cost", () => {
   });
 
   it("still leaves room with every conversation minute used, at the 2027 voice price", () => {
-    // A typical minute is about 0.75 cents from 2027 (docs/decisions/conversation-voice.md, cost;
-    // src/domain/conversation/live/cost.ts). A chatty one, about 1.2 cents, can meet the cap
+    // A typical minute is about 0.75 cents from 2027 (docs/decisions/conversation-voice.md,
+    // cost). A chatty one, about 1.2 cents, can meet the cap
     // at every other count too: the cap then stops it, which is what it is for.
     const heavy = 60 * 0.006 + 300 * 0.0035 + 120 * 0.0075;
     expect(heavy).toBeLessThan(DEFAULT_CONFIG.limits.paidCostCapUsd);

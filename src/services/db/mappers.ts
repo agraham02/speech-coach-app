@@ -2,7 +2,6 @@ import type {
   Archetype,
   CurriculumStateEntry,
   DifficultyTier,
-  DrillCompletion,
   DspStatus,
   Prompt,
   Session,
@@ -219,26 +218,6 @@ export function rowToScores(row: ScoreRow): SessionScores {
     annotations: parseAnnotationsJson(row.annotations_json),
     cueComplianceScore: row.cue_compliance_score,
     cueComplianceNotes: row.cue_compliance_notes,
-  };
-}
-
-export interface DrillCompletionRow {
-  id: string;
-  twister_id: string;
-  completed_at: string;
-  accuracy_percent: number;
-  wpm: number;
-  difficulty: string;
-}
-
-export function rowToDrillCompletion(row: DrillCompletionRow): DrillCompletion {
-  return {
-    id: row.id,
-    twisterId: row.twister_id,
-    completedAt: row.completed_at,
-    accuracyPercent: row.accuracy_percent,
-    wpm: row.wpm,
-    difficulty: row.difficulty as DifficultyTier,
   };
 }
 

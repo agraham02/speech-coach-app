@@ -206,7 +206,7 @@ In the partner prompt (`supabase/functions/_shared/prompts/conversation.ts`):
 
 The 2027 prices are in the config row as dated changes (`prices[model].next`), so the cost cap stays honest on 1 January without anyone editing it.
 
-**A minute of conversation** (`src/domain/conversation/live/cost.ts`, tested): about 4 partner lines (a reply of about 8 s, the wait, a line of about 4 s), 18 s of partner speech, about 1,150 prompt tokens and 60 out per line.
+**A minute of conversation** (an estimate; the model that worked it out was removed in the 2026-11 cleanup and is in git history): about 4 partner lines (a reply of about 8 s, the wait, a line of about 4 s), 18 s of partner speech, about 1,150 prompt tokens and 60 out per line.
 
 | | Now | From 2027 |
 |---|---|---|
