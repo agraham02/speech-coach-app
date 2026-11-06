@@ -21,6 +21,14 @@ export function saveLabResult(result: LabResult): LabResults {
   return next;
 }
 
+// Adds the person's note to their most recent run of a test.
+export function annotateLatestResult(testId: string, note: string): void {
+  const results = getLabResults();
+  const runs = results[testId];
+  if (!runs?.length) return;
+  setHelperJson(RESULTS_KEY, { ...results, [testId]: [{ ...runs[0], note }, ...runs.slice(1)] });
+}
+
 export function clearLabResults(): void {
   setHelperJson(RESULTS_KEY, null);
 }

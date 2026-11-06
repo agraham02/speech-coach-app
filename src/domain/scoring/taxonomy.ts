@@ -1,4 +1,5 @@
 import type { SkillId } from "../../theme/tokens";
+import type { ReadingId } from "../signalLab/readingTrust";
 
 // The one scoring taxonomy (docs/decisions/scoring-taxonomy.md). Every score
 // the app shows or stores is named here: the main categories are the five
@@ -93,7 +94,9 @@ export interface MetricDef {
   definition: string;
   source: MetricSource;
   subcategory: SubcategoryId;
-  // Feeds the measured sub-score. False: shown as a fact only.
+  // Feeds the measured sub-score and counts today. False: shown as a fact
+  // only, or its reading is still on probation or being tuned (see
+  // SUBCATEGORY_READING), so it doesn't count towards a score.
   scored: boolean;
   // Produced by session 06's signal work; until it lands the metric is absent.
   pending06?: boolean;
@@ -343,6 +346,18 @@ export const SUBCATEGORIES: Record<SubcategoryId, SubcategoryDef> = {
   },
 };
 
+// The reading behind a subcategory, where one is on trial (signalLab/
+// readingTrust.ts). A subcategory whose reading doesn't count is still
+// computed and shown, labelled Beta, but leaves its category and the overall.
+// A subcategory not listed here isn't gated by a reading.
+export const SUBCATEGORY_READING: Partial<Record<SubcategoryId, ReadingId>> = {
+  pauses: "sentence_end_pauses",
+  melody: "pitch_variety",
+  emphasis: "stand_out_stress",
+  eye_contact: "on_the_lens",
+  expression: "face_movement",
+};
+
 // Subcategory order inside each skill, as shown.
 export const SUBCATEGORY_ORDER: SubcategoryId[] = [
   "pace",
@@ -378,16 +393,16 @@ export const METRICS: Record<MetricId, MetricDef> = {
   speaking_rate: m("speaking_rate", "pace", "Speaking rate", "words a minute", "transcript", true, "Words a minute from your first word to your last."),
   articulation_rate: m("articulation_rate", "pace", "Articulation rate", "syllables a second", "audio", false, "Syllables a second while you're actually talking, pauses left out.", true),
   pace_variation: m("pace_variation", "pace", "Pace changes", "words a minute", "transcript", false, "How much your pace moved across the take (speeding up when nervous is the classic one).", true),
-  boundary_pauses: m("boundary_pauses", "pauses", "Pauses at full stops", "% of sentence ends", "transcript", true, "Share of sentence ends followed by a real pause."),
+  boundary_pauses: m("boundary_pauses", "pauses", "Pauses at full stops", "% of sentence ends", "transcript", false, "Share of sentence ends followed by a real pause."),
   mid_phrase_pauses: m("mid_phrase_pauses", "pauses", "Mid-phrase pauses", "count", "audio", false, "Pauses that land inside a phrase rather than between thoughts."),
   pauses_per_minute: m("pauses_per_minute", "pauses", "Pauses a minute", "a minute", "audio", false, "Silences of 0.3 s or more, a minute."),
   longest_pause: m("longest_pause", "pauses", "Longest pause", "seconds", "audio", false, "The longest silence between your first and last word."),
   breaths: m("breaths", "pauses", "Breaths", "count", "audio", false, "Audible breaths inside pauses, tagged so they don't split a pause in two.", true),
   pitch_variety: m("pitch_variety", "melody", "Pitch variety", "semitones", "audio", false, "How far your pitch moves around your own middle (standard deviation, in semitones).", true),
-  pitch_range: m("pitch_range", "melody", "Pitch range", "semitones", "audio", true, "The span your voice covers (10th to 90th percentile). Semitones, so low and high voices are scored alike."),
+  pitch_range: m("pitch_range", "melody", "Pitch range", "semitones", "audio", false, "The span your voice covers (10th to 90th percentile). Semitones, so low and high voices are scored alike."),
   voiced_share: m("voiced_share", "melody", "Voice heard", "% of frames", "audio", false, "How much of the take had a readable pitch. Too little and pitch isn't scored.", true),
   loudness_spread: m("loudness_spread", "emphasis", "Loudness range", "dB", "audio", false, "How much your loudness moves while you speak (silences left out), relative to your own middle.", true),
-  emphasis_peaks: m("emphasis_peaks", "emphasis", "Emphasis", "dB", "audio", true, "How much the loudest syllables stand out from the rest.", true),
+  emphasis_peaks: m("emphasis_peaks", "emphasis", "Emphasis", "dB", "audio", false, "How much the loudest syllables stand out from the rest.", true),
   hesitation_fillers: m("hesitation_fillers", "fluency", "Ums and uhs", "a minute", "transcript", true, "Sound fillers (um, uh, er): always fillers."),
   contextual_fillers: m("contextual_fillers", "fluency", "Like, actually…", "a minute", "transcript", true, "Words that are fillers only in context (like, actually, you know, basically). Counted apart and weighed at half.", true),
   repeated_words: m("repeated_words", "fluency", "Repeated words", "count", "transcript", false, "The same word twice in a row (\"I I think\"). Never counted against someone who stutters."),
@@ -396,11 +411,11 @@ export const METRICS: Record<MetricId, MetricDef> = {
   shape: m("shape", "structure", "Shape", "framework", "transcript", true, "The structure the phone's rules recognised (PREP, story, problem-solution…), if any."),
   point_first: m("point_first", "structure", "Point up front", "yes/no", "transcript", false, "Whether the first sentence made the point."),
   restated_points: m("restated_points", "clarity", "Repeated ideas", "count", "transcript", false, "Points made again in other words without adding anything (found by the judge)."),
-  eye_contact: m("eye_contact", "eye_contact", "On the lens", "% of the time", "face", true, "Of the time your face was in view, how much your head and eyes were on the lens."),
+  eye_contact: m("eye_contact", "eye_contact", "On the lens", "% of the time", "face", false, "Of the time your face was in view, how much your head and eyes were on the lens."),
   looking_down: m("looking_down", "eye_contact", "Looking down", "% of the time", "face", false, "Eyes well below the lens (notes, the floor, your own preview)."),
   looking_up: m("looking_up", "eye_contact", "Looking up", "% of the time", "face", false, "Eyes above the lens (thinking).", true),
   longest_look_away: m("longest_look_away", "eye_contact", "Longest look away", "seconds", "face", false, "The longest stretch away from the lens."),
-  expressiveness: m("expressiveness", "expression", "Expression", "0 to 100", "face", true, "How much your face moved (smile, brows, cheeks). From session 06 it leaves out the jaw, which moves with every syllable."),
+  expressiveness: m("expressiveness", "expression", "Expression", "0 to 100", "face", false, "How much your face moved (smile, brows, cheeks). From session 06 it leaves out the jaw, which moves with every syllable."),
   smiles: m("smiles", "expression", "Smiling", "% of the time", "face", false, "Time with a clear smile."),
   brow_raises: m("brow_raises", "expression", "Eyebrow lifts", "a minute", "face", false, "Lifts of the eyebrows, the face's way of underlining a word."),
   hedges: m("hedges", "conviction", "Hedges", "count", "transcript", true, "\"I think\", \"maybe\", \"I guess\": softeners on your own points."),

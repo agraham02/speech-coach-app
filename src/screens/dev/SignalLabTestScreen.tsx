@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
-import { useNavigation } from "@react-navigation/native";
+import { useCallback, useMemo, useState } from "react";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp, NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation";
 import { Screen } from "../../components/common/Screen";
 import { Card } from "../../components/common/Card";
+import { PrimaryButton } from "../../components/common/PrimaryButton";
 import { Txt } from "../../components/common/Txt";
 import { getLabResults } from "../../services/dev/signalLabStore";
 import { labTest } from "../../domain/signalLab/registry";
@@ -23,7 +24,13 @@ export function SignalLabTestScreen({ route }: Props) {
   const styles = useStyles();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const entry = labTest(route.params.testId);
-  const [results] = useState(() => getLabResults());
+  const [results, setResults] = useState(() => getLabResults());
+  // A run saved on the run screen must show when you come back to this one.
+  useFocusEffect(
+    useCallback(() => {
+      setResults(getLabResults());
+    }, []),
+  );
   const runs = useMemo(() => (entry ? (results[entry.def.id] ?? []) : []), [entry, results]);
 
   if (!entry) {
@@ -69,6 +76,8 @@ export function SignalLabTestScreen({ route }: Props) {
           </Txt>
         ))}
       </Card>
+
+      <PrimaryButton label={runs.length ? "Run again" : "Run this test"} disabled={!!def.blockedBy || def.steps.length === 0} onPress={() => navigation.navigate("DevSignalLabRun", { testId: def.id })} />
 
       <Txt variant="headline">Runs</Txt>
       {runs.length === 0 ? (
