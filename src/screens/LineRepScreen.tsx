@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
@@ -240,7 +241,7 @@ export function LineRepScreen({ route, navigation }: Props) {
     <ScreenContainer style={styles.container}>
       <Header eyebrow={eyebrow} title={stageTitle(stage, read, markingMode)} onBack={() => navigation.goBack()} backIcon="close" />
       <TourScrollContext.Provider value={tourScroll}>
-      <ScrollView {...scrollProps} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <KeyboardAwareScrollView {...(scrollProps as object)} bottomOffset={24} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {stage === "mark" ? (
           <Card style={styles.card}>
             <Txt variant="subhead" tone="secondary">
@@ -306,7 +307,7 @@ export function LineRepScreen({ route, navigation }: Props) {
             ) : null}
           </Card>
         ) : null}
-      </ScrollView>
+      </KeyboardAwareScrollView>
       </TourScrollContext.Provider>
 
       {stage === "read" || stage === "remix" ? (

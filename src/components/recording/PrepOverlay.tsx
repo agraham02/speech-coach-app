@@ -1,4 +1,5 @@
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Ionicons } from "@expo/vector-icons";
 import { mmss } from "../../domain/prepTimer";
 import { darkColors as colors, fontDisplay, radii, spacing, typography, font } from "../../theme/theme";
@@ -108,8 +109,8 @@ function ResearchBody({
   bottomInset,
 }: PrepOverlayProps) {
   return (
-    <KeyboardAvoidingView style={styles.researchWrap} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <ScrollView
+    <View style={styles.researchWrap}>
+      <KeyboardAwareScrollView bottomOffset={24}
         contentContainerStyle={[styles.researchContent, { paddingTop: topInset + 56, paddingBottom: bottomInset + spacing.lg }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -154,8 +155,8 @@ function ResearchBody({
         <Pressable onPress={onNoPrep} style={styles.ghost} accessibilityRole="button">
           <Text style={styles.ghostText}>No prep</Text>
         </Pressable>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+    </View>
   );
 }
 

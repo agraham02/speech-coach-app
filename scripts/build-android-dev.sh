@@ -20,7 +20,10 @@ git checkout --detach "$REF"
 
 LOCK_HASH="$(git hash-object package-lock.json)"
 if [ "$(cat node_modules/.tono-lock-hash 2>/dev/null || true)" != "$LOCK_HASH" ]; then
-  npm ci --no-audit --no-fund
+  # Incremental, not `npm ci`: ci deletes node_modules first, and a Gradle or Kotlin
+  # process from the last build can still hold files in it (EBUSY).
+  npm install --no-audit --no-fund
+  git checkout -- package.json package-lock.json
   echo "$LOCK_HASH" > node_modules/.tono-lock-hash
 fi
 

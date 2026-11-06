@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
+import { Pressable, TextInput, View } from "react-native";
+import { KeyboardForm } from "../components/common/KeyboardForm";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
@@ -607,43 +608,45 @@ export function OnboardingScreen({ route, navigation }: Props) {
           <ProgressBar progress={progress} />
         </View>
       </View>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <Animated.View
-            key={step}
-            entering={(direction > 0 ? FadeInRight : FadeInLeft).duration(duration.slow).easing(easeOut).withInitialValues({ transform: [{ translateX: direction * 24 }] })}
-            style={styles.question}
-          >
-            <View style={styles.questionHead}>
-              <Txt variant="title1">{question.title}</Txt>
-              {question.subtitle ? (
-                <Txt variant="callout" tone="secondary">
-                  {question.subtitle}
-                </Txt>
+      <KeyboardForm
+        contentContainerStyle={styles.scroll}
+        footer={
+            <View style={styles.actions}>
+              {question.optional && !(question.id === "cloud" && (connected || tonoAgeGated())) ? (
+                <PrimaryButton label={question.id === "cloud" ? "Not now" : "Skip"} variant="ghost" style={styles.flex} onPress={() => next(true)} disabled={busy} />
               ) : null}
+              <PrimaryButton
+                label={step === QUESTIONS.length - 1 ? "Done" : question.id === "cloud" && !connected && !tonoAgeGated() ? "Allow Tono AI" : "Continue"}
+                style={styles.flexWide}
+                onPress={() => next()}
+                disabled={!answered}
+                loading={busy}
+              />
             </View>
-            {body()}
-            <View style={styles.changes}>
-              <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} />
-              <Txt variant="footnote" tone="muted" style={styles.flex}>
-                {question.changes}
+        }
+      >
+        <Animated.View
+          key={step}
+          entering={(direction > 0 ? FadeInRight : FadeInLeft).duration(duration.slow).easing(easeOut).withInitialValues({ transform: [{ translateX: direction * 24 }] })}
+          style={styles.question}
+        >
+          <View style={styles.questionHead}>
+            <Txt variant="title1">{question.title}</Txt>
+            {question.subtitle ? (
+              <Txt variant="callout" tone="secondary">
+                {question.subtitle}
               </Txt>
-            </View>
-          </Animated.View>
-        </ScrollView>
-        <View style={styles.actions}>
-          {question.optional && !(question.id === "cloud" && (connected || tonoAgeGated())) ? (
-            <PrimaryButton label={question.id === "cloud" ? "Not now" : "Skip"} variant="ghost" style={styles.flex} onPress={() => next(true)} disabled={busy} />
-          ) : null}
-          <PrimaryButton
-            label={step === QUESTIONS.length - 1 ? "Done" : question.id === "cloud" && !connected && !tonoAgeGated() ? "Allow Tono AI" : "Continue"}
-            style={styles.flexWide}
-            onPress={() => next()}
-            disabled={!answered}
-            loading={busy}
-          />
-        </View>
-      </KeyboardAvoidingView>
+            ) : null}
+          </View>
+          {body()}
+          <View style={styles.changes}>
+            <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} />
+            <Txt variant="footnote" tone="muted" style={styles.flex}>
+              {question.changes}
+            </Txt>
+          </View>
+        </Animated.View>
+      </KeyboardForm>
     </ScreenContainer>
   );
 }
