@@ -7,6 +7,7 @@ import {
   eventAfterText,
   eventDayOfText,
   firstName,
+  judgedToastText,
   prepRunningText,
   prepTimeUpText,
   recencyFacts,
@@ -151,6 +152,13 @@ describe("the other notifications", () => {
   it("a failed step says what happened and how to try again", () => {
     expect(stepFailedText("Transcription", "No speech found")).toEqual({ title: "Transcription didn't finish", body: "No speech found. Open the take to try again." });
     expect(stepFailedText("Deep review", "Couldn't reach the AI provider.").body).toBe("Couldn't reach the AI provider. Open the take to try again.");
+  });
+  it("the judged toast shows the take's own score, and no score when there isn't one", () => {
+    expect(judgedToastText("Judged by Tono AI", 7.4)).toBe("Judged by Tono AI — overall 7.4/10");
+    expect(judgedToastText("Judged by Tono AI", 8)).toBe("Judged by Tono AI — overall 8.0/10");
+    expect(judgedToastText("Judged by Tono AI", null)).toBe("Judged by Tono AI");
+    expect(judgedToastText("Judged by Tono AI", undefined)).toBe("Judged by Tono AI");
+    expect(judgedToastText("Judged by Tono AI", Number.NaN)).toBe("Judged by Tono AI");
   });
   it("streak toasts stay quiet: no emoji, no exclamation marks", () => {
     expect(streakToastText(7, "milestone")).toBe("7 days in a row. That's a habit now.");

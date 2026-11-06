@@ -25,7 +25,7 @@ import { notifySessionComplete } from "../notifications/sessionCompleteNotifier"
 import { syncDailyReminder } from "../notifications/reminderScheduler";
 import { navigationRef } from "../../navigation/navigationRef";
 import { streakMilestoneReached } from "../../domain/streaks";
-import { sessionReadyText, streakToastText } from "../../domain/notificationCopy";
+import { judgedToastText, sessionReadyText, streakToastText } from "../../domain/notificationCopy";
 import { getUserProfile } from "../prefs/prefsStore";
 import { getStreakState } from "../db/progressRepo";
 import { takeFreezeNotice } from "../streaks/freezeNotice";
@@ -231,7 +231,7 @@ async function announceCompletion(sessionId: string, ranCloudReview: boolean): P
   const ready = sessionReadyText(getUserProfile()?.name, session.sessionType === "feeling" ? "feeling" : scores ? "review" : "take");
   notifySessionComplete(sessionId, ready.title, ready.body).catch(() => undefined);
   if (!isViewingSession(sessionId)) {
-    showGlobalToast(scores ? `${title} — overall ${scores.overallScore}/10` : title, "success", () => goToResult(sessionId));
+    showGlobalToast(scores ? judgedToastText(title, session.sessionScore) : title, "success", () => goToResult(sessionId));
   }
   if (scores) await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
 
