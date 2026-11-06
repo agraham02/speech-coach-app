@@ -44,7 +44,7 @@ The audit behind this plan was done on `fix/hotfix-round-1`, the newest branch a
 | Results | Predict, always 3 passes, results open at the top, nothing pinned, Rewatch and Analysis in accordions | 10 |
 | Onboarding | Speak first, with Whisper; questions fill the wait | 12 |
 | Release | Version 2.0.0, a clean start with no backwards compatibility | 14 |
-| Working style | **Phase branches, a pull request per phase, a session-start hook.** You review and merge. | 17 |
+| Working style | **One feature at a time, merged into `staging` once verified, with a session-start hook.** Changed 2026-11-06 (`DECISIONS.md` D1). | 17 |
 | Later | Content overhaul of lessons and drills, as separate work | 18 |
 
 ---
@@ -1069,7 +1069,7 @@ What a read-only check has already found:
 
 **5. Verify.** `npx tsc --noEmit`, `npx jest`, `npx expo export --platform ios` and the emulator smoke test all pass, with the test count unchanged apart from deleted tests. Record what was removed in `docs/decisions/cleanup-2026-11.md`, in the same format as the last cleanup, then push `staging`.
 
-**6. Branch off.** Create `overhaul` from the cleaned `staging`. All other work starts there.
+**6. Branch off.** All other work branches off the cleaned `staging`, one feature at a time (`DECISIONS.md` D1).
 
 ### The phases
 
@@ -1081,7 +1081,7 @@ What a read-only check has already found:
 | Phase | What | Key files |
 |---|---|---|
 | **−1. Clean the repo** | Everything above, on `staging` | `staging`, `docs/decisions/cleanup-2026-11.md` |
-| **Setup** | On `overhaul`: set up tracking (section 17), add the session-start hook and `check:overhaul`, bump to 2.0.0. Keep the seeded demo takes working as the schema changes. | `docs/overhaul/`, `AGENTS.md`, `.claude/settings.json`, `scripts/`, `app.config.ts` |
+| **Setup** | Set up tracking (section 17), add the session-start hook and `check:overhaul`, bump to 2.0.0. Keep the seeded demo takes working as the schema changes. | `docs/overhaul/`, `AGENTS.md`, `.claude/settings.json`, `scripts/`, `app.config.ts` |
 | **0. Bug fixes** | Keyboard (**new build**), after-event questions, filler colour, 0/10 toast, skill-check seed, skill guide copy | `Screen.tsx`, `EventCheckInScreen.tsx`, `theme.ts`, `sessionPipeline.ts`, `progressRepo.ts` |
 | **1. Prove the readings** | Build Signal Lab (folding in Voice, Face and ASR Labs); try the better capture and formulas from 6.5; **iPhone: you run it**; I set what counts from your results; run the judge's eval | `screens/dev/`, `domain/dsp/`, `domain/presenceMetrics.ts`, `domain/scoring/bands.ts` |
 | **2. Log and sync** | `activity_log`, catalogue, two-way check-offs, persistent lesson steps, real lesson scores, new schema | `services/db/migrations.ts`, `practiceEvents.ts`, `progressRepo.ts`, `LessonScreen.tsx` |
@@ -1218,7 +1218,7 @@ This will take days across many sessions, so the plan has to survive outside any
 | Calling something done without proof | A phase is done only with passing tests, `tsc`, an iOS export, the emulator cases, and your iPhone results, all recorded in `PROGRESS.md`. |
 | Losing the thread between sessions | Each session starts by reading the progress file and ends by updating it. The session-start hook prints the current phase and next task automatically. |
 | Scope creep | Anything not in this plan goes on a "later" list in `PROGRESS.md`. The content overhaul stays separate (section 18). |
-| Too much to review at once | One branch per phase off the `overhaul` integration branch, small commits, and a pull request per phase that lists the IDs it closes. |
+| Too much to review at once | One branch per feature off `staging`, small commits, and merge messages that list the IDs they close. |
 | Blind spots in my own work | At the end of each phase, a fresh review agent reads only the plan and the diff, and lists anything missing or different. Every finding gets fixed or logged. |
 | Phone-only checks getting skipped | `docs/overhaul/device-checks.md` holds a short iPhone checklist per phase. The phase stays open until you've sent results. |
 
@@ -1417,8 +1417,8 @@ The checklist behind section 17. A phase can't close while one of its IDs is ope
 | R49 | Fix the bugs found (toast, seed, warm-up copy) | 1, 14 | Tests |
 | R50 | Small content checks free for signed-in adults | 6.6 | Allowance tests; real cost in the ledger |
 | R51 | One "minutes a day" number replaces two settings | 9 | Old settings gone; budget tests |
-| R52 | Phase branches, a pull request per phase, session-start hook | 17 | Branches and pull requests exist; hook prints the next task |
-| R53 | Clean the repo on `staging` first, then branch off | 14 | `docs/decisions/cleanup-2026-11.md` exists; all checks pass; `overhaul` starts from the cleaned `staging` |
+| R52 | Feature branches merged into `staging` (`DECISIONS.md` D1), session-start hook | 17 | Hook prints the next task |
+| R53 | Clean the repo on `staging` first, then branch off | 14 | `docs/decisions/cleanup-2026-11.md` exists; all checks pass |
 
 ---
 

@@ -34,7 +34,7 @@ export default (): ExpoConfig => ({
     // Plus purchases (react-native-purchases) are native code too.
     // 1.6.0: the first real build of everything since: signal capture, hosted
     // Tono AI with the trial, live conversation, and SDK 57 patch updates.
-    version: "1.6.0",
+    version: "2.0.0",
     scheme: "tono",
     orientation: "portrait",
     // Follows the system light/dark setting (needs expo-system-ui on

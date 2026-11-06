@@ -82,7 +82,7 @@ Two Git Bash habits that matter:
 Metro must run from a checkout that has `node_modules` and the project's `.env` (the main checkout, for example `C:\dev\speech-coach-app`; a bare worktree has neither). Check the branch and that the tree is clean, but do not edit anything:
 
 ```bash
-cd /c/dev/speech-coach-app
+cd "$(git rev-parse --show-toplevel)"
 git branch --show-current
 git status --short
 git rev-parse --short HEAD
@@ -98,7 +98,7 @@ adb devices
 adb shell pm list packages | grep com.ahmadgraham.tono
 ```
 
-If the package is missing the run is **blocked**: the dev client needs a native build (`npx expo run:android`, 10 minutes or more, needs the JDK and Android SDK). Report it and stop unless the human tells you to build. The installed build's runtime version must equal the app version (1.6.0), or the bundle will refuse to load.
+If the package is missing, or the app reports a missing native module, the dev client needs a native build: `bash scripts/build-android-dev.sh` (10 minutes or more, needs the JDK and Android SDK). It builds in a worktree at `C:/dev/tb`, because the repo's path is too long for the native build tools on Windows. Otherwise the run is **blocked**. Report it and stop unless the human tells you to build. The installed build's runtime version must equal the app version (1.6.0), or the bundle will refuse to load.
 
 ### 2.3 Boot the AVD
 
@@ -124,7 +124,7 @@ Useful once: `adb shell input keyevent KEYCODE_WAKEUP` and swipe up if the lock 
 CI mode disables reloads. Do not set `CI`. Run in the background, from the checkout in 2.1:
 
 ```bash
-cd /c/dev/speech-coach-app
+cd "$(git rev-parse --show-toplevel)"
 npx expo start --dev-client --port 8081 < /dev/null > "$TEMP/metro.out" 2>&1 &
 ```
 
@@ -134,7 +134,7 @@ Check it is up (not by reading the log):
 curl -s http://127.0.0.1:8081/status
 ```
 
-Expected: `packager-status:running`. If port 8081 is already taken by a stale Metro, find and stop it: `netstat -ano | findstr :8081` (PowerShell or cmd), then `taskkill /PID <pid> /F`, then start again. After `expo prebuild --clean` Metro can hang on `/status`: kill the process on 8081 and restart.
+Expected: `packager-status:running`. If 8081 belongs to another project, leave it running and use `--port 8082`, in `adb reverse` and the dev-client URL too. If port 8081 is already taken by a stale Metro of this project, find and stop it: `netstat -ano | findstr :8081` (PowerShell or cmd), then `taskkill /PID <pid> /F`, then start again. After `expo prebuild --clean` Metro can hang on `/status`: kill the process on 8081 and restart.
 
 If you must look at Metro output, filter it: `grep -iE "error|Bundled|Logs for your project" "$TEMP/metro.out" | tail -20`.
 
@@ -800,7 +800,7 @@ All speech drills share the same shape here: the screen works up to listening; n
 **DEV-9 - Hidden in production (verify).** Stop Metro. Start it with dev tools off and a production-like bundle:
 
 ```bash
-cd /c/dev/speech-coach-app
+cd "$(git rev-parse --show-toplevel)"
 EXPO_PUBLIC_DEV_TOOLS=0 npx expo start --dev-client --port 8081 --no-dev --minify --clear < /dev/null > "$TEMP/metro.out" 2>&1 &
 ```
 
