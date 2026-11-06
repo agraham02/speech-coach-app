@@ -122,6 +122,13 @@ const PV = { flat: "pitch_variety.flat", normal: "pitch_variety.normal", lively:
 const PV_KEYS = ["flat", "normal", "lively"] as const;
 const PV_MIN_SPEECH_SECONDS = 15;
 const PV_STEP_UP = 1.15;
+// How flat "flat" is depends on the reader: one person's flat read measured 3.0
+// and 4.7 semitones on the same tracker, and Praat agreed. So it's held against
+// their own lively read.
+const PV_FLAT_SHARE_OF_LIVELY = 0.6;
+// Praat itself finds pitch in 56 to 62% of speech frames on these takes, so this
+// is about having enough to measure, not about matching a perfect voice.
+const PV_MIN_VOICED_SHARE = 0.45;
 
 const pitchVarietyTest: LabTestEntry = {
   def: {
@@ -157,10 +164,10 @@ const pitchVarietyTest: LabTestEntry = {
       },
     ],
     bars: [
-      "Flat take: under 2.5 semitones of range",
+      "Flat take: range under 60% of the lively take's",
       "Lively take: over 4.5 semitones of range",
       "Clear order flat < normal < lively on variation (each at least 15% above the last), on today's SD and on the within-phrase SD",
-      "Pitch found for 60% or more of speech frames in every take",
+      "Pitch found for 45% or more of speech frames in every take",
     ],
     onFail: "SwiftF0 via Core ML",
   },
@@ -206,9 +213,10 @@ const pitchVarietyTest: LabTestEntry = {
     numbers.orderHoldsToday = orderToday;
     numbers.orderHoldsWithinPhrase = orderPhrase;
     numbers.worstVoicedShare = worstShare === null ? null : round(worstShare, 2);
+    numbers.flatShareOfLively = isNum(flat.range) && isNum(lively.range) && lively.range > 0 ? round(flat.range / lively.range, 2) : null;
 
     const checks: LabCheck[] = [
-      check("Flat take range", isNum(flat.range) ? st(flat.range) : "no pitch", isNum(flat.range) ? flat.range < 2.5 : null, "under 2.5 semitones"),
+      check("Flat take range", isNum(flat.range) ? st(flat.range) : "no pitch", isNum(flat.range) && isNum(lively.range) ? flat.range < lively.range * PV_FLAT_SHARE_OF_LIVELY : null, "under 60% of the lively take's"),
       check("Lively take range", isNum(lively.range) ? st(lively.range) : "no pitch", isNum(lively.range) ? lively.range > 4.5 : null, "over 4.5 semitones"),
       check("Order on today's SD", `${fmt(flat.sd, normal.sd, lively.sd)} st`, orderToday, "flat < normal < lively, each 15% up"),
       check(
@@ -217,7 +225,7 @@ const pitchVarietyTest: LabTestEntry = {
         orderPhrase,
         "flat < normal < lively, each 15% up",
       ),
-      check("Pitch found", rows.map((r) => `${r.k} ${r.share === null ? "?" : pct(r.share)}`).join(", "), worstShare === null ? null : worstShare >= 0.6, "60% of speech frames or more"),
+      check("Pitch found", rows.map((r) => `${r.k} ${r.share === null ? "?" : pct(r.share)}`).join(", "), worstShare === null ? null : worstShare >= PV_MIN_VOICED_SHARE, "45% of speech frames or more"),
       check("Normal take range", isNum(normal.range) ? st(normal.range) : "no pitch", null),
       check("Within-phrase range, flat / normal / lively", fmt(flat.phrase.weightedMeanRangeSt, normal.phrase.weightedMeanRangeSt, lively.phrase.weightedMeanRangeSt) + " st", null),
     ];
