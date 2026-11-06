@@ -6,6 +6,7 @@ import { cleanPitch } from "../dsp/pitchCleanup";
 import { phrasePitchVariation } from "../dsp/phrasePitch";
 import { percentile } from "../dsp/pitchTracker";
 import { scoreSyllablePeaks, strongestWord } from "../dsp/stressCues";
+import { alignWordsToSpeech } from "../dsp/wordAlign";
 import { normalizeWord } from "../speech/normalize";
 import { speakingWpm } from "../signals/audioSummary";
 import type { VoiceLabSummary } from "../dev/voiceLab";
@@ -76,6 +77,34 @@ function voicedShare(f: AudioFeatures): number | null {
 }
 
 const semis = (hz: number, ref: number) => 12 * Math.log2(hz / ref);
+
+// Where the voiced frames sit around the median, in semitones, for tuning: an
+// SD much bigger than the p10 to p90 range says so means a few far-out frames.
+function pitchShape(f: AudioFeatures): Numbers {
+  const hz: number[] = [];
+  let confidence = 0;
+  for (let i = 0; i < f.f0Hz.length; i++) {
+    if (f.f0Hz[i] > 0) {
+      hz.push(f.f0Hz[i]);
+      confidence += f.confidence[i];
+    }
+  }
+  if (hz.length < 20) return {};
+  const med = percentile(hz, 0.5);
+  const sts = hz.map((v) => semis(v, med));
+  const at = (p: number) => round(percentile(sts, p), 2);
+  return {
+    medianHz: round(med),
+    p1: at(0.01),
+    p5: at(0.05),
+    p25: at(0.25),
+    p75: at(0.75),
+    p95: at(0.95),
+    p99: at(0.99),
+    farOutShare: round(sts.filter((v) => Math.abs(v) > 6).length / sts.length, 3),
+    meanConfidence: round(confidence / hz.length, 2),
+  };
+}
 
 // Words of a script as the lab compares them.
 const norm = normalizeWord;
@@ -167,6 +196,7 @@ const pitchVarietyTest: LabTestEntry = {
       numbers[`${r.k}_phraseRangeSt`] = r.phrase.weightedMeanRangeSt;
       numbers[`${r.k}_usablePhrases`] = r.phrase.usablePhrases;
     }
+    for (const t of have) for (const [key, value] of Object.entries(pitchShape(t.a.features))) numbers[`${t.k}_${key}`] = value;
 
     const ordered = (a: number | null, b: number | null, c: number | null) => (isNum(a) && isNum(b) && isNum(c) ? b >= a * PV_STEP_UP && c >= b * PV_STEP_UP : null);
     const fmt = (a: number | null, b: number | null, c: number | null) => [a, b, c].map((n) => (isNum(n) ? round(n, 2) : "?")).join(" < ");
@@ -353,7 +383,7 @@ const endingsTest: LabTestEntry = {
         words: true,
       },
     ],
-    bars: ["At least 80% of the sentence endings classified right (falling for statements, rising for questions)"],
+    bars: ["At least 80% of the sentence endings classified right (statements not rising, questions rising); endings with no pitch to read are left out"],
     onFail: "Leaf stays display-only",
   },
   evaluate(measures) {
@@ -363,39 +393,50 @@ const endingsTest: LabTestEntry = {
     if (!words || words.length === 0) return thin("The recording has no transcript, so sentence ends are unknown.");
 
     const cleanedFeatures = { ...a.features, f0Hz: cleanPitch(a.features.f0Hz, a.features.confidence).f0Hz };
+    const timed = alignWordsToSpeech(words, a.features) ?? words;
     let cursor = 0;
     const rows = ENDING_SENTENCES.map((s) => {
       const last = norm(s.text.split(/\s+/).pop() ?? "");
       let idx = -1;
-      for (let i = cursor; i < words.length; i++) {
-        if (norm(words[i].text) === last) {
+      for (let i = cursor; i < timed.length; i++) {
+        if (norm(timed[i].text) === last) {
           idx = i;
           break;
         }
       }
       if (idx === -1) return { s, endMs: null as number | null, slope: null as number | null, kind: null as EndingKind | null, rawKind: null as EndingKind | null };
       cursor = idx + 1;
-      const endMs = words[idx].endMs;
+      const endMs = timed[idx].endMs;
       const slope = terminalSlope(cleanedFeatures, endMs);
       return { s, endMs, slope, kind: classifyEnding(slope), rawKind: classifyEnding(terminalSlope(a.features, endMs)) };
     });
     const found = rows.filter((r) => r.endMs !== null);
     if (found.length < ENDINGS_MIN_FOUND) return thin(`Only ${found.length} of ${rows.length} sentences were found in the transcript; read them in order and clearly.`, { sentencesFound: found.length });
 
-    const right = found.filter((r) => r.kind === r.s.expect).length;
-    const rawRight = found.filter((r) => r.rawKind === r.s.expect).length;
+    // The reading this feeds is "statements not rising at the end", so the
+    // line that matters is rising or not: a statement that stays level isn't
+    // wrong. An ending with no pitch to read (a dropped or creaky last word) is
+    // left out rather than called wrong.
+    const isRight = (kind: EndingKind | null, expect: "falling" | "rising") => (expect === "rising" ? kind === "rising" : kind !== "rising");
+    const scored = found.filter((r) => r.kind !== null);
+    if (scored.length < ENDINGS_MIN_FOUND) return thin(`Only ${scored.length} of ${rows.length} endings had a pitch to read; finish each sentence clearly.`, { sentencesFound: found.length, sentencesScored: scored.length });
+    const right = scored.filter((r) => isRight(r.kind, r.s.expect)).length;
+    const rawRight = scored.filter((r) => isRight(r.rawKind, r.s.expect)).length;
     const of = (kind: "falling" | "rising") => {
-      const group = found.filter((r) => r.s.expect === kind);
-      return { right: group.filter((r) => r.kind === kind).length, total: group.length };
+      const group = scored.filter((r) => r.s.expect === kind);
+      return { right: group.filter((r) => isRight(r.kind, kind)).length, total: group.length };
     };
     const falling = of("falling");
     const rising = of("rising");
-    const rate = right / found.length;
+    const rate = right / scored.length;
+    const trulyFell = scored.filter((r) => r.s.expect === "falling" && r.kind === "falling").length;
 
     const numbers: Numbers = {
       sentencesFound: found.length,
+      sentencesScored: scored.length,
       right,
       rate: round(rate, 2),
+      statementsThatFell: trulyFell,
       fallingRight: falling.right,
       fallingTotal: falling.total,
       risingRight: rising.right,
@@ -407,19 +448,22 @@ const endingsTest: LabTestEntry = {
       numbers[`s${i + 1}_expect`] = r.s.expect;
       numbers[`s${i + 1}_slopeStPerS`] = r.slope;
       numbers[`s${i + 1}_heard`] = r.kind;
+      numbers[`s${i + 1}_endMs`] = r.endMs;
     });
 
     const checks: LabCheck[] = [
-      check("Endings classified right", `${right} of ${found.length} (${pct(rate)})`, rate >= 0.8, "at least 80%"),
-      check("Falling statements right", `${falling.right} of ${falling.total}`, null),
-      check("Rising questions right", `${rising.right} of ${rising.total}`, null),
-      check("Right without pitch cleanup", `${rawRight} of ${found.length}`, null),
+      check("Endings classified right", `${right} of ${scored.length} (${pct(rate)})`, rate >= 0.8, "at least 80%"),
+      check("Statements not rising", `${falling.right} of ${falling.total}`, null),
+      check("Questions rising", `${rising.right} of ${rising.total}`, null),
+      check("Statements that clearly fell", `${trulyFell} of ${falling.total}`, null),
+      check("Endings with no pitch to read", `${found.length - scored.length}`, null),
+      check("Right without pitch cleanup", `${rawRight} of ${scored.length}`, null),
     ];
     return result(
       checks,
       numbers,
-      `The app told statements from questions in ${right} of ${found.length} endings.`,
-      () => `Only ${right} of ${found.length} endings were classified right (${falling.right} of ${falling.total} falling, ${rising.right} of ${rising.total} rising).`,
+      `The app told statements from questions in ${right} of ${scored.length} endings.`,
+      () => `Only ${right} of ${scored.length} endings were classified right (${falling.right} of ${falling.total} statements not rising, ${rising.right} of ${rising.total} questions rising).`,
       "Not enough to say.",
     );
   },
@@ -572,10 +616,17 @@ const emphasisTest: LabTestEntry = {
       standOutGain: round(standOutGain, 2),
       flatPeaks: a.peaks.length,
       stressedPeaks: b.peaks.length,
+      flatGapPitchSt: a.standOutCues.pitchSt,
+      stressedGapPitchSt: b.standOutCues.pitchSt,
+      flatGapLoudDb: a.standOutCues.loudDb,
+      stressedGapLoudDb: b.standOutCues.loudDb,
+      flatGapLengthMs: a.standOutCues.lengthMs,
+      stressedGapLengthMs: b.standOutCues.lengthMs,
     };
     const checks: LabCheck[] = [
       check("Syllable-peak spread, stressed minus flat", `${db(sdGain)} (${sdFlat} to ${sdStressed})`, sdGain >= 1, "at least 1 dB more"),
       check("Stand-out score, stressed minus flat", `${round(standOutGain, 2)} (${a.standOut} to ${b.standOut})`, standOutGain >= 0.5, "at least 0.5 more"),
+      check("Strong peaks over the rest, flat to stressed", `pitch ${a.standOutCues.pitchSt} to ${b.standOutCues.pitchSt} st, loudness ${a.standOutCues.loudDb} to ${b.standOutCues.loudDb} dB, length ${a.standOutCues.lengthMs} to ${b.standOutCues.lengthMs} ms`, null),
     ];
     return result(
       checks,
@@ -622,33 +673,49 @@ const wordStressTest: LabTestEntry = {
       let idx = words.findIndex((w) => norm(w.text) === norm(target));
       if (idx === -1 && words.length === STRESS_SENTENCE.length) idx = k;
       if (idx === -1) return { k, target, ready: false as const };
-      const scored = scoreSyllablePeaks(m.audio.features, words);
+      const timed = alignWordsToSpeech(words, m.audio.features) ?? words;
+      const scored = scoreSyllablePeaks(m.audio.features, timed);
       const winner = strongestWord(scored);
       const loudWinner = strongestWord(scored, "loudness");
+      // Without the line-up, to see how much of the result it is.
+      const rawWinner = strongestWord(scoreSyllablePeaks(m.audio.features, words));
       return {
         k,
         target,
         ready: true as const,
         hit: winner === idx,
         loudHit: loudWinner === idx,
-        winnerText: winner === null ? null : words[winner].text,
+        rawHit: rawWinner === idx,
+        winnerText: winner === null ? null : timed[winner].text,
+        leadInMs: timed[0].startMs - words[0].startMs,
+        // Each word's start and its best peak's score, for tuning.
+        detail: timed
+          .map((w, i) => {
+            const best = scored.peaks.filter((p) => p.wordIndex === i).reduce<number | null>((a, p) => (a === null || p.score > a ? p.score : a), null);
+            return `${norm(w.text)}@${w.startMs}:${best === null ? "-" : best}`;
+          })
+          .join(" "),
       };
     });
     const ready = rows.filter((r): r is Extract<typeof r, { ready: true }> => r.ready);
     if (ready.length === 0) return thin("No usable reads: each needs a recording and its transcript.");
     const hits = ready.filter((r) => r.hit).length;
     const loudHits = ready.filter((r) => r.loudHit).length;
+    const rawHits = ready.filter((r) => r.rawHit).length;
     const missing = rows.length - ready.length;
     const pass = hits >= WS_PASS ? true : hits + missing < WS_PASS ? false : null;
 
-    const numbers: Numbers = { readsScored: ready.length, hits, loudnessOnlyHits: loudHits, needed: WS_PASS };
+    const numbers: Numbers = { readsScored: ready.length, hits, loudnessOnlyHits: loudHits, withoutLineUpHits: rawHits, needed: WS_PASS };
     for (const r of rows) {
       numbers[`read${r.k + 1}_target`] = r.target;
       numbers[`read${r.k + 1}_strongest`] = r.ready ? r.winnerText : null;
+      numbers[`read${r.k + 1}_leadInMs`] = r.ready ? r.leadInMs : null;
+      numbers[`read${r.k + 1}_detail`] = r.ready ? r.detail : null;
     }
     const checks: LabCheck[] = [
       check("Reads where the stressed word ranked top", `${hits} of ${ready.length} scored (${rows.length} reads)`, pass, "at least 5 of 7"),
       check("Same, by loudness alone", `${loudHits} of ${ready.length}`, null),
+      check("Same, without lining the words up with the voice", `${rawHits} of ${ready.length}`, null),
       ...ready.filter((r) => !r.hit).map((r) => check(`Stressed "${r.target}"`, `strongest was ${r.winnerText === null ? "nothing" : `"${r.winnerText}"`}`, null)),
     ];
     return result(
@@ -729,16 +796,18 @@ const pausesTest: LabTestEntry = {
     if (!a) return thin("No recording for the passage.");
     if (!words || words.length === 0) return thin("The recording has no transcript, so the marked words cannot be found.");
 
+    const timed = alignWordsToSpeech(words, a.features) ?? words;
     const marks = pauseMarks(PAUSE_PASSAGE);
     const ends: number[] = [];
     for (const m of marks) {
       let count = 0;
-      const hit = words.find((w) => norm(w.text) === m.norm && ++count === m.nth);
+      const hit = timed.find((w) => norm(w.text) === m.norm && ++count === m.nth);
       if (hit) ends.push(hit.endMs);
     }
     if (ends.length < PAUSE_MIN_LOCATED) return thin(`Only ${ends.length} of ${marks.length} marked words were found in the transcript; read the passage as written.`, { markedWordsFound: ends.length });
 
-    const energy = pausesFromFeatures(a.features, words).pauses;
+    // The test reads what the plan falls back to: the gate plus Whisper's own gaps.
+    const energy = pausesFromFeatures(a.features, timed).pauses;
     const merged = mergePauses(energy, words);
     const score = (pauses: { startMs: number }[]) => {
       const found = ends.filter((e) => pauses.some((p) => Math.abs(p.startMs - e) <= PAUSE_MATCH_MS)).length;
@@ -762,17 +831,16 @@ const pausesTest: LabTestEntry = {
       mergedPasses: g.found >= PAUSE_NEED_FOUND && g.falsePauses <= PAUSE_MAX_FALSE,
     };
     const checks: LabCheck[] = [
-      check("Marked pauses found (energy detector)", `${e.found} of ${marks.length}`, e.found >= PAUSE_NEED_FOUND, "at least 8 of 10"),
-      check("False pauses (energy detector)", `${e.falsePauses}`, e.falsePauses <= PAUSE_MAX_FALSE, "no more than 2"),
-      check("Marked pauses found (energy plus Whisper gaps)", `${g.found} of ${marks.length}`, null),
-      check("False pauses (energy plus Whisper gaps)", `${g.falsePauses}`, null),
+      check("Marked pauses found (energy plus Whisper gaps)", `${g.found} of ${marks.length}`, g.found >= PAUSE_NEED_FOUND, "at least 8 of 10"),
+      check("False pauses (energy plus Whisper gaps)", `${g.falsePauses}`, g.falsePauses <= PAUSE_MAX_FALSE, "no more than 2"),
+      check("Marked pauses found (energy detector alone)", `${e.found} of ${marks.length}`, null),
+      check("False pauses (energy detector alone)", `${e.falsePauses}`, null),
     ];
-    const mergedNote = numbers.mergedPasses ? " With Whisper's gaps added it would pass." : ` With Whisper's gaps added: ${g.found} found, ${g.falsePauses} false.`;
     return result(
       checks,
       numbers,
-      `The energy detector found ${e.found} of ${marks.length} marked pauses with ${e.falsePauses} false.`,
-      () => `The energy detector found ${e.found} of ${marks.length} marked pauses with ${e.falsePauses} false.${mergedNote}`,
+      `Found ${g.found} of ${marks.length} marked pauses with ${g.falsePauses} false.`,
+      () => `Found ${g.found} of ${marks.length} marked pauses with ${g.falsePauses} false (the energy detector alone: ${e.found} found, ${e.falsePauses} false).`,
       "Not enough to say.",
     );
   },
@@ -818,8 +886,9 @@ const paceTest: LabTestEntry = {
     if (!m) return thin("No recording for the passage.");
     if (!isNum(m.stopwatchMs) || m.stopwatchMs < PACE_MIN_STOPWATCH_MS) return thin(m.stopwatchMs === undefined ? "The stopwatch was not used." : `The stopwatch read only ${round(m.stopwatchMs / 1000)} s; read the whole passage between Start and Stop.`);
     if (!m.words || m.words.length === 0) return thin("The recording has no transcript.");
-    const heard = speakingWpm(m.words);
+    const heard = speakingWpm(m.audio ? alignWordsToSpeech(m.words, m.audio.features) : m.words);
     if (heard === null) return thin("The transcript is too short to give a pace.");
+    const rawHeard = speakingWpm(m.words);
 
     const count = wordCountOf(PACE_PASSAGE);
     const expected = count / (m.stopwatchMs / 60000);
@@ -830,11 +899,14 @@ const paceTest: LabTestEntry = {
       stopwatchMs: m.stopwatchMs,
       stopwatchWpm: round(expected),
       transcriptWpm: heard,
+      withoutLineUpWpm: rawHeard,
+      firstWordMs: m.words[0].startMs,
       differencePercent: round(diff * 100),
     };
     const checks: LabCheck[] = [
       check("Transcript pace against the stopwatch", `${heard} wpm against ${round(expected)} wpm (${diff >= 0 ? "+" : ""}${round(diff * 100)}%)`, Math.abs(diff) <= PACE_TOLERANCE, "within 5%"),
       check("Words in transcript against the passage", `${m.words.length} of ${count}`, null),
+      check("Pace without lining the words up with the voice", `${rawHeard ?? "?"} wpm`, null),
     ];
     return result(
       checks,

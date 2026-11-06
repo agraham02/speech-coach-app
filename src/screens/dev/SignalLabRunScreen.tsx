@@ -18,6 +18,8 @@ import { labTest } from "../../domain/signalLab/registry";
 import { currentCue, cueSchedule, failedEvaluation, makeResult, secondsLeft, stepDurationMs, STEP_TAIL_MS } from "../../domain/signalLab/runPlan";
 import type { LabOutcome, LabStep, StepMeasure, StepMeasures } from "../../domain/signalLab/types";
 import { analyzeLabClip } from "../../services/dev/signalLab/analyze";
+import { clearRawTest, saveRawStep } from "../../services/dev/signalLab/rawData";
+import { getFaceCalibration } from "../../services/prefs/prefsStore";
 import { useLabCapture } from "../../services/dev/signalLab/useLabCapture";
 import { appVersion } from "../../services/dev/devInfo";
 import { annotateLatestResult, saveLabResult } from "../../services/dev/signalLabStore";
@@ -99,12 +101,17 @@ export function SignalLabRunScreen({ route }: Props) {
     try {
       const cap = step.capture === "none" ? { uri: null, durationMs: 0, face: null, faceWidth: null } : await capture.end();
       const measure: StepMeasure = { stepId: step.id, durationMs: cap.durationMs };
-      if (cap.face) measure.face = cap.face;
+      if (cap.face) {
+        measure.face = cap.face;
+        measure.faceCalibration = getFaceCalibration();
+      }
       if (cap.faceWidth != null) measure.faceWidth = cap.faceWidth;
       if (step.stopwatch && stopwatch.current.ms != null) measure.stopwatchMs = stopwatch.current.ms;
       if (step.cues) measure.cues = cueSchedule(step);
+      let wav: Uint8Array | undefined;
       if (cap.uri) {
         const analysis = await analyzeLabClip(cap.uri, { words: step.words, engines: step.engines });
+        wav = analysis.wav;
         if (analysis.audio) measure.audio = analysis.audio;
         if (analysis.words) measure.words = analysis.words;
         if (analysis.engines) measure.engines = analysis.engines;
@@ -116,6 +123,10 @@ export function SignalLabRunScreen({ route }: Props) {
         }
       }
       measures.current = { ...measures.current, [step.id]: measure };
+      if (entry) {
+        if (stepIndex === 0) clearRawTest(entry.def.id);
+        saveRawStep(entry.def.id, step.id, measure, wav);
+      }
     } catch (error) {
       found.push(`${step.title}: ${(error as Error).message}`);
     }
@@ -127,7 +138,7 @@ export function SignalLabRunScreen({ route }: Props) {
     } else {
       finishRun();
     }
-  }, [step, stepIndex, steps.length, capture, finishRun]);
+  }, [entry, step, stepIndex, steps.length, capture, finishRun]);
 
   const beginCapture = useCallback(() => {
     if (!step) return;

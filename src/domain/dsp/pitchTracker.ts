@@ -65,7 +65,7 @@ export const PITCH_DEFAULTS: Required<PitchOptions> = {
 
 // Bump when the tracker's output changes, so stored feature tracks say
 // which version made them.
-export const PITCH_TRACKER_VERSION = "yin-dense-2";
+export const PITCH_TRACKER_VERSION = "yin-dense-3";
 
 // Second-order sections (biquads), direct form I.
 function biquad(x: Float32Array, b0: number, b1: number, b2: number, a1: number, a2: number): Float32Array {
@@ -109,6 +109,28 @@ function median(values: number[]): number {
   return percentile(values, 0.5);
 }
 
+// The quiet end of a take is its 10th percentile, but only when the take has a
+// quiet end. In one long held sound (a sung vowel, talk with no gaps) the 10th
+// percentile is the voice itself, and everything was then measured against
+// that: a 10 s "ahhh" found 0.2 s of pitch on a real phone. So when the levels
+// sit in a narrow band, and that band is louder than a silent room, the floor
+// is taken from under it. Signal Lab's glide test is the check on this.
+export const FLOOR = {
+  narrowBandDb: 15,
+  belowMedianDb: 25,
+  silentRoomDbfs: -60,
+};
+
+export function isNarrowBand(levels: ArrayLike<number>): boolean {
+  "worklet";
+  return percentile(levels, 0.9) - percentile(levels, 0.1) < FLOOR.narrowBandDb && percentile(levels, 0.5) > FLOOR.silentRoomDbfs;
+}
+
+export function floorUnderBand(levels: ArrayLike<number>): number {
+  "worklet";
+  return percentile(levels, 0.5) - FLOOR.belowMedianDb;
+}
+
 function semitones(v: number, ref: number): number {
   "worklet";
   return 12 * Math.log2(v / ref);
@@ -140,7 +162,9 @@ export function trackPitch(waveform: Float32Array, sampleRate: number, options: 
     for (let j = 0; j < win; j++) e += s[start + j] * s[start + j];
     levels[f] = e > 0 ? Math.max(-100, 10 * Math.log10(e / win)) : -100;
   }
-  const noiseFloorDb = percentile(levels, 0.1);
+  // The voicing check below still turns away plain noise, so a low floor here
+  // only costs a little work.
+  const noiseFloorDb = isNarrowBand(levels) ? floorUnderBand(levels) : percentile(levels, 0.1);
 
   const d = new Float64Array(maxLag + 2);
   const rawF0 = new Float64Array(frameCount); // 0 = unvoiced

@@ -1,4 +1,4 @@
-import { percentile, PITCH_TRACKER_VERSION, trackPitch } from "./pitchTracker";
+import { floorUnderBand, isNarrowBand, percentile, PITCH_TRACKER_VERSION, trackPitch } from "./pitchTracker";
 
 // Everything the phone measures from a take's audio, on one 10 ms grid:
 // pitch, its confidence, loudness, voice activity (speech, pause, breath)
@@ -14,7 +14,7 @@ import { percentile, PITCH_TRACKER_VERSION, trackPitch } from "./pitchTracker";
 // inside a silence is then tagged as a breath, so it neither splits a pause
 // nor counts as speech.
 
-export const AUDIO_EXTRACTOR_VERSION = `${PITCH_TRACKER_VERSION}+vad-hyst-1`;
+export const AUDIO_EXTRACTOR_VERSION = `${PITCH_TRACKER_VERSION}+vad-hyst-2`;
 
 // Frame labels in AudioFeatures.speech.
 export const PAUSE = 0;
@@ -213,12 +213,24 @@ export function syllablePeaks(levels: Float32Array, speech: Uint8Array, medianDb
   return Int32Array.from(kept);
 }
 
+// A held voice: mostly pitched, in a narrow band of levels. Plain room noise
+// is a narrow band too, but it has no pitch, so its floor stays where it is.
+const HELD_VOICE_SHARE = 0.3;
+
+function floorOf(levels: Float32Array, f0Hz: Float32Array): number {
+  "worklet";
+  if (!isNarrowBand(levels)) return percentile(levels, 0.1);
+  let voiced = 0;
+  for (let i = 0; i < f0Hz.length; i++) if (f0Hz[i] > 0) voiced++;
+  return f0Hz.length > 0 && voiced / f0Hz.length >= HELD_VOICE_SHARE ? floorUnderBand(levels) : percentile(levels, 0.1);
+}
+
 export function extractAudioFeatures(waveform: Float32Array, sampleRate: number): AudioFeatures {
   "worklet";
   const track = trackPitch(waveform, sampleRate);
   const frames = track.f0Hz.length;
   const levelDb = wideLevels(waveform, sampleRate, frames, track.hopMs, track.offsetMs);
-  const noiseFloorDb = percentile(levelDb, 0.1);
+  const noiseFloorDb = floorOf(levelDb, track.f0Hz);
   const speech = hysteresisGate(levelDb, noiseFloorDb);
   const medianDb = speechMedianDb(levelDb, speech, noiseFloorDb);
   tagBreaths(speech, levelDb, track.f0Hz, medianDb);

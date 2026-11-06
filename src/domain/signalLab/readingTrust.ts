@@ -39,9 +39,10 @@ export const READINGS: Record<ReadingId, ReadingDef> = {
   endings_fall: { id: "endings_fall", label: "Endings that fall", status: "probation", tests: ["voice.endings"] },
   stand_out_stress: { id: "stand_out_stress", label: "Stand-out stress", status: "probation", tests: ["voice.emphasis"] },
   stress_right_words: { id: "stress_right_words", label: "Stress on the right words", status: "probation", tests: ["voice.word_stress"] },
-  volume_carry: { id: "volume_carry", label: "Volume carry", status: "probation", tests: ["voice.volume_gain", "voice.volume_distance"] },
+  volume_carry: { id: "volume_carry", label: "Volume carry", status: "now", tests: ["voice.volume_gain", "voice.volume_distance"] },
   on_the_lens: { id: "on_the_lens", label: "Eye contact on the lens", status: "tuning", tests: ["presence.looking", "presence.glances", "presence.preview"] },
-  long_lookaways: { id: "long_lookaways", label: "Long look-aways", status: "tuning", tests: ["presence.glances"] },
+  // Needs Looking too: a look down at notes that reads as looking is never counted.
+  long_lookaways: { id: "long_lookaways", label: "Long look-aways", status: "tuning", tests: ["presence.glances", "presence.looking"] },
   face_movement: { id: "face_movement", label: "Face movement", status: "tuning", tests: ["presence.expression", "presence.face_events"] },
   range_across_feelings: { id: "range_across_feelings", label: "Range across feelings", status: "probation", tests: ["voice.pitch_variety", "presence.expression"] },
 };
