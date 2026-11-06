@@ -1,6 +1,6 @@
 {
   "name": "speech-coach-app",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "main": "index.ts",
   "dependencies": {
     "@bottom-tabs/react-navigation": "^1.4.0",
@@ -83,6 +83,7 @@
     "update:production": "node scripts/eas-update.mjs production",
     "update:testflight": "node scripts/eas-update.mjs testflight",
     "postinstall": "patch-package",
+    "check:overhaul": "jest src/domain/__tests__/overhaulPlan.test.ts && node scripts/overhaul-status.mjs",
     "test": "jest"
   },
   "private": true,
