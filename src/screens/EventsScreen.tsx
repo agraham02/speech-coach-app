@@ -7,7 +7,7 @@ import { IconButton } from "../components/common/IconButton";
 import { ListGroup, ListRow } from "../components/common/ListRow";
 import { EmptyState } from "../components/common/EmptyState";
 import { formatEventDate } from "../components/common/DatePicker";
-import { countdownLabel, daysAway, eventName, eventPhase, sortEvents, type SpeakingEvent } from "../domain/events";
+import { afterSummary, countdownLabel, daysAway, eventName, eventPhase, sortEvents, type SpeakingEvent } from "../domain/events";
 import { listEvents } from "../services/db/eventsRepo";
 import { todayISODate } from "../utils/dateUtils";
 
@@ -41,7 +41,7 @@ export function EventsScreen({ navigation }: Props) {
 
   function pastStatus(e: SpeakingEvent): string {
     const phase = eventPhase(e, today);
-    const told = e.after ? "Told how it went" : phase === "debrief" ? "How did it go?" : "No check-in";
+    const told = e.after ? afterSummary(e.after) ?? "Told how it went" : phase === "debrief" ? "How did it go?" : "No check-in";
     return `${formatEventDate(e.date)} · ${told}`;
   }
 

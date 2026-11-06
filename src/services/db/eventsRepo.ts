@@ -2,58 +2,27 @@ import { getDatabase } from "./database";
 import { generateId } from "../../utils/generateId";
 import { todayISODate } from "../../utils/dateUtils";
 import { upcomingEvent, type AfterCheckIn, type BeforeCheckIn, type SpeakingEvent } from "../../domain/events";
+import { rowToSpeakingEvent, type SpeakingEventRow } from "./mappers";
 import type { EventKind } from "../../domain/profile";
 import { getUserProfile, setNextEvent, setUserProfile } from "../prefs/prefsStore";
 import { syncEventReminders } from "../events/eventReminders";
 import { logger } from "../../utils/logger";
 
 // Things you're speaking at, with their before and after check-ins
-// (domain/events.ts). Migration v29. Every write re-syncs the "next event"
-// mirror and the check-in reminders.
-
-interface Row {
-  id: string;
-  kind: string;
-  title: string | null;
-  event_date: string;
-  created_at: string;
-  before_json: string | null;
-  after_json: string | null;
-}
-
-const KINDS: EventKind[] = ["interview", "talk", "toast", "pitch", "date", "other"];
-
-function parse<T>(json: string | null): T | null {
-  if (!json) return null;
-  try {
-    return JSON.parse(json) as T;
-  } catch {
-    return null;
-  }
-}
-
-function toEvent(r: Row): SpeakingEvent {
-  return {
-    id: r.id,
-    kind: KINDS.includes(r.kind as EventKind) ? (r.kind as EventKind) : "other",
-    title: r.title,
-    date: r.event_date,
-    createdAt: r.created_at,
-    before: parse<BeforeCheckIn>(r.before_json),
-    after: parse<AfterCheckIn>(r.after_json),
-  };
-}
+// (domain/events.ts). Migration v29; v36 added how it went and the focus
+// answer as their own columns. Every write re-syncs the "next event" mirror
+// and the check-in reminders.
 
 export async function listEvents(): Promise<SpeakingEvent[]> {
   const db = await getDatabase();
-  const rows = await db.getAllAsync<Row>(`SELECT * FROM speaking_events WHERE deleted_at IS NULL ORDER BY event_date ASC, created_at ASC`);
-  return rows.map(toEvent);
+  const rows = await db.getAllAsync<SpeakingEventRow>(`SELECT * FROM speaking_events WHERE deleted_at IS NULL ORDER BY event_date ASC, created_at ASC`);
+  return rows.map(rowToSpeakingEvent);
 }
 
 export async function getEvent(id: string): Promise<SpeakingEvent | null> {
   const db = await getDatabase();
-  const row = await db.getFirstAsync<Row>(`SELECT * FROM speaking_events WHERE id = ? AND deleted_at IS NULL`, [id]);
-  return row ? toEvent(row) : null;
+  const row = await db.getFirstAsync<SpeakingEventRow>(`SELECT * FROM speaking_events WHERE id = ? AND deleted_at IS NULL`, [id]);
+  return row ? rowToSpeakingEvent(row) : null;
 }
 
 export interface EventInput {
@@ -85,7 +54,7 @@ export async function updateEvent(id: string, input: EventInput): Promise<void> 
 // Soft delete; the check-in text goes right away, since you asked for it gone.
 export async function deleteEvent(id: string): Promise<void> {
   const db = await getDatabase();
-  await db.runAsync(`UPDATE speaking_events SET deleted_at = ?, title = NULL, before_json = NULL, after_json = NULL WHERE id = ?`, [new Date().toISOString(), id]);
+  await db.runAsync(`UPDATE speaking_events SET deleted_at = ?, title = NULL, before_json = NULL, after_json = NULL, after_went = NULL, after_focus_result = NULL WHERE id = ?`, [new Date().toISOString(), id]);
   await syncEvents();
 }
 
@@ -98,8 +67,9 @@ export async function saveBeforeCheckIn(id: string, checkIn: Omit<BeforeCheckIn,
 
 export async function saveAfterCheckIn(id: string, checkIn: Omit<AfterCheckIn, "at">): Promise<void> {
   const db = await getDatabase();
-  const value: AfterCheckIn = { nerves: checkIn.nerves, wentOkay: checkIn.wentOkay.trim(), tryNext: checkIn.tryNext.trim(), at: new Date().toISOString() };
-  await db.runAsync(`UPDATE speaking_events SET after_json = ? WHERE id = ?`, [JSON.stringify(value), id]);
+  const { went, focusResult, ...text } = checkIn;
+  const value = { ...text, wentOkay: checkIn.wentOkay.trim(), tryNext: checkIn.tryNext.trim(), at: new Date().toISOString() };
+  await db.runAsync(`UPDATE speaking_events SET after_json = ?, after_went = ?, after_focus_result = ? WHERE id = ?`, [JSON.stringify(value), went, focusResult, id]);
   await syncEvents();
 }
 

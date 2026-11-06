@@ -1,4 +1,20 @@
-import { bannerEvent, countdownLabel, eventName, eventPhase, eventReminderPlan, nervesSummary, sortEvents, upcomingEvent, type SpeakingEvent } from "../events";
+import {
+  afterSummary,
+  bannerEvent,
+  countdownLabel,
+  eventName,
+  eventPhase,
+  eventReminderPlan,
+  focusResultLabel,
+  nervesSummary,
+  parseFocusResult,
+  sortEvents,
+  upcomingEvent,
+  wentLabel,
+  WENT_LABELS,
+  type AfterCheckIn,
+  type SpeakingEvent,
+} from "../events";
 
 const event = (extra: Partial<SpeakingEvent> = {}): SpeakingEvent => ({
   id: "e",
@@ -11,7 +27,7 @@ const event = (extra: Partial<SpeakingEvent> = {}): SpeakingEvent => ({
   ...extra,
 });
 
-const AFTER = { nerves: 4, wentOkay: "", tryNext: "", at: "2026-10-21T12:00:00.000Z" };
+const AFTER: AfterCheckIn = { nerves: 4, went: null, focusResult: null, wentOkay: "", tryNext: "", at: "2026-10-21T12:00:00.000Z" };
 const BEFORE = { nerves: 7, focus: "Slow down", at: "2026-10-19T12:00:00.000Z" };
 
 describe("events", () => {
@@ -89,5 +105,33 @@ describe("event reminders", () => {
 
   it("only looks about a month ahead", () => {
     expect(eventReminderPlan([event({ date: "2026-12-30" })], now)).toEqual([]);
+  });
+
+  it("names the five stops from Rough to Great, and nothing else", () => {
+    expect(WENT_LABELS).toHaveLength(5);
+    expect([1, 2, 3, 4, 5].map(wentLabel)).toEqual(["Rough", "Not great", "Okay", "Good", "Great"]);
+    expect(wentLabel(0)).toBeNull();
+    expect(wentLabel(6)).toBeNull();
+    expect(wentLabel(2.5)).toBeNull();
+    expect(wentLabel(null)).toBeNull();
+  });
+
+  it("reads a focus answer only if it is one of the three", () => {
+    expect(parseFocusResult("yes")).toBe("yes");
+    expect(parseFocusResult("partly")).toBe("partly");
+    expect(parseFocusResult("not")).toBe("not");
+    expect(parseFocusResult("maybe")).toBeNull();
+    expect(parseFocusResult(null)).toBeNull();
+    expect(focusResultLabel("not")).toBe("Not this time");
+    expect(focusResultLabel(null)).toBeNull();
+  });
+
+  it("sums up an after check-in in one line, leaving out what was not answered", () => {
+    expect(afterSummary(null)).toBeNull();
+    expect(afterSummary(AFTER)).toBeNull();
+    expect(afterSummary({ ...AFTER, went: 4 })).toBe("Good");
+    expect(afterSummary({ ...AFTER, went: 4, focusResult: "yes" })).toBe("Good · Did your focus");
+    expect(afterSummary({ ...AFTER, went: 3, focusResult: "partly" })).toBe("Okay · Partly did your focus");
+    expect(afterSummary({ ...AFTER, focusResult: "not" })).toBe("Focus for next time");
   });
 });

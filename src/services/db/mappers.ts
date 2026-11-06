@@ -14,6 +14,8 @@ import type {
   TranscriptWord,
   WpmPoint,
 } from "../../domain/sessionTypes";
+import { parseFocusResult, type AfterCheckIn, type BeforeCheckIn, type SpeakingEvent } from "../../domain/events";
+import type { EventKind } from "../../domain/profile";
 import type { GeminiQuoteAnnotation } from "../../domain/transcriptAnnotations";
 import { logger } from "../../utils/logger";
 
@@ -238,5 +240,47 @@ export function rowToCurriculumState(row: CurriculumStateRow): CurriculumStateEn
     direction: row.direction,
     spontaneousSessionCount: row.spontaneous_session_count,
     reasonCode: row.reason_code,
+  };
+}
+
+export interface SpeakingEventRow {
+  id: string;
+  kind: string;
+  title: string | null;
+  event_date: string;
+  created_at: string;
+  before_json: string | null;
+  after_json: string | null;
+  // Added in v36; null on rows saved before the questions existed.
+  after_went: number | null;
+  after_focus_result: string | null;
+}
+
+const EVENT_KINDS: EventKind[] = ["interview", "talk", "toast", "pitch", "date", "other"];
+
+function parseJson<T>(json: string | null): T | null {
+  if (!json) return null;
+  try {
+    return JSON.parse(json) as T;
+  } catch {
+    return null;
+  }
+}
+
+// The check-in text lives in the JSON; how it went and the focus answer live
+// in their own columns. An after check-in exists only when its JSON does.
+export function rowToSpeakingEvent(row: SpeakingEventRow): SpeakingEvent {
+  const after = parseJson<Omit<AfterCheckIn, "went" | "focusResult">>(row.after_json);
+  const went = row.after_went;
+  return {
+    id: row.id,
+    kind: EVENT_KINDS.includes(row.kind as EventKind) ? (row.kind as EventKind) : "other",
+    title: row.title,
+    date: row.event_date,
+    createdAt: row.created_at,
+    before: parseJson<BeforeCheckIn>(row.before_json),
+    after: after
+      ? { ...after, went: typeof went === "number" && Number.isInteger(went) && went >= 1 && went <= 5 ? went : null, focusResult: parseFocusResult(row.after_focus_result) }
+      : null,
   };
 }
