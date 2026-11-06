@@ -3,6 +3,7 @@ import * as Crypto from "expo-crypto";
 import * as WebBrowser from "expo-web-browser";
 import { logger } from "../../utils/logger";
 import { setTonoConsent } from "../prefs/prefsStore";
+import { refuseTonoCallWhenMocked } from "../dev/mockAccount";
 import { tonoAppleToken, tonoDeleteAccount } from "../tono/tonoApi";
 import { clearAccount, refreshAccount } from "./accountStore";
 import { parseAuthCallback } from "./oauthCallback";
@@ -35,6 +36,7 @@ function randomNonce(): string {
 }
 
 export async function signInWithApple(): Promise<SignInResult> {
+  refuseTonoCallWhenMocked("the Apple sign-in");
   // Apple signs the hash into its token; Supabase checks the plain value
   // against it, so a stolen token cannot be replayed.
   const raw = randomNonce();
@@ -70,6 +72,8 @@ export async function signInWithApple(): Promise<SignInResult> {
 }
 
 export async function signInWithGoogle(): Promise<SignInResult> {
+  // Dev builds with a mock account: no browser, no request.
+  refuseTonoCallWhenMocked("the Google sign-in");
   const auth = getSupabase().auth;
   const { data, error } = await auth.signInWithOAuth({ provider: "google", options: { redirectTo: AUTH_REDIRECT, skipBrowserRedirect: true } });
   if (error || !data?.url) throw new SignInError("Couldn't start the Google sign-in. Try again.");

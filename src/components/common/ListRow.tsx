@@ -18,6 +18,8 @@ interface ListRowProps {
   chevron?: boolean;
   destructive?: boolean;
   accessibilityLabel?: string;
+  // A stable handle for automated testing.
+  testID?: string;
 }
 
 // A list row: icon tile, title + subtitle, a value or right slot, chevron.
@@ -35,11 +37,12 @@ export function ListRow({
   chevron,
   destructive,
   accessibilityLabel,
+  testID,
 }: ListRowProps) {
   const styles = useStyles();
   const { colors } = useTheme();
   const content = (
-    <View style={styles.row}>
+    <View style={styles.row} testID={onPress ? undefined : testID}>
       {icon ? (
         <View style={[styles.iconTile, { backgroundColor: iconBackground ?? colors.accentMuted }]}>
           <Ionicons name={icon} size={18} color={iconColor ?? (destructive ? colors.danger : colors.textPrimary)} />
@@ -66,7 +69,7 @@ export function ListRow({
   );
   if (!onPress) return content;
   return (
-    <PressableScale onPress={onPress} scaleTo={0.98} accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? title}>
+    <PressableScale onPress={onPress} scaleTo={0.98} accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? title} testID={testID}>
       {content}
     </PressableScale>
   );
@@ -79,6 +82,7 @@ export function SwitchRow({
   onValueChange,
   disabled,
   icon,
+  testID,
 }: {
   title: string;
   subtitle?: string;
@@ -86,6 +90,7 @@ export function SwitchRow({
   onValueChange: (value: boolean) => void;
   disabled?: boolean;
   icon?: keyof typeof Ionicons.glyphMap;
+  testID?: string;
 }) {
   const { colors } = useTheme();
   return (
@@ -102,6 +107,7 @@ export function SwitchRow({
           thumbColor="#FFFFFF"
           ios_backgroundColor={colors.switchTrackOff}
           accessibilityLabel={title}
+          testID={testID}
         />
       }
     />

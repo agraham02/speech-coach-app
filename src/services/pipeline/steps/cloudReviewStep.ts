@@ -1,4 +1,7 @@
 import { getSessionById, updateTranscriptFields } from "../../db/sessionsRepo";
+import type { Session } from "../../../domain/sessionTypes";
+import type { Provenance } from "../../../domain/analysis/types";
+import type { TakeReviewOutput } from "../../analysis/kinds";
 import { judgedReviewToScores, upsertScores } from "../../db/scoresRepo";
 import { getArtifact, putArtifact } from "../../db/artifactsRepo";
 import { whyNotJudged } from "../../cloud/routing";
@@ -58,7 +61,15 @@ export async function cloudReviewStep(sessionId: string): Promise<void> {
     throw new StepError("The review is still under way.");
   }
 
-  const { value: out, provenance } = result;
+  await storeTakeReview(session, result.value, result.provenance);
+}
+
+// Stores Tono AI's judgement of a take: the judged_review artifact (in the
+// taxonomy's terms), the Scores tab's copy, the clean transcript, token
+// usage, the take's score sheets and the coach card from the same call.
+// Shared with the Dev tab's demo takes (services/dev/seedDemo.ts).
+export async function storeTakeReview(session: Session, out: TakeReviewOutput, provenance: Provenance): Promise<void> {
+  const sessionId = session.id;
   const { review } = out;
   const transcript = review.transcriptVerbatim ?? session.transcriptVerbatim ?? "";
   // Before the scores land, so the usage is there when the screen updates.

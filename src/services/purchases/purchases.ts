@@ -5,6 +5,8 @@ import { plansFromPackages, purchaseFailure, type PlusPlan } from "../../domain/
 import { logger } from "../../utils/logger";
 import { getAccount, refreshAccount, subscribeAccount } from "../account/accountStore";
 import { askToSignIn } from "../account/signInGate";
+import { mockAccountConfig, mockShowsPlusOffers } from "../dev/mockAccount";
+import { mockPlans } from "../../domain/dev/mockAccount";
 
 // Tono Plus purchases through RevenueCat, on iPhone. RevenueCat talks to the
 // App Store; the server learns the result from RevenueCat (webhook and the
@@ -36,7 +38,9 @@ export const purchasesConfigurable = (): boolean => Platform.OS === "ios" && REV
 // on sale (its launch switch). Someone who already has Plus keeps Manage and
 // Restore whatever the switch says.
 export const purchasesEnabled = (): boolean => {
-  if (!purchasesConfigurable()) return false;
+  // Dev builds: the mock account can show Plus as for sale on a phone that
+  // cannot sell it (the paywall and its buttons), without any purchase code.
+  if (!purchasesConfigurable() && !mockShowsPlusOffers()) return false;
   const account = getAccount();
   return account.plusPurchasable || account.allowance?.plan === "plus" || account.allowance?.plan === "trial";
 };
@@ -101,6 +105,12 @@ export interface PlusOffer {
 
 // The plans the App Store offers this person right now, priced for their store.
 export async function loadPlusOffer(): Promise<PlusOffer> {
+  if (mockShowsPlusOffers()) {
+    // Dev: made-up prices through the real plan builder; nothing is bought.
+    const plans = mockPlans(mockAccountConfig()?.offer ?? "trial");
+    if (!plans) throw new Error("Dev mock: the prices fail to load.");
+    return { plans, packages: new Map() };
+  }
   if (!configured) throw new Error("Purchases aren't available.");
   const offerings = await purchases().getOfferings();
   const available = offerings.current?.availablePackages ?? [];
@@ -137,6 +147,7 @@ async function waitForPlus(): Promise<boolean> {
 }
 
 export async function buyPlus(plan: PlusPlan, offer: PlusOffer): Promise<PurchaseResult> {
+  if (mockShowsPlusOffers()) return { ok: false, cancelled: false, message: "Dev: no purchase is made while the mock account shows Plus." };
   const pkg = offer.packages.get(plan.packageId);
   if (!pkg) return { ok: false, cancelled: false, message: "That plan isn't available right now. Try again in a little while." };
   try {
@@ -158,6 +169,7 @@ export async function buyPlus(plan: PlusPlan, offer: PlusOffer): Promise<Purchas
 
 // Brings back a subscription bought earlier, on this or another phone.
 export async function restorePlus(): Promise<PurchaseResult> {
+  if (mockShowsPlusOffers()) return { ok: false, cancelled: false, message: "Dev: no purchase is restored while the mock account shows Plus." };
   try {
     await readyAccount();
   } catch (error) {

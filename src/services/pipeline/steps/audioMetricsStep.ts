@@ -1,4 +1,5 @@
 import { getSessionById, isSessionLive, updateAudioMetricFields } from "../../db/sessionsRepo";
+import type { Session } from "../../../domain/sessionTypes";
 import { resolveVideoUri } from "../../storage/videoStorage";
 import { computeFillerStats, detectRepeatedWordsFromText, detectRepeatedWordsFromWords } from "../../../domain/transcriptAnnotations";
 import { computeWpmCurve } from "../../../domain/wpmCurve";
@@ -16,7 +17,7 @@ import {
   prosodyStatsOf,
   rateStatsOf,
 } from "../../../domain/signals/audioSummary";
-import { extractOffThread } from "../../audio/dspRuntime";
+import { extractOffThread, type ExtractionRun } from "../../audio/dspRuntime";
 import { updateTakeSignals } from "../../signals/signalsStore";
 import { getDecodedAudio } from "./decodedAudioCache";
 import { logger } from "../../../utils/logger";
@@ -30,17 +31,12 @@ export async function audioMetricsStep(sessionId: string): Promise<void> {
   if (!session) throw new StepError("Session not found.");
 
   const decoded = await getDecodedAudio(resolveVideoUri(session));
-  const words = session.transcriptWords;
-  const verbatim = session.transcriptVerbatim;
 
-  if (!decoded && !verbatim) {
+  if (!decoded && !session.transcriptVerbatim) {
     throw new StepError("Couldn't read this recording's audio, and there's no transcript to analyze yet.");
   }
 
-  const fillers = verbatim ? computeFillerStats(verbatim, session.durationSeconds) : null;
-  const repeated = words && words.length > 0 ? detectRepeatedWordsFromWords(words) : verbatim ? detectRepeatedWordsFromText(verbatim) : null;
-
-  let run: Awaited<ReturnType<typeof extractOffThread>> | null = null;
+  let run: ExtractionRun | null = null;
   if (decoded) {
     try {
       run = await extractOffThread(decoded.waveform, decoded.sampleRate);
@@ -48,6 +44,20 @@ export async function audioMetricsStep(sessionId: string): Promise<void> {
       logger.error(`[dsp] ${sessionId}: feature extraction failed — ${(error as Error).message}`);
     }
   }
+  await recordAudioAnalysis(session, run, !!decoded);
+}
+
+// Everything the step stores once the audio has been measured (or could not
+// be): the pauses, the feature track and its summaries, and the take's voice
+// columns. `run` is null when nothing could be measured; `decoded` says the
+// audio itself was readable. Shared with the Dev tab's demo takes
+// (services/dev/seedDemo.ts), which hand it synthetic frames.
+export async function recordAudioAnalysis(session: Session, run: ExtractionRun | null, decoded: boolean): Promise<void> {
+  const sessionId = session.id;
+  const words = session.transcriptWords;
+  const verbatim = session.transcriptVerbatim;
+  const fillers = verbatim ? computeFillerStats(verbatim, session.durationSeconds) : null;
+  const repeated = words && words.length > 0 ? detectRepeatedWordsFromWords(words) : verbatim ? detectRepeatedWordsFromText(verbatim) : null;
   // Deleted while it was being measured (in the undo window): record nothing.
   if (!(await isSessionLive(sessionId))) return;
   const features = run?.features ?? null;
