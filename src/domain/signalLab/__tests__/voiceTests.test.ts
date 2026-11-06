@@ -130,6 +130,14 @@ describe("voice.pitch_variety", () => {
     expect(o.summary).toMatch(/missed/);
   });
 
+  it("holds the flat read against the same person's lively read", () => {
+    const o = run("pitch_variety", put(measure("pitch_variety.flat", take(2.2, 1)), measure("pitch_variety.normal", take(1.2, 2)), measure("pitch_variety.lively", take(2.2, 3))));
+    expect(check(o, "Flat take range")?.pass).toBe(false);
+    expect(check(o, "Flat take range")?.bar).toBe("under 60% of the lively take's");
+    expect(o.numbers.flatShareOfLively as number).toBeGreaterThan(0.6);
+    expect(o.pass).toBe(false);
+  });
+
   it("fails when pitch is found in too few speech frames", () => {
     const sparse = take(2.2, 3);
     for (let i = 0; i < sparse.f0Hz.length; i++) if (i % 5 < 3) sparse.f0Hz[i] = 0;
