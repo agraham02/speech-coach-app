@@ -32,6 +32,10 @@ export interface Palette {
   warningMuted: string;
   danger: string;
   dangerMuted: string;
+  // The highlighter-pen yellow behind filler words in a transcript. Opaque, and
+  // textPrimary stays readable on it (>= 4.5:1) in both schemes, so the marked
+  // words keep their normal ink.
+  highlight: string;
   // The record button and the live dot, in both schemes.
   record: string;
   overlayScrim: string;
@@ -57,6 +61,9 @@ export const darkPalette: Palette = {
   warningMuted: "rgba(242,181,75,0.14)",
   danger: "#FF6B5E",
   dangerMuted: "rgba(255,107,94,0.14)",
+  // A deep gold: reads as yellow on the dark surfaces without glaring, with
+  // the light ink on top.
+  highlight: "#7A6200",
   record: "#FF453A",
   overlayScrim: "rgba(8,8,6,0.72)",
   switchTrackOff: "rgba(255,250,235,0.18)",
@@ -89,6 +96,8 @@ export const lightPalette: Palette = {
   warningMuted: "rgba(163,95,0,0.10)",
   danger: "#C93A2E",
   dangerMuted: "rgba(201,58,46,0.10)",
+  // Highlighter yellow with the dark ink on top.
+  highlight: "#FFE55C",
   record: "#FF3B30",
   overlayScrim: "rgba(24,23,20,0.42)",
   switchTrackOff: "rgba(28,25,15,0.16)",
