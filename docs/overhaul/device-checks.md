@@ -81,6 +81,8 @@ What I do with it: set each reading's status, tune the formulas the data shows t
 
 Also, separately: the hosted judge eval (task 1.9) needs the server set up first (see the server setup section above).
 
+**Done:** rounds 1 to 4 ran on an iPhone (iOS 26.6) on 2026-11-06. The results are in `DECISIONS.md` D7 to D11. A test's stored run can still show "Failed" on the phone if it ran on older code; the reading's status comes from `readingTrust.ts`, not from that. Rounds 2 to 4 below are kept as a record.
+
 ### Round 2
 
 Round 1 is done. These re-run the tests whose code changed, and this time the raw recordings come too, so I can do the rest of the tuning on the computer. About 25 minutes, and you can split it up.

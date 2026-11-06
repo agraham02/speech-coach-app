@@ -44,35 +44,35 @@ describe("reading trust", () => {
 
   it("counts nothing that is on probation or being tuned, unless the Dev preview says so", () => {
     for (const id of READING_IDS) expect(readingCounts(id)).toBe(READINGS[id].status === "now");
-    expect(readingCounts("pitch_variety")).toBe(false);
-    expect(readingCounts("pitch_variety", { pitch_variety: true })).toBe(true);
-    expect(readingCounts("pitch_variety", { pitch_variety: false })).toBe(false);
+    expect(readingCounts("endings_fall")).toBe(false);
+    expect(readingCounts("endings_fall", { endings_fall: true })).toBe(true);
+    expect(readingCounts("endings_fall", { endings_fall: false })).toBe(false);
   });
 
   it("marks a reading ready to promote only when every gating test passed", () => {
-    const entries = [entry("voice.pitch_variety"), entry("voice.pitch_glide")];
+    const entries = [entry("voice.pitch_variety"), entry("presence.expression")];
     const half: LabResults = { "voice.pitch_variety": [run("voice.pitch_variety", true)] };
-    expect(readingStandings(entries, half).find((r) => r.id === "pitch_variety")?.readyToPromote).toBe(false);
-    const both: LabResults = { ...half, "voice.pitch_glide": [run("voice.pitch_glide", true)] };
-    expect(readingStandings(entries, both).find((r) => r.id === "pitch_variety")?.readyToPromote).toBe(true);
+    expect(readingStandings(entries, half).find((r) => r.id === "range_across_feelings")?.readyToPromote).toBe(false);
+    const both: LabResults = { ...half, "presence.expression": [run("presence.expression", true)] };
+    expect(readingStandings(entries, both).find((r) => r.id === "range_across_feelings")?.readyToPromote).toBe(true);
     // A test missing from the registry can't pass.
-    expect(readingStandings([entry("voice.pitch_variety")], both).find((r) => r.id === "pitch_variety")?.readyToPromote).toBe(false);
+    expect(readingStandings([entry("voice.pitch_variety")], both).find((r) => r.id === "range_across_feelings")?.readyToPromote).toBe(false);
   });
 });
 
 describe("the export", () => {
   it("carries the bars, the runs and each reading's standing", () => {
-    const entries = [entry("voice.pauses")];
+    const entries = [entry("voice.endings")];
     const out = buildSignalLabExport({
       context: { exportedAt: "2026-11-06T10:00:00Z", app: { version: "2.0.0", build: "Dev", os: "iOS" } },
       entries,
-      results: { "voice.pauses": [run("voice.pauses", true)] },
+      results: { "voice.endings": [run("voice.endings", true)] },
       preview: { pitch_variety: true },
     });
     expect(out.kind).toBe("tono-signal-lab");
-    expect(out.tests[0]).toMatchObject({ id: "voice.pauses", status: "pass", bars: ["a bar"], onFail: "stays Beta" });
+    expect(out.tests[0]).toMatchObject({ id: "voice.endings", status: "pass", bars: ["a bar"], onFail: "stays Beta" });
     expect(out.tests[0].runs).toHaveLength(1);
     expect(out.previewSwitch).toEqual({ pitch_variety: true });
-    expect(out.readings.find((r) => r.id === "sentence_end_pauses")?.readyToPromote).toBe(true);
+    expect(out.readings.find((r) => r.id === "endings_fall")?.readyToPromote).toBe(true);
   });
 });

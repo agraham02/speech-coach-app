@@ -33,16 +33,18 @@ export interface ReadingDef {
 }
 
 export const READINGS: Record<ReadingId, ReadingDef> = {
-  sentence_end_pauses: { id: "sentence_end_pauses", label: "Pauses at sentence ends", status: "probation", tests: ["voice.pauses"] },
-  deliberate_pauses: { id: "deliberate_pauses", label: "Deliberate pauses", status: "probation", tests: ["voice.pauses"] },
-  pitch_variety: { id: "pitch_variety", label: "Pitch variety", status: "probation", tests: ["voice.pitch_variety", "voice.pitch_glide"] },
+  sentence_end_pauses: { id: "sentence_end_pauses", label: "Pauses at sentence ends", status: "now", tests: ["voice.pauses"] },
+  deliberate_pauses: { id: "deliberate_pauses", label: "Deliberate pauses", status: "now", tests: ["voice.pauses"] },
+  pitch_variety: { id: "pitch_variety", label: "Pitch variety", status: "now", tests: ["voice.pitch_variety", "voice.pitch_glide"] },
   endings_fall: { id: "endings_fall", label: "Endings that fall", status: "probation", tests: ["voice.endings"] },
-  stand_out_stress: { id: "stand_out_stress", label: "Stand-out stress", status: "probation", tests: ["voice.emphasis"] },
+  stand_out_stress: { id: "stand_out_stress", label: "Stand-out stress", status: "now", tests: ["voice.emphasis"] },
   stress_right_words: { id: "stress_right_words", label: "Stress on the right words", status: "probation", tests: ["voice.word_stress"] },
   volume_carry: { id: "volume_carry", label: "Volume carry", status: "now", tests: ["voice.volume_gain", "voice.volume_distance"] },
-  on_the_lens: { id: "on_the_lens", label: "Eye contact on the lens", status: "tuning", tests: ["presence.looking", "presence.glances", "presence.preview"] },
+  on_the_lens: { id: "on_the_lens", label: "Eye contact on the lens", status: "now", tests: ["presence.looking", "presence.glances", "presence.preview"] },
   // Needs Looking too: a look down at notes that reads as looking is never counted.
-  long_lookaways: { id: "long_lookaways", label: "Long look-aways", status: "tuning", tests: ["presence.glances", "presence.looking"] },
+  long_lookaways: { id: "long_lookaways", label: "Long look-aways", status: "now", tests: ["presence.glances", "presence.looking"] },
+  // Passed its tests, but today's score still reads the old expressiveness number.
+  // It moves to "now" when the skill tree reads brow lifts and smiles a minute (3a).
   face_movement: { id: "face_movement", label: "Face movement", status: "tuning", tests: ["presence.expression", "presence.face_events"] },
   range_across_feelings: { id: "range_across_feelings", label: "Range across feelings", status: "probation", tests: ["voice.pitch_variety", "presence.expression"] },
 };

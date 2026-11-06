@@ -28,13 +28,12 @@ export function pauseScore(boundaryPauseRate: number): number {
 // 200 Hz, so the old Hz scoring asked a low voice to move twice as far.
 //
 // The band starts fixed and becomes personal after 5 or more of your own
-// takes with a measured range. The fixed numbers come from session 05's
-// research, not yet from the Voice Lab takes on the phone: through a
-// simulated phone chain the tracker read a monotone voice at 2.1 st, a normal
-// one at 3.9 and a lively one at 5.5 (truth 1.9, 3.8 and 5.3); Ahmad's own
-// takes read 2.4 to 5.8. So 1 st scores 0 and 5 st full marks: monotone about
-// 3/10, ordinary 7, lively 10. Retune with the device test plan, section F.
-// A range is only measured from 8 or more voiced seconds with the voice 12 dB
+// takes with a measured range. The fixed numbers come from Signal Lab on a real
+// phone, checked against Praat: a flat read measured 3.0 to 4.7 st, a normal one
+// 7.1 to 7.7 and a lively one 9.4 to 9.8. So 2 st scores 0 and 8 st full marks:
+// flat about 2 to 4.5/10, ordinary 8.5 to 9.5, lively 10. That's one low voice on
+// one phone, so the personal band matters; check it with other voices before
+// launch. A range is only measured from 8 or more voiced seconds with the voice 12 dB
 // or more over the noise (domain/signals/audioSummary.pitchRangeScorable).
 
 export interface PitchRangeBand {
@@ -48,19 +47,19 @@ export interface PitchRangeBand {
   usualSt: number | null;
 }
 
-export const FIXED_PITCH_BAND: PitchRangeBand = { zeroSt: 1, fullSt: 5, source: "fixed", takes: 0, usualSt: null };
+export const FIXED_PITCH_BAND: PitchRangeBand = { zeroSt: 2, fullSt: 8, source: "fixed", takes: 0, usualSt: null };
 
 export const PERSONAL_BASELINE_MIN_TAKES = 5;
 export const PERSONAL_BASELINE_MAX_TAKES = 20;
-// Full marks a little over your usual range, but never below 4 st (a habit
-// of speaking flat must not set the bar at flat) and never above 6 st (a
+// Full marks a little over your usual range, but never below 6 st (a habit
+// of speaking flat must not set the bar at flat) and never above 9 st (a
 // naturally lively speaker isn't asked for theatre).
 const PERSONAL_STRETCH_ST = 0.5;
-const PERSONAL_FULL_MIN_ST = 4;
-const PERSONAL_FULL_MAX_ST = 6;
+const PERSONAL_FULL_MIN_ST = 6;
+const PERSONAL_FULL_MAX_ST = 9;
 
 // Under this the coach and the skill check call the voice flat.
-export const PITCH_FLAT_ST = 2.5;
+export const PITCH_FLAT_ST = 5;
 
 // `prior`: earlier takes' ranges, newest first.
 export function pitchRangeBand(prior: number[]): PitchRangeBand {
@@ -83,11 +82,15 @@ export function pitchScore(rangeSt: number, band: PitchRangeBand = FIXED_PITCH_B
   return clamp10(((rangeSt - band.zeroSt) / (band.fullSt - band.zeroSt)) * 10);
 }
 
-// Emphasis (session 06's syllable-peak spread): monotone read 1.65 dB and a
-// normal or lively voice about 3 dB in the spike. Full marks at 3 dB, nothing
-// at 1 dB. Uncalibrated.
+// Emphasis (session 06's syllable-peak spread). On a real phone, a flat read
+// measured 2.7 to 4.3 dB, a normal or lively one about 5, and a read stressing
+// key words 8.3 to 8.7. So nothing at 2.5 dB and full marks at 6: flat about 1 to
+// 5/10, ordinary 7, stressed 10. One voice on one phone; check it with others.
+export const EMPHASIS_ZERO_DB = 2.5;
+export const EMPHASIS_FULL_DB = 6;
+
 export function emphasisScore(peakSdDb: number): number {
-  return clamp10(((peakSdDb - 1) / 2) * 10);
+  return clamp10(((peakSdDb - EMPHASIS_ZERO_DB) / (EMPHASIS_FULL_DB - EMPHASIS_ZERO_DB)) * 10);
 }
 
 // Fillers: the first 2 a minute go unnoticed; each one after costs 0.8.
