@@ -9,7 +9,10 @@ const mockDeletedFiles: string[] = [];
 let mockDb: ReturnType<typeof createTestDatabase>;
 
 jest.mock("../../../utils/logger", () => ({ logger: { info: () => undefined, warn: () => undefined, error: () => undefined, debug: () => undefined } }));
-jest.mock("../../db/database", () => ({ getDatabase: async () => mockDb }));
+jest.mock("../../db/database", () => ({
+  getDatabase: async () => mockDb,
+  inTransaction: (db: { withTransactionAsync: (task: () => Promise<void>) => Promise<void> }, task: () => Promise<void>) => db.withTransactionAsync(task),
+}));
 jest.mock("../../prefs/prefsStore", () => {
   const fixed: Record<string, unknown> = {
     getNextEvent: () => null,
