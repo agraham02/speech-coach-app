@@ -51,6 +51,10 @@ const CATEGORY_LABELS: Record<AnnotationCategory, string> = {
   repeated_words: "Repeated word",
 };
 
+function isFiller(category: AnnotationCategory): boolean {
+  return category === "filler" || category === "filler_contextual";
+}
+
 // The transcript with what the phone can see in it marked, and, if you ask for
 // it, Tono AI's notes. The phone marks fillers (um and uh as one kind; like,
 // actually and you know as another, because those are fillers only some of
@@ -165,7 +169,7 @@ export function AnnotatedTranscript({
         <View style={styles.legend}>
           {Array.from(categoriesPresent).map((category) => (
             <View key={category} style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: annotationColors[category] }]} />
+              <View style={[styles.legendDot, { backgroundColor: annotationColors[category] }, isFiller(category) && styles.legendDotHighlight]} />
               <Text style={styles.legendText}>{CATEGORY_LABELS[category]}</Text>
             </View>
           ))}
@@ -187,7 +191,7 @@ export function AnnotatedTranscript({
       {panelContent ? (
         <Animated.View style={[styles.notePanel, panelStyle]}>
           <View style={styles.notePanelHeader}>
-            <Text style={[styles.notePanelLabel, { color: annotationColors[panelContent.category] }]}>{panelContent.title}</Text>
+            <Text style={[styles.notePanelLabel, { color: isFiller(panelContent.category) ? colors.warning : annotationColors[panelContent.category] }]}>{panelContent.title}</Text>
             <Pressable onPress={dismissPanel} hitSlop={12} accessibilityRole="button" accessibilityLabel="Dismiss note">
               <Ionicons name="close" size={16} color={colors.textMuted} />
             </Pressable>
@@ -226,6 +230,8 @@ const useStyles = makeStyles(({ colors }) => ({
   legend: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
   legendItem: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   legendDot: { width: 9, height: 9, borderRadius: radii.pill },
+  // The pale highlighter yellow vanishes on a light surface without an edge.
+  legendDotHighlight: { borderWidth: 1, borderColor: colors.warning },
   legendText: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption - 1 },
   transcript: { ...font("400"), color: colors.textPrimary, fontSize: typography.bodyLarge, lineHeight: 26 },
   notePanel: { backgroundColor: colors.surfaceRaised, borderRadius: radii.md, padding: spacing.md, gap: spacing.xs },

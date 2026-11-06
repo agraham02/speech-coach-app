@@ -47,10 +47,12 @@ export function getAnnotationColors(
   c: Colors,
 ): Record<"filler" | "filler_contextual" | "structure" | "delivery" | "presence" | "content" | "restated_point" | "repeated_words", string> {
   return {
-    filler: c.warning,
-    // "like", "actually", "you know": fillers only in some uses, so a
-    // different hue from um and uh.
-    filler_contextual: c.pink,
+    // Every filler word reads as highlighter yellow; the one-off hues made
+    // them look like unrelated marks.
+    filler: c.highlight,
+    // "like", "actually", "you know": fillers only in some uses, but still
+    // marked in the same yellow (the note explains the half weight).
+    filler_contextual: c.highlight,
     structure: c.violet,
     delivery: c.blue,
     presence: c.pink,
