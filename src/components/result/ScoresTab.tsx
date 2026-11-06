@@ -15,6 +15,7 @@ import { sheetFor, type CategoryScore, type ScoreFactor, type SubScore, type Tak
 import type { Layer, SubcategoryId } from "../../domain/scoring/taxonomy";
 import type { Session, SessionScores } from "../../domain/sessionTypes";
 import { producerName, provenanceLabel } from "../../domain/analysis/provenance";
+import { trustLabel } from "../../domain/signalLab/readingTrust";
 import { FIXED_PITCH_BAND } from "../../domain/scoring/bands";
 import { pitchBandFor } from "../../services/sessions/sessionScoreService";
 import { loadVoiceCharts, type VoiceCharts } from "../../services/signals/voiceCharts";
@@ -254,7 +255,7 @@ function SubScoreBlock({ sub: s, judge, children }: { sub: SubScore; judge: stri
           {s.label}{" "}
           <Txt variant="footnote" tone="muted">
             · {s.layer === "judged" ? judge : "measured on the phone"}
-            {s.rollsUp ? "" : ", not in the total"}
+            {s.rollsUp || s.trust ? "" : ", not in the total"}
           </Txt>
         </Txt>
         <Txt variant="subhead" weight="600" tabular color={color}>
@@ -264,6 +265,11 @@ function SubScoreBlock({ sub: s, judge, children }: { sub: SubScore; judge: stri
       <View style={styles.track}>
         <View style={[styles.fill, { width: `${Math.max(0, Math.min(10, s.score)) * 10}%`, backgroundColor: color }]} />
       </View>
+      {s.trust ? (
+        <Txt variant="caption1" tone="muted">
+          {trustLabel(s.trust)}, not in the total
+        </Txt>
+      ) : null}
       {s.notes ? (
         <Txt variant="footnote" tone="secondary">
           {s.notes}

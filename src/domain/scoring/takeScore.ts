@@ -20,7 +20,8 @@ import {
   expressionScore,
   EXPRESSION_FULL,
 } from "./bands";
-import { SKILL_DEFS, SUBCATEGORIES, SUBCATEGORY_ORDER, TAKE_SKILLS, type Layer, type SubcategoryId, type TakeKind } from "./taxonomy";
+import { SKILL_DEFS, SUBCATEGORIES, SUBCATEGORY_ORDER, SUBCATEGORY_READING, TAKE_SKILLS, type Layer, type SubcategoryId, type TakeKind } from "./taxonomy";
+import { READINGS, readingCounts, type ReadingPreview, type TrustStatus } from "../signalLab/readingTrust";
 
 // A take's scores, in two layers (docs/decisions/scoring-taxonomy.md):
 // - measured: the phone's measurements through the bands in bands.ts. Every
@@ -31,9 +32,14 @@ import { SKILL_DEFS, SUBCATEGORIES, SUBCATEGORY_ORDER, TAKE_SKILLS, type Layer, 
 //   didn't (fluency, conviction), the measured sub-score fills in and says so.
 // Category scores and the overall are always worked out here, from the
 // sub-scores, with the taxonomy's weights: the summary can never disagree
-// with its breakdown. Pure.
+// with its breakdown.
+// A sub-score whose reading isn't proven yet (signalLab/readingTrust.ts) is
+// still worked out and shown, marked with its trust status, but doesn't roll
+// up: its category's other sub-scores share the weight, and a category with
+// nothing left that counts is dropped. Pure; the optional `preview` is the
+// Dev-only list of readings counted early, passed in by the app's services.
 
-export const SCORE_SHEET_VERSION = 5;
+export const SCORE_SHEET_VERSION = 6;
 
 // What the phone measured, flattened from the take's artifacts. Fields are
 // null when not measured. Session 06's signals fill the optional ones.
@@ -72,7 +78,11 @@ export interface SubScore {
   score: number;
   // Where this number came from.
   layer: Layer;
+  // Counts towards its category: false for media-only judgements and for a
+  // reading that isn't proven yet.
   rollsUp: boolean;
+  // Set when the reading behind this number doesn't count yet (Beta).
+  trust?: TrustStatus;
   factors?: ScoreFactor[];
   // The judge's note: the evidence and what a 10 would take.
   notes?: string | null;
@@ -300,6 +310,14 @@ function applies(id: SubcategoryId, kind: TakeKind): boolean {
   return SUBCATEGORIES[id].appliesTo.includes(kind);
 }
 
+// Whether a sub-score counts towards its category and, when its reading is on
+// trial and doesn't count, the status to label it with.
+function standing(id: SubcategoryId, preview?: ReadingPreview): { rollsUp: boolean; trust?: TrustStatus } {
+  const reading = SUBCATEGORY_READING[id];
+  if (!reading || readingCounts(reading, preview)) return { rollsUp: SUBCATEGORIES[id].rollsUp };
+  return { rollsUp: false, trust: READINGS[reading].status };
+}
+
 function buildSheet(layer: Layer, subs: SubScore[]): ScoreSheet | null {
   const categories: Omit<CategoryScore, "weight">[] = [];
   for (const skill of TAKE_SKILLS) {
@@ -317,20 +335,20 @@ function buildSheet(layer: Layer, subs: SubScore[]): ScoreSheet | null {
   return { layer, overall: round1(clamp10(overall)), categories: withWeights };
 }
 
-export function measuredSheet(facts: MeasuredFacts): ScoreSheet | null {
+export function measuredSheet(facts: MeasuredFacts, preview?: ReadingPreview): ScoreSheet | null {
   const measured = measuredSubscores(facts);
   const subs: SubScore[] = [];
   for (const id of SUBCATEGORY_ORDER) {
     const m = measured[id];
     if (!m || !applies(id, facts.takeKind)) continue;
-    subs.push({ id, label: SUBCATEGORIES[id].label, score: m.score, layer: "measured", rollsUp: SUBCATEGORIES[id].rollsUp, factors: m.factors });
+    subs.push({ id, label: SUBCATEGORIES[id].label, score: m.score, layer: "measured", ...standing(id, preview), factors: m.factors });
   }
   return buildSheet("measured", subs);
 }
 
 // The judged sheet: the judge's sub-scores, with the measured ones filling
 // the subcategories it doesn't score. Null when the judge scored nothing.
-export function judgedSheet(judged: JudgedSubscores, facts: MeasuredFacts): ScoreSheet | null {
+export function judgedSheet(judged: JudgedSubscores, facts: MeasuredFacts, preview?: ReadingPreview): ScoreSheet | null {
   const measured = measuredSubscores(facts);
   const subs: SubScore[] = [];
   let anyJudged = false;
@@ -340,18 +358,18 @@ export function judgedSheet(judged: JudgedSubscores, facts: MeasuredFacts): Scor
     const j = judged[id];
     if (j && Number.isFinite(j.score)) {
       anyJudged = true;
-      subs.push({ id, label: def.label, score: round1(clamp10(j.score)), layer: "judged", rollsUp: def.rollsUp, notes: j.notes, factors: measured[id]?.factors });
+      subs.push({ id, label: def.label, score: round1(clamp10(j.score)), layer: "judged", ...standing(id, preview), notes: j.notes, factors: measured[id]?.factors });
       continue;
     }
     const m = measured[id];
-    if (m) subs.push({ id, label: def.label, score: m.score, layer: "measured", rollsUp: def.rollsUp, factors: m.factors });
+    if (m) subs.push({ id, label: def.label, score: m.score, layer: "measured", ...standing(id, preview), factors: m.factors });
   }
   return anyJudged ? buildSheet("judged", subs) : null;
 }
 
-export function takeScores(facts: MeasuredFacts, judged: JudgedSubscores | null, judgedBy?: Provenance): TakeScores | null {
-  const measured = measuredSheet(facts);
-  const judgedOne = judged ? judgedSheet(judged, facts) : null;
+export function takeScores(facts: MeasuredFacts, judged: JudgedSubscores | null, judgedBy?: Provenance, preview?: ReadingPreview): TakeScores | null {
+  const measured = measuredSheet(facts, preview);
+  const judgedOne = judged ? judgedSheet(judged, facts, preview) : null;
   if (!measured && !judgedOne) return null;
   return {
     version: SCORE_SHEET_VERSION,
