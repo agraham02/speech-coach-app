@@ -4,6 +4,7 @@ import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { KeyboardProvider } from "react-native-keyboard-controller";
 import { useFonts } from "expo-font";
 import { AppNavigator } from "./src/navigation";
 import { isModelDownloaded, DEFAULT_ASR_MODEL, tidyModelsFolder, subscribeModelReady } from "./src/services/asr/whisperModels";
@@ -75,6 +76,8 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
+      {/* The keyboard, the same on both platforms: screens move above it (Screen, KeyboardAwareScrollView). The app already draws edge to edge and handles insets itself. */}
+      <KeyboardProvider statusBarTranslucent navigationBarTranslucent>
       <ThemeProvider>
         {fontsLoaded || fontError ? (
           <AppErrorBoundary>
@@ -97,6 +100,7 @@ export default function App() {
         )}
         <ThemedStatusBar />
       </ThemeProvider>
+      </KeyboardProvider>
     </SafeAreaProvider>
   );
 }

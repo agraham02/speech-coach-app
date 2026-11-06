@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
+import { Pressable, View } from "react-native";
+import { KeyboardAvoidingView, KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
@@ -84,8 +85,8 @@ export function DebriefScreen({ route, navigation }: Props) {
   return (
     <ScreenContainer style={styles.container}>
       <Header eyebrow="After · about three minutes" title="Debrief" onBack={() => navigation.goBack()} backIcon="close" />
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView style={styles.flex} behavior="padding" automaticOffset>
+        <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           {events.length > 0 ? (
             <View style={styles.chips}>
               {events.map((e) => (
@@ -138,9 +139,9 @@ export function DebriefScreen({ route, navigation }: Props) {
           <Txt variant="caption1" tone="muted">
             That's all — no need to replay the whole thing. Going over a conversation again and again tends to make the next one feel harder, not easier.
           </Txt>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScrollView>
       <PrimaryButton label="Save" onPress={save} loading={saving} />
+      </KeyboardAvoidingView>
     </ScreenContainer>
   );
 }

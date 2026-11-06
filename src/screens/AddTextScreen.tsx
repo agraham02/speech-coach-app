@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
+import { Pressable, ScrollView, TextInput, View } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
@@ -68,7 +69,7 @@ export function AddTextScreen({ navigation }: Props) {
   return (
     <ScreenContainer style={styles.container}>
       <Header eyebrow="Mark it up" title={step === "paste" ? "Your own text" : "Pick a sentence or two"} onBack={() => (step === "pick" ? setStep("paste") : navigation.goBack())} />
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingView style={styles.flex} behavior="padding" automaticOffset>
         {step === "paste" ? (
           <View style={styles.flex}>
             <Txt variant="subhead" tone="secondary">

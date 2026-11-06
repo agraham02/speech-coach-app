@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
+import { KeyboardAvoidingView, KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
@@ -41,7 +42,8 @@ export function MarkEditScreen({ route, navigation }: Props) {
   return (
     <ScreenContainer style={styles.container}>
       <Header eyebrow="Mark it up · yours" title="Edit the marks" onBack={() => navigation.goBack()} />
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView style={styles.flex} behavior="padding" automaticOffset>
+        <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Card style={styles.card}>
           <MarkEditor text={item.text} marks={marks} onChange={change} />
         </Card>
@@ -55,8 +57,9 @@ export function MarkEditScreen({ route, navigation }: Props) {
           <PrimaryButton label="Re-mark with the rules" variant="ghost" style={styles.flex} onPress={() => change(autoMark(item.text).marks)} />
           <PrimaryButton label="Clear" variant="ghost" style={styles.flex} onPress={() => change([])} />
         </View>
-      </ScrollView>
-      <PrimaryButton label="Practice it" onPress={() => navigation.replace("LineRep", { mineIds: [item.id] })} disabled={!marks.length} />
+        </KeyboardAwareScrollView>
+        <PrimaryButton label="Practice it" onPress={() => navigation.replace("LineRep", { mineIds: [item.id] })} disabled={!marks.length} />
+      </KeyboardAvoidingView>
     </ScreenContainer>
   );
 }

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
@@ -34,64 +35,66 @@ export function PlanYourPointScreen({ route, navigation }: Props) {
       <Header title="Plan your point" onBack={() => navigation.goBack()} backIcon="close"
       />
 
-      <Text style={styles.subtitle}>
-        Quickly sketch your PREP before you record — Point, Reason, Example, Point again. Skip any of it and start
-        recording whenever you're ready.
-      </Text>
+      <KeyboardAvoidingView style={styles.flex} behavior="padding" automaticOffset>
+        <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <Text style={styles.subtitle}>
+            Quickly sketch your PREP before you record — Point, Reason, Example, Point again. Skip any of it and start
+            recording whenever you're ready.
+          </Text>
 
-      <View style={styles.promptPreview}>
-        <Text style={styles.promptPreviewText} numberOfLines={2}>
-          {prompt.text}
-        </Text>
-      </View>
+          <View style={styles.promptPreview}>
+            <Text style={styles.promptPreviewText} numberOfLines={2}>
+              {prompt.text}
+            </Text>
+          </View>
 
-      <View style={styles.field}>
-        <Text style={styles.label}>Point</Text>
-        <Text style={styles.hint}>The one thing you want them to remember.</Text>
-        <TextInput maxLength={280}
-          style={styles.textArea}
-          value={point}
-          onChangeText={setPoint}
-          placeholder="What's the main point?"
-          placeholderTextColor={colors.textMuted}
-          multiline
-          textAlignVertical="top"
-          accessibilityLabel="Point"
-        />
-      </View>
+          <View style={styles.field}>
+            <Text style={styles.label}>Point</Text>
+            <Text style={styles.hint}>The one thing you want them to remember.</Text>
+            <TextInput maxLength={280}
+              style={styles.textArea}
+              value={point}
+              onChangeText={setPoint}
+              placeholder="What's the main point?"
+              placeholderTextColor={colors.textMuted}
+              multiline
+              textAlignVertical="top"
+              accessibilityLabel="Point"
+            />
+          </View>
 
-      <View style={styles.field}>
-        <Text style={styles.label}>Reason</Text>
-        <Text style={styles.hint}>Why does that point matter?</Text>
-        <TextInput maxLength={280}
-          style={styles.textArea}
-          value={reason}
-          onChangeText={setReason}
-          placeholder="Why does it matter?"
-          placeholderTextColor={colors.textMuted}
-          multiline
-          textAlignVertical="top"
-          accessibilityLabel="Reason"
-        />
-      </View>
+          <View style={styles.field}>
+            <Text style={styles.label}>Reason</Text>
+            <Text style={styles.hint}>Why does that point matter?</Text>
+            <TextInput maxLength={280}
+              style={styles.textArea}
+              value={reason}
+              onChangeText={setReason}
+              placeholder="Why does it matter?"
+              placeholderTextColor={colors.textMuted}
+              multiline
+              textAlignVertical="top"
+              accessibilityLabel="Reason"
+            />
+          </View>
 
-      <View style={styles.field}>
-        <Text style={styles.label}>Example</Text>
-        <Text style={styles.hint}>A concrete example or story that backs it up.</Text>
-        <TextInput maxLength={280}
-          style={styles.textArea}
-          value={example}
-          onChangeText={setExample}
-          placeholder="What's a specific example?"
-          placeholderTextColor={colors.textMuted}
-          multiline
-          textAlignVertical="top"
-          accessibilityLabel="Example"
-        />
-      </View>
-
-      <View style={styles.spacer} />
-      <PrimaryButton label="Start Recording" onPress={handleStart} />
+          <View style={styles.field}>
+            <Text style={styles.label}>Example</Text>
+            <Text style={styles.hint}>A concrete example or story that backs it up.</Text>
+            <TextInput maxLength={280}
+              style={styles.textArea}
+              value={example}
+              onChangeText={setExample}
+              placeholder="What's a specific example?"
+              placeholderTextColor={colors.textMuted}
+              multiline
+              textAlignVertical="top"
+              accessibilityLabel="Example"
+            />
+          </View>
+        </KeyboardAwareScrollView>
+        <PrimaryButton label="Start Recording" onPress={handleStart} />
+      </KeyboardAvoidingView>
     </ScreenContainer>
   );
 }
@@ -121,5 +124,6 @@ const useStyles = makeStyles(({ colors }) => ({
     fontSize: typography.body,
     minHeight: 56,
   },
-  spacer: { flex: 1 },
+  flex: { flex: 1 },
+  scroll: { gap: spacing.md, paddingBottom: spacing.md },
 }));

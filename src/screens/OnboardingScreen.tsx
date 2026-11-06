@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
+import { Pressable, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
@@ -607,8 +608,8 @@ export function OnboardingScreen({ route, navigation }: Props) {
           <ProgressBar progress={progress} />
         </View>
       </View>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView style={styles.flex} behavior="padding" automaticOffset>
+        <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <Animated.View
             key={step}
             entering={(direction > 0 ? FadeInRight : FadeInLeft).duration(duration.slow).easing(easeOut).withInitialValues({ transform: [{ translateX: direction * 24 }] })}
@@ -630,7 +631,7 @@ export function OnboardingScreen({ route, navigation }: Props) {
               </Txt>
             </View>
           </Animated.View>
-        </ScrollView>
+        </KeyboardAwareScrollView>
         <View style={styles.actions}>
           {question.optional && !(question.id === "cloud" && (connected || tonoAgeGated())) ? (
             <PrimaryButton label={question.id === "cloud" ? "Not now" : "Skip"} variant="ghost" style={styles.flex} onPress={() => next(true)} disabled={busy} />

@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState, type ReactNode, type Ref } from
 import { StyleSheet, useWindowDimensions, View, type LayoutChangeEvent, type ScrollViewProps, type StyleProp, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import { KeyboardAwareScrollView, KeyboardStickyView } from "react-native-keyboard-controller";
 import Animated, { interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, Extrapolation } from "react-native-reanimated";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 import { enter } from "../../theme/motion";
@@ -149,9 +150,13 @@ export function Screen({
 
       {scroll ? (
         <TourScrollContext.Provider value={tourScroll}>
-          <Animated.ScrollView
-            ref={setScroller}
-            onScroll={onScroll}
+          <KeyboardAwareScrollView
+            ref={setScroller as never}
+            onScroll={onScroll as never}
+            bottomOffset={24}
+            // A footer rides above the keyboard, so the field has to clear it too
+            // (the footer's own bottom inset is hidden by the keyboard).
+            extraKeyboardSpace={footer ? Math.max(0, footerHeight - bottomInset) : 0}
             scrollEventThrottle={16}
             showsVerticalScrollIndicator={false}
             refreshControl={refreshControl}
@@ -162,7 +167,7 @@ export function Screen({
             <Animated.View entering={stagger ? enter(1) : undefined} style={[styles.stack, contentStyle]}>
               {children}
             </Animated.View>
-          </Animated.ScrollView>
+          </KeyboardAwareScrollView>
         </TourScrollContext.Provider>
       ) : (
         <View style={[styles.content, styles.fill, { paddingBottom: footer ? footerHeight : bottomInset }]}>
@@ -174,10 +179,10 @@ export function Screen({
       )}
 
       {footer ? (
-        <View style={styles.footer} onLayout={(e: LayoutChangeEvent) => setFooterHeight(e.nativeEvent.layout.height)}>
+        <KeyboardStickyView style={styles.footer} offset={{ closed: 0, opened: bottomInset }} onLayout={(e: LayoutChangeEvent) => setFooterHeight(e.nativeEvent.layout.height)}>
           <LinearGradient colors={[withAlpha(colors.background, 0), colors.background]} style={styles.footerFade} pointerEvents="none" />
           <View style={[styles.footerBody, { paddingBottom: Math.max(bottomInset, 12) + 8 }]}>{footer}</View>
-        </View>
+        </KeyboardStickyView>
       ) : null}
     </View>
   );

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
+import { View } from "react-native";
+import { KeyboardAvoidingView, KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
@@ -61,8 +62,8 @@ export function PrimeScreen({ navigation }: Props) {
   return (
     <ScreenContainer style={styles.container}>
       <Header eyebrow="Before you go · about a minute" title="Prime" onBack={() => navigation.goBack()} backIcon="close" />
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView style={styles.flex} behavior="padding" automaticOffset>
+        <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <Field label="What's coming up?" value={label} onChangeText={setLabel} placeholder="e.g. Dinner with Jamie's coworkers" />
 
           <Card style={styles.card}>
@@ -111,9 +112,9 @@ export function PrimeScreen({ navigation }: Props) {
               A forecast, not a fact. You'll compare it with how it actually went.
             </Txt>
           </Card>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScrollView>
       <PrimaryButton label="I'm ready" onPress={save} loading={saving} />
+      </KeyboardAvoidingView>
     </ScreenContainer>
   );
 }
