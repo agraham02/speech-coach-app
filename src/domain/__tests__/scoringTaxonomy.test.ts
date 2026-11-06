@@ -83,17 +83,18 @@ describe("bands", () => {
 
 describe("the measured sheet", () => {
   it("scores a strong take from the phone alone, with the reasons", () => {
-    const sheet = measuredSheet(facts())!;
+    const sheet = measuredSheet(facts({ pitchRangeSemitones: 8 }))!;
     expect(sheet.layer).toBe("measured");
     expect(sheet.overall).toBeGreaterThanOrEqual(9);
     const cadence = sheet.categories.find((c) => c.skill === "cadence")!;
     expect(cadence.subscores.map((s) => s.id)).toEqual(["pace", "pauses", "melody"]);
     expect(cadence.subscores[0].factors?.[0].value).toBe("145 words a minute");
-    // Pauses and pitch variety are measured and shown, but their readings aren't proven, so only pace counts:
-    // cadence 10, impromptu (10 + 8) / 2 = 9, confidence conviction 9 -> 10 * 0.3 + 9 * 0.45 + 9 * 0.25 = 9.3.
-    expect(cadence.subscores.map((s) => s.rollsUp)).toEqual([true, false, false]);
+    // Pace, pauses and pitch variety all count: cadence 10. Impromptu (10 + 8) / 2 = 9. Confidence is eye contact
+    // 10 and conviction 9, weighted (10 * 1.2 + 9 * 0.8) / 2 = 9.6; expression is still Beta.
+    // 10 * 0.3 + 9 * 0.45 + 9.6 * 0.25 = 3 + 4.05 + 2.4 = 9.45.
+    expect(cadence.subscores.map((s) => s.rollsUp)).toEqual([true, true, true]);
     expect(cadence.score).toBe(10);
-    expect(sheet.overall).toBe(9.3);
+    expect(Math.abs(sheet.overall - 9.45)).toBeLessThanOrEqual(0.051);
   });
 
   it("is the weighted mean of its categories: the summary always agrees with its breakdown", () => {
@@ -119,15 +120,15 @@ describe("the measured sheet", () => {
   });
 
   it("scores pitch variety in semitones on the fixed band", () => {
-    const sheet = measuredSheet(facts({ pitchRangeSemitones: 2.75 }))!;
+    const sheet = measuredSheet(facts({ pitchRangeSemitones: 4.7 }))!;
     const melody = sheet.categories[0].subscores.find((s) => s.id === "melody")!;
     expect(melody.score).toBe(4.5);
-    expect(melody.factors?.[0].value).toBe("2.8 semitones");
+    expect(melody.factors?.[0].value).toBe("4.7 semitones");
   });
 
   it("scores pitch variety on your own band after 5 takes", () => {
     const pitchBand = pitchRangeBand([2, 2.2, 2.1, 1.9, 2.4]);
-    const melody = measuredSheet(facts({ pitchRangeSemitones: 4, pitchBand }))!.categories[0].subscores.find((s) => s.id === "melody")!;
+    const melody = measuredSheet(facts({ pitchRangeSemitones: 6, pitchBand }))!.categories[0].subscores.find((s) => s.id === "melody")!;
     expect(melody.score).toBe(10);
     expect(melody.factors?.[0].rule).toMatch(/a little over your usual 2.1/);
   });

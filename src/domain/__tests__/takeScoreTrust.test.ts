@@ -7,9 +7,12 @@ import { READINGS, readingCounts, trustLabel, type ReadingId, type ReadingPrevie
 // out by hand from the bands in scoring/bands.ts and the weights in
 // scoring/taxonomy.ts, not copied from the output.
 //
+// These test the mechanism, so each test starts with the five readings unproven,
+// whatever their status is today; the last block checks today's statuses.
+//
 // The take: pace 145 wpm = 10. Pauses 0.3 of sentence ends / 0.6 * 10 = 5.
-// Pitch 3 st on the fixed band (1 to 5) = (3 - 1) / 4 * 10 = 5. Emphasis 2.2 dB
-// = (2.2 - 1) / 2 * 10 = 6. Fluency: 1 um a minute (free) and no stalls = 10.
+// Pitch 5 st on the fixed band (2 to 8) = (5 - 2) / 6 * 10 = 5. Emphasis 4.6 dB
+// = (4.6 - 2.5) / 3.5 * 10 = 6. Fluency: 1 um a minute (free) and no stalls = 10.
 // Structure PREP = 8. Conviction: 2 hedges (free), clear ending = 8 + 1 = 9.
 // Eye contact 45% / 75% * 10 = 6. Expression 12 / 30 * 10 = 4.
 // Category weights: cadence 0.3, impromptu 0.45, confidence 0.25. Inside
@@ -20,8 +23,8 @@ const facts = (patch: Partial<MeasuredFacts> = {}): MeasuredFacts => ({
   durationSeconds: 60,
   wpm: 145,
   boundaryPauseRate: 0.3,
-  pitchRangeSemitones: 3,
-  emphasisPeakSdDb: 2.2,
+  pitchRangeSemitones: 5,
+  emphasisPeakSdDb: 4.6,
   fillers: { hesitationPerMinute: 1, contextualPerMinute: null },
   stalls: 0,
   structure: { framework: "PREP", shaped: true, targetFramework: null },
@@ -51,6 +54,21 @@ const sub = (sheet: ReturnType<typeof measuredSheet>, id: SubcategoryId) => shee
 // The overall is rounded to a tenth from rounded category scores, so compare within a tenth.
 const near = (actual: number, expected: number) => expect(Math.abs(actual - expected)).toBeLessThanOrEqual(0.051);
 
+const UNPROVEN: [ReadingId, "probation" | "tuning"][] = [
+  ["sentence_end_pauses", "probation"],
+  ["pitch_variety", "probation"],
+  ["stand_out_stress", "probation"],
+  ["on_the_lens", "tuning"],
+  ["face_movement", "tuning"],
+];
+const TODAY = UNPROVEN.map(([id]) => [id, READINGS[id].status] as const);
+beforeEach(() => {
+  for (const [id, status] of UNPROVEN) READINGS[id].status = status;
+});
+afterAll(() => {
+  for (const [id, status] of TODAY) READINGS[id].status = status;
+});
+
 describe("the registry and the taxonomy agree", () => {
   it("maps each of the five sub-scores to its reading", () => {
     expect(SUBCATEGORY_READING).toEqual({
@@ -73,9 +91,9 @@ describe("the registry and the taxonomy agree", () => {
     expect(METRICS.hedges.scored).toBe(true);
   });
 
-  it("is on sheet version 6", () => {
-    expect(SCORE_SHEET_VERSION).toBe(6);
-    expect(takeScores(facts(), null)!.version).toBe(6);
+  it("is on sheet version 7", () => {
+    expect(SCORE_SHEET_VERSION).toBe(7);
+    expect(takeScores(facts(), null)!.version).toBe(7);
   });
 });
 
@@ -291,5 +309,28 @@ describe("the judged sheet", () => {
     // Cadence is the phone's pace, 10; impromptu is fluency, 10; confidence is gone.
     expect(sheet.categories.map((c) => c.skill)).toEqual(["cadence", "impromptu"]);
     expect(sheet.overall).toBe(10);
+  });
+});
+
+describe("today's statuses", () => {
+  beforeEach(() => {
+    for (const [id, status] of TODAY) READINGS[id].status = status;
+  });
+
+  it("counts what Signal Lab proved on the phone, and only that", () => {
+    const sheet = measuredSheet(facts())!;
+    for (const id of ["pauses", "melody", "emphasis", "eye_contact"] as const) expect(sub(sheet, id).trust).toBeUndefined();
+    expect(sub(sheet, "expression")).toMatchObject({ rollsUp: false, trust: "tuning" });
+  });
+
+  it("leaves unproven readings on Beta", () => {
+    for (const id of ["endings_fall", "stress_right_words", "face_movement", "range_across_feelings"] as const) expect(READINGS[id].status).not.toBe("now");
+    for (const id of ["sentence_end_pauses", "deliberate_pauses", "pitch_variety", "stand_out_stress", "volume_carry", "on_the_lens", "long_lookaways"] as const) expect(readingCounts(id)).toBe(true);
+  });
+
+  it("gives a script take its confidence back through eye contact", () => {
+    const sheet = measuredSheet(script())!;
+    expect(sheet.categories.map((c) => c.skill)).toContain("confidence");
+    expect(score(sheet, "confidence")).toBe(6);
   });
 });

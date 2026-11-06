@@ -126,3 +126,21 @@ Every change to `PLAN.md` after it was agreed: what changed, why, and the owner'
 **Why:** the reasons are in D9. On the app's own numbers both recent runs pass (flat 31% and 50% of lively; pitch found 47 to 63%). Both bars were picked after seeing this data, so the order check is what stops a broken tracker passing. SwiftF0 isn't needed for these bars and stays on the Later list.
 
 **Owner's OK:** yes, "go with whatever you recommend", 2026-11-06.
+
+## D11. Which readings count, and the new score bands (2026-11-06)
+
+**Round 4** was a fresh recording on the final code: Looking passed (notes 92%), Expression passed (still face 0 a minute, animated 80), Endings failed (6 of 10).
+
+**Count now:** pauses at sentence ends, deliberate pauses, pitch variety, stand-out stress, eye contact, long look-aways, and volume carry from before. **Stay Beta:**
+- Endings. It failed on fresh audio in every round, so the leaf stays display-only, as the plan says. Praat read the same way got 8 and 9 of 10, so it looks fixable; I stopped tuning because four rounds hadn't held and no score reads it yet.
+- Stress on the right words. Whisper's word times are too coarse. Display-only, as the plan says.
+- Range across feelings. No test of its own yet, and no score reads it.
+- Face movement. It passed, but today's score reads the old expressiveness number, so counting it would count the wrong formula. It moves when 3a reads brow lifts and smiles a minute.
+
+**The bands had to move first.** They were set from a simulation and read the old tracker, and on them the flat read scored about 9 out of 10 on pitch. From the iPhone numbers: pitch 2 to 8 semitones (was 1 to 5), personal full marks between 6 and 9 (was 4 to 6), "flat" for the coach under 5 (was 2.5), and emphasis 2.5 to 6 dB (was 1 to 3). A flat read now scores about 2 to 4.5, a normal one 8.5 to 9.5, a lively one 10. Sheet version 7, so takes rescore when opened.
+
+**What changes for real takes:** Cadence now includes pauses and melody and may read lower than it did; Confidence includes eye contact, and script takes have that category back. Melody reads the overall range and Emphasis the peak spread, both tested, until 3a moves them to the plan's leaves.
+
+**Evidence and its limits:** pauses, emphasis, glances, preview and pitch held on round 3's fresh audio, looking on round 4's. It's one low voice on one phone, and the pitch bars and bands were set after seeing that data. The plan's second-device check stands, and the Later list adds a higher voice.
+
+**Owner's OK:** promotion follows the plan: "I set what counts from your results." The owner was told this list before round 4, except the band changes, which are in this report.

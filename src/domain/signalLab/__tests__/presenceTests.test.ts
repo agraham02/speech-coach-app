@@ -260,9 +260,8 @@ describe("scoring a test the way a real take is scored", () => {
     expect(out.pass).toBe(true);
   });
 
-  it("holds long look-aways back until Looking passes too", () => {
+  it("gates long look-aways on Looking too", () => {
     expect(READINGS.long_lookaways.tests).toContain("presence.looking");
-    expect(READINGS.long_lookaways.status).toBe("tuning");
   });
 });
 

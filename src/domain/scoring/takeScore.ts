@@ -2,6 +2,7 @@ import type { SkillId } from "../../theme/tokens";
 import type { Provenance } from "../analysis/types";
 import {
   convictionScore,
+  EMPHASIS_FULL_DB,
   emphasisScore,
   eyeContactScore,
   eyeContactTarget,
@@ -39,7 +40,7 @@ import { READINGS, readingCounts, type ReadingPreview, type TrustStatus } from "
 // nothing left that counts is dropped. Pure; the optional `preview` is the
 // Dev-only list of readings counted early, passed in by the app's services.
 
-export const SCORE_SHEET_VERSION = 6;
+export const SCORE_SHEET_VERSION = 7;
 
 // What the phone measured, flattened from the take's artifacts. Fields are
 // null when not measured. Session 06's signals fill the optional ones.
@@ -200,7 +201,7 @@ export function measuredSubscores(f: MeasuredFacts): Measured {
           label: "Emphasis",
           value: `${round1(f.emphasisPeakSdDb)} dB`,
           score,
-          rule: "How far your strongest syllables stand out. Full marks at 3 dB; lean on the word that carries the point.",
+          rule: `How far your strongest syllables stand out. Full marks at ${EMPHASIS_FULL_DB} dB; lean on the word that carries the point.`,
         },
       ],
     };
