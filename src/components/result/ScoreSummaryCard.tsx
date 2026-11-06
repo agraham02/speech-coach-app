@@ -5,6 +5,7 @@ import { Txt } from "../common/Txt";
 import { colorForScore } from "./scoreColor";
 import { headlineSheet, type CategoryScore, type TakeScores } from "../../domain/scoring/takeScore";
 import { producerName } from "../../domain/analysis/provenance";
+import { trustLabel } from "../../domain/signalLab/readingTrust";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 // The Overview's summary of the Scores tab: one row per skill with its score,
@@ -41,6 +42,7 @@ function CategoryRow({ category: c, other, judge, judged }: { category: Category
   const { colors } = useTheme();
   const color = colorForScore(c.score, colors);
   const parts = c.subscores.filter((s) => s.rollsUp);
+  const beta = c.subscores.filter((s) => s.trust);
   return (
     <View style={styles.row}>
       <View style={styles.top}>
@@ -57,6 +59,11 @@ function CategoryRow({ category: c, other, judge, judged }: { category: Category
       <Txt variant="caption1" tone="secondary">
         {parts.map((s) => `${s.label} ${s.score}`).join("  ·  ")}
       </Txt>
+      {beta.length ? (
+        <Txt variant="caption1" tone="muted">
+          {beta.map((s) => `${s.label} ${s.score} (${trustLabel(s.trust!)})`).join("  ·  ")}, not in the total
+        </Txt>
+      ) : null}
       <Txt variant="caption1" tone="muted">
         {Math.round(c.weight * 100)}% of the total{other != null && judged ? ` · ${judge} ${c.score}, this phone ${other}` : ""}
       </Txt>

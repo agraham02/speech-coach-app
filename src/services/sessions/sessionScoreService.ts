@@ -4,6 +4,8 @@ import { getScoreVersion, getUserProfile, setScoreVersion } from "../prefs/prefs
 import { getDatabase } from "../db/database";
 import { getSessionById, isSessionLive } from "../db/sessionsRepo";
 import { headlineSheet, judgedFromReview, SCORE_SHEET_VERSION, takeScores, type MeasuredFacts, type TakeScores } from "../../domain/scoring/takeScore";
+import { activeReadingPreview } from "../dev/signalLabStore";
+import type { ReadingPreview } from "../../domain/signalLab/readingTrust";
 import type { JudgedReview } from "../../domain/analysis/judgedReview";
 import type { Provenance } from "../../domain/analysis/types";
 import type { CloudTranscriptArtifact } from "../pipeline/steps/cloudReviewStep";
@@ -94,8 +96,11 @@ function judgedBy(analyses: TakeAnalyses | null, transcript: CloudTranscriptArti
 
 // Recomputes a take's two score sheets from whatever exists now. Called
 // after the coach step and after a review, so the score fills in and then the
-// judged one takes over. Never throws — a score is a bonus, not a step.
-export async function refreshSessionScore(sessionId: string): Promise<TakeScores | null> {
+// judged one takes over. Readings that aren't proven yet don't count
+// (domain/signalLab/readingTrust.ts); `preview` is the Dev switch counting
+// some early, and is empty outside dev builds. Never throws — a score is a
+// bonus, not a step.
+export async function refreshSessionScore(sessionId: string, preview: ReadingPreview = activeReadingPreview()): Promise<TakeScores | null> {
   try {
     const session = await getSessionById(sessionId);
     // Feeling reps are process only — no score, ever. A take being deleted
@@ -111,7 +116,7 @@ export async function refreshSessionScore(sessionId: string): Promise<TakeScores
       getArtifact<TakeAnalyses>(sessionId, "analysis"),
     ]);
     const facts = measuredFacts(session, { pauses, presence, coach, stutterMode, pitchBand: await pitchBandFor(session) });
-    const scores = takeScores(facts, review ? judgedFromReview(review, facts.takeKind) : null, review ? judgedBy(analyses, transcript) : undefined);
+    const scores = takeScores(facts, review ? judgedFromReview(review, facts.takeKind) : null, review ? judgedBy(analyses, transcript) : undefined, preview);
     if (!scores) return null;
     await putArtifact(sessionId, "session_score", scores);
     const db = await getDatabase();

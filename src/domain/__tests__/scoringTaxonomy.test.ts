@@ -89,6 +89,11 @@ describe("the measured sheet", () => {
     const cadence = sheet.categories.find((c) => c.skill === "cadence")!;
     expect(cadence.subscores.map((s) => s.id)).toEqual(["pace", "pauses", "melody"]);
     expect(cadence.subscores[0].factors?.[0].value).toBe("145 words a minute");
+    // Pauses and pitch variety are measured and shown, but their readings aren't proven, so only pace counts:
+    // cadence 10, impromptu (10 + 8) / 2 = 9, confidence conviction 9 -> 10 * 0.3 + 9 * 0.45 + 9 * 0.25 = 9.3.
+    expect(cadence.subscores.map((s) => s.rollsUp)).toEqual([true, false, false]);
+    expect(cadence.score).toBe(10);
+    expect(sheet.overall).toBe(9.3);
   });
 
   it("is the weighted mean of its categories: the summary always agrees with its breakdown", () => {

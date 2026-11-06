@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useNavigation } from "@react-navigation/native";
+import { useCallback, useMemo, useState } from "react";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp, NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation";
 import { Screen } from "../../components/common/Screen";
@@ -24,7 +24,13 @@ export function SignalLabTestScreen({ route }: Props) {
   const styles = useStyles();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const entry = labTest(route.params.testId);
-  const [results] = useState(() => getLabResults());
+  const [results, setResults] = useState(() => getLabResults());
+  // A run saved on the run screen must show when you come back to this one.
+  useFocusEffect(
+    useCallback(() => {
+      setResults(getLabResults());
+    }, []),
+  );
   const runs = useMemo(() => (entry ? (results[entry.def.id] ?? []) : []), [entry, results]);
 
   if (!entry) {

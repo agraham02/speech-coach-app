@@ -10,6 +10,8 @@ import { PrimaryButton } from "../../components/common/PrimaryButton";
 import { Txt } from "../../components/common/Txt";
 import { useToast } from "../../components/common/ToastProvider";
 import { exportContext } from "../../services/dev/devInfo";
+import { getAllSessions } from "../../services/db/sessionsRepo";
+import { refreshSessionScore } from "../../services/sessions/sessionScoreService";
 import { clearLabResults, getLabResults, getReadingPreview, setReadingPreview } from "../../services/dev/signalLabStore";
 import { LAB_GROUP_LABELS, type LabGroup, type LabStatus } from "../../domain/signalLab/types";
 import { LAB_TESTS, labTestsIn } from "../../domain/signalLab/registry";
@@ -42,6 +44,7 @@ export function SignalLabScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [results, setResults] = useState<LabResults>(() => getLabResults());
   const [preview, setPreview] = useState<ReadingPreview>(() => getReadingPreview());
+  const [rescoring, setRescoring] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -59,6 +62,19 @@ export function SignalLabScreen() {
     const next = { ...preview, [id]: on };
     setPreview(next);
     setReadingPreview(next);
+  }
+
+  // Re-runs the scoring on the 30 latest takes, so the switches above show in their scores.
+  async function rescoreRecent() {
+    setRescoring(true);
+    try {
+      const recent = (await getAllSessions()).slice(0, 30);
+      let done = 0;
+      for (const session of recent) if (await refreshSessionScore(session.id)) done += 1;
+      showToast(`Rescored ${done} take${done === 1 ? "" : "s"}.`, "success");
+    } finally {
+      setRescoring(false);
+    }
   }
 
   function exportInput() {
@@ -130,6 +146,7 @@ export function SignalLabScreen() {
       <Txt variant="caption1" tone="muted">
         The switches count a reading in this phone's scores as a preview. Rescore a take to see the change. They do nothing outside dev builds.
       </Txt>
+      <PrimaryButton label={rescoring ? "Rescoring…" : "Rescore recent takes"} variant="secondary" onPress={rescoreRecent} disabled={rescoring} />
 
       <ListGroup title="Other labs">
         <ListRow icon="scan-outline" title="Face Lab" subtitle="Live eye and face tracking, calibration, thresholds" chevron onPress={() => navigation.navigate("DevFaceLab")} />
