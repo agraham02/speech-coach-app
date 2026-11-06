@@ -47,7 +47,7 @@ const READS = [
   { level: "none" as const, title: "Marks hidden", detail: "Keep the same music without the map." },
 ];
 
-// Mark It Up's main loop (docs/history/practice-expansion-plan.md §4.2): a few lines of
+// Mark It Up's main loop: a few lines of
 // one or two sentences, each marked (or checked), read twice with the marks
 // and once without. Line of the day is a one-line version with no rating.
 export function LineRepScreen({ route, navigation }: Props) {

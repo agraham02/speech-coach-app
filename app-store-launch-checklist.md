@@ -8,7 +8,7 @@ The app's shape matters for several answers below:
 - **Tono AI** (optional, after one in-app consent): the take's transcript and the phone's measurements go, as text, through Tono's Supabase backend to Google Gemini (paid tier). The video stays on the phone (a Dev setting can send it; not in production builds).
 - **Accounts:** practice needs none. Tono AI, live conversation and Tono Plus need a sign-in with Apple or Google (and a birthday, kept on the phone). Anonymous sign-ins are OFF in Supabase. The account id is the RevenueCat app user id. Guideline 5.1.1(v): the free app asks for nothing; the account-based features (Tono AI, Plus) require one, and deletion is in Settings → Account & Plus. 4.8: Sign in with Apple is offered next to Google.
 - **Tono Plus:** auto-renewing subscriptions, $4.99 a month and $49.99 a year, both with a **14-day free trial** (an introductory offer). Free users get one judged take a month.
-- **Age:** onboarding asks an age range. Under 18, Tono AI is off (the Gemini API terms ask for 18 or older; `docs/decisions/tiers-and-trial.md`).
+- **Age:** Tono asks for a birthday before offering Tono AI, and keeps it on the phone. Under 18, Tono AI is off (the Gemini API terms ask for 18 or older; `docs/decisions/tiers-and-trial.md`).
 
 ---
 
@@ -54,7 +54,7 @@ Still to do:
 
 ## 4. Backend and RevenueCat (see `supabase/README.md`)
 
-- [ ] Supabase → Authentication → Sign In / Providers → **Allow anonymous sign-ins: on**, and **Allow manual linking: on** (needed to link Apple or Google to the anonymous account). Consider turning on CAPTCHA for anonymous sign-ins later if abuse shows up.
+- [ ] Supabase → Authentication → Sign In / Providers → **Allow anonymous sign-ins: off**. Tono AI and Plus need an Apple or Google sign-in.
 - [ ] Run migration `supabase/migrations/20261023000000_tiers_and_trial.sql` in the SQL editor (it replaces the config row: check `mode` and `plusPurchasable` afterwards).
 - [ ] Deploy the functions: `npx supabase functions deploy --use-api`.
 - [ ] RevenueCat webhook to `.../functions/v1/revenuecat-webhook` with the Authorization secret; set `REVENUECAT_SECRET_KEY` and `REVENUECAT_WEBHOOK_SECRET` as function secrets.
@@ -73,7 +73,7 @@ The device test plan (`docs/testing/device-test-plan.md`, section J) has the ful
 - [ ] **The free path, offline and online:** onboarding with "Not now" on Tono AI, a take, the result with measurements and tips, nothing that looks broken or locked twice.
 - [ ] **The free judged take:** allow Tono AI, judge one take, then see the next take's save screen say when the next free one comes.
 - [ ] **Sandbox trial purchase** on both plans, restore on a reinstall, cancel, and no second trial.
-- [ ] **The age question:** under 18 keeps Tono AI and Plus out of sight.
+- [ ] **The birthday:** under 18 keeps Tono AI and Plus out of sight.
 - [ ] **Each permission denied in turn**, interrupted takes, a long take, light and dark mode, the largest Dynamic Type, VoiceOver on the main flow, Reset app.
 
 ## 7. Store listing
@@ -85,10 +85,10 @@ The device test plan (`docs/testing/device-test-plan.md`, section J) has the ful
 
 ## 8. Privacy
 
-- [ ] **Privacy policy page:** republish `docs/privacy.md` (effective 2026-10-24). It says: recordings stay on the phone; free use sends nothing; Tono AI sends the transcript and measurements as text to Tono's server and Google; the anonymous account; RevenueCat; Tono AI is 18+.
+- [ ] **Privacy policy page:** republish `docs/privacy.md` (effective 2026-10-24). It says: recordings stay on the phone; free use sends nothing; Tono AI sends the transcript and measurements as text to Tono's server and Google; the Apple or Google sign-in; RevenueCat; Tono AI is 18+.
 - [ ] **App Privacy questionnaire.** For the free path nothing leaves the phone, but the app as a whole collects when Tono AI is used:
   - **Other User Content** (the transcript and exercise text sent to be judged), **Audio Data**: no (not in production; the video setting is Dev-only). If the video setting ever ships, add Audio Data and Photos or Videos.
-  - **User ID** (the anonymous account id), **Email Address** (only when the user signs in with Apple or Google), **Purchases** (RevenueCat).
+  - **User ID** (the account id), **Email Address** (from the Apple or Google sign-in), **Purchases** (RevenueCat).
   - Purpose: App Functionality. Linked to the user: Yes (account id). Tracking: No.
 
 ## 9. Submit for review
@@ -102,7 +102,7 @@ The device test plan (`docs/testing/device-test-plan.md`, section J) has the ful
   >
   > Tono AI judges a take from its transcript and measurements (text only). Everyone gets one judged take a month free; Tono Plus (monthly or yearly, each with a 14-day free trial) gives more. Before anything is sent, the app shows exactly what is sent and asks for permission. Use a sandbox account to start the trial from Settings → Account & Plus → Tono Plus.
   >
-  > Onboarding asks an age range: under 18, the AI feature is not offered, as Google's Gemini API terms require.
+  > The app asks for a birthday before offering the AI feature: under 18, the AI feature is not offered, as Google's Gemini API terms require.
 
 - [ ] Release option: **manual release**.
 - [ ] Submit. Reply to any rejection in Resolution Center.

@@ -424,7 +424,7 @@ Word and Bridge Chain:
 
 ## J. Tiers, the trial, the optional account and the age question (session 08)
 
-**Needs build** (a new version: the sign-in and purchase native code), plus the backend steps in `supabase/README.md`: migration `20261023000000_tiers_and_trial.sql`, functions deployed, **anonymous sign-ins and manual linking turned on** in Supabase, the free introductory offer (2 weeks) on both products in App Store Connect, and `plusPurchasable` on while you test purchases. Use a fresh install, or Settings → Your data → Reset app, before each part. For the sandbox parts, sign in to a Sandbox Apple Account on the iPhone (Settings → Developer, or the App Store's sandbox sign-in).
+**Needs build** (a new version: the sign-in and purchase native code), plus the backend steps in `supabase/README.md`: migration `20261023000000_tiers_and_trial.sql`, functions deployed, **anonymous sign-ins turned off** in Supabase, the free introductory offer (2 weeks) on both products in App Store Connect, and `plusPurchasable` on while you test purchases. Use a fresh install, or Settings → Your data → Reset app, before each part. For the sandbox parts, sign in to a Sandbox Apple Account on the iPhone (Settings → Developer, or the App Store's sandbox sign-in).
 
 The free path (no account, nothing bought):
 
@@ -443,7 +443,7 @@ The free path (no account, nothing bought):
 The free judged take (one a month):
 
 - [ ] **Allow Tono AI and use the free judged take.** In Settings → Tono AI tap **Allow Tono AI** (or allow it on a save screen), then record and save a take with the switch on.
-  Pass: the save screen says "Uses your free judged take for this month."; the take is judged (the Scores tab fills, the label says Tono AI from your words and your phone's measurements); Supabase now has one anonymous user, and `ai_calls` has one row with kind `take` and tier `free` (or `beta` in beta mode).
+  Pass: the save screen says "Uses your free judged take for this month."; the take is judged (the Scores tab fills, the label says Tono AI from your words and your phone's measurements); Supabase now has one user, with your Apple or Google identity, and `ai_calls` has one row with kind `take` and tier `free` (or `beta` in beta mode).
   Data to send back: the `ai_calls` row (kind, tier, model, input/output tokens, cost_usd) and the time from save to judged.
   Notes:
 - [ ] **When it's used up.** Record a second take in the same month (launch mode, so the free tier applies).
@@ -464,7 +464,7 @@ The trial and Plus (sandbox):
   Data to send back: a screenshot (it doubles as the App Store review screenshot).
   Notes:
 - [ ] **Start the trial on the yearly plan.** Buy with the sandbox account.
-  Pass: "Your free trial has started."; the consent alert follows if Tono AI wasn't allowed; Account & Plus shows "20 of 20 judged takes left in your trial · free until <date>". In Supabase: `entitlements.plan` = `trial`, `environment` = `sandbox`, `period_started_at` set; the RevenueCat customer id is the anonymous user's id.
+  Pass: "Your free trial has started."; the consent alert follows if Tono AI wasn't allowed; Account & Plus shows "20 of 20 judged takes left in your trial · free until <date>". In Supabase: `entitlements.plan` = `trial`, `environment` = `sandbox`, `period_started_at` set; the RevenueCat customer id is the user's id.
   Data to send back: the `entitlements` row and the RevenueCat customer page (id, period type).
   Notes:
 - [ ] **The trial ends and renews.** Sandbox shortens 2 weeks to a few minutes. Wait for the renewal, then reopen the app.
@@ -474,8 +474,8 @@ The trial and Plus (sandbox):
   Pass: no trial line; the buttons read "Subscribe for $49.99 / year" and "$4.99 a month"; the monthly plan doesn't offer a trial either (one trial per subscription group).
   Notes:
 - [ ] **Reinstall and restore.** With an active sandbox subscription, delete the app, reinstall, skip onboarding questions quickly, and tap Restore purchases.
-  Pass: Plus comes back on a new anonymous account (RevenueCat transfers it); the old anonymous account has no entitlement afterwards. No new trial is offered.
-  Data to send back: what Restore said, and the two users' `entitlements` rows.
+  Pass: sign in with the same Apple or Google account: Plus comes back on it. No new trial is offered.
+  Data to send back: what Restore said, and the user's `entitlements` row.
   Notes:
 - [ ] **Exercise judging with the trial.** During a trial, ask for Rewind notes and judge a Word Chain.
   Pass: both are judged; `ai_calls` rows have kind `text` (they don't use judged takes).
@@ -483,15 +483,15 @@ The trial and Plus (sandbox):
 
 The optional account:
 
-- [ ] **Link Apple to the anonymous account.** After the free judged take (so an anonymous account exists), Settings → Account & Plus → Sign in with Apple.
-  Pass: the account line shows your Apple email or "Signed in with Apple"; Supabase shows the same user id now with an Apple identity (not a second user); the allowance didn't reset.
+- [ ] **Sign in with Apple.** Settings → Account & Plus → Sign in with Apple.
+  Pass: the account line shows your Apple email or "Signed in with Apple"; Supabase shows one user with an Apple identity.
   Notes:
-- [ ] **Apple ID already used on another phone.** On a second phone (or after Reset app), make an anonymous account (allow Tono AI and judge a take), then sign in with the same Apple ID.
-  Pass: the phone switches to the existing account (its plan and allowance show) rather than failing.
+- [ ] **Apple ID already used on another phone.** On a second phone (or after Reset app), sign in with the same Apple ID.
+  Pass: the phone uses the existing account (its plan and allowance show), and the allowance doesn't reset.
   Notes:
-- [ ] **Google linking** the same way (browser sheet).
+- [ ] **Sign in with Google** the same way (browser sheet).
   Notes:
-- [ ] **Delete account** from an anonymous account and from a linked one.
+- [ ] **Delete account** from an Apple account and from a Google one.
   Pass: both delete (Supabase user gone, RevenueCat customer gone), the phone keeps its takes, and Tono AI asks for consent again next time.
   Notes:
 

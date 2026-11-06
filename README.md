@@ -2,9 +2,11 @@
 
 Tono is a speaking-practice app for iPhone: record a take, and your phone measures pace, pauses, fillers, pitch, loudness and eye contact, turns them into scores and a next step, and runs a curriculum of lessons and drills around them. All of that is free, runs on the phone, and needs no account.
 
-**Tono AI** (optional) judges a take the way a coach would, from the phone's transcript and measurements, through a small Supabase backend that holds the Gemini key, writes the prompts and counts the allowance. Everyone gets one judged take a month free; **Tono Plus** ($4.99 a month or $49.99 a year, with a 14-day free trial on both) gives 60 a month, plus notes on drills and AI mark-ups. Purchases go through the App Store and RevenueCat, against an anonymous account made behind the scenes, so nobody has to sign in; Sign in with Apple or Google is optional and only links that account.
+**Tono AI** (optional) judges a take the way a coach would, from the phone's transcript and measurements, through a small Supabase backend that holds the Gemini key, writes the prompts and counts the allowance. Everyone gets one judged take a month free; **Tono Plus** ($4.99 a month or $49.99 a year, with a 14-day free trial on both) gives 60 a month, plus notes on drills and AI mark-ups. Practice needs no account. Tono AI, live conversation and Tono Plus need a sign-in with Apple or Google, and a birthday kept on the phone. Purchases go through the App Store and RevenueCat.
 
-Status: in TestFlight, not yet on the App Store. Decisions are in [docs/decisions](./docs/decisions/) (start with `decisions-log.md` and `tiers-and-trial.md`), the backend in [supabase/README.md](./supabase/README.md), the launch steps in [app-store-launch-checklist.md](./app-store-launch-checklist.md), and the history in [docs/history](./docs/history/).
+Status: in TestFlight, not yet on the App Store. Decisions are in [docs/decisions](./docs/decisions/) (start with `decisions-log.md` and `tiers-and-trial.md`), the backend in [supabase/README.md](./supabase/README.md), and the launch steps in [app-store-launch-checklist.md](./app-store-launch-checklist.md).
+
+An overhaul is in progress: read [docs/overhaul/PLAN.md](./docs/overhaul/PLAN.md) and [docs/overhaul/PROGRESS.md](./docs/overhaul/PROGRESS.md) first.
 
 ## Setup
 
@@ -36,7 +38,7 @@ This project deliberately pins the **older, well-documented, battle-tested pair*
 - `react-native-worklets-core` (required by the pair above for frame processors)
 - `react-native-reanimated@4` + its `react-native-worklets` dependency (Expo SDK 57's expected pairing; `react-native-reanimated/plugin` just re-exports `react-native-worklets/plugin`)
 
-Both worklets packages (`-core` and the new one) end up installed side by side. There's a documented Android-only build issue when both are present (duplicate type imports) — not a concern here since the only build target is iOS (per `docs/history/plan.md`, the device is an iPhone 15 Pro). If you ever do need Android, that's the first thing to check.
+Both worklets packages (`-core` and the new one) end up installed side by side. There's a documented Android-only build issue when both are present (duplicate type imports). The release target is iOS, so it hasn't blocked anything. If an Android build fails on it, that's the first thing to check.
 
 If a future need arises to move to the v5 Nitro pair, re-check `visioncamera.margelo.com` docs for `useVideoOutput`/recording APIs first — they were still being fleshed out as of this writing.
 
@@ -46,9 +48,9 @@ If a future need arises to move to the v5 Nitro pair, re-check `visioncamera.mar
 - `supabase/functions/` — the Tono AI backend. `_shared/prompts/` writes every prompt and answer schema (the take review answers in the scoring taxonomy's terms); `_shared/allowance.ts` holds the tier rules (free, beta, trial, Plus); `ai-generate` runs a task. See `supabase/README.md`.
 - `src/services/db/` — `expo-sqlite`, with `mappers.ts` kept pure (row↔object) and separate from native calls so it's unit-testable in plain Jest. `scores` is a separate table joined to `sessions`; `statsRepo.ts` joins them for Trends.
 - `src/services/pipeline/` — `sessionPipeline.ts` runs each saved take's analysis as independent, resumable steps (transcribe → voice analysis → video analysis → coaching → optional deep review) without any mounted screen; each step can be retried on its own from the Result screen. `processingEvents.ts` is a small pub-sub that screens subscribe to for live status instead of driving the pipeline themselves.
-- `src/screens/PreviewScreen.tsx` — sits between Recording and Processing. Nothing is written to the DB or uploaded anywhere until the user chooses "Save" here (vs. "Discard", which just deletes the temp video file) — recording no longer auto-saves/auto-processes the instant it stops.
+- `src/screens/PreviewScreen.tsx` — sits between Recording and Result. Nothing is written to the DB or uploaded anywhere until the user chooses "Save" here (vs. "Discard", which just deletes the temp video file) — recording no longer auto-saves/auto-processes the instant it stops.
 - `src/components/common/ToastProvider.tsx` — a small Reanimated-based toast, plus a module-level `showGlobalToast()` escape hatch so non-component code (the background pipeline) can surface feedback (e.g. "session graded", streak milestones) regardless of which screen is open.
-- `src/services/account/`, `src/services/purchases/` — the optional account (anonymous by default, linked to Apple or Google on request) and Tono Plus through RevenueCat, with the trial read from the App Store's introductory offer.
+- `src/services/account/`, `src/services/purchases/` — the optional account (Apple or Google sign-in, asked for when Tono AI or a purchase needs it) and Tono Plus through RevenueCat, with the trial read from the App Store's introductory offer.
 - `src/services/secrets/secretsStore.ts` — deletes keychain items for removed features at launch, including the API keys testers pasted when Tono had bring-your-own-key.
 - `src/services/data/resetApp.ts` — Settings' "Reset app": drops every table and reruns the migrations (like a fresh install), deletes every video, clears preferences and logs, cancels reminders, and sends you back to onboarding. The Tono account survives.
 

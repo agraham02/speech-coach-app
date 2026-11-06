@@ -30,7 +30,7 @@ Tono stores the following on your device only:
 - **Recordings:** the videos you record, and the audio in them.
 - **Transcripts and measurements:** the text of what you said, how fast you spoke, your pauses and filler words, your pitch and loudness, and scores built from them.
 - **Face measurements:** while you record, Tono uses your camera to measure things like where you are looking, head position, and expression. This is calculated on your phone, saved as numbers, and used only to give you feedback. Tono does not identify or recognize you, and does not build a face profile.
-- **What you tell Tono:** your name, your age range, your goals, what gets in your way, any event you are preparing for, how comfortable you feel speaking, and anything you write in the app (for example in Talk back, Rewind, or your "why").
+- **What you tell Tono:** your name, your birthday, your goals, what gets in your way, any event you are preparing for, how comfortable you feel speaking, and anything you write in the app (for example in Talk back, Rewind, or your "why").
 - **Your progress:** streaks, practice history, and reminders you set.
 - **Your Tono account's sign-in,** once there is one. It is kept in encrypted storage on your phone, and the key to it is in the iPhone Keychain.
 
@@ -68,17 +68,17 @@ Tono AI judges a take the way a coach would: whether your answer had a shape, st
 
 ### 2. Your Tono account
 
-There is no account until Tono AI or a purchase needs one. Then Tono makes an **anonymous account**: a random user ID, with no name, email or password. You never see a sign-up screen. If you choose to sign in with Apple or Google (Settings → Account & Plus), that sign-in is linked to the same account, so Tono Plus can follow you to a new phone.
+There is no account until you ask for Tono AI, a live conversation or Tono Plus. Then Tono asks you to sign in with Apple or Google, and that sign-in is your account, so your allowance and Tono Plus follow you to a new phone. There is no separate password.
 
 What I hold about an account:
 
-- **A user ID,** and, only if you signed in with Apple or Google, which one you used, the email address from it (Apple may give me a private relay address instead of your real one), and the name or picture that account shares, if any. Apple and Google run the sign-in itself and tell me only that it was you.
+- **A user ID,** which of Apple or Google you signed in with, the email address from it (Apple may give me a private relay address instead of your real one), and the name or picture that account shares, if any. Apple and Google run the sign-in itself and tell me only that it was you.
 - **Your plan:** whether you have Tono Plus or its free trial, which plan, when the current period started and ends, and whether it was a test purchase.
 - **A record of each Tono AI call:** when it happened, what kind it was (a judged take, an exercise, a mark-up, a turn of a live conversation), which model ran, how many tokens it used and what that cost, and whether it worked. For a live conversation it also holds a random conversation ID made on your phone and the seconds counted for that turn, which is how the conversation minutes work. It holds none of your video, words or results. These records are how the monthly allowances and the cost limit work.
 - **A short-lived upload record,** only if a take is judged from its video, linking that video to your account while it is judged. It is removed when judging finishes, or when you delete your account.
 - **A Sign in with Apple token,** only if you signed in with Apple, stored encrypted and used only to cancel Apple's link to Tono when you delete your account.
 
-Your age range is never sent: Tono uses it on your phone to decide whether Tono AI is offered.
+Your birthday is never sent: Tono uses it on your phone to decide whether Tono AI is offered.
 
 My service is hosted by Supabase in the United States. Like any online service, Supabase and Google can see the connection details of a request, such as your IP address and the time. My service's own logs record errors and not your content.
 
@@ -114,7 +114,7 @@ If you install Tono through TestFlight or the App Store, Apple handles the downl
 - I do not use analytics, advertising or tracking tools in the app.
 - I do not sell or share your information.
 - I do not see or store your payment details.
-- I do not ask you to create an account or sign in.
+- I do not ask you to create an account or sign in, unless you use Tono AI or Tono Plus.
 
 ## Keeping it and deleting it
 
@@ -138,7 +138,7 @@ If your device is backed up through iCloud or to a computer, your practice data 
 
 ## Children and teenagers
 
-Tono asks your age range when you set it up. Google's terms for the Gemini service that Tono AI uses require users to be 18 or older, so if you say you are under 18, Tono AI is not offered and nothing you record is sent anywhere: everything runs on your phone. Tono is not meant for children under 13, and I do not knowingly collect information from them. If you think a child has used Tono AI, write to me and I will delete the account.
+Tono asks for your birthday before it offers Tono AI. Google's terms for the Gemini service that Tono AI uses require users to be 18 or older, so if you are under 18, Tono AI is not offered and nothing you record is sent anywhere: everything runs on your phone. Tono is not meant for children under 13, and I do not knowingly collect information from them. If you think a child has used Tono AI, write to me and I will delete the account.
 
 ## International use
 

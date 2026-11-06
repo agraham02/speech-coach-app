@@ -5,7 +5,7 @@ import { tokenizeScript } from "../scriptTypes";
 
 // The re-marked speeches must keep the scripts' exact words (the Gemini
 // script prompt and the teleprompter index into them) and follow the
-// marking guide (docs/history/practice-expansion-plan.md §4.6).
+// marking guide (docs/decisions/marking-guide.md).
 describe("speeches", () => {
   const speeches = getSpeeches();
 

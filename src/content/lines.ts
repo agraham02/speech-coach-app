@@ -3,7 +3,7 @@ import { countSentences } from "../domain/cadence/sentences";
 import type { MarkedText } from "../domain/cadence/marks";
 
 // Built-in lines for Mark It Up: one or two sentences each, marked to the
-// guide in docs/history/practice-expansion-plan.md §4.6 (a pause at every phrase
+// guide in docs/decisions/marking-guide.md (a pause at every phrase
 // boundary, an inflection at every sentence end, at most one stress per
 // phrase, spans rare). Notation: see domain/cadence/notation.ts.
 // Everything is original except the "Quotes" group, which is public domain.

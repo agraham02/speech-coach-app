@@ -1,6 +1,6 @@
 import type { EventKind, Obstacle, PracticePlace, SpeakingContext } from "../domain/profile";
 
-// Onboarding questions (docs/history/practice-expansion-plan.md §8). One question per
+// Onboarding questions. One question per
 // screen, most answered with a tap. Every question changes something — see
 // the "changes" note on each, and domain/profile.ts for how.
 

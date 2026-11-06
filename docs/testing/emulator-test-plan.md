@@ -239,7 +239,7 @@ Reading text: `get_all_text` is the primary assertion tool (exact strings below 
 - **Fast setup comes from Dev -> App tools -> State presets**: "Onboarded, standard answers" (S1 in one tap, no 574 MB download), age answer, consent, tips, theme, reminders off, and **Reset to fresh install** (section 7.24).
 - **Still not possible:** real speech, real transcripts, real pitch/pace/face on an emulator, the paid server, iPhone purchases. The fake microphone (P4), importing a real clip (P5) and route links (P7) are not built (section 5).
 - The demo takes have **no video file** by default: Result shows "Video removed to save space" and nothing plays. The option **Placeholder video files** writes a 2 KB non-video file per take so file sizes and file removal can be checked; the player is expected to fail on it, not play (verify what it shows).
-- The paid pieces are iPhone-only or server-only: `purchasesConfigurable()` is `Platform.OS === "ios"`, so on Android Tono Plus is never for sale unless the dev mock says so. Tono AI needs the real Supabase backend, and merely asking for it (the switch, **Allow**) creates an anonymous account there, unless the mock account is on.
+- The paid pieces are iPhone-only or server-only: `purchasesConfigurable()` is `Platform.OS === "ios"`, so on Android Tono Plus is never for sale unless the dev mock says so. Tono AI needs the real Supabase backend and an Apple or Google sign-in, which can't complete here, so use the mock account.
 
 ### 4.2 Decision table
 
@@ -863,7 +863,7 @@ Reopen the dev client URL (2.5). **Expect:** the tab bar has four tabs (Today, L
 
 ### 7.21 DSN - Design language (Quiet Studio)
 
-Run alongside other suites: every screenshot is also a DSN check. Reference: the design memory and `docs/history/design-refresh-plan.md`.
+Run alongside other suites: every screenshot is also a DSN check. Reference: `src/theme/tokens.ts`.
 
 **DSN-1 - One sans typeface, no serif.** On 10 screens (Today, Learn, Library, You, Settings, Practice, Recording prompt, Result, Rewind, a Lesson, the onboarding question) look at headings, prompts, numbers and the spoken-word text. **Expect:** the same geometric sans (Instrument Sans) everywhere; no serif letterforms anywhere, including prompt text and large numbers; no faux-bold look. Report any serif as a bug.
 

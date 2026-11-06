@@ -46,3 +46,7 @@ yarn-error.*
 
 # supabase CLI local state
 supabase/.temp/
+
+# gradle state left by Android builds of local modules
+modules/*/android/.gradle/
+modules/*/android/build/

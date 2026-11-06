@@ -59,7 +59,6 @@ import { DevHomeScreen } from "../screens/dev/DevHomeScreen";
 import { SHOW_DEV_TOOLS } from "../config/devTools";
 import { RecordingScreen } from "../screens/RecordingScreen";
 import { PreviewScreen } from "../screens/PreviewScreen";
-import { ProcessingScreen } from "../screens/ProcessingScreen";
 import { ResultScreen } from "../screens/ResultScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
 import { PaywallScreen } from "../screens/PaywallScreen";
@@ -185,7 +184,6 @@ export type RootStackParamList = {
   Preview: RecordingSubject & { videoUri: string; durationSecondsLocal: number };
   // Kept only as a redirect to Result, so older notification/deep links
   // still land somewhere sensible.
-  Processing: { sessionId: string };
   Result: { sessionId: string; practice?: PracticeContext };
   AsrLab: undefined;
   PartnerVoicesLab: undefined;
@@ -492,7 +490,6 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
         <Stack.Screen name="Curriculum" component={CurriculumScreen} />
         <Stack.Screen name="Recording" component={RecordingScreen} />
         <Stack.Screen name="Preview" component={PreviewScreen} />
-        <Stack.Screen name="Processing" component={ProcessingScreen} />
         <Stack.Screen name="Result" component={ResultScreen} />
       </Stack.Navigator>
     </NavigationContainer>
