@@ -174,7 +174,7 @@ Net revenue per subscriber is $3.61 a month on monthly and $3.01 on annual (15% 
 
 Deleted: `services/cloud/providers.ts`, `textProviders.ts`, `measuredReview.ts`, `speakerContext.ts`, `jsonSchema.ts`, `services/analysis/providers/ownKey.ts`, `videoReview.ts`, `services/analysis/prompts.ts`, the whole `services/gemini/` client (direct calls, prompts, schemas, transcript-only mode), the key fields in onboarding and Settings, the per-provider consents, the Dev tab's daily own-key count, and the copy about keys. The `own_key` producer is gone from the AnalysisService. Video uploads for the Dev video setting moved to `services/tono/upload.ts` (through the server, as before).
 
-On update, `deleteRemovedSecrets()` deletes `geminiApiKey`, `openaiApiKey`, `anthropicApiKey` and `openrouterApiKey` from the keychain at every launch, and `removeObsoletePrefs()` drops the provider, model, consent and call-count prefs. No message, no migration (Ahmad's rule).
+On update, `deleteRemovedSecrets()` deletes `geminiApiKey`, `openaiApiKey`, `anthropicApiKey` and `openrouterApiKey` from the keychain at every launch, and `removeObsoletePrefs()` drops the provider, model, consent and call-count prefs. No message, no migration (Ahmad's rule). (`deleteRemovedSecrets()` was removed in the 2026-11 cleanup.)
 
 ## 10. Notes for other sessions
 

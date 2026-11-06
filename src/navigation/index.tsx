@@ -90,7 +90,6 @@ import { SkillCheckScreen } from "../screens/SkillCheckScreen";
 import { StartingPointScreen } from "../screens/StartingPointScreen";
 import { OnboardingGateScreen } from "../screens/OnboardingGateScreen";
 import { isOnboardingComplete, removeObsoletePrefs } from "../services/prefs/prefsStore";
-import { deleteRemovedSecrets } from "../services/secrets/secretsStore";
 import { PromptLibraryScreen } from "../screens/PromptLibraryScreen";
 import { AddPromptScreen } from "../screens/AddPromptScreen";
 import { PlanYourPointScreen } from "../screens/PlanYourPointScreen";
@@ -382,7 +381,6 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
   useEffect(() => {
     removeObsoletePrefs();
     syncBuiltInTopics().catch((err) => logger.error(`[prompts] topic sync failed — ${(err as Error).message}`));
-    deleteRemovedSecrets().catch(() => undefined);
     reconcileOnLaunch();
     autoCleanupVideos().catch((err) => logger.error(`[videos] auto-cleanup failed — ${(err as Error).message}`));
     autoCleanupRewindAudio().catch((err) => logger.error(`[rewind] audio cleanup failed — ${(err as Error).message}`));

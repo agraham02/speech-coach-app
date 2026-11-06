@@ -51,7 +51,6 @@ If a future need arises to move to the v5 Nitro pair, re-check `visioncamera.mar
 - `src/screens/PreviewScreen.tsx` — sits between Recording and Result. Nothing is written to the DB or uploaded anywhere until the user chooses "Save" here (vs. "Discard", which just deletes the temp video file) — recording no longer auto-saves/auto-processes the instant it stops.
 - `src/components/common/ToastProvider.tsx` — a small Reanimated-based toast, plus a module-level `showGlobalToast()` escape hatch so non-component code (the background pipeline) can surface feedback (e.g. "session graded", streak milestones) regardless of which screen is open.
 - `src/services/account/`, `src/services/purchases/` — the optional account (Apple or Google sign-in, asked for when Tono AI or a purchase needs it) and Tono Plus through RevenueCat, with the trial read from the App Store's introductory offer.
-- `src/services/secrets/secretsStore.ts` — deletes keychain items for removed features at launch, including the API keys testers pasted when Tono had bring-your-own-key.
 - `src/services/data/resetApp.ts` — Settings' "Reset app": drops every table and reruns the migrations (like a fresh install), deletes every video, clears preferences and logs, cancels reminders, and sends you back to onboarding. The Tono account survives.
 
 ## Native dependencies requiring an EAS rebuild

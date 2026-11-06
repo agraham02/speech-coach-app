@@ -1199,7 +1199,7 @@ Rules: animate only to explain a change, and only when it's on screen. Keep it c
 
 This will take days across many sessions, so the plan has to survive outside any one conversation.
 
-**Working style (changed 2026-11-06, see `DECISIONS.md` D1).** One feature at a time: I build it on its own branch off `staging`, validate it and check it against this plan, merge it into `staging`, then move to the next. I never merge to `main`. I stop at sensible points instead of running through every task in one go. A session-start hook prints the current phase and next task.
+**Working style (changed 2026-11-06, see `DECISIONS.md` D1).** One feature at a time: I build it on its own branch off `staging`, validate it and check it against this plan, open a pull request into `staging` and merge it once it's verified (`DECISIONS.md` D4), then move to the next. I don't touch `main` unless you ask. I stop at sensible points instead of running through every task in one go. A session-start hook prints the current phase and next task.
 
 **During step −1 and Setup, before any feature code:**
 1. `docs/overhaul/PLAN.md`, committed in step −1, is the source of truth.
