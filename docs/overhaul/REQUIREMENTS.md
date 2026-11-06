@@ -5,12 +5,12 @@ From Appendix B of `PLAN.md`. A phase can't close while one of its IDs is open. 
 | ID | What you asked for | Section | How we'll check | Phase | Status | Evidence |
 |---|---|---|---|---|---|---|
 | R1 | Home screen uncluttered and guided | 8 | Emulator: session card first, one primary button | 4 | todo |  |
-| R2 | Keyboard never covers text boxes | 14 (phase 0) | Emulator and iPhone: every input screen | 0 | todo |  |
-| R3 | After-event asks how you think you did | 11 | Emulator: question appears and saves | 0 | todo |  |
+| R2 | Keyboard never covers text boxes | 14 (phase 0) | Emulator and iPhone: every input screen | 0 | iphone | Android emulator: event check-ins, Add a prompt, onboarding name (PR #32). iPhone check pending |
+| R3 | After-event asks how you think you did | 11 | Emulator: question appears and saves | 0 | done | PR #34. Emulator: the question appears with the saved focus; migration and save tested |
 | R4 | A clear "what next", fewer places to go | 4, 8 | Walkthrough: four tabs, one main action | 5 | todo |  |
 | R5 | Prompt and Done don't stay pinned | 10 | Emulator: nothing pinned while scrolling | 6 | todo |  |
 | R6 | No skeletons; prepare, then land at the top | 10 | iPhone: results open at the top in one piece | 6 | todo |  |
-| R7 | Transcript clean, filler words in yellow | 10 | Screenshots in both themes | 6 | todo |  |
+| R7 | Transcript clean, filler words in yellow | 10 | Screenshots in both themes | 6 | doing | Yellow fillers done (PR #33, emulator screenshots in both themes). The clean transcript, legend and "More marks" fold are phase 6 |
 | R8 | Scores not overloaded; only useful graphs | 6.5, 10 | Details opens on 4 rows; by-phrase strip replaces 3 charts | 6 | todo |  |
 | R9 | Overview order: score, rewatch, coaching | 10 | Screen test | 6 | todo |  |
 | R10 | Felt vs observed as a track, not a button row | 6.5, 10 | Screen test; same track shows all three markers | 6 | todo |  |
@@ -52,7 +52,7 @@ From Appendix B of `PLAN.md`. A phase can't close while one of its IDs is open. 
 | R46 | First take doesn't use the on-device recognizer | 12 | iPhone walkthrough; code uses Whisper | 7 | todo |  |
 | R47 | Later content overhaul noted | 18 | In the plan | Plan | done | PLAN.md section 18 |
 | R48 | Plan saved in the repo; ways to stick to it | 17 | Files exist; `check:overhaul` runs | Setup | done | `docs/overhaul/`, `overhaulPlan.test.ts` |
-| R49 | Fix the bugs found (toast, seed, warm-up copy) | 1, 14 | Tests | 0 | todo |  |
+| R49 | Fix the bugs found (toast, seed, warm-up copy) | 1, 14 | Tests | 0 | done | PRs #29, #30, #31, each with tests |
 | R50 | Small content checks free for signed-in adults | 6.6 | Allowance tests; real cost in the ledger | 3b | todo |  |
 | R51 | One "minutes a day" number replaces two settings | 9 | Old settings gone; budget tests | 4 | todo |  |
 | R52 | Feature branches merged into `staging` (DECISIONS D1), session-start hook | 17 | Hook prints the next task | Setup | done | `.claude/settings.json`, `scripts/overhaul-status.mjs` |

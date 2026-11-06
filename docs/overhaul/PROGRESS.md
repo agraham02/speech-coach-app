@@ -6,9 +6,9 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 
 ## Where we left off
 
-2026-11-06: step −1 and setup are done and on `origin/staging`. Phase 0 is next.
+2026-11-06: step −1, setup and Phase 0 are built and merged into `staging` (PRs #29 to #34). Phase 0 closes when the owner has run its iPhone checks (`device-checks.md`, mainly the keyboard on an iPhone build). Next: Phase 1, Signal Lab, which also needs the owner's iPhone.
 
-**Running the emulator:** another project's Metro may be on 8081, so use `--port 8082` and open the dev client with that port. Rebuild the dev client with `bash scripts/build-android-dev.sh` (only when native code changes). It builds in a worktree at `C:/dev/tb`, because the repo's path is too long for the native build tools.
+**Running the emulator:** another project's Metro may be on 8081, so use `--port 8082` and open the dev client with that port. Rebuild the dev client with `bash scripts/build-android-dev.sh [git ref]` (only when native code changes). It builds in a worktree at `C:/dev/tb`, because the repo's path is too long for the native build tools; stop leftover Gradle and Kotlin daemons first if it fails with EBUSY or out-of-memory. To see the soft keyboard, see section 2.5b of the emulator plan. If a Metro hangs, kill it by its process id: stopping the background shell doesn't always end it.
 
 ## Step −1: clean the repo
 
@@ -33,12 +33,12 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 
 | ID | Task | Status | Evidence |
 |---|---|---|---|
-| 0.1 | Keyboard never covers a field, app-wide (`react-native-keyboard-controller`, new build) | todo | |
-| 0.2 | After-event check-in asks how it went and whether you did your focus | todo | |
-| 0.3 | Filler words read as yellow, on a new `highlight` token, in both themes | todo | |
-| 0.4 | Fix the "overall 0/10" toast (`sessionPipeline.ts:234`) | todo | |
-| 0.5 | Skill check seeds starting levels (`progressRepo.ts:95`) | todo | |
-| 0.6 | Skill guide and warm-up copy stop claiming things that aren't true | todo | |
+| 0.1 | Keyboard never covers a field, app-wide (`react-native-keyboard-controller`, new build) | iphone | PR #32. Android emulator: event check-ins (long page with a pinned Save), Add a prompt, onboarding name question. Needs a new iPhone build and the checks in `device-checks.md` |
+| 0.2 | After-event check-in asks how it went and whether you did your focus | done | PR #34. Emulator: both questions show from the Today card; migration v36 ran on a real database; 13 new tests |
+| 0.3 | Filler words read as yellow, on a new `highlight` token, in both themes | done | PR #33. Emulator screenshots in light and dark; contrast 14.2:1 and 5.3:1, tested |
+| 0.4 | Fix the "overall 0/10" toast (`sessionPipeline.ts:234`) | done | PR #29. `judgedToastText` tested; the toast now reads `sessions.session_score` |
+| 0.5 | Skill check seeds starting levels (`progressRepo.ts:95`) | done | PR #30. Tests on a real SQLite database; the first check's samples are placement samples (`DECISIONS.md` D5) |
+| 0.6 | Skill guide and warm-up copy stop claiming things that aren't true | done | PR #31. Confidence no longer lists warm-ups; a test guards it |
 
 ## Phase 1: prove the readings
 
@@ -161,4 +161,7 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 Things that came up and aren't in this plan.
 
 - The Path finale ("Your journey") reads the old skill and stage data. Re-check it after phases 3a and 5, and add its device checks then.
+- `KeyboardForm` serves the older `ScreenContainer` screens; fold those into `Screen` when they move in phases 5 and 8, and drop it.
+- The dark-mode filler highlight is a deep gold (`#7A6200`); revisit its look in phase 8 if you'd like it brighter.
+- `KeyboardProvider` preloads the keyboard at start, which can flash it on iOS launch. If you see that on the iPhone, set `preload={false}` in `App.tsx`.
 - One uncaught SQLite error on the first launch after installing the new dev client (`NativeDatabase.prepareAsync`: "Cannot use shared object that was already released"). It didn't come back in 3 cold starts. Watch for it; phase 2's new schema touches this code.
