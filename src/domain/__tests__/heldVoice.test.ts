@@ -77,6 +77,21 @@ describe("a voice going high", () => {
   });
 });
 
+describe("a hum in a quiet room", () => {
+  it("doesn't read as pitch after the voice has stopped", () => {
+    const voice = glide(2, 180, 210);
+    const hum = new Float32Array(RATE);
+    for (let i = 0; i < hum.length; i++) hum[i] = 0.0015 * Math.sin((2 * Math.PI * 96 * i) / RATE);
+    const take = new Float32Array(voice.length + hum.length);
+    take.set(voice, 0);
+    take.set(hum, voice.length);
+    const f = extractAudioFeatures(take, RATE);
+    const after = Array.from(f.f0Hz).filter((v, i) => v > 0 && f.offsetMs + i * f.hopMs > 2300);
+    expect(after).toHaveLength(0);
+    expect(voicedSeconds(f.f0Hz, f.hopMs)).toBeGreaterThan(1.5);
+  });
+});
+
 describe("settleFarRuns", () => {
   const run = (hz: number, frames: number) => new Array<number>(frames).fill(hz);
   const track = (...parts: number[][]) => Float64Array.from(parts.flat());

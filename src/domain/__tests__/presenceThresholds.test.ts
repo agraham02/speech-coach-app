@@ -84,7 +84,7 @@ describe("computePresenceMetrics thresholds", () => {
   });
 
   it("marks a long look down at notes as down", () => {
-    expect(classifyLook(base({ pitch: 14, gazeX: 0, gazeY: 0 }))).toMatchObject({ looking: false, reason: "head_away", direction: "down", limit: 10 });
+    expect(classifyLook(base({ pitch: 14, gazeX: 0, gazeY: 0 }))).toMatchObject({ looking: false, reason: "head_away", direction: "down", limit: 7 });
     expect(classifyLook(base({ pitch: -9, gazeX: 0, gazeY: 0 }))).toMatchObject({ looking: false, reason: "head_away", direction: "up", limit: 6 });
   });
 

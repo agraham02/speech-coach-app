@@ -82,8 +82,8 @@ export interface PresenceThresholds {
   lookingUp: number;
   // Head this far below or above the take's centre, in degrees, is looking away
   // whatever the eyes read. People look at notes and ceilings with the head: on a
-  // real phone notes sat 16 degrees down with the eyes barely moving, and your
-  // own preview about 4. Tighter upward, for the same reason as lookingUp.
+  // real phone notes sat 9 to 16 degrees down with the eyes barely moving, and
+  // your own preview about 4. Tighter upward, for the same reason as lookingUp.
   headDownMaxDeg: number;
   headUpMaxDeg: number;
   tiltedDeg: number;
@@ -103,7 +103,7 @@ export const DEFAULT_PRESENCE_THRESHOLDS: PresenceThresholds = {
   gazeMaxOffset: 0.35,
   lookingDown: -0.35,
   lookingUp: 0.25,
-  headDownMaxDeg: 10,
+  headDownMaxDeg: 7,
   headUpMaxDeg: 6,
   tiltedDeg: 12,
   smile: 0.5,
