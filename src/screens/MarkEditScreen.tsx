@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { View } from "react-native";
-import { KeyboardAvoidingView, KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { KeyboardForm } from "../components/common/KeyboardForm";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
@@ -42,24 +42,26 @@ export function MarkEditScreen({ route, navigation }: Props) {
   return (
     <ScreenContainer style={styles.container}>
       <Header eyebrow="Mark it up · yours" title="Edit the marks" onBack={() => navigation.goBack()} />
-      <KeyboardAvoidingView style={styles.flex} behavior="padding" automaticOffset>
-        <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <Card style={styles.card}>
-          <MarkEditor text={item.text} marks={marks} onChange={change} />
-        </Card>
-        <Card style={styles.card}>
-          <Txt variant="caption2" tone="muted" uppercase>
-            How it reads
-          </Txt>
-          <MarkedTextView marked={{ text: item.text, marks }} size="medium" />
-        </Card>
-        <View style={styles.row}>
-          <PrimaryButton label="Re-mark with the rules" variant="ghost" style={styles.flex} onPress={() => change(autoMark(item.text).marks)} />
-          <PrimaryButton label="Clear" variant="ghost" style={styles.flex} onPress={() => change([])} />
-        </View>
-        </KeyboardAwareScrollView>
-        <PrimaryButton label="Practice it" onPress={() => navigation.replace("LineRep", { mineIds: [item.id] })} disabled={!marks.length} />
-      </KeyboardAvoidingView>
+      <KeyboardForm
+        contentContainerStyle={styles.scroll}
+        footer={
+            <PrimaryButton label="Practice it" onPress={() => navigation.replace("LineRep", { mineIds: [item.id] })} disabled={!marks.length} />
+        }
+      >
+      <Card style={styles.card}>
+        <MarkEditor text={item.text} marks={marks} onChange={change} />
+      </Card>
+      <Card style={styles.card}>
+        <Txt variant="caption2" tone="muted" uppercase>
+          How it reads
+        </Txt>
+        <MarkedTextView marked={{ text: item.text, marks }} size="medium" />
+      </Card>
+      <View style={styles.row}>
+        <PrimaryButton label="Re-mark with the rules" variant="ghost" style={styles.flex} onPress={() => change(autoMark(item.text).marks)} />
+        <PrimaryButton label="Clear" variant="ghost" style={styles.flex} onPress={() => change([])} />
+      </View>
+      </KeyboardForm>
     </ScreenContainer>
   );
 }

@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
-import { KeyboardAvoidingView, KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { KeyboardForm } from "../components/common/KeyboardForm";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
@@ -65,59 +65,61 @@ export function AddPromptScreen({ navigation }: Props) {
       <Header title="Add a prompt" onBack={() => navigation.goBack()} backIcon="close"
       />
 
-      <KeyboardAvoidingView style={styles.flex} behavior="padding" automaticOffset>
-        <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <View style={styles.field}>
-            <Text style={styles.label}>Prompt</Text>
-            <TextInput maxLength={300}
-              style={styles.textArea}
-              value={text}
-              onChangeText={(value) => setText(value.slice(0, TEXT_MAX_LENGTH))}
-              placeholder="What should you talk about?"
-              placeholderTextColor={colors.textMuted}
-              multiline
-              textAlignVertical="top"
-              accessibilityLabel="Prompt text"
-            />
-            <Text style={styles.charCount}>
-              {trimmedText.length}/{TEXT_MAX_LENGTH}
-            </Text>
-          </View>
+      <KeyboardForm
+        contentContainerStyle={styles.scroll}
+        footer={
+            <PrimaryButton label="Save Prompt" onPress={handleSave} disabled={!canSave} loading={saving} />
+        }
+      >
+        <View style={styles.field}>
+          <Text style={styles.label}>Prompt</Text>
+          <TextInput maxLength={300}
+            style={styles.textArea}
+            value={text}
+            onChangeText={(value) => setText(value.slice(0, TEXT_MAX_LENGTH))}
+            placeholder="What should you talk about?"
+            placeholderTextColor={colors.textMuted}
+            multiline
+            textAlignVertical="top"
+            accessibilityLabel="Prompt text"
+          />
+          <Text style={styles.charCount}>
+            {trimmedText.length}/{TEXT_MAX_LENGTH}
+          </Text>
+        </View>
 
-          <View style={styles.field}>
-            <Text style={styles.label}>Category</Text>
-            <TextInput maxLength={40}
-              style={styles.input}
-              value={category}
-              onChangeText={setCategory}
-              placeholder="e.g. Opinion, Story, Explain…"
-              placeholderTextColor={colors.textMuted}
-              accessibilityLabel="Prompt category"
-            />
-            {existingCategories.length > 0 ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-                {existingCategories.map((existing) => (
-                  <Pressable
-                    key={existing}
-                    onPress={() => setCategory(existing)}
-                    style={styles.chip}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Use category ${existing}`}
-                  >
-                    <Text style={styles.chipText}>{existing}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            ) : null}
-          </View>
+        <View style={styles.field}>
+          <Text style={styles.label}>Category</Text>
+          <TextInput maxLength={40}
+            style={styles.input}
+            value={category}
+            onChangeText={setCategory}
+            placeholder="e.g. Opinion, Story, Explain…"
+            placeholderTextColor={colors.textMuted}
+            accessibilityLabel="Prompt category"
+          />
+          {existingCategories.length > 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+              {existingCategories.map((existing) => (
+                <Pressable
+                  key={existing}
+                  onPress={() => setCategory(existing)}
+                  style={styles.chip}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Use category ${existing}`}
+                >
+                  <Text style={styles.chipText}>{existing}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          ) : null}
+        </View>
 
-          <View style={styles.field}>
-            <Text style={styles.label}>Difficulty</Text>
-            <SegmentedControl options={DIFFICULTY_OPTIONS} value={difficultyTier} onChange={setDifficultyTier} />
-          </View>
-        </KeyboardAwareScrollView>
-        <PrimaryButton label="Save Prompt" onPress={handleSave} disabled={!canSave} loading={saving} />
-      </KeyboardAvoidingView>
+        <View style={styles.field}>
+          <Text style={styles.label}>Difficulty</Text>
+          <SegmentedControl options={DIFFICULTY_OPTIONS} value={difficultyTier} onChange={setDifficultyTier} />
+        </View>
+      </KeyboardForm>
     </ScreenContainer>
   );
 }
@@ -157,6 +159,5 @@ const useStyles = makeStyles(({ colors }) => ({
     backgroundColor: colors.surfaceRaised,
   },
   chipText: { color: colors.textSecondary, fontSize: typography.caption, ...font("600") },
-  flex: { flex: 1 },
   scroll: { gap: spacing.lg, paddingBottom: spacing.md },
 }));

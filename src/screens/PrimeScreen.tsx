@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { View } from "react-native";
-import { KeyboardAvoidingView, KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { KeyboardForm } from "../components/common/KeyboardForm";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
@@ -62,59 +62,61 @@ export function PrimeScreen({ navigation }: Props) {
   return (
     <ScreenContainer style={styles.container}>
       <Header eyebrow="Before you go · about a minute" title="Prime" onBack={() => navigation.goBack()} backIcon="close" />
-      <KeyboardAvoidingView style={styles.flex} behavior="padding" automaticOffset>
-        <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <Field label="What's coming up?" value={label} onChangeText={setLabel} placeholder="e.g. Dinner with Jamie's coworkers" />
+      <KeyboardForm
+        contentContainerStyle={styles.scroll}
+        footer={
+          <PrimaryButton label="I'm ready" onPress={save} loading={saving} />
+        }
+      >
+        <Field label="What's coming up?" value={label} onChangeText={setLabel} placeholder="e.g. Dinner with Jamie's coworkers" />
 
-          <Card style={styles.card}>
-            <Txt variant="headline">Three things you could talk about</Txt>
-            {topics.map((t, i) => (
-              <Field key={i} value={t} onChangeText={(v) => setTopics(topics.map((x, j) => (j === i ? v : x)))} placeholder={`Topic ${i + 1}`} />
+        <Card style={styles.card}>
+          <Txt variant="headline">Three things you could talk about</Txt>
+          {topics.map((t, i) => (
+            <Field key={i} value={t} onChangeText={(v) => setTopics(topics.map((x, j) => (j === i ? v : x)))} placeholder={`Topic ${i + 1}`} />
+          ))}
+          <View style={styles.chips}>
+            {unusedTopics.map((t) => (
+              <Chip key={t} label={t} onPress={() => fill(topics, setTopics, t)} />
             ))}
-            <View style={styles.chips}>
-              {unusedTopics.map((t) => (
-                <Chip key={t} label={t} onPress={() => fill(topics, setTopics, t)} />
-              ))}
-            </View>
-          </Card>
+          </View>
+        </Card>
 
-          <Card style={styles.card}>
-            <Txt variant="headline">Two questions that invite a story</Txt>
-            <Txt variant="footnote" tone="secondary">
-              “What was the best part?” gets a story. “Did you like it?” gets a yes.
-            </Txt>
-            {questions.map((q, i) => (
-              <Field key={i} value={q} onChangeText={(v) => setQuestions(questions.map((x, j) => (j === i ? v : x)))} placeholder={`Question ${i + 1}`} />
+        <Card style={styles.card}>
+          <Txt variant="headline">Two questions that invite a story</Txt>
+          <Txt variant="footnote" tone="secondary">
+            “What was the best part?” gets a story. “Did you like it?” gets a yes.
+          </Txt>
+          {questions.map((q, i) => (
+            <Field key={i} value={q} onChangeText={(v) => setQuestions(questions.map((x, j) => (j === i ? v : x)))} placeholder={`Question ${i + 1}`} />
+          ))}
+          <View style={styles.chips}>
+            {unusedQuestions.map((q) => (
+              <Chip key={q} label={q} onPress={() => fill(questions, setQuestions, q)} />
             ))}
-            <View style={styles.chips}>
-              {unusedQuestions.map((q) => (
-                <Chip key={q} label={q} onPress={() => fill(questions, setQuestions, q)} />
-              ))}
-            </View>
-          </Card>
+          </View>
+        </Card>
 
-          <Card style={styles.card}>
-            <Txt variant="headline">One outward goal</Txt>
-            <Txt variant="footnote" tone="secondary">
-              Something about them, not about how you come across.
-            </Txt>
-            <View style={styles.chips}>
-              {OUTWARD_GOALS.map((g) => (
-                <Chip key={g} label={g} selected={goal === g} onPress={() => setGoal(goal === g ? null : g)} />
-              ))}
-            </View>
-          </Card>
+        <Card style={styles.card}>
+          <Txt variant="headline">One outward goal</Txt>
+          <Txt variant="footnote" tone="secondary">
+            Something about them, not about how you come across.
+          </Txt>
+          <View style={styles.chips}>
+            {OUTWARD_GOALS.map((g) => (
+              <Chip key={g} label={g} selected={goal === g} onPress={() => setGoal(goal === g ? null : g)} />
+            ))}
+          </View>
+        </Card>
 
-          <Card style={styles.card}>
-            <Txt variant="headline">How awkward do you expect it to be?</Txt>
-            <ScaleSlider value={predicted} onChange={setPredicted} lowLabel="Easy" highLabel="Very awkward" accessibilityLabel="Expected awkwardness, 0 to 10" />
-            <Txt variant="caption1" tone="muted">
-              A forecast, not a fact. You'll compare it with how it actually went.
-            </Txt>
-          </Card>
-        </KeyboardAwareScrollView>
-      <PrimaryButton label="I'm ready" onPress={save} loading={saving} />
-      </KeyboardAvoidingView>
+        <Card style={styles.card}>
+          <Txt variant="headline">How awkward do you expect it to be?</Txt>
+          <ScaleSlider value={predicted} onChange={setPredicted} lowLabel="Easy" highLabel="Very awkward" accessibilityLabel="Expected awkwardness, 0 to 10" />
+          <Txt variant="caption1" tone="muted">
+            A forecast, not a fact. You'll compare it with how it actually went.
+          </Txt>
+        </Card>
+      </KeyboardForm>
     </ScreenContainer>
   );
 }

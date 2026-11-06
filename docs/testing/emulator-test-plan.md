@@ -147,6 +147,16 @@ adb shell am start -a android.intent.action.VIEW -d "exp+speech-coach-app://expo
 
 (The dev-client URL scheme is `exp+speech-coach-app`, from the project slug. The app's own scheme `tono` has no routes.) The first bundle takes 1 to 3 minutes. Use `wait_for_ui_stable`, then `get_all_text`. On a freshly cleared app the dev client may first show its own "developer menu" intro sheet: tap **Continue** (verify the label) to dismiss it. `adb reverse` goes through adb, not the network, so Metro keeps working with airplane mode on.
 
+### 2.5b The on-screen keyboard
+
+The emulator hides the soft keyboard while it thinks a hardware keyboard is attached, and shows Gboard's stylus-and-shortcuts panel instead. Before any keyboard check:
+
+```bash
+adb shell settings put secure show_ime_with_hard_keyboard 1
+```
+
+If a floating panel (a microphone, a delete key, a menu) shows instead of the keys, open its menu and choose **Show on-screen keyboard** (or press Alt+K on the emulator). Then tap a field: the keys appear at the bottom, and a field or its pinned button must never sit behind them. Screens to check: any `Screen` with a footer (the event check-ins), Add a prompt, Plan your point, Debrief, Prime, Mark edit and the onboarding questions.
+
 ### 2.6 Grant runtime permissions (so system dialogs do not get in the way)
 
 ```bash

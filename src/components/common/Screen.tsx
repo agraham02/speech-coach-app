@@ -73,6 +73,8 @@ export function Screen({
   const [titleBottom, setTitleBottom] = useState(60);
   const [footerHeight, setFooterHeight] = useState(0);
   const bottomInset = tabRoot ? tabInset : insets.bottom;
+  // What a footer covers above the keyboard (its own bottom inset is under it).
+  const footerClearance = footer ? Math.max(0, footerHeight - bottomInset) : 0;
 
   const onScroll = useAnimatedScrollHandler((e) => {
     scrollY.value = e.contentOffset.y;
@@ -153,10 +155,10 @@ export function Screen({
           <KeyboardAwareScrollView
             ref={setScroller as never}
             onScroll={onScroll as never}
-            bottomOffset={24}
+            bottomOffset={24 + footerClearance}
             // A footer rides above the keyboard, so the field has to clear it too
             // (the footer's own bottom inset is hidden by the keyboard).
-            extraKeyboardSpace={footer ? Math.max(0, footerHeight - bottomInset) : 0}
+            extraKeyboardSpace={footerClearance}
             scrollEventThrottle={16}
             showsVerticalScrollIndicator={false}
             refreshControl={refreshControl}

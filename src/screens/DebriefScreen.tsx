@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Pressable, View } from "react-native";
-import { KeyboardAvoidingView, KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { KeyboardForm } from "../components/common/KeyboardForm";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
@@ -85,63 +85,65 @@ export function DebriefScreen({ route, navigation }: Props) {
   return (
     <ScreenContainer style={styles.container}>
       <Header eyebrow="After · about three minutes" title="Debrief" onBack={() => navigation.goBack()} backIcon="close" />
-      <KeyboardAvoidingView style={styles.flex} behavior="padding" automaticOffset>
-        <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          {events.length > 0 ? (
-            <View style={styles.chips}>
-              {events.map((e) => (
-                <Chip key={e.id} label={eventLabel(e)} selected={eventId === e.id} onPress={() => setEventId(e.id)} />
-              ))}
-              <Chip label="Something else" selected={eventId == null} onPress={() => setEventId(null)} />
-            </View>
-          ) : null}
-          {!primed ? <Field label="What was it?" value={label} onChangeText={setLabel} placeholder="e.g. Lunch with the new team" /> : null}
-          {primed?.outwardGoal ? (
-            <Txt variant="footnote" tone="secondary">
-              Your goal was: {primed.outwardGoal}
-            </Txt>
-          ) : null}
-
-          <Card style={styles.card}>
-            <Field label="What went okay?" value={wentOkay} onChangeText={setWentOkay} placeholder="Even something small counts" multiline />
-            <Field label="One thing to try next time" value={tryNext} onChangeText={setTryNext} placeholder="Just one" multiline />
-            <Field label="One sign someone enjoyed it" value={positiveSign} onChangeText={setPositiveSign} placeholder="A laugh, a question back, they stayed…" multiline />
-          </Card>
-
-          <Card style={styles.card}>
-            <Txt variant="headline">How awkward was it, really?</Txt>
-            {primed?.predictedAwkward != null ? (
-              <Txt variant="footnote" tone="secondary">
-                You predicted {primed.predictedAwkward}.
-              </Txt>
-            ) : null}
-            <ScaleSlider value={actual} onChange={setActual} lowLabel="Easy" highLabel="Very awkward" accessibilityLabel="Actual awkwardness, 0 to 10" />
-          </Card>
-
-          <Card style={styles.card}>
-            <Txt variant="headline">A moment you blanked (optional)</Txt>
-            <Txt variant="footnote" tone="secondary">
-              Write what they said. You'll get to practice a reply to it.
-            </Txt>
-            {blanks.map((b, i) => (
-              <Field key={i} value={b} onChangeText={(v) => setBlanks(blanks.map((x, j) => (j === i ? v : x)))} placeholder="“We're switching everyone to the new system…”" multiline />
+      <KeyboardForm
+        contentContainerStyle={styles.scroll}
+        footer={
+          <PrimaryButton label="Save" onPress={save} loading={saving} />
+        }
+      >
+        {events.length > 0 ? (
+          <View style={styles.chips}>
+            {events.map((e) => (
+              <Chip key={e.id} label={eventLabel(e)} selected={eventId === e.id} onPress={() => setEventId(e.id)} />
             ))}
-            {blanks.length < MAX_BLANKS ? (
-              <Pressable onPress={() => setBlanks([...blanks, ""])} style={styles.addRow} accessibilityRole="button" accessibilityLabel="Add another moment">
-                <Ionicons name="add-circle-outline" size={20} color={colors.accent} />
-                <Txt variant="subhead" tone="accent">
-                  Add another
-                </Txt>
-              </Pressable>
-            ) : null}
-          </Card>
-
-          <Txt variant="caption1" tone="muted">
-            That's all — no need to replay the whole thing. Going over a conversation again and again tends to make the next one feel harder, not easier.
+            <Chip label="Something else" selected={eventId == null} onPress={() => setEventId(null)} />
+          </View>
+        ) : null}
+        {!primed ? <Field label="What was it?" value={label} onChangeText={setLabel} placeholder="e.g. Lunch with the new team" /> : null}
+        {primed?.outwardGoal ? (
+          <Txt variant="footnote" tone="secondary">
+            Your goal was: {primed.outwardGoal}
           </Txt>
-        </KeyboardAwareScrollView>
-      <PrimaryButton label="Save" onPress={save} loading={saving} />
-      </KeyboardAvoidingView>
+        ) : null}
+
+        <Card style={styles.card}>
+          <Field label="What went okay?" value={wentOkay} onChangeText={setWentOkay} placeholder="Even something small counts" multiline />
+          <Field label="One thing to try next time" value={tryNext} onChangeText={setTryNext} placeholder="Just one" multiline />
+          <Field label="One sign someone enjoyed it" value={positiveSign} onChangeText={setPositiveSign} placeholder="A laugh, a question back, they stayed…" multiline />
+        </Card>
+
+        <Card style={styles.card}>
+          <Txt variant="headline">How awkward was it, really?</Txt>
+          {primed?.predictedAwkward != null ? (
+            <Txt variant="footnote" tone="secondary">
+              You predicted {primed.predictedAwkward}.
+            </Txt>
+          ) : null}
+          <ScaleSlider value={actual} onChange={setActual} lowLabel="Easy" highLabel="Very awkward" accessibilityLabel="Actual awkwardness, 0 to 10" />
+        </Card>
+
+        <Card style={styles.card}>
+          <Txt variant="headline">A moment you blanked (optional)</Txt>
+          <Txt variant="footnote" tone="secondary">
+            Write what they said. You'll get to practice a reply to it.
+          </Txt>
+          {blanks.map((b, i) => (
+            <Field key={i} value={b} onChangeText={(v) => setBlanks(blanks.map((x, j) => (j === i ? v : x)))} placeholder="“We're switching everyone to the new system…”" multiline />
+          ))}
+          {blanks.length < MAX_BLANKS ? (
+            <Pressable onPress={() => setBlanks([...blanks, ""])} style={styles.addRow} accessibilityRole="button" accessibilityLabel="Add another moment">
+              <Ionicons name="add-circle-outline" size={20} color={colors.accent} />
+              <Txt variant="subhead" tone="accent">
+                Add another
+              </Txt>
+            </Pressable>
+          ) : null}
+        </Card>
+
+        <Txt variant="caption1" tone="muted">
+          That's all — no need to replay the whole thing. Going over a conversation again and again tends to make the next one feel harder, not easier.
+        </Txt>
+      </KeyboardForm>
     </ScreenContainer>
   );
 }
