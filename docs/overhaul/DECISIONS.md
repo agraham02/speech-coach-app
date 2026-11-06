@@ -116,3 +116,13 @@ Every change to `PLAN.md` after it was agreed: what changed, why, and the owner'
 **Tuned twice now.** The three fixes above were made on round 3, so they get one more short fresh run. A worklet must be defined before it is used, or it fails at runtime; a test caught it.
 
 **Owner's OK:** asked with this report.
+
+## D10. New Pitch variety bars (2026-11-06)
+
+**Was (plan 6.5):** flat under 2.5 semitones of range; pitch found for 60% or more of speech frames.
+
+**Now:** flat under 60% of the same person's lively range; pitch found for 45% or more. Lively over 4.5 semitones and the flat, normal, lively order stay as they were.
+
+**Why:** the reasons are in D9. On the app's own numbers both recent runs pass (flat 31% and 50% of lively; pitch found 47 to 63%). Both bars were picked after seeing this data, so the order check is what stops a broken tracker passing. SwiftF0 isn't needed for these bars and stays on the Later list.
+
+**Owner's OK:** yes, "go with whatever you recommend", 2026-11-06.
