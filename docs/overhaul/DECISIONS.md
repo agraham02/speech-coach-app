@@ -39,3 +39,13 @@ Every change to `PLAN.md` after it was agreed: what changed, why, and the owner'
 **Guards:** `.claude/settings.local.json` (not committed) allows `gh pr create/merge/view/list/checks/diff` and `git push origin`, and denies force pushes and pushes to `main`. GitHub itself doesn't protect `main` or `staging`, so those rules are the only guard.
 
 **Owner's OK:** the request above.
+
+## D5. The first skill check's samples are placement samples (2026-11-06)
+
+**Was:** the plan said only that the skill check seeds starting levels (task 0.5). The seed skips any skill that already has attempts, and the check's own drills and talk counted as attempts, so most skills were skipped.
+
+**Now:** the first check's drills, reply and talk are recorded but are not practice: they don't move a rating, count an attempt or earn a stage (`PracticeContext.placement`, saved with the take as `subjectExtras.placement`). The seed then places every skill the check measured. A retake's samples are practice, as before. Real practice before the check still wins over the sample.
+
+**Why:** a five-minute sample shouldn't also count as practice on top of placing you, and it was the simplest change that makes the seed work as designed.
+
+**Owner's OK:** not asked; it's inside task 0.5. Say so if you'd rather the check count as practice too.

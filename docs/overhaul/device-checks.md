@@ -40,7 +40,28 @@ The first three sections are carried over from the hotfix round (the old `hotfix
 
 ## Phase 0: bug fixes
 
-Added when phase 0 is built.
+Needs a new iPhone build (the keyboard library is native). Use a fresh install, or Settings, Reset app, for the first three.
+
+- [ ] **The keyboard never covers a field (R2).** On each screen below, tap the lowest field. It must end up above the keyboard, with its button (Save, Continue, Start recording) above the keyboard too, and nothing jumping or flashing. The keyboard shouldn't flash on launch (if it does, set `preload={false}` on `KeyboardProvider` in `App.tsx`).
+  - Onboarding: the name question, and the questions with text.
+  - An event's before and after check-in (Today, "Your talk"): the long after page, down to "One thing to try next time".
+  - Plan your point (Settings, Practice, then record a prompt).
+  - Add a prompt (Library, Prompts, the plus button).
+  - Debrief and Prime (from the event card).
+  - Add your own text and Edit the marks (Library, Mark it up).
+  - Phrasebook, Talk back and Three things.
+  - The prep research box while recording with research on.
+  Notes:
+- [ ] **After-event check-in (R3).** After an event's date, the check-in asks "How did it go?" (five stops, Rough to Great) and, if you saved a focus, "Did you do your focus?". Save it; the Events list then shows a line like "Good · Did your focus".
+  Notes:
+- [ ] **Filler words are yellow (R7).** Open a take's Transcript, in light and in dark appearance. Um and uh read as a highlighter yellow and the text on top is easy to read.
+  Notes:
+- [ ] **The skill check places your levels (0.5).** On a fresh install, do the whole skill check. On the Starting point screen, and then in You, Skill detail, all five skills show a starting level from the check (not the same default for each).
+  Notes:
+- [ ] **The judged-take toast (0.4).** Judge a take with Tono AI while on another screen: the toast reads "Judged by Tono AI, overall 7.4/10" with the real score, never 0.
+  Notes:
+- [ ] **Skill guide (0.6).** You, Skill detail, Confidence: "What feeds it" no longer lists warm-ups, and says they aren't scored.
+  Notes:
 
 ## Phase 6: results flow
 
