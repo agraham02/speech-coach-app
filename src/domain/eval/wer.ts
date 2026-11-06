@@ -15,6 +15,8 @@ export function normalizeForWer(text: string): string[] {
   return text
     .toLowerCase()
     .replace(/[‘’]/g, "'")
+    // Whisper writes "at nine" as "at 9:00".
+    .replace(/\b(\d{1,2}):00\b/g, "$1")
     .replace(/[^a-z0-9' ]+/g, " ")
     .split(/\s+/)
     .filter(Boolean)

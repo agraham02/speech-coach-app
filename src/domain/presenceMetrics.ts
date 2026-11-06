@@ -80,6 +80,12 @@ export interface PresenceThresholds {
   // Eyes this far above the lens count as looking up. Tighter than down: the
   // screen is below the lens, so nothing on it pulls the eyes up.
   lookingUp: number;
+  // Head this far below or above the take's centre, in degrees, is looking away
+  // whatever the eyes read. People look at notes and ceilings with the head: on a
+  // real phone notes sat 16 degrees down with the eyes barely moving, and your
+  // own preview about 4. Tighter upward, for the same reason as lookingUp.
+  headDownMaxDeg: number;
+  headUpMaxDeg: number;
   tiltedDeg: number;
   smile: number;
   eyesClosed: number;
@@ -89,7 +95,7 @@ export interface PresenceThresholds {
 
 // Bump when the defaults change, so stored face tracks say which set their
 // summaries were made with.
-export const PRESENCE_THRESHOLDS_VERSION = 2;
+export const PRESENCE_THRESHOLDS_VERSION = 3;
 
 export const DEFAULT_PRESENCE_THRESHOLDS: PresenceThresholds = {
   eyeContactMaxDeg: 15,
@@ -97,6 +103,8 @@ export const DEFAULT_PRESENCE_THRESHOLDS: PresenceThresholds = {
   gazeMaxOffset: 0.35,
   lookingDown: -0.35,
   lookingUp: 0.25,
+  headDownMaxDeg: 10,
+  headUpMaxDeg: 6,
   tiltedDeg: 12,
   smile: 0.5,
   eyesClosed: 0.3,
@@ -131,6 +139,8 @@ export function classifyLook(s: PresenceSample, t: PresenceThresholds = DEFAULT_
       : { looking: false, reason: "head_away", value: head, limit: t.eyeContactMaxDeg };
   }
   if (head > t.gazeHeadMaxDeg) return { looking: false, reason: "head_away", value: head, limit: t.gazeHeadMaxDeg };
+  if (s.pitch > t.headDownMaxDeg) return { looking: false, reason: "head_away", direction: "down", value: s.pitch, limit: t.headDownMaxDeg };
+  if (s.pitch < -t.headUpMaxDeg) return { looking: false, reason: "head_away", direction: "up", value: s.pitch, limit: t.headUpMaxDeg };
   if (s.eyesOpen < t.eyesClosed) return { looking: true, reason: "blink" };
   const gx = s.gazeX ?? 0;
   const gy = s.gazeY ?? 0;
@@ -141,6 +151,48 @@ export function classifyLook(s: PresenceSample, t: PresenceThresholds = DEFAULT_
     return { looking: false, reason: "eyes_away", direction, value: offset, limit: t.gazeMaxOffset };
   }
   return { looking: true, reason: "on_lens" };
+}
+
+// Where this take's "looking at the lens" sits. How the phone is held moves the
+// head angle a long way: on one real phone, looking at the lens read 3, 8, 10 and
+// 17 degrees in four takes minutes apart, and a face check two weeks old had the
+// eyes a quarter of the scale off. So each take is measured from its own middle,
+// which is safe as long as you mostly look at the lens. The limits stop a take
+// spent looking away from becoming its own centre, as far as they can: a take
+// read entirely off notes held low can still pass as eye contact.
+const CENTER_LIMIT = { gaze: 0.2, headDeg: 18 };
+
+export interface TakeCenter {
+  pitch: number;
+  yaw: number;
+  gazeX: number;
+  gazeY: number;
+}
+
+export function takeCenter(timeline: PresenceSample[]): TakeCenter {
+  const present = timeline.filter((s) => s.present);
+  const middle = (values: number[], limit: number) => (values.length ? Math.max(-limit, Math.min(limit, median(values))) : 0);
+  const gazed = present.filter((s) => s.gazeX !== undefined);
+  return {
+    pitch: middle(present.map((s) => s.pitch), CENTER_LIMIT.headDeg),
+    yaw: middle(present.map((s) => s.yaw), CENTER_LIMIT.headDeg),
+    gazeX: middle(gazed.map((s) => s.gazeX as number), CENTER_LIMIT.gaze),
+    gazeY: middle(gazed.map((s) => s.gazeY ?? 0), CENTER_LIMIT.gaze),
+  };
+}
+
+export function centerTimeline(timeline: PresenceSample[], c: TakeCenter = takeCenter(timeline)): PresenceSample[] {
+  return timeline.map((s) =>
+    s.present
+      ? {
+          ...s,
+          pitch: s.pitch - c.pitch,
+          yaw: s.yaw - c.yaw,
+          gazeX: s.gazeX === undefined ? undefined : s.gazeX - c.gazeX,
+          gazeY: s.gazeY === undefined ? undefined : s.gazeY - c.gazeY,
+        }
+      : s,
+  );
 }
 
 function stddev(values: number[]): number {
@@ -214,8 +266,9 @@ export function countNods(samples: PresenceSample[]): number {
 // a still-face and an animated take in the Face Lab (device test plan, F).
 export const EXPRESSION_SCALE = 600;
 
-export function computePresenceMetrics(timeline: PresenceSample[], t: PresenceThresholds = DEFAULT_PRESENCE_THRESHOLDS): PresenceMetrics | null {
-  if (timeline.length < 3) return null;
+export function computePresenceMetrics(rawTimeline: PresenceSample[], t: PresenceThresholds = DEFAULT_PRESENCE_THRESHOLDS): PresenceMetrics | null {
+  if (rawTimeline.length < 3) return null;
+  const timeline = centerTimeline(rawTimeline);
   const present = timeline.filter((s) => s.present);
   const hasGaze = present.some((s) => s.gazeX !== undefined);
   const looks = timeline.map((s) => classifyLook(s, t, hasGaze));

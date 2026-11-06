@@ -6,7 +6,7 @@ import { cleanPitch } from "../dsp/pitchCleanup";
 import { phrasePitchVariation } from "../dsp/phrasePitch";
 import { percentile } from "../dsp/pitchTracker";
 import { scoreSyllablePeaks, strongestWord } from "../dsp/stressCues";
-import { alignWordsToSpeech } from "../dsp/wordAlign";
+import { trimWordsToVoice } from "../dsp/wordTrim";
 import { normalizeWord } from "../speech/normalize";
 import { speakingWpm } from "../signals/audioSummary";
 import type { VoiceLabSummary } from "../dev/voiceLab";
@@ -393,7 +393,7 @@ const endingsTest: LabTestEntry = {
     if (!words || words.length === 0) return thin("The recording has no transcript, so sentence ends are unknown.");
 
     const cleanedFeatures = { ...a.features, f0Hz: cleanPitch(a.features.f0Hz, a.features.confidence).f0Hz };
-    const timed = alignWordsToSpeech(words, a.features) ?? words;
+    const timed = trimWordsToVoice(words, a.features) ?? words;
     let cursor = 0;
     const rows = ENDING_SENTENCES.map((s) => {
       const last = norm(s.text.split(/\s+/).pop() ?? "");
@@ -673,11 +673,11 @@ const wordStressTest: LabTestEntry = {
       let idx = words.findIndex((w) => norm(w.text) === norm(target));
       if (idx === -1 && words.length === STRESS_SENTENCE.length) idx = k;
       if (idx === -1) return { k, target, ready: false as const };
-      const timed = alignWordsToSpeech(words, m.audio.features) ?? words;
+      const timed = trimWordsToVoice(words, m.audio.features) ?? words;
       const scored = scoreSyllablePeaks(m.audio.features, timed);
       const winner = strongestWord(scored);
       const loudWinner = strongestWord(scored, "loudness");
-      // Without the line-up, to see how much of the result it is.
+      // Without the trim, to see how much of the result it is.
       const rawWinner = strongestWord(scoreSyllablePeaks(m.audio.features, words));
       return {
         k,
@@ -715,7 +715,7 @@ const wordStressTest: LabTestEntry = {
     const checks: LabCheck[] = [
       check("Reads where the stressed word ranked top", `${hits} of ${ready.length} scored (${rows.length} reads)`, pass, "at least 5 of 7"),
       check("Same, by loudness alone", `${loudHits} of ${ready.length}`, null),
-      check("Same, without lining the words up with the voice", `${rawHits} of ${ready.length}`, null),
+      check("Same, without trimming silence off the words", `${rawHits} of ${ready.length}`, null),
       ...ready.filter((r) => !r.hit).map((r) => check(`Stressed "${r.target}"`, `strongest was ${r.winnerText === null ? "nothing" : `"${r.winnerText}"`}`, null)),
     ];
     return result(
@@ -796,7 +796,7 @@ const pausesTest: LabTestEntry = {
     if (!a) return thin("No recording for the passage.");
     if (!words || words.length === 0) return thin("The recording has no transcript, so the marked words cannot be found.");
 
-    const timed = alignWordsToSpeech(words, a.features) ?? words;
+    const timed = trimWordsToVoice(words, a.features) ?? words;
     const marks = pauseMarks(PAUSE_PASSAGE);
     const ends: number[] = [];
     for (const m of marks) {
@@ -886,7 +886,7 @@ const paceTest: LabTestEntry = {
     if (!m) return thin("No recording for the passage.");
     if (!isNum(m.stopwatchMs) || m.stopwatchMs < PACE_MIN_STOPWATCH_MS) return thin(m.stopwatchMs === undefined ? "The stopwatch was not used." : `The stopwatch read only ${round(m.stopwatchMs / 1000)} s; read the whole passage between Start and Stop.`);
     if (!m.words || m.words.length === 0) return thin("The recording has no transcript.");
-    const heard = speakingWpm(m.audio ? alignWordsToSpeech(m.words, m.audio.features) : m.words);
+    const heard = speakingWpm(m.audio ? trimWordsToVoice(m.words, m.audio.features) : m.words);
     if (heard === null) return thin("The transcript is too short to give a pace.");
     const rawHeard = speakingWpm(m.words);
 
@@ -906,7 +906,7 @@ const paceTest: LabTestEntry = {
     const checks: LabCheck[] = [
       check("Transcript pace against the stopwatch", `${heard} wpm against ${round(expected)} wpm (${diff >= 0 ? "+" : ""}${round(diff * 100)}%)`, Math.abs(diff) <= PACE_TOLERANCE, "within 5%"),
       check("Words in transcript against the passage", `${m.words.length} of ${count}`, null),
-      check("Pace without lining the words up with the voice", `${rawHeard ?? "?"} wpm`, null),
+      check("Pace without trimming the silence", `${rawHeard ?? "?"} wpm`, null),
     ];
     return result(
       checks,

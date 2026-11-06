@@ -70,7 +70,10 @@ function medianOf(values: number[]): number {
 // values; see TryPeaks and calibratedThresholds).
 function referenceFor(values: number[], calRest: number | undefined, calRise: number | undefined): ChannelReference {
   if (calRest !== undefined && calRise !== undefined && calRise >= MIN_PEAK_RISE) {
-    return { rest: calRest, peak: calRest + calRise, source: "calibration", usable: true };
+    // A take that goes further than the face check saw shows the check was too
+    // low: a real one's brows reached 0.62 against 0.92 in the take, and small
+    // flickers then counted as lifts. A still take stays on the check's own line.
+    return { rest: calRest, peak: Math.max(calRest + calRise, quantile(values, 0.95)), source: "calibration", usable: true };
   }
   const rest = quantile(values, 0.1);
   const peak = quantile(values, 0.95);

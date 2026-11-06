@@ -1,5 +1,5 @@
 import { extractAudioFeatures, SPEECH } from "../dsp/audioFeatures";
-import { FLOOR } from "../dsp/pitchTracker";
+import { FLOOR, settleFarRuns } from "../dsp/pitchTracker";
 
 const RATE = 16000;
 
@@ -63,5 +63,43 @@ describe("one long held sound", () => {
     const f = extractAudioFeatures(take, RATE);
     expect(f.noiseFloorDb).toBeLessThan(-60);
     expect(voicedSeconds(f.f0Hz, f.hopMs)).toBeGreaterThan(1.5);
+  });
+});
+
+describe("a voice going high", () => {
+  it("is followed all the way up, not folded back an octave", () => {
+    const f = extractAudioFeatures(glide(10, 100, 420), RATE);
+    const hz = Array.from(f.f0Hz).filter((v) => v > 0);
+    expect(Math.max(...hz)).toBeGreaterThan(380);
+    let jump = 0;
+    for (let i = 1; i < f.f0Hz.length; i++) if (f.f0Hz[i] > 0 && f.f0Hz[i - 1] > 0) jump = Math.max(jump, Math.abs(12 * Math.log2(f.f0Hz[i] / f.f0Hz[i - 1])));
+    expect(jump).toBeLessThan(6);
+  });
+});
+
+describe("settleFarRuns", () => {
+  const run = (hz: number, frames: number) => new Array<number>(frames).fill(hz);
+  const track = (...parts: number[][]) => Float64Array.from(parts.flat());
+
+  it("drops a short run a long way out, like an s the tracker found a period in", () => {
+    const out = settleFarRuns(track(run(100, 50), [0], run(320, 15), [0], run(100, 50)), 100, 60, 600);
+    expect(out.slice(51, 66).every((v) => v === 0)).toBe(true);
+    expect(out[0]).toBe(100);
+  });
+
+  it("folds a short run that lands near the median, an octave error", () => {
+    const out = settleFarRuns(track(run(100, 50), [0], run(210, 15), [0], run(100, 50)), 100, 60, 600);
+    expect(out[55]).toBeCloseTo(105, 5);
+  });
+
+  it("leaves a long run alone: the voice really went there", () => {
+    const out = settleFarRuns(track(run(100, 50), [0], run(320, 60), [0], run(100, 50)), 100, 60, 600);
+    expect(out[60]).toBe(320);
+  });
+
+  it("leaves a run alone when it reaches the normal range", () => {
+    const climb = Array.from({ length: 200 }, (_, i) => 100 * 2 ** (i / 80));
+    const out = settleFarRuns(Float64Array.from(climb), 100, 60, 600);
+    expect(out[199]).toBeCloseTo(climb[199], 5);
   });
 });

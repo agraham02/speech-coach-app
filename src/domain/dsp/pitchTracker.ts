@@ -18,9 +18,10 @@
 // - when no dip passes the threshold the global minimum is taken (as the YIN
 //   paper does), and voicing is decided from that dip's depth plus the frame
 //   energy over the take's own noise floor;
-// - octave jumps are folded back toward the take's median, frames that jump
-//   more than 5 semitones from their neighbours are repaired (2x, 1/2, 3/2,
-//   2/3, 3x, 1/3) or dropped, isolated frames are dropped and 1-frame gaps
+// - short runs far from the take's median are noise or octave errors and are
+//   dropped or folded back (a long run is the voice really going there), frames
+//   that jump more than 5 semitones from their neighbours are repaired (2x, 1/2,
+//   3/2, 2/3, 3x, 1/3) or dropped, isolated frames are dropped and 1-frame gaps
 //   filled, then a 3-frame median smooths it.
 //
 // Low and high voices: the search runs from 60 to 600 Hz, which covers a
@@ -59,7 +60,7 @@ export const PITCH_DEFAULTS: Required<PitchOptions> = {
   maxHz: 600,
   hopMs: 10,
   threshold: 0.15,
-  maxAperiodicity: 0.35,
+  maxAperiodicity: 0.5,
   minSnrDb: 10,
 };
 
@@ -134,6 +135,66 @@ export function floorUnderBand(levels: ArrayLike<number>): number {
 function semitones(v: number, ref: number): number {
   "worklet";
   return 12 * Math.log2(v / ref);
+}
+
+// Voiced frames far from the take's median, handled a run at a time. Folding
+// every far frame back an octave halved real high notes: on a real phone a voice
+// sliding up to 400 Hz was cut to 200, and a jump appeared where none was. What
+// the frames are shows in how long they stay out there:
+//  - a run that reaches the normal range, or stays far out for a long time, is
+//    the voice really going there, and is left alone;
+//  - a short run a long way out is a consonant the tracker found a period in
+//    (real takes: "s" sounds at 15 to 23 semitones, up to 170 ms): dropped;
+//  - a short run nearer in is an octave error if folding lands it near the
+//    median: folded, otherwise left alone.
+export const FAR_RUNS = {
+  // A step under this between frames keeps them in one run.
+  stepSt: 3,
+  farSt: 9,
+  noiseSt: 14,
+  noiseFrames: 20,
+  octaveFrames: 30,
+  foldLandsWithinSt: 6,
+};
+
+export function settleFarRuns(f0: Float64Array, center: number, minHz: number, maxHz: number): Float64Array {
+  "worklet";
+  const out = f0.slice();
+  if (center <= 0) return out;
+  const n = f0.length;
+  let i = 0;
+  while (i < n) {
+    if (f0[i] <= 0) {
+      i++;
+      continue;
+    }
+    let j = i + 1;
+    while (j < n && f0[j] > 0 && Math.abs(semitones(f0[j], f0[j - 1])) < FAR_RUNS.stepSt) j++;
+    let nearest = Infinity;
+    const offsets: number[] = [];
+    for (let k = i; k < j; k++) {
+      const st = semitones(f0[k], center);
+      offsets.push(st);
+      if (Math.abs(st) < nearest) nearest = Math.abs(st);
+    }
+    if (nearest > FAR_RUNS.farSt) {
+      const len = j - i;
+      const typical = median(offsets);
+      if (Math.abs(typical) >= FAR_RUNS.noiseSt && len < FAR_RUNS.noiseFrames) {
+        for (let k = i; k < j; k++) out[k] = 0;
+      } else if (len < FAR_RUNS.octaveFrames) {
+        const ratio = typical > 0 ? 0.5 : 2;
+        if (Math.abs(typical + (typical > 0 ? -12 : 12)) <= FAR_RUNS.foldLandsWithinSt) {
+          for (let k = i; k < j; k++) {
+            const v = f0[k] * ratio;
+            if (v >= minHz && v <= maxHz) out[k] = v;
+          }
+        }
+      }
+    }
+    i = j;
+  }
+  return out;
 }
 
 export function trackPitch(waveform: Float32Array, sampleRate: number, options: PitchOptions = {}): PitchTrack {
@@ -229,20 +290,10 @@ export function trackPitch(waveform: Float32Array, sampleRate: number, options: 
     rawF0[f] = fs / (best + Math.max(-0.5, Math.min(0.5, shift)));
   }
 
-  // Octave folding toward the take's median pitch.
   const voiced: number[] = [];
   for (let i = 0; i < frameCount; i++) if (rawF0[i] > 0) voiced.push(rawF0[i]);
   const center = voiced.length ? median(voiced) : 0;
-  const f0s = new Float64Array(frameCount);
-  for (let i = 0; i < frameCount; i++) {
-    let v = rawF0[i];
-    if (v > 0 && center > 0) {
-      const st = semitones(v, center);
-      if (st > 9 && v / 2 >= o.minHz) v /= 2;
-      else if (st < -9 && v * 2 <= o.maxHz) v *= 2;
-    }
-    f0s[i] = v;
-  }
+  const f0s = settleFarRuns(rawF0, center, o.minHz, o.maxHz);
 
   // Local continuity: a frame more than 5 semitones from the median of its
   // voiced neighbours (+-120 ms) is a subharmonic or harmonic error (YIN's

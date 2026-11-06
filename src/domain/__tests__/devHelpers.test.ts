@@ -74,7 +74,7 @@ describe("demo take words and audio", () => {
   it("makes a face track the real presence metrics read, lively against still", () => {
     const lively = computePresenceMetrics(synthFace(40_000, { onLens: 0.8, lively: true }, 1))!;
     const still = computePresenceMetrics(synthFace(40_000, { onLens: 0.35, lively: false }, 1))!;
-    expect(lively.eyeContactPercent).toBeGreaterThan(still.eyeContactPercent + 25);
+    expect(lively.eyeContactPercent).toBeGreaterThan(still.eyeContactPercent + 10);
     expect(lively.expressiveness).toBeGreaterThan(still.expressiveness + 15);
     expect(lively.detectionRateHz).toBeGreaterThan(12);
   });
