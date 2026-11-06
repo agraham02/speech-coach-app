@@ -6,7 +6,7 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 
 ## Where we left off
 
-2026-11-06: step −1, setup and Phase 0 are built and merged into `staging` (PRs #29 to #34). Phase 0 closes when the owner has run its iPhone checks (`device-checks.md`, mainly the keyboard on an iPhone build). Next: Phase 1, Signal Lab, which also needs the owner's iPhone.
+2026-11-06: step −1, setup, Phase 0 (PRs #29 to #35) and the build of Phase 1 (PRs #36 to #41) are merged into `staging`. Both now wait on the owner's iPhone: Phase 0's checks, and Signal Lab's tests (`device-checks.md`). Then I read the exported results, set each reading's status in `readingTrust.ts`, promote the candidate formulas that win, and close Phase 1. The hosted judge eval (1.9) also needs the server, so it is the owner's or a later session's.
 
 **Running the emulator:** another project's Metro may be on 8081, so use `--port 8082` and open the dev client with that port. Rebuild the dev client with `bash scripts/build-android-dev.sh [git ref]` (only when native code changes). It builds in a worktree at `C:/dev/tb`, because the repo's path is too long for the native build tools; stop leftover Gradle and Kotlin daemons first if it fails with EBUSY or out-of-memory. To see the soft keyboard, see section 2.5b of the emulator plan. If a Metro hangs, kill it by its process id: stopping the background shell doesn't always end it.
 
@@ -44,14 +44,14 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 
 | ID | Task | Status | Evidence |
 |---|---|---|---|
-| 1.1 | Signal Lab home: list of tests, status, last result, export as JSON, folds in Voice, Face and ASR Labs | todo | |
-| 1.2 | Voice tests: pitch variety, glide, endings, gain, distance, emphasis, word stress, pauses, pace | todo | |
-| 1.3 | Clarity tests: fillers, recognizer vs Whisper, Whisper speed | todo | |
-| 1.4 | Presence tests: looking, glances, preview, expression, face events | todo | |
-| 1.5 | Content tests: word links, on topic, judge | todo | |
-| 1.6 | Better formulas from 6.5C: within-phrase pitch variation, pitch cleanup, multi-cue emphasis, Whisper-gap pauses, look grouping, face events against rest | todo | |
-| 1.7 | Trust status for each reading, in code, that scoring obeys; preview switch in Dev | todo | |
-| 1.8 | Owner runs Signal Lab on iPhone; statuses set from results | todo | |
+| 1.1 | Signal Lab home: list of tests, status, last result, export as JSON, folds in Voice, Face and ASR Labs | done | PRs #36, #37. Dev, Labs, Signal Lab: home (21 tests by group, Beta readings with preview switches, JSON export), test screen, runner; the capture check runs end to end on the Android emulator. Voice Lab stays reachable from a take; Face Lab and ASR Lab are linked from the home and keep their Dev rows |
+| 1.2 | Voice tests: pitch variety, glide, endings, gain, distance, emphasis, word stress, pauses, pace | iphone | PR #40. Nine voice tests with evaluators and 88 tests on made-up signals. Needs the iPhone run |
+| 1.3 | Clarity tests: fillers, recognizer vs Whisper, Whisper speed | iphone | PR #41. Three clarity tests, evaluators tested. Needs the iPhone run and the Whisper model |
+| 1.4 | Presence tests: looking, glances, preview, expression, face events | iphone | PR #39. Five presence tests, evaluators tested on made-up timelines. Needs the iPhone run |
+| 1.5 | Content tests: word links, on topic, judge | doing | PR #41. The three content tests are listed and blocked: the phone meaning check is phase 3b, the judge needs the hosted eval and about 30 hand-rated takes |
+| 1.6 | Better formulas from 6.5C: within-phrase pitch variation, pitch cleanup, multi-cue emphasis, Whisper-gap pauses, look grouping, face events against rest | doing | PRs #39, #40. The candidate formulas exist beside today's (phrase pitch variation, pitch cleanup, multi-cue stress, Whisper-gap pauses, ending slope, look grouping, face movement against your own rest); the tests compare them. Nothing is promoted into scoring until the iPhone results are in. Not built: the take-audio-session experiment (native), SwiftF0, Silero |
+| 1.7 | Trust status for each reading, in code, that scoring obeys; preview switch in Dev | done | PRs #36, #38. `readingTrust.ts` registry; scoring leaves unproven readings out (both sheets, sheet version 6) and labels them Beta; Dev preview switch and a Rescore button. Emulator: a Scores tab shows Pauses with the Beta caption |
+| 1.8 | Owner runs Signal Lab on iPhone; statuses set from results | todo | Waiting on the owner: `device-checks.md`, Phase 1 |
 | 1.9 | Run the hosted judge eval | todo | |
 
 ## Phase 2: log and sync
@@ -160,6 +160,11 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 
 Things that came up and aren't in this plan.
 
+- The Android emulator can't decode its own recordings (FFmpeg: decoder not found), so Signal Lab's numbers only mean something on the iPhone; the runner reports it instead of failing.
+- Not built from plan 6.5C: the take audio-session experiment (needs a native change and a new build, worth doing if the volume tests fail), SwiftF0 and Silero (only if the pitch and pause tests fail).
+- `skillCheck.ts` and `ruleCoach.ts` still call the scorers directly, so they still use unproven readings; they move when the skill tree lands (3a, 7).
+- The presence evaluators don't use the face-check calibration (`StepMeasures` doesn't carry it); add it if the first results suggest the thresholds need it.
+- Script takes have no Confidence category while eye contact and expression are unproven (their only measured parts), so a script take's score is now cadence and clarity only.
 - The Path finale ("Your journey") reads the old skill and stage data. Re-check it after phases 3a and 5, and add its device checks then.
 - `KeyboardForm` serves the older `ScreenContainer` screens; fold those into `Screen` when they move in phases 5 and 8, and drop it.
 - The dark-mode filler highlight is a deep gold (`#7A6200`); revisit its look in phase 8 if you'd like it brighter.

@@ -49,3 +49,13 @@ Every change to `PLAN.md` after it was agreed: what changed, why, and the owner'
 **Why:** a five-minute sample shouldn't also count as practice on top of placing you, and it was the simplest change that makes the seed work as designed.
 
 **Owner's OK:** not asked; it's inside task 0.5. Say so if you'd rather the check count as practice too.
+
+## D6. Face Lab and ASR Lab stay as their own Dev rows (2026-11-06)
+
+**Was:** task 1.1 said Signal Lab "folds in Voice, Face and ASR Labs".
+
+**Now:** Signal Lab has its own home, tests and results. Face Lab and ASR Lab are still separate screens with their own Dev rows, and Signal Lab links to them; Voice Lab stays reachable from a take. Their tools (live face values, the engine comparison) don't fit a scripted pass or fail test, and removing them would lose features for no gain.
+
+**Why:** the tests needed the same capture and formulas as real features, which Signal Lab does itself. Nothing the old labs measured is missing from it.
+
+**Owner's OK:** not asked; say so if you want the old rows removed.

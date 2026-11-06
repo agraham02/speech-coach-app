@@ -33,7 +33,7 @@ From Appendix B of `PLAN.md`. A phase can't close while one of its IDs is open. 
 | R27 | Libraries and animation researched and used | 15 | Library table followed; animation list checked | 8 | todo |  |
 | R28 | Session length flexible day by day | 9 | Budget tests; a day's change doesn't alter your usual | 4 | todo |  |
 | R29 | Content judged; nonsense can't score well | 6.4, 7 | Validity tests for every gate | 3b | todo |  |
-| R30 | Better pitch and volume, fixed graphs | 6.5 | Signal Lab results on iPhone | 1 | todo |  |
+| R30 | Better pitch and volume, fixed graphs | 6.5 | Signal Lab results on iPhone | 1 | doing | PRs #38, #39, #40. Trust-gated scoring and the candidate pitch, stress, pause and ending formulas are built; the pitch and volume numbers wait on the iPhone run (task 1.8). The by-phrase chart is phase 6 |
 | R31 | Playback is always the 3 passes | 10 | iPhone walkthrough | 6 | todo |  |
 | R32 | Rewatch is a collapsible accordion | 10 | Screen test: open if skipped, closed if done | 6 | todo |  |
 | R33 | Mermaid skill tree | 6.2 | Diagrams in the plan | 3a | done | Diagrams in PLAN.md section 6.2 |
@@ -43,9 +43,9 @@ From Appendix B of `PLAN.md`. A phase can't close while one of its IDs is open. 
 | R37 | Quantifiable judging of everything | 7 | Grid coverage test: every activity has a number | 3a | todo |  |
 | R38 | Rewind works for morning users | 5.3 | Rewind timing tests | 4 | todo |  |
 | R39 | A reasoned rubric scale | 6.6 | 0–5 in prompts; checked against hand-rated takes | 3b | todo |  |
-| R40 | Testing suite in Dev | 6.5 | Signal Lab runs every test on iPhone | 1 | todo |  |
-| R41 | Research into better capture | 6.5 | Better-ways table tried and results logged | 1 | todo |  |
-| R42 | Better face and eye math, tracking kept | 6.2, 6.5 | Presence tests in Signal Lab | 1 | todo |  |
+| R40 | Testing suite in Dev | 6.5 | Signal Lab runs every test on iPhone | 1 | iphone | PRs #36 to #41. Signal Lab has 21 tests, a runner, results and JSON export; the capture check runs on the Android emulator. Needs the iPhone run |
+| R41 | Research into better capture | 6.5 | Better-ways table tried and results logged | 1 | doing | PRs #39, #40. The better-ways formulas are built beside today's and compared by the tests; the results get logged after the iPhone run. Take audio-session experiment, SwiftF0 and Silero not built (only if tests fail) |
+| R42 | Better face and eye math, tracking kept | 6.2, 6.5 | Presence tests in Signal Lab | 1 | doing | PR #39. Look grouping and face movement against your own rest are built with five presence tests; tracking untouched. Needs the iPhone run |
 | R43 | Final levels and ranges | 6.3 | Tests on every threshold | 3a | todo |  |
 | R44 | Difficulty fits scoring and keeps challenging | 6.7 | Difficulty tests, simulated user | 3d | todo |  |
 | R45 | No backwards compatibility | 14 | No migration code; legacy code gone | All | todo |  |
