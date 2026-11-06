@@ -34,6 +34,7 @@ import { PipelineScreen } from "../screens/dev/PipelineScreen";
 import { SessionDetailScreen } from "../screens/dev/SessionDetailScreen";
 import { ArtifactScreen } from "../screens/dev/ArtifactScreen";
 import { FaceLabScreen } from "../screens/dev/FaceLabScreen";
+import { SignalLabRunScreen } from "../screens/dev/SignalLabRunScreen";
 import { SignalLabScreen } from "../screens/dev/SignalLabScreen";
 import { SignalLabTestScreen } from "../screens/dev/SignalLabTestScreen";
 import { VoiceLabScreen } from "../screens/dev/VoiceLabScreen";
@@ -196,6 +197,7 @@ export type RootStackParamList = {
   DevVoiceLab: { sessionId: string };
   DevSignalLab: undefined;
   DevSignalLabTest: { testId: string };
+  DevSignalLabRun: { testId: string };
   DevTools: undefined;
   DevMetrics: undefined;
   DevDemoTakes: undefined;
@@ -449,6 +451,7 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
             <Stack.Screen name="DevVoiceLab" component={VoiceLabScreen} />
             <Stack.Screen name="DevSignalLab" component={SignalLabScreen} />
             <Stack.Screen name="DevSignalLabTest" component={SignalLabTestScreen} />
+            <Stack.Screen name="DevSignalLabRun" component={SignalLabRunScreen} options={{ animation: "fade" }} />
             <Stack.Screen name="DevTools" component={ToolsScreen} />
             <Stack.Screen name="AsrLab" component={AsrLabScreen} />
             <Stack.Screen name="PartnerVoicesLab" component={PartnerVoicesLabScreen} />
