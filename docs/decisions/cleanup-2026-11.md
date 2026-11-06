@@ -15,6 +15,9 @@ Step −1 of [the overhaul plan](../overhaul/PLAN.md), done on `staging`. Code t
 - **Exports only tests used, with their 16 test cases:** `nextSteps`, `usageFromOpenAI`, `usageFromAnthropic`, `speedLabel`, `detectPauses`, `planPriceLine`, `needsPersonToAct`, and the cost-per-minute model. `isDenyCode` stays as a private helper, because `describeTonoError` calls it.
 - **Unused locals:** in `ThreePassPlayer.tsx`, `WorkBar.tsx` and `StatePresetsScreen.tsx`.
 - **`react-dom` dependency:** an optional peer for web only.
+- **`src/services/secrets/secretsStore.ts`:** the launch-time deletion of keys testers pasted when Tono had bring-your-own-key. The owner confirmed it isn't needed.
+- **`docs/testing/hotfix-round-1.md`:** its checks that still apply after the overhaul moved to [device-checks.md](../overhaul/device-checks.md). The ones for screens the overhaul replaces were dropped.
+- **Remote branches:** `feature/conversation-voice`, `feature/tono-ai`, `fix/prep-timer-and-audio-session` and `feature/dev-test-helpers`, after checking each was fully inside `origin/staging`.
 - **Local output:** `dist/` and `modules/*/android/.gradle`, which are now ignored.
 - **Branches and worktree:** local `feature/tono-ai`, `fix/hotfix-round-1`, `feature/dev-test-helpers`, and the worktree at `C:/dev/tono-devseed`.
 

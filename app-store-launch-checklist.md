@@ -31,7 +31,7 @@ Already done:
 - [x] Export compliance: `ITSAppUsesNonExemptEncryption: false`. HTTPS only.
 - [x] The Dev tab and lab screens are hidden in production builds (`SHOW_DEV_TOOLS` is only on for `__DEV__` or the `preview` profile). That includes the "judge from the video" setting.
 - [x] No secret keys are bundled. `src/config/backend.ts` holds only the public Supabase URL, the publishable key and RevenueCat's public iOS key.
-- [x] Bring-your-own-key is gone; testers' stored keys are deleted from the keychain at launch (`src/services/secrets/secretsStore.ts`).
+- [x] Bring-your-own-key is gone; the launch-time deletion of testers' stored keys was removed in 2026-11.
 - [x] Build numbers auto-increment on EAS.
 - [x] Built-in quotes are public domain; the speeches are original writing.
 - [x] App icon and splash screen.

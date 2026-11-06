@@ -27,3 +27,15 @@ Every change to `PLAN.md` after it was agreed: what changed, why, and the owner'
 **Now:** the privacy policy, launch checklist and test plans were corrected too, since they had the same stale text. The privacy policy also still said Tono asks for an age range.
 
 **Owner's OK:** needed for one thing: `docs/privacy.md` is published, so the owner has to republish it.
+
+## D4. Pull requests into `staging`, merged by Claude (2026-11-06)
+
+**Was:** D1 had Claude merge each feature into `staging` locally.
+
+**Now:** each feature branch is pushed and opened as a pull request into `staging`, and Claude merges it (a merge commit, branch deleted) once the type-check, tests and both bundles pass. A pull request into `main`, or any push to `main`, happens only when the owner asks. Claude never force-pushes.
+
+**Why:** the owner asked for Claude to be able to open and merge pull requests on this repo.
+
+**Guards:** `.claude/settings.local.json` (not committed) allows `gh pr create/merge/view/list/checks/diff` and `git push origin`, and denies force pushes and pushes to `main`. GitHub itself doesn't protect `main` or `staging`, so those rules are the only guard.
+
+**Owner's OK:** the request above.

@@ -6,7 +6,7 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 
 ## Where we left off
 
-2026-11-06: step −1 and setup are done and on `staging`, except C.5, which waits on the owner's answers. Phase 0 is next.
+2026-11-06: step −1 and setup are done and on `origin/staging`. Phase 0 is next.
 
 **Running the emulator:** another project's Metro may be on 8081, so use `--port 8082` and open the dev client with that port. Rebuild the dev client with `bash scripts/build-android-dev.sh` (only when native code changes). It builds in a worktree at `C:/dev/tb`, because the repo's path is too long for the native build tools.
 
@@ -18,7 +18,7 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 | C.2 | Commit the plan as `docs/overhaul/PLAN.md` | done | Commit 49944a5 |
 | C.3 | Find and remove what's stale | done | `docs/decisions/cleanup-2026-11.md` |
 | C.4 | Verify: type-check, tests, iOS and Android bundles, emulator smoke test | done | 2026-11-06: tsc clean, 1,537 tests pass (16 removed with dead code, 7 added), both bundles build; new dev client on the emulator opens Today and switches tabs, 3 cold starts with no errors |
-| C.5 | Owner's answers: hotfix checks, `secretsStore.ts`, remote branches | todo | |
+| C.5 | Owner's answers: hotfix checks, `secretsStore.ts`, remote branches | done | Hotfix checks folded into `device-checks.md`; `secretsStore.ts` removed; four remote branches deleted after confirming they were in `origin/staging` |
 
 ## Setup
 
@@ -160,5 +160,5 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 
 Things that came up and aren't in this plan.
 
-- `docs/testing/hotfix-round-1.md`: the owner decides which checks still matter (C.5).
+- The Path finale ("Your journey") reads the old skill and stage data. Re-check it after phases 3a and 5, and add its device checks then.
 - One uncaught SQLite error on the first launch after installing the new dev client (`NativeDatabase.prepareAsync`: "Cannot use shared object that was already released"). It didn't come back in 3 cold starts. Watch for it; phase 2's new schema touches this code.
