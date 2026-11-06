@@ -63,6 +63,24 @@ Needs a new iPhone build (the keyboard library is native). Use a fresh install, 
 - [ ] **Skill guide (0.6).** You, Skill detail, Confidence: "What feeds it" no longer lists warm-ups, and says they aren't scored.
   Notes:
 
+## Phase 1: Signal Lab
+
+Needs a **new iPhone build** (it has the keyboard library, version 2.0.0) with the Whisper model downloaded (the app's transcription model). It must be a dev build. Do these in a quiet room, with the phone held the way you hold it for a take.
+
+1. Open **Dev, Labs, Signal Lab**. It should say "0 of 21 tests passed".
+2. Run **Capture check** first (1 minute). It tells us the recording path works on your phone. If it fails, stop and send me what it says.
+3. Run the **Voice** tests, then **Clarity**, then **Presence**. Each test shows its script and cues and counts you in. Read as written and don't skip steps; a test that goes wrong can just be run again. About 25 minutes in all, and you can do it over several sittings.
+   - Voice: Pitch variety, Pitch glide, Endings, Volume gain, Volume and distance, Emphasis, Word stress, Pauses, Pace. For Volume and distance, keep the phone still and use arm's length, then half that.
+   - Clarity: Fillers (say every um and uh aloud), Recognizer vs Whisper, Whisper speed.
+   - Presence: Looking, Glances, Your preview, Expression, Face events. Look where each cue says.
+4. The three **Content** tests are listed but blocked; they come with later phases.
+5. When you're done, tap **Copy results as JSON** on the Signal Lab home and paste it to me in the chat. If a test felt wrong (you misread, the room was noisy), add a note on its result first.
+6. Don't change anything under "Reading previews" yet; that is for after I've set the statuses.
+
+What I do with it: set each reading's status, tune the formulas the data shows to be off, and close Phase 1.
+
+Also, separately: the hosted judge eval (task 1.9) needs the server set up first (see the server setup section above).
+
 ## Phase 6: results flow
 
 Carried over from the hotfix round. These were fixes for gestures on the old screens, and they can come back when the screens are rebuilt.
