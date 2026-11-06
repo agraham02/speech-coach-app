@@ -218,7 +218,7 @@ describe("voice.endings", () => {
     const { t, words } = take(shapes);
     const f0Hz = t.features.f0Hz.slice();
     const end = words[4].endMs;
-    for (let i = 0; i < f0Hz.length; i++) if (t.features.offsetMs + i * t.features.hopMs > end - 500 && t.features.offsetMs + i * t.features.hopMs < end + 400) f0Hz[i] = 0;
+    for (let i = 0; i < f0Hz.length; i++) if (t.features.offsetMs + i * t.features.hopMs < end + 400) f0Hz[i] = 0;
     const o = run("endings", put(measure("endings.read", { ...t.features, f0Hz }, { words })));
     expect(o.numbers).toMatchObject({ sentencesFound: 10, sentencesScored: 9, right: 9 });
     expect(o.pass).toBe(true);

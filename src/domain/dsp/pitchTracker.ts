@@ -147,6 +147,8 @@ function semitones(v: number, ref: number): number {
 //    (real takes: "s" sounds at 15 to 23 semitones, up to 170 ms): dropped;
 //  - a short run nearer in is an octave error if folding lands it near the
 //    median: folded, otherwise left alone.
+export const BELOW_VOICE_DB = 25;
+
 export const FAR_RUNS = {
   // A step under this between frames keeps them in one run.
   stepSt: 3,
@@ -288,6 +290,17 @@ export function trackPitch(waveform: Float32Array, sampleRate: number, options: 
     const denom = a - 2 * b + c;
     const shift = denom > 0 ? (0.5 * (a - c)) / denom : 0;
     rawF0[f] = fs / (best + Math.max(-0.5, Math.min(0.5, shift)));
+  }
+
+  // A period found this far under the voice's own level isn't the voice. A quiet
+  // room has a hum, and on real takes it read as pitch at about half the voice just
+  // after a sentence ended (a question "ending" on 96 Hz, on frames Praat calls
+  // unvoiced), which turned rises into falls.
+  const voicedLevels: number[] = [];
+  for (let i = 0; i < frameCount; i++) if (rawF0[i] > 0) voicedLevels.push(levels[i]);
+  if (voicedLevels.length) {
+    const quietest = median(voicedLevels) - BELOW_VOICE_DB;
+    for (let i = 0; i < frameCount; i++) if (levels[i] < quietest) rawF0[i] = 0;
   }
 
   const voiced: number[] = [];

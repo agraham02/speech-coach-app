@@ -103,3 +103,16 @@ Every change to `PLAN.md` after it was agreed: what changed, why, and the owner'
 **Open: the Pitch variety bars.** The flat read is 3.0 semitones against "under 2.5", and pitch is found in 47% of its speech frames against 60%. Praat and SwiftF0 measure the same read at 3.3 and 3.0, and find 56% and 59%, so neither bar would pass with SwiftF0 either. Recommended: under 4 semitones and 45%. Waiting on the owner.
 
 **Owner's OK:** asked with this report.
+
+## D9. What the fresh run showed (2026-11-06)
+
+**Round 3 was a new recording, on code tuned on round 2.** Pitch glide, Emphasis, Pauses, Glances, Your preview and Face events held up. The tracker agreed with Praat 98.8 to 99.7% on the new audio. Three tests narrowly missed, which is what a fresh run is for:
+- **Looking:** notes read 83% against 85%. The notes were closer this time, 9 degrees down rather than 16. The head-down limit goes from 10 degrees to 7; your preview stays under 4.
+- **Expression:** a still face read 9.6 movements a minute against 8. The brows drifted to 0.48, against about 0.9 for a real lift. A movement now has to rise 0.2 from where the face was in the second before.
+- **Endings:** 7 of 9. Whisper's sentence ends were up to 1.6 s out, so the end is now found from the nearest pause. The tracker was also reading a room hum at the noise floor as pitch, about 300 ms after sentences ended, so pitch 25 dB under the voice's own level is now dropped. The window can reach back 600 ms for an ending that fades. 8 of 9 on both recordings. The one miss on round 3, "library.", really did rise; Praat agrees.
+
+**D8's recommendation for the bars was wrong.** The flat read came in at 4.7 semitones (Praat: 5.0), over the "under 4" I recommended. The same read has measured 3.0 and 4.7 on the same tracker, so an absolute bar mostly tests how flat the person read. New recommendation: the flat read under 60% of the lively one (31% and 50% so far), and pitch found in at least 45% of speech frames (47 to 63% so far; Praat 56 to 62%). The order check stays. These numbers were chosen after seeing the data, and it is the owner's call.
+
+**Tuned twice now.** The three fixes above were made on round 3, so they get one more short fresh run. A worklet must be defined before it is used, or it fails at runtime; a test caught it.
+
+**Owner's OK:** asked with this report.

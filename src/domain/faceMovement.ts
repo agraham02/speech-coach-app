@@ -39,6 +39,9 @@ export interface FaceMovement {
 
 // A movement has to hold this long to count.
 export const EVENT_HOLD_MS = 150;
+// And rise this far from where the face just was. A still face drifts: on a real
+// phone the brows crept to 0.48 and crossed the line, against 0.9 for a real lift.
+const BASE_WINDOW_MS = 1000;
 // From a face check, a peak has to be this far above rest to be believed (the
 // same line faceCalibration uses before it moves a cut-off).
 const MIN_PEAK_RISE = 0.2;
@@ -119,9 +122,16 @@ export function faceMovement(timeline: PresenceSample[], calibration: FaceCalibr
     const release = half - range * RELEASE_SHARE;
     const quarter = ref.rest + range / 4;
 
-    const state: { up: { from: number; durMs: number } | null } = { up: null };
+    const state: { up: { from: number; durMs: number; peak: number } | null } = { up: null };
+    const riseOf = (up: { from: number; peak: number }) => {
+      let base = up.peak;
+      for (let k = up.from; k >= 0 && timeline[up.from].tMs - timeline[k].tMs <= BASE_WINDOW_MS; k--) {
+        if (timeline[k].present) base = Math.min(base, read(timeline[k]));
+      }
+      return up.peak - base;
+    };
     const close = () => {
-      if (state.up && state.up.durMs >= EVENT_HOLD_MS) {
+      if (state.up && state.up.durMs >= EVENT_HOLD_MS && riseOf(state.up) >= MIN_PEAK_RISE) {
         events.push({ tMs: timeline[state.up.from].tMs, kind });
         counts[kind] += 1;
       }
@@ -137,10 +147,12 @@ export function faceMovement(timeline: PresenceSample[], calibration: FaceCalibr
       const v = read(s);
       if (v > quarter) aboveQuarter += 1;
       if (state.up) {
-        if (v >= release) state.up.durMs += dtAt(i);
-        else close();
+        if (v >= release) {
+          state.up.durMs += dtAt(i);
+          state.up.peak = Math.max(state.up.peak, v);
+        } else close();
       } else if (v > half) {
-        state.up = { from: i, durMs: dtAt(i) };
+        state.up = { from: i, durMs: dtAt(i), peak: v };
       }
     }
     close();

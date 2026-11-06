@@ -105,6 +105,14 @@ Round 2 is done. This is a fresh recording of the tests whose formulas changed, 
    - Looking: use real notes again, and for the ceiling step, keep looking up for the whole step.
 4. **Copy results as JSON** and paste it to me. Then **Share raw recordings** and replace `analysis_samples/tono-signal-lab-raw.tar`. Share only once every test is done.
 
+### Round 4
+
+A short fresh run of the three tests fixed after round 3. About 5 minutes. Don't clear anything, and don't redo the face check.
+
+1. Get the new code onto the phone: `npx eas update --channel preview --message "Signal Lab round 4"`, then fully close and reopen the app twice.
+2. Run: **Endings**, **Looking**, **Expression**. Skip the rest.
+3. **Share raw recordings** and replace `analysis_samples/tono-signal-lab-raw.tar`. That's all I need; the JSON no longer has to be pasted, because the recordings rebuild it.
+
 ## Phase 6: results flow
 
 Carried over from the hotfix round. These were fixes for gestures on the old screens, and they can come back when the screens are rebuilt.

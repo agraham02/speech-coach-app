@@ -24,11 +24,25 @@ describe("terminalSlope", () => {
     expect(terminalSlope(f, 1000)!).toBeLessThan(-3);
   });
 
-  it("runs on to the close of the voice when the word ended early", () => {
+  it("reads up to the pause when Whisper ended the word early", () => {
     // Level until 800 ms, then a rise Whisper's word end at 800 misses.
     const f = buildFeatures([{ ms: 1100, f0: (t) => (t < 800 ? 100 : 100 * 2 ** ((t - 800) / 400)) }, { ms: 500, kind: "pause" }]);
-    expect(terminalSlope(f, 800, { extendMs: 0 })!).toBeLessThan(3);
+    expect(terminalSlope(f, 800, { searchAheadMs: 0 })!).toBeLessThan(3);
     expect(terminalSlope(f, 800)!).toBeGreaterThanOrEqual(3);
+  });
+
+  it("reads back to the pause when Whisper ended the word at the next sentence", () => {
+    const f = buildFeatures([
+      { ms: 800, f0: (t) => 140 - t * 0.05 },
+      { ms: 500, kind: "pause" },
+      { ms: 800, f0: (t) => 100 + t * 0.1 },
+    ]);
+    expect(terminalSlope(f, 1320)!).toBeLessThan(-3);
+  });
+
+  it("uses Whisper's end when there is no pause near it", () => {
+    const f = buildFeatures([{ ms: 3000, f0: (t) => (t < 1500 ? 100 + t * 0.05 : 175 - (t - 1500) * 0.03) }]);
+    expect(terminalSlope(f, 1500)!).toBeGreaterThan(3);
   });
 
   it("copes with a transcript end that lands after the voice stops", () => {
@@ -36,8 +50,9 @@ describe("terminalSlope", () => {
     expect(terminalSlope(take.features, take.sentenceEndsMs[1] + 150)!).toBeGreaterThan(8);
   });
 
-  it("gives no slope when the voice stopped well before the end, or there is too little of it", () => {
-    expect(terminalSlope(take.features, take.sentenceEndsMs[0] + 500)).toBeNull();
+  it("gives no slope when the voice stopped long before the end, or there is too little of it", () => {
+    const longAgo = buildFeatures([{ ms: 600, f0: 120 }, { ms: 3000, kind: "pause" }]);
+    expect(terminalSlope(longAgo, 3000)).toBeNull();
     const brief = buildFeatures([{ ms: 100, kind: "pause" }, { ms: 60, f0: 120 }, { ms: 300, kind: "pause" }]);
     expect(terminalSlope(brief, 160)).toBeNull();
     expect(terminalSlope(brief, 20)).toBeNull();
@@ -48,7 +63,7 @@ describe("terminalSlope", () => {
     // Falls hard early, then holds level for the last 500 ms.
     const f = buildFeatures([{ ms: 1000, f0: (t) => (t < 500 ? 200 - t * 0.14 : 130) }]);
     expect(Math.abs(terminalSlope(f, 1000)!)).toBeLessThan(1);
-    expect(terminalSlope(f, 500, { windowMs: 300, extendMs: 0 })!).toBeLessThan(-8);
+    expect(terminalSlope(f, 500, { windowMs: 300, searchAheadMs: 0 })!).toBeLessThan(-8);
   });
 });
 
