@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Mode, ModelRole } from "./types.ts";
+import type { ModelRole } from "./types.ts";
 
 // The one JSON row in the `config` table. Everything a price, limit or model
 // change touches lives here, so changing any of it needs no app update and no
@@ -92,7 +92,6 @@ export const serverConfigSchema = z.object({
 
 export type ServerConfig = z.infer<typeof serverConfigSchema>;
 export type ModelPrice = z.infer<typeof price>;
-export type RoleModelConfig = z.infer<typeof roleModels>;
 export type Limits = z.infer<typeof limits>;
 
 // Used to seed the table. The model ids are pinned on purpose: the server
@@ -176,8 +175,4 @@ export function priceAt(price: ModelPrice, now: Date): Omit<ModelPrice, "next"> 
   if (!next) return current;
   const { from, ...later } = next;
   return now.toISOString().slice(0, 10) >= from ? later : current;
-}
-
-export function modeLabel(mode: Mode): string {
-  return mode === "beta" ? "beta" : "launch";
 }

@@ -1,5 +1,5 @@
 import type { TonoAllowance } from "../../../domain/aiAllowance";
-import { describeTonoError, needsPersonToAct, TonoApiError } from "../tonoError";
+import { describeTonoError, TonoApiError } from "../tonoError";
 import { describeCloudError } from "../../cloud/cloudErrors";
 
 const freeGone: TonoAllowance = { plan: "free", tier: "free", takesLeft: 0, takesTotal: 1, resetsAt: "2026-12-01T00:00:00.000Z", trialEndsAt: null };
@@ -38,18 +38,5 @@ describe("describeTonoError", () => {
   it("is what the pipeline shows for a Tono error", () => {
     const error = new TonoApiError(402, "quota_exhausted", undefined, freeGone);
     expect(describeCloudError(error)).toBe(describeTonoError(error));
-  });
-});
-
-describe("needsPersonToAct", () => {
-  it("is true when only the person can fix it", () => {
-    expect(needsPersonToAct(new TonoApiError(401, "signed_out"))).toBe(true);
-    expect(needsPersonToAct(new TonoApiError(402, "quota_exhausted"))).toBe(true);
-    expect(needsPersonToAct(new TonoApiError(429, "rate_limited"))).toBe(true);
-  });
-
-  it("is false for a switch that clears by itself, and for plain failures", () => {
-    expect(needsPersonToAct(new TonoApiError(503, "disabled"))).toBe(false);
-    expect(needsPersonToAct(new TonoApiError(502, "upstream_failed"))).toBe(false);
   });
 });

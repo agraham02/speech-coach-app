@@ -36,8 +36,6 @@ export const LAB_EXTRA_VOICES: PartnerVoiceOption[] = [
   { id: "Schedar", description: "Even" },
 ];
 
-export const DEFAULT_PARTNER_VOICE = "Achird";
-
 // "persona": each person in a conversation has their own voice (the scene
 // says which); otherwise one chosen voice for everyone.
 export type PartnerVoicePref = "persona" | string;
@@ -57,10 +55,4 @@ export const SPEED_STEPS = [0.85, 0.9, 0.95, 1, 1.05, 1.1, 1.15] as const;
 export function clampSpeed(speed: number): number {
   if (!Number.isFinite(speed)) return 1;
   return Math.round(Math.min(SPEED_MAX, Math.max(SPEED_MIN, speed)) * 100) / 100;
-}
-
-export function speedLabel(speed: number): string {
-  const s = clampSpeed(speed);
-  if (s === 1) return "Normal";
-  return s < 1 ? `${Math.round((1 - s) * 100)}% slower` : `${Math.round((s - 1) * 100)}% faster`;
 }

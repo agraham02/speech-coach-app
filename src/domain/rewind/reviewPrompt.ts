@@ -45,8 +45,6 @@ export const rewindModelSchema = z.object({
   tryTomorrow: z.string(),
 });
 
-export type RewindModelOutput = z.infer<typeof rewindModelSchema>;
-
 export const DAY_PARTS: DayPart[] = ["morning", "midday", "evening"];
 
 // "All three parts of your day came up..." and what didn't, in words the

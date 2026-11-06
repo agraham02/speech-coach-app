@@ -79,8 +79,6 @@ export function converseRequestSchema(limits: Limits, voices: readonly string[])
   ]);
 }
 
-export type ConverseRequest = z.infer<ReturnType<typeof converseRequestSchema>>;
-
 export function uploadStartSchema(limits: Limits) {
   return z.object({
     sizeBytes: z.number().int().positive().max(limits.maxUploadBytes),

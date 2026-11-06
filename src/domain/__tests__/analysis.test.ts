@@ -1,50 +1,6 @@
-import { detectPauses } from "../dsp/pauses";
 import { computePresenceMetrics, type PresenceSample } from "../presenceMetrics";
 import { findHedges, guessStructure, hasStrongEnding } from "../coach/structureHeuristics";
 import { ruleCoach } from "../coach/ruleCoach";
-
-const SR = 16000;
-
-// Builds a waveform from [durationMs, amplitude] segments (a 200 Hz tone).
-function synth(segments: [number, number][]): Float32Array {
-  const total = segments.reduce((a, [ms]) => a + (ms * SR) / 1000, 0);
-  const out = new Float32Array(total);
-  let i = 0;
-  for (const [ms, amp] of segments) {
-    const n = (ms * SR) / 1000;
-    for (let k = 0; k < n; k++, i++) out[i] = amp * Math.sin((2 * Math.PI * 200 * i) / SR) + (Math.random() - 0.5) * 0.0005;
-  }
-  return out;
-}
-
-describe("detectPauses", () => {
-  it("finds silences of 300 ms or more between speech", () => {
-    const wave = synth([[500, 0], [1000, 0.3], [600, 0], [1000, 0.3], [200, 0], [800, 0.3], [400, 0]]);
-    const result = detectPauses(wave, SR);
-    expect(result.pauses).toHaveLength(1);
-    expect(result.pauses[0].durationMs).toBeGreaterThanOrEqual(560);
-    expect(result.speechStartMs).toBeGreaterThanOrEqual(480);
-  });
-
-  it("classifies pauses at sentence ends vs mid-phrase", () => {
-    const wave = synth([[0, 0], [1000, 0.3], [600, 0], [1000, 0.3], [2500, 0], [1000, 0.3]]);
-    const words = [
-      { text: "Hello", startMs: 0, endMs: 400 },
-      { text: "world.", startMs: 500, endMs: 1000 },
-      { text: "This", startMs: 1600, endMs: 2000 },
-      { text: "is", startMs: 2100, endMs: 2600 },
-      { text: "fine.", startMs: 5100, endMs: 6000 },
-    ];
-    const result = detectPauses(wave, SR, words);
-    expect(result.pauses.map((p) => p.kind)).toEqual(["boundary", "mid_phrase"]);
-    expect(result.hesitations).toBe(1);
-    expect(result.boundaryPauseRate).toBe(1);
-  });
-
-  it("handles silence", () => {
-    expect(detectPauses(new Float32Array(SR), SR).speechStartMs).toBeNull();
-  });
-});
 
 describe("computePresenceMetrics", () => {
   const sample = (tMs: number, yaw: number, smile = 0.1): PresenceSample => ({

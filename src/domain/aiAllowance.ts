@@ -31,9 +31,6 @@ export interface TonoAllowance {
 
 export type DenyReason = "quota_exhausted" | "plus_required" | "plus_cost_cap" | "budget_paused" | "rate_limited" | "disabled";
 
-// What can be done next. Shown in this order.
-export type NextStep = "start_trial" | "get_plus" | "wait";
-
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 // "1 November". UTC, because the counts refill at midnight UTC on the 1st.
@@ -123,23 +120,6 @@ export function denialMessage(reason: DenyReason, a: TonoAllowance | null): stri
       return "That's a lot of judged takes for one day. Try again tomorrow.";
     case "disabled":
       return "Tono AI is switched off for a moment. Try again soon.";
-  }
-}
-
-// What to offer after a refusal. Someone without Plus can start the trial
-// (when the App Store says they still can) or buy Plus; a subscriber can only
-// wait for the refill.
-export function nextSteps(reason: DenyReason, plan: AllowancePlan, trialAvailable: boolean): NextStep[] {
-  const upgrade: NextStep[] = plan === "free" ? [trialAvailable ? "start_trial" : "get_plus"] : [];
-  switch (reason) {
-    case "quota_exhausted":
-    case "plus_required":
-    case "budget_paused":
-      return upgrade;
-    case "plus_cost_cap":
-    case "rate_limited":
-    case "disabled":
-      return ["wait"];
   }
 }
 

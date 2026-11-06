@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useEvent } from "expo";
@@ -74,7 +74,7 @@ export function ThreePassPlayer({
   });
   const { isPlaying } = useEvent(player, "playingChange", { isPlaying: player.playing });
   // Re-renders once the video has loaded, so the scrubber learns its length.
-  const { status } = useEvent(player, "statusChange", { status: player.status });
+  useEvent(player, "statusChange", { status: player.status });
   useEffect(() => setSeekedMs(null), [currentTime]);
 
   useEffect(() => {

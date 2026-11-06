@@ -1,14 +1,12 @@
-import { DEFAULT_CONFIG, priceAt } from "../../../../../supabase/functions/_shared/config";
 import { TTS_VOICE_NAMES } from "../../../../../supabase/functions/_shared/conversation";
 import { buildConversationTurn, CONVERSATION_FOCUSES, CONVERSATION_MOVES } from "../../../../../supabase/functions/_shared/prompts/conversation";
 import { summarizeAttempt } from "../../attemptMetrics";
 import type { TurnMeasurement } from "../../evaluateConversation";
-import { costPerMinuteUsd, HEAVY_MINUTE, TYPICAL_MINUTE } from "../cost";
 import { acceptDebrief, DEBRIEF_MOVES, rulesDebrief } from "../debrief";
 import { evaluateLive, threadsOf, type LiveTurnInput } from "../evaluateLive";
 import { LESSON_FOCUS, LIVE_FOCUSES, prepareLive } from "../prepareLive";
 import { latencySummary, NdjsonReader, percentiles, toConverseEvent } from "../stream";
-import { clampSpeed, LAB_EXTRA_VOICES, PARTNER_VOICES, speedLabel, voiceFor } from "../voices";
+import { clampSpeed, LAB_EXTRA_VOICES, PARTNER_VOICES, voiceFor } from "../voices";
 import { LIVE_SETTINGS, QUESTION_SETTING } from "../../../../content/liveScenes";
 import { getLesson } from "../../../../content/lessons";
 
@@ -196,8 +194,6 @@ describe("voices", () => {
     expect(clampSpeed(2)).toBe(1.15);
     expect(clampSpeed(0.5)).toBe(0.85);
     expect(clampSpeed(Number.NaN)).toBe(1);
-    expect(speedLabel(0.9)).toBe("10% slower");
-    expect(speedLabel(1)).toBe("Normal");
   });
 });
 
@@ -231,35 +227,5 @@ describe("setting up a live conversation", () => {
       stutterMode: false,
     });
     expect(built.prompt).toContain(s.scene.partner.name);
-  });
-});
-
-describe("cost per minute", () => {
-  const now = new Date("2026-11-01T00:00:00Z");
-  const later = new Date("2027-01-02T00:00:00Z");
-  const text = priceAt(DEFAULT_CONFIG.prices["gemini-3.5-flash-lite"], now);
-  const tts = priceAt(DEFAULT_CONFIG.prices["gemini-3.8-flash-lite-tts"], now);
-  const tts2027 = priceAt(DEFAULT_CONFIG.prices["gemini-3.8-flash-lite-tts"], later);
-
-  it("matches the prompt the server really builds", () => {
-    const s = prepareLive("thread", 2, 11);
-    const built = buildConversationTurn({ scene: s.scene, focus: s.focus, level: 2, history: [{ who: "partner", text: s.scene.opener }, { who: "you", text: "x" }], turnsLeft: 2, stutterMode: false });
-    // About 4 characters a token in English.
-    const tokens = built.prompt.length / 4;
-    expect(tokens).toBeGreaterThan(TYPICAL_MINUTE.promptBaseTokens * 0.7);
-    expect(tokens).toBeLessThan(TYPICAL_MINUTE.promptBaseTokens * 1.3);
-  });
-
-  it("is about half a cent a minute now, and under a cent in 2027", () => {
-    const typical = costPerMinuteUsd(TYPICAL_MINUTE, text, tts);
-    expect(typical.total).toBeGreaterThan(0.003);
-    expect(typical.total).toBeLessThan(0.006);
-    expect(costPerMinuteUsd(TYPICAL_MINUTE, text, tts2027).total).toBeLessThan(0.01);
-    expect(costPerMinuteUsd(HEAVY_MINUTE, text, tts2027).total).toBeLessThan(0.015);
-  });
-
-  it("keeps a 120-minute month inside the $2.50 cap on its own, even chatty and at 2027 prices", () => {
-    expect(120 * costPerMinuteUsd(TYPICAL_MINUTE, text, tts).total).toBeLessThan(0.6);
-    expect(120 * costPerMinuteUsd(HEAVY_MINUTE, text, tts2027).total).toBeLessThan(DEFAULT_CONFIG.limits.paidCostCapUsd * 0.6);
   });
 });

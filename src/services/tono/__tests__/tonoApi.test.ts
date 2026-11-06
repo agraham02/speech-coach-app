@@ -7,7 +7,7 @@ jest.mock("../../account/supabaseClient", () => ({ getSupabase: () => ({ auth: {
 const mockFetch = jest.fn();
 jest.mock("../../../utils/fetchWithTimeout", () => ({ fetchWithTimeout: (...args: unknown[]) => mockFetch(...args) }));
 
-import { isDenyCode, onAllowance, tonoGenerate, tonoMe, TonoApiError } from "../tonoApi";
+import { onAllowance, tonoGenerate, tonoMe, TonoApiError } from "../tonoApi";
 
 const allowance: TonoAllowance = { plan: "free", tier: "free", takesLeft: 1, takesTotal: 1, resetsAt: "2026-12-01T00:00:00.000Z", trialEndsAt: null };
 
@@ -73,13 +73,5 @@ describe("tonoApi", () => {
   it("copes with a body that is not JSON", async () => {
     mockFetch.mockResolvedValue({ ok: false, status: 502, text: async () => "<html>bad gateway</html>" });
     await expect(tonoMe()).rejects.toMatchObject({ status: 502, code: "http_502" });
-  });
-});
-
-describe("isDenyCode", () => {
-  it("knows the refusals that need the person to act", () => {
-    expect(isDenyCode("quota_exhausted")).toBe(true);
-    expect(isDenyCode("plus_cost_cap")).toBe(true);
-    expect(isDenyCode("upstream_failed")).toBe(false);
   });
 });

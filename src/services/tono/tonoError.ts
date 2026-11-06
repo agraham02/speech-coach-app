@@ -1,4 +1,4 @@
-import { denialMessage, isActionNeeded, type DenyReason, type TonoAllowance } from "../../domain/aiAllowance";
+import { denialMessage, type DenyReason, type TonoAllowance } from "../../domain/aiAllowance";
 
 // Kept apart from tonoApi.ts so the pipeline's error wording can use it
 // without loading the whole Supabase client.
@@ -19,15 +19,8 @@ export class TonoApiError extends Error {
 
 const DENY_CODES: readonly string[] = ["quota_exhausted", "plus_required", "plus_cost_cap", "budget_paused", "rate_limited", "disabled"];
 
-export function isDenyCode(code: string): code is DenyReason {
+function isDenyCode(code: string): code is DenyReason {
   return DENY_CODES.includes(code);
-}
-
-// True when retrying by itself would change nothing and the person has to act
-// (wait for the refill, or start Tono Plus).
-export function needsPersonToAct(error: TonoApiError): boolean {
-  if (error.code === "signed_out" || error.code === "sign_in_required") return true;
-  return isDenyCode(error.code) && isActionNeeded(error.code);
 }
 
 // A failed Tono AI call, worded for the person who has to fix it.
