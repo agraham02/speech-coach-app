@@ -1,3 +1,4 @@
+import type { FaceCalibration } from "../faceCalibration";
 import type { AudioFeatures } from "../dsp/audioFeatures";
 import type { VoiceLabSummary } from "../dev/voiceLab";
 import type { PresenceSample } from "../presenceMetrics";
@@ -78,6 +79,9 @@ export interface StepMeasure {
   words?: TranscriptWord[];
   // The face timeline, for face and face_take steps.
   face?: PresenceSample[];
+  // The face check this person did, if any. Real takes are scored through it,
+  // so the tests are too.
+  faceCalibration?: FaceCalibration | null;
   // The face's width as a share of the frame, averaged over the step. Moving
   // closer makes this larger, which is how the distance test corrects.
   faceWidth?: number;

@@ -42,8 +42,10 @@ export const EVENT_HOLD_MS = 150;
 // From a face check, a peak has to be this far above rest to be believed (the
 // same line faceCalibration uses before it moves a cut-off).
 const MIN_PEAK_RISE = 0.2;
-// With only the take to go on, a range smaller than this is jitter.
-const MIN_TAKE_RANGE = 0.1;
+// With only the take to go on, a range smaller than this is jitter. At 0.1 a
+// still face read 51 brow lifts a minute on a real phone; this is the face
+// check's own line for a movement it believes.
+const MIN_TAKE_RANGE = MIN_PEAK_RISE;
 // Once up, an event ends when the value falls this share of the range below
 // the halfway line, so detection jitter on the line doesn't count it twice.
 const RELEASE_SHARE = 0.1;

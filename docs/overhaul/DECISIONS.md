@@ -59,3 +59,27 @@ Every change to `PLAN.md` after it was agreed: what changed, why, and the owner'
 **Why:** the tests needed the same capture and formulas as real features, which Signal Lab does itself. Nothing the old labs measured is missing from it.
 
 **Owner's OK:** not asked; say so if you want the old rows removed.
+
+## D7. What Signal Lab's first iPhone run changed (2026-11-06)
+
+**Found:** three of the failures were bugs in how the numbers were made, not limits of the phone.
+- A held sound was measured against itself. The noise floor is the take's 10th percentile, which in a 10 s "ahhh" is the voice, so the pitch tracker skipped nearly every frame (0.2 s found). Reproduced in a test; fixed for takes with no quiet in them, and other takes are unchanged.
+- Whisper puts the first word at the top of the clip, whatever is there. In the older exports the first word starts at about 0 ms and the voice 650 to 730 ms later in two of the three; the pace test's 7% is a 3 s lead-in, and in the word stress test the strongest word was later than the target in all six misses. `dsp/wordAlign.ts` now lines the words up with the voice.
+- The stand-out score used each take's own z scores, which rescale every take to the same spread, so it couldn't see a take reaching further. It now measures in real units (2 semitones, 3 dB and 100 ms are one step).
+
+**Changed in real takes, not only in the lab:** pace, pauses and prosody read the lined-up words, so a take's words a minute rises a little wherever there was a lead-in. Speaking rate already counted, and it was reading low. The stored transcript keeps Whisper's times.
+
+**Changed in the tests:**
+- Endings: right means statements not rising and questions rising, which is what the plan's leaf measures ("statements not rising at the end"). An ending with no pitch to read is left out. **This makes the test easier to pass:** round 1 would have scored 8 of 9 instead of 7 of 10. The bar stays 80%.
+- Pauses: decided on the energy gate plus Whisper's gaps, the plan's listed fallback.
+- Expression: decided on brow lifts and smiles a minute, the plan's formula and its listed fallback. The take-only range needed to count a movement went from 0.1 to 0.2, since a still face read 51 brow lifts a minute.
+- Presence tests now use the face check when there is one, as real takes do. They didn't, so round 1's Looking numbers may not match what a real take would score.
+- Long look-aways also wait for Looking: a look down at notes that reads as looking is never counted.
+
+**Statuses:** Volume carry is promoted: 19.7 dB from quiet to loud, and 6 dB coming closer with 0.2 dB left after the face-size correction. So gain control isn't flattening it, and the take audio-session experiment isn't needed. It is one run on one phone; the plan's second-device check still stands. Nothing else moves until round 2, because the code changed under it.
+
+**Not changed, waiting on round 2's recordings:** the pitch variety bars. Today's SD can't separate flat from lively (3.39, 3.3, 3.43), apparently because a few far-out frames inflate it, while the range does (3.7, 6.8, 8.9). The flat bar (under 2.5 semitones) and pitch found (60%) also missed. Whether that is the tracker or the bars needs a reference tool on the real audio, so the recommendation comes after that. SwiftF0 stays unbuilt until then. The eye contact cut-offs wait too: notes read as looking 99% of the time and the ceiling 40%, and the run kept no gaze values to tune from.
+
+**Added:** Signal Lab now keeps each test's latest audio and tracks and can share them as one file, so tuning doesn't need more recording.
+
+**Owner's OK:** asked with the round 1 report. The endings change is the one to look at.

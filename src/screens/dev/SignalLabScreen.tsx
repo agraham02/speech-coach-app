@@ -12,6 +12,7 @@ import { useToast } from "../../components/common/ToastProvider";
 import { exportContext } from "../../services/dev/devInfo";
 import { getAllSessions } from "../../services/db/sessionsRepo";
 import { refreshSessionScore } from "../../services/sessions/sessionScoreService";
+import { clearRawData, shareRawBundle } from "../../services/dev/signalLab/rawData";
 import { clearLabResults, getLabResults, getReadingPreview, setReadingPreview } from "../../services/dev/signalLabStore";
 import { LAB_GROUP_LABELS, type LabGroup, type LabStatus } from "../../domain/signalLab/types";
 import { LAB_TESTS, labTestsIn } from "../../domain/signalLab/registry";
@@ -45,6 +46,7 @@ export function SignalLabScreen() {
   const [results, setResults] = useState<LabResults>(() => getLabResults());
   const [preview, setPreview] = useState<ReadingPreview>(() => getReadingPreview());
   const [rescoring, setRescoring] = useState(false);
+  const [sharingRaw, setSharingRaw] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -79,6 +81,19 @@ export function SignalLabScreen() {
 
   function exportInput() {
     return buildSignalLabExport({ context: exportContext(), entries: LAB_TESTS, results, preview });
+  }
+
+  // Every test's latest recordings and tracks, as one file to send to a computer.
+  async function shareRaw() {
+    setSharingRaw(true);
+    try {
+      const shared = await shareRawBundle();
+      if (!shared) showToast("No recordings yet: run a test first.", "info");
+    } catch (error) {
+      showToast(`Couldn't pack the recordings: ${(error as Error).message}`, "error");
+    } finally {
+      setSharingRaw(false);
+    }
   }
 
   async function copy() {
@@ -157,11 +172,13 @@ export function SignalLabScreen() {
       <View style={styles.actions}>
         <PrimaryButton label="Copy results as JSON" onPress={copy} />
         <PrimaryButton label="Share as a file" variant="ghost" onPress={() => shareJsonFile(exportFileName("signal-lab"), exportInput())} />
+        <PrimaryButton label={sharingRaw ? "Packing recordings…" : "Share raw recordings"} variant="ghost" disabled={sharingRaw} onPress={shareRaw} />
         <PrimaryButton
           label="Clear saved runs"
           variant="ghost"
           onPress={() => {
             clearLabResults();
+            clearRawData();
             setResults({});
             showToast("Saved runs cleared.", "success");
           }}

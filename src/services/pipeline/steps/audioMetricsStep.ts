@@ -6,6 +6,7 @@ import { computeWpmCurve } from "../../../domain/wpmCurve";
 import { StepError } from "../stepRunner";
 import { putArtifact } from "../../db/artifactsRepo";
 import { pausesFromFeatures } from "../../../domain/dsp/pauses";
+import { alignWordsToSpeech } from "../../../domain/dsp/wordAlign";
 import {
   audioQualityReasons,
   bucketSeries,
@@ -54,13 +55,15 @@ export async function audioMetricsStep(sessionId: string): Promise<void> {
 // (services/dev/seedDemo.ts), which hand it synthetic frames.
 export async function recordAudioAnalysis(session: Session, run: ExtractionRun | null, decoded: boolean): Promise<void> {
   const sessionId = session.id;
-  const words = session.transcriptWords;
+  const features = run?.features ?? null;
+  // Whisper's times lined up with the voice, for everything timed below. The
+  // stored transcript keeps its own.
+  const words = features ? alignWordsToSpeech(session.transcriptWords, features) : session.transcriptWords;
   const verbatim = session.transcriptVerbatim;
   const fillers = verbatim ? computeFillerStats(verbatim, session.durationSeconds) : null;
   const repeated = words && words.length > 0 ? detectRepeatedWordsFromWords(words) : verbatim ? detectRepeatedWordsFromText(verbatim) : null;
   // Deleted while it was being measured (in the undo window): record nothing.
   if (!(await isSessionLive(sessionId))) return;
-  const features = run?.features ?? null;
   const pauses = features ? pausesFromFeatures(features, words) : null;
   const pitch = features ? pitchStatsOf(features) : null;
   const loudness = features ? loudnessStatsOf(features) : null;

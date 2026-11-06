@@ -44,6 +44,16 @@ describe("scoreSyllablePeaks", () => {
     expect(b.standOut! - a.standOut!).toBeGreaterThanOrEqual(0.5);
   });
 
+  it("sees a take reaching further, which a take's own z scores can't", () => {
+    const small = stressedSentence(passage, [3, 12, 21, 28, 35], { loudDb: 2, pitchSt: 1 });
+    const large = stressedSentence(passage, [3, 12, 21, 28, 35], { loudDb: 8, pitchSt: 4 });
+    const a = scoreSyllablePeaks(small.features, small.words);
+    const b = scoreSyllablePeaks(large.features, large.words);
+    expect(b.standOut!).toBeGreaterThan(a.standOut! + 0.5);
+    expect(b.standOutCues.loudDb!).toBeGreaterThan(a.standOutCues.loudDb!);
+    expect(b.standOutCues.pitchSt!).toBeGreaterThan(a.standOutCues.pitchSt!);
+  });
+
   it("reports how many strong peaks land on content words", () => {
     const alt = Array.from({ length: 20 }, (_, k) => (k % 2 ? "money" : "the"));
     const onContent = stressedSentence(alt, [1, 5, 9, 13]);

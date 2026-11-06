@@ -1,8 +1,9 @@
 import { SETTLE_MS } from "../dev/faceLab";
+import { calibratedThresholds, normalizeTimeline, type FaceCalibration } from "../faceCalibration";
 import { faceMovement, type FaceEventKind } from "../faceMovement";
 import { groupLooks } from "../lookGroups";
-import { classifyLook, computePresenceMetrics, type PresenceSample } from "../presenceMetrics";
-import type { LabCheck, LabOutcome, LabStep, LabTestEntry, StepMeasures } from "./types";
+import { classifyLook, computePresenceMetrics, DEFAULT_PRESENCE_THRESHOLDS, type PresenceSample, type PresenceThresholds } from "../presenceMetrics";
+import type { LabCheck, LabOutcome, LabStep, LabTestEntry, StepMeasure, StepMeasures } from "./types";
 
 // The Presence tests (docs/overhaul/PLAN.md, section 6.5, the "Presence" rows
 // of the test table). Each entry is a definition plus a pure evaluator; the
@@ -34,12 +35,59 @@ function settled(face: PresenceSample[] | undefined): PresenceSample[] | null {
   return rest.length >= MIN_SAMPLES ? rest : null;
 }
 
+// A step's settled face the way a real take is scored: measured from the
+// person's own centre, with their cut-offs, when they have done the face check.
+interface Scorable {
+  face: PresenceSample[];
+  thresholds: PresenceThresholds;
+  calibration: FaceCalibration | null;
+}
+
+function scorable(m: StepMeasure | undefined): Scorable | null {
+  const face = settled(m?.face);
+  if (!face) return null;
+  const calibration = m?.faceCalibration ?? null;
+  return calibration
+    ? { face: normalizeTimeline(face, calibration), thresholds: calibratedThresholds(calibration), calibration }
+    : { face, thresholds: DEFAULT_PRESENCE_THRESHOLDS, calibration: null };
+}
+
 // The plain per-sample figure: how many samples classifyLook calls looking.
 // A missing face is not looking.
-function lookingPercent(face: PresenceSample[]): number {
+function lookingPercent({ face, thresholds }: Scorable): number {
   const hasGaze = face.some((s) => s.present && s.gazeX !== undefined);
-  const looking = face.filter((s) => classifyLook(s, undefined, hasGaze).looking).length;
+  const looking = face.filter((s) => classifyLook(s, thresholds, hasGaze).looking).length;
   return (looking / face.length) * 100;
+}
+
+// Where the eyes and head sat during a step, as the cut-offs see them, for
+// tuning them. Rounded, 10th percentile, median, 90th.
+function lookShape(prefix: string, { face }: Scorable): LabOutcome["numbers"] {
+  const present = face.filter((s) => s.present);
+  const at = (values: number[], p: number) => {
+    const sorted = [...values].sort((a, b) => a - b);
+    return Math.round(sorted[Math.floor((sorted.length - 1) * p)] * 100) / 100;
+  };
+  const out: LabOutcome["numbers"] = {};
+  const channels: [string, number[]][] = [
+    ["gazeY", present.map((s) => s.gazeY ?? 0)],
+    ["gazeX", present.map((s) => s.gazeX ?? 0)],
+    ["headPitch", present.map((s) => s.pitch)],
+    ["headYaw", present.map((s) => s.yaw)],
+    ["eyesOpen", present.map((s) => s.eyesOpen)],
+  ];
+  if (present.length === 0) return out;
+  for (const [name, values] of channels) {
+    out[`${prefix}_${name}_p10`] = at(values, 0.1);
+    out[`${prefix}_${name}_p50`] = at(values, 0.5);
+    out[`${prefix}_${name}_p90`] = at(values, 0.9);
+  }
+  return out;
+}
+
+function calibrationNumbers(calibration: FaceCalibration | null): LabOutcome["numbers"] {
+  if (!calibration) return { calibrated: false };
+  return { calibrated: true, centerGazeY: calibration.center.gazeY, centerGazeX: calibration.center.gazeX, centerPitch: calibration.center.pitch, centerYaw: calibration.center.yaw };
 }
 
 // false as soon as one required check fails; null while any is undecided;
@@ -68,17 +116,18 @@ function evaluateLooking(measures: StepMeasures): LabOutcome {
   const checks: LabCheck[] = [];
   const numbers: LabOutcome["numbers"] = {};
   for (const step of LOOKING_STEPS) {
-    const face = settled(measures[step.id]?.face);
-    if (!face) {
+    const data = scorable(measures[step.id]);
+    if (!data) {
       checks.push(notCaptured(step.label, bar));
       numbers[`${step.id}RightPercent`] = null;
       numbers[`${step.id}Samples`] = 0;
       continue;
     }
-    const looking = lookingPercent(face);
+    const looking = lookingPercent(data);
     const right = step.expectLooking ? looking : 100 - looking;
     numbers[`${step.id}RightPercent`] = round1(right);
-    numbers[`${step.id}Samples`] = face.length;
+    numbers[`${step.id}Samples`] = data.face.length;
+    Object.assign(numbers, lookShape(step.id, data), calibrationNumbers(data.calibration));
     checks.push({
       label: step.label,
       value: `${pctText(right)} right (read as ${step.expectLooking ? "looking" : "not looking"})`,
@@ -108,8 +157,8 @@ function evaluateGlances(measures: StepMeasures): LabOutcome {
   const numbers: LabOutcome["numbers"] = {};
 
   const shortBar = `at least ${GLANCE_ON_LENS_BAR}% on the lens, short glances forgiven`;
-  const shortFace = settled(measures.short?.face);
-  const shortGroups = shortFace ? groupLooks(shortFace) : null;
+  const shortData = scorable(measures.short);
+  const shortGroups = shortData ? groupLooks(shortData.face, { thresholds: shortData.thresholds }) : null;
   if (!shortGroups || shortGroups.onLensPercentSpeaking === null) {
     const c = notCaptured("Short glances: on the lens", shortBar);
     checks.push(c);
@@ -137,8 +186,8 @@ function evaluateGlances(measures: StepMeasures): LabOutcome {
   }
 
   const longBar = "exactly one long look-away counted";
-  const longFace = settled(measures.long?.face);
-  const longGroups = longFace ? groupLooks(longFace) : null;
+  const longData = scorable(measures.long);
+  const longGroups = longData ? groupLooks(longData.face, { thresholds: longData.thresholds }) : null;
   if (!longGroups) {
     const c = notCaptured("Long look-away: counted", longBar);
     checks.push(c);
@@ -185,10 +234,12 @@ function evaluatePreview(measures: StepMeasures): LabOutcome {
   const numbers: LabOutcome["numbers"] = {};
   const lensBar = `at least ${LOOKING_BAR}% looking`;
 
-  const lens = settled(measures.lens?.face);
-  const preview = settled(measures.preview?.face);
+  const lens = scorable(measures.lens);
+  const preview = scorable(measures.preview);
   const lensPct = lens ? lookingPercent(lens) : null;
   const previewPct = preview ? lookingPercent(preview) : null;
+  if (lens) Object.assign(numbers, lookShape("lens", lens), calibrationNumbers(lens.calibration));
+  if (preview) Object.assign(numbers, lookShape("preview", preview));
 
   if (lensPct === null) {
     const c = notCaptured("At the lens: looking", lensBar);
@@ -241,46 +292,63 @@ function evaluateExpression(measures: StepMeasures): LabOutcome {
   const checks: LabCheck[] = [];
   const required: LabCheck[] = [];
   const numbers: LabOutcome["numbers"] = {};
-  const stillBar = `${STILL_MAX} or less (near zero)`;
+  const stillBar = `${STILL_MAX} or fewer a minute (near zero)`;
   const animatedBar = "at least double the still face, and above zero";
 
-  const stillFace = settled(measures.still?.face);
-  const animatedFace = settled(measures.animated?.face);
-  const still = stillFace ? computePresenceMetrics(stillFace) : null;
-  const animated = animatedFace ? computePresenceMetrics(animatedFace) : null;
-  const stillMove = stillFace ? faceMovement(stillFace, null) : null;
-  const animatedMove = animatedFace ? faceMovement(animatedFace, null) : null;
+  // The plan's formula: brow lifts and smiles a minute against your own face.
+  // Today's expressiveness (variation times 600) is shown beside it.
+  const stillData = scorable(measures.still);
+  const animatedData = scorable(measures.animated);
+  const still = stillData ? computePresenceMetrics(stillData.face, stillData.thresholds) : null;
+  const animated = animatedData ? computePresenceMetrics(animatedData.face, animatedData.thresholds) : null;
+  const stillRaw = settled(measures.still?.face);
+  const animatedRaw = settled(measures.animated?.face);
+  const stillMove = stillRaw ? faceMovement(stillRaw, stillData?.calibration ?? null) : null;
+  const animatedMove = animatedRaw ? faceMovement(animatedRaw, animatedData?.calibration ?? null) : null;
+  const movesOf = (m: typeof stillMove) => (m ? round1(m.browLiftsPerMinute + m.smilesPerMinute) : null);
+  const stillMoves = movesOf(stillMove);
+  const animatedMoves = movesOf(animatedMove);
 
-  if (!still) {
-    const c = notCaptured("Still face: expressiveness", stillBar);
+  if (stillMoves === null) {
+    const c = notCaptured("Still face: brow lifts and smiles", stillBar);
     checks.push(c);
     required.push(c);
   } else {
-    const c: LabCheck = { label: "Still face: expressiveness", value: String(still.expressiveness), pass: still.expressiveness <= STILL_MAX, bar: stillBar };
+    const c: LabCheck = { label: "Still face: brow lifts and smiles", value: `${stillMoves} a minute`, pass: stillMoves <= STILL_MAX, bar: stillBar };
     checks.push(c);
     required.push(c);
   }
-  if (!animated) {
-    const c = notCaptured("Animated face: expressiveness", animatedBar);
+  if (animatedMoves === null) {
+    const c = notCaptured("Animated face: brow lifts and smiles", animatedBar);
     checks.push(c);
     required.push(c);
-  } else if (still) {
+  } else if (stillMoves !== null) {
     const c: LabCheck = {
-      label: "Animated face: expressiveness",
-      value: `${animated.expressiveness} (${still.expressiveness > 0 ? `${round1(animated.expressiveness / still.expressiveness)}x the still face` : "still face at zero"})`,
-      pass: animated.expressiveness > 0 && animated.expressiveness >= 2 * still.expressiveness,
+      label: "Animated face: brow lifts and smiles",
+      value: `${animatedMoves} a minute (${stillMoves > 0 ? `${round1(animatedMoves / stillMoves)}x the still face` : "still face at zero"})`,
+      pass: animatedMoves > 0 && animatedMoves >= 2 * stillMoves,
       bar: animatedBar,
     };
     checks.push(c);
     required.push(c);
   } else {
-    checks.push({ label: "Animated face: expressiveness", value: String(animated.expressiveness), pass: null, bar: animatedBar });
-    required.push({ label: "Animated face: expressiveness", value: String(animated.expressiveness), pass: null, bar: animatedBar });
+    const c: LabCheck = { label: "Animated face: brow lifts and smiles", value: `${animatedMoves} a minute`, pass: null, bar: animatedBar };
+    checks.push(c);
+    required.push({ ...c });
   }
+  if (still && animated) checks.push({ label: "Today's expressiveness, still and animated", value: `${still.expressiveness} and ${animated.expressiveness}`, pass: null });
   if (stillMove && animatedMove) {
-    checks.push({ label: "Motion index against your own range (candidate formula)", value: `still ${stillMove.motionIndex}, animated ${animatedMove.motionIndex}`, pass: null });
+    checks.push({ label: "Motion index, still and animated", value: `${stillMove.motionIndex} and ${animatedMove.motionIndex}`, pass: null });
+    const range = (r: { rest: number; peak: number; source: string; usable: boolean }) => `${Math.round((r.peak - r.rest) * 100) / 100} from the ${r.source}${r.usable ? "" : ", too small to count"}`;
+    numbers.stillBrowRange = range(stillMove.reference.brow);
+    numbers.stillSmileRange = range(stillMove.reference.smile);
+    numbers.animatedBrowRange = range(animatedMove.reference.brow);
+    numbers.animatedSmileRange = range(animatedMove.reference.smile);
   }
 
+  Object.assign(numbers, calibrationNumbers(stillData?.calibration ?? null));
+  numbers.stillMovesPerMinute = stillMoves;
+  numbers.animatedMovesPerMinute = animatedMoves;
   numbers.stillExpressiveness = still ? still.expressiveness : null;
   numbers.animatedExpressiveness = animated ? animated.expressiveness : null;
   numbers.expressivenessRatio = still && animated && still.expressiveness > 0 ? round1(animated.expressiveness / still.expressiveness) : null;
@@ -294,9 +362,9 @@ function evaluateExpression(measures: StepMeasures): LabOutcome {
   const pass = verdict(required);
   const summary =
     pass === true
-      ? `Expression tells them apart: ${still?.expressiveness} still, ${animated?.expressiveness} animated.`
+      ? `Face movement tells them apart: ${stillMoves} a minute still, ${animatedMoves} animated.`
       : pass === false
-        ? `Expression doesn't separate still from animated: ${still?.expressiveness ?? "?"} still, ${animated?.expressiveness ?? "?"} animated.`
+        ? `Face movement doesn't separate still from animated: ${stillMoves ?? "?"} a minute still, ${animatedMoves ?? "?"} animated.`
         : "Not enough was captured to judge expression.";
   return { pass, checks, summary, numbers };
 }
@@ -317,7 +385,8 @@ function evaluateFaceEvents(measures: StepMeasures): LabOutcome {
   const bar = `at least ${EVENT_SHARE_BAR}% of the cues counted`;
   const m = measures.events;
   const face = settled(m?.face);
-  const movement = face ? faceMovement(face, null) : null;
+  const calibration = m?.faceCalibration ?? null;
+  const movement = face ? faceMovement(face, calibration) : null;
   const cues = (m?.cues ?? EVENT_CUES.map((c) => ({ tMs: c.atMs, label: c.label }))).filter((c) => c.tMs >= SETTLE_MS);
   if (!face || !movement || cues.length === 0) {
     const c = notCaptured("Cues counted", bar);
@@ -373,6 +442,7 @@ function evaluateFaceEvents(measures: StepMeasures): LabOutcome {
       browLiftsPerMinute: movement.browLiftsPerMinute,
       smilesPerMinute: movement.smilesPerMinute,
       motionIndex: movement.motionIndex,
+      ...calibrationNumbers(calibration),
     },
   };
 }
@@ -452,7 +522,7 @@ export const PRESENCE_TESTS: LabTestEntry[] = [
         faceStep({ id: "still", title: "Still face", instruction: "Look at the lens with a relaxed, still face. No smiling, no eyebrow movement.", seconds: 20 }),
         faceStep({ id: "animated", title: "Animated face", instruction: "Look at the lens and talk about anything, with a lively face: smile, lift your eyebrows, react.", seconds: 20 }),
       ],
-      bars: ["Animated is at least double the still face", `The still face is near zero (${STILL_MAX} or less)`],
+      bars: ["Brow lifts and smiles a minute: animated at least double the still face", `The still face is near zero (${STILL_MAX} a minute or fewer)`],
       onFail: "Change the formula",
     },
     evaluate: evaluateExpression,

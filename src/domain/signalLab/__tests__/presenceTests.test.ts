@@ -1,6 +1,8 @@
 import { LOOK_CEILING, LOOK_DOWN, LOOK_SIDE, animatedFace, lookingAtLens, stillFace, timeline, withFaceEvents, withGlances, withLookAway, type Lift } from "../../__tests__/faceTimeline";
 import type { PresenceSample } from "../../presenceMetrics";
 import { PRESENCE_TESTS } from "../presenceTests";
+import type { FaceCalibration } from "../../faceCalibration";
+import { READINGS } from "../readingTrust";
 import type { LabTestEntry, StepMeasure, StepMeasures } from "../types";
 
 const entry = (id: string): LabTestEntry => {
@@ -204,6 +206,47 @@ describe("presence.expression", () => {
     expect(evaluate(measures(measure("still", stillFace(20)))).pass).toBeNull();
     expect(evaluate(measures(measure("animated", animatedFace(20)))).pass).toBeNull();
     expect(evaluate(measures(measure("still", stillFace(1)), measure("animated", animatedFace(1)))).pass).toBeNull();
+  });
+});
+
+describe("scoring a test the way a real take is scored", () => {
+  const calibration: FaceCalibration = {
+    version: 1,
+    at: "2026-11-06T00:00:00Z",
+    platform: "ios",
+    center: { gazeX: 0, gazeY: -0.5, yaw: 0, pitch: 0 },
+    rest: { smile: 0.05, browRaise: 0.05 },
+    peaks: {},
+  };
+
+  it("measures the eyes from the person's own centre when they did the face check", () => {
+    const { evaluate } = entry("presence.preview");
+    const lowLens = staring({ gazeY: -0.5 });
+    const without = evaluate(measures(measure("lens", lowLens), measure("preview", lowLens)));
+    expect(without.numbers.lensLookingPercent).toBe(0);
+    expect(without.numbers.calibrated).toBe(false);
+    const withCheck = evaluate(measures(measure("lens", lowLens, { faceCalibration: calibration }), measure("preview", lowLens, { faceCalibration: calibration })));
+    expect(withCheck.numbers.lensLookingPercent).toBe(100);
+    expect(withCheck.numbers.calibrated).toBe(true);
+  });
+
+  it("reports where the eyes sat, for tuning the cut-offs", () => {
+    const out = entry("presence.looking").evaluate(measures(measure("lens", lookingAtLens(20)), measure("notes", staring(LOOK_DOWN)), measure("ceiling", staring(LOOK_CEILING)), measure("side", staring(LOOK_SIDE))));
+    expect(out.numbers.notes_gazeY_p50).toBeCloseTo(LOOK_DOWN.gazeY as number, 1);
+    expect(out.numbers).toHaveProperty("lens_headPitch_p90");
+    expect(out.numbers).toHaveProperty("side_gazeX_p10");
+  });
+
+  it("doesn't read tracker jitter on a still face as brow lifts", () => {
+    const jittery = stillFace(20).map((s, i) => ({ ...s, browRaise: 0.05 + (i % 8 < 4 ? 0.15 : 0) }));
+    const out = entry("presence.expression").evaluate(measures(measure("still", jittery), measure("animated", animatedFace(20))));
+    expect(out.numbers.stillMovesPerMinute).toBe(0);
+    expect(out.pass).toBe(true);
+  });
+
+  it("holds long look-aways back until Looking passes too", () => {
+    expect(READINGS.long_lookaways.tests).toContain("presence.looking");
+    expect(READINGS.long_lookaways.status).toBe("tuning");
   });
 });
 

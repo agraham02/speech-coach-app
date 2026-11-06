@@ -1,6 +1,7 @@
 import { decodeVideoAudio } from "../../../domain/audioAnalysis";
 import { summarizeFeatures } from "../../../domain/dev/voiceLab";
 import type { StepMeasure } from "../../../domain/signalLab/types";
+import { encodeWavPcm16 } from "../../../domain/eval/wer";
 import { ASR_ENGINES } from "../../asr/asrEngines";
 import { isModelDownloaded } from "../../asr/whisperModels";
 import { extractOffThread } from "../../audio/dspRuntime";
@@ -14,6 +15,8 @@ export interface ClipAnalysis {
   audio?: StepMeasure["audio"];
   words?: StepMeasure["words"];
   engines?: StepMeasure["engines"];
+  // The clip's audio as a WAV, for the raw data export.
+  wav?: Uint8Array;
   // What went wrong or was skipped, in plain words, for the result screen.
   problems: string[];
   timings: { decodeMs: number; dspMs: number };
@@ -33,6 +36,7 @@ export async function analyzeLabClip(uri: string, options: { words?: boolean; en
   const run = await extractOffThread(decoded.waveform, decoded.sampleRate);
   const result: ClipAnalysis = {
     audio: { features: run.features, summary: summarizeFeatures(run.features) },
+    wav: encodeWavPcm16(decoded.waveform, decoded.sampleRate),
     problems,
     timings: { decodeMs, dspMs: run.elapsedMs },
   };

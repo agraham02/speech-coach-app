@@ -201,8 +201,27 @@ describe("voice.endings", () => {
     const { t, words } = take(Array(10).fill("flat"));
     const o = run("endings", put(measure("endings.read", t.features, { words })));
     expect(o.pass).toBe(false);
-    expect(o.numbers.right).toBe(0);
+    // Level statements aren't rising, so only the questions are wrong.
+    expect(o.numbers.right).toBe(5);
+    expect(o.numbers.statementsThatFell).toBe(0);
     expect(check(o, "Endings classified right")?.bar).toBe("at least 80%");
+  });
+
+  it("doesn't count a level statement as wrong", () => {
+    const { t, words } = take(shapes.map((s) => (s === "falling" ? "flat" : s)));
+    const o = run("endings", put(measure("endings.read", t.features, { words })));
+    expect(o.pass).toBe(true);
+    expect(o.numbers).toMatchObject({ right: 10, statementsThatFell: 0 });
+  });
+
+  it("leaves out an ending with no pitch to read", () => {
+    const { t, words } = take(shapes);
+    const f0Hz = t.features.f0Hz.slice();
+    const end = words[4].endMs;
+    for (let i = 0; i < f0Hz.length; i++) if (t.features.offsetMs + i * t.features.hopMs > end - 500 && t.features.offsetMs + i * t.features.hopMs < end + 400) f0Hz[i] = 0;
+    const o = run("endings", put(measure("endings.read", { ...t.features, f0Hz }, { words })));
+    expect(o.numbers).toMatchObject({ sentencesFound: 10, sentencesScored: 9, right: 9 });
+    expect(o.pass).toBe(true);
   });
 
   it("fails at 70% and passes at 80%", () => {
@@ -280,6 +299,26 @@ describe("voice.volume_distance", () => {
     expect(run("volume_distance", put(level("volume_distance.far", 50), level("volume_distance.near", 56))).pass).toBeNull();
     expect(run("volume_distance", put(level("volume_distance.far", 50), level("volume_distance.near", 51))).pass).toBe(false);
     expect(run("volume_distance", put(level("volume_distance.far", 50, 0.2))).pass).toBeNull();
+  });
+});
+
+describe("the pitch variety export", () => {
+  it("says where the frames sit, so far-out frames can be told from real range", () => {
+    const f0Hz = new Float32Array(2000).fill(100);
+    for (let i = 0; i < 200; i++) f0Hz[i] = 50;
+    const confidence = new Float32Array(2000).fill(0.9);
+    const speech = new Uint8Array(2000).fill(1);
+    const features = { f0Hz, confidence, speech, hopMs: 10, offsetMs: 5, levelDb: new Float32Array(2000), peaks: new Int32Array(0) } as never;
+    const summary = { rangeSemitones: 0, sdSemitones: 3, voicedSeconds: 20 } as never;
+    const take = { audio: { features, summary } };
+    const o = test("pitch_variety").evaluate({
+      "pitch_variety.flat": { stepId: "pitch_variety.flat", durationMs: 20000, ...take },
+      "pitch_variety.normal": { stepId: "pitch_variety.normal", durationMs: 20000, ...take },
+      "pitch_variety.lively": { stepId: "pitch_variety.lively", durationMs: 20000, ...take },
+    });
+    expect(o.numbers.flat_farOutShare).toBe(0.1);
+    expect(o.numbers.flat_medianHz).toBe(100);
+    expect(o.numbers.flat_p1).toBe(-12);
   });
 });
 
@@ -374,21 +413,29 @@ describe("voice.pauses", () => {
     expect(o.numbers).toMatchObject({ marked: 10, markedWordsFound: 10, energyFound: 10, energyFalse: 0, mergedFound: 10, mergedFalse: 0 });
   });
 
-  it("fails when the energy detector misses pauses, and says what Whisper's gaps would do", () => {
+  it("passes on Whisper's gaps when the energy detector misses pauses", () => {
     const o = run("pauses", measureOf(reading((n) => n % 2 === 0 && n < 8 ? true : n === 9)));
     expect(o.numbers.energyFound).toBe(5);
-    expect(o.pass).toBe(false);
-    expect(check(o, "Marked pauses found (energy detector)")?.pass).toBe(false);
+    expect(o.pass).toBe(true);
+    expect(check(o, "Marked pauses found (energy detector alone)")?.pass).toBeNull();
     expect(o.numbers.mergedFound).toBe(10);
     expect(o.numbers.mergedPasses).toBe(true);
-    expect(o.summary).toMatch(/would pass/);
+  });
+
+  it("fails when neither the energy detector nor Whisper hears the pauses", () => {
+    const r = reading(() => false);
+    const noGaps = r.words.map((w, i) => ({ ...w, endMs: i + 1 < r.words.length ? r.words[i + 1].startMs : w.endMs }));
+    const o = run("pauses", put(measure("pauses.read", r.features, { words: noGaps })));
+    expect(o.numbers.mergedFound).toBe(0);
+    expect(o.pass).toBe(false);
+    expect(check(o, "Marked pauses found (energy plus Whisper gaps)")?.pass).toBe(false);
   });
 
   it("fails on more than two false pauses", () => {
     const o = run("pauses", measureOf(reading(() => true, [5, 30, 60])));
-    expect(o.numbers.energyFalse).toBe(3);
+    expect(o.numbers.mergedFalse).toBe(3);
     expect(o.pass).toBe(false);
-    expect(check(o, "False pauses (energy detector)")?.pass).toBe(false);
+    expect(check(o, "False pauses (energy plus Whisper gaps)")?.pass).toBe(false);
     const two = run("pauses", measureOf(reading(() => true, [5, 30])));
     expect(two.pass).toBe(true);
   });
@@ -426,6 +473,18 @@ describe("voice.pace", () => {
     expect(o.pass).toBe(true);
     expect(Math.abs(o.numbers.differencePercent as number)).toBeLessThan(5);
     expect(o.numbers.passageWords).toBe(count);
+  });
+
+  it("doesn't count a lead-in before the first word", () => {
+    // Whisper's first word sits at the top of the clip; the voice starts 3 s in.
+    const lead = spoken(0, 42500);
+    lead[0] = { ...lead[0], startMs: 0 };
+    const speech = new Uint8Array(4300);
+    for (let i = 300; i < 4250; i++) speech[i] = 1;
+    const audio = { features: { speech, hopMs: 10, offsetMs: 5 } as never, summary: {} as never };
+    const o = run("pace", step({ stopwatchMs: 39557, words: lead, audio }));
+    expect(o.pass).toBe(true);
+    expect(o.numbers.withoutLineUpWpm as number).toBeLessThan(o.numbers.transcriptWpm as number);
   });
 
   it("fails when the transcript's timing disagrees with the stopwatch", () => {

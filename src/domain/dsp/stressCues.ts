@@ -17,7 +17,12 @@ import { percentile } from "./pitchTracker";
 // Each cue is z-scored across the peaks of the take, so the three are on one
 // scale and no take needs a fixed threshold. A peak with no reading for a cue
 // (no voiced frame near it) scores 0 on it, the take's average. The combined
-// score is the mean of the three z scores.
+// score is the mean of the three z scores, and it picks which peaks are strong.
+//
+// How far the strong peaks stand out is measured in real units, not z scores.
+// A z score rescales every take to the same spread, so it can't see one take
+// reaching further than another: on a real phone, stressing key words took the
+// peak spread up 2.3 dB and the z-score gap barely moved (1.18 to 1.37).
 
 type Track = Pick<AudioFeatures, "f0Hz" | "confidence" | "levelDb" | "speech" | "peaks" | "hopMs" | "offsetMs">;
 
@@ -38,6 +43,8 @@ export const STRESS = {
   minWordPeaks: 3,
   // A peak belongs to a word when it falls within this of the word's times.
   wordSlackMs: 40,
+  // A clear step up in each cue, so the three can be averaged in standOut.
+  stepUp: { pitchSt: 2, loudDb: 3, lengthMs: 100 },
 } as const;
 
 export interface PeakScore {
@@ -60,8 +67,11 @@ export interface PeakScore {
 
 export interface StressResult {
   peaks: PeakScore[];
-  // Mean score of the strong peaks (the top 20%) minus the mean of the rest, in z units.
+  // How far the strong peaks (the top 20%) sit above the rest, in clear steps
+  // up (STRESS.stepUp), averaged over the cues that could be read.
   standOut: number | null;
+  // The same gap in each cue's own units.
+  standOutCues: { pitchSt: number | null; loudDb: number | null; lengthMs: number | null };
   strongPeaks: number;
   // Strong peaks that fall on a word, and the share of those on content words.
   strongOnWords: number;
@@ -83,6 +93,16 @@ function smooth50(levels: Float32Array): Float32Array {
     out[i] = 10 * Math.log10(Math.max(p / c, 1e-12));
   }
   return out;
+}
+
+// Mean of the strong peaks minus the mean of the rest, on the peaks with a reading.
+function gapOf(values: (number | null)[], strong: Set<number>): number | null {
+  const top: number[] = [];
+  const rest: number[] = [];
+  values.forEach((v, k) => {
+    if (v !== null) (strong.has(k) ? top : rest).push(v);
+  });
+  return top.length && rest.length ? mean(top) - mean(rest) : null;
 }
 
 // z scores of the non-null entries; null entries come out 0.
@@ -194,10 +214,16 @@ export function scoreSyllablePeaks(features: Track, words?: TranscriptWord[] | n
   });
 
   let standOut: number | null = null;
+  const standOutCues: StressResult["standOutCues"] = { pitchSt: null, loudDb: null, lengthMs: null };
   if (enough && strongCount > 0) {
-    const top = frames.map((_, k) => k).filter((k) => strongSet.has(k));
-    const rest = frames.map((_, k) => k).filter((k) => !strongSet.has(k));
-    standOut = round(mean(top.map((k) => scores[k])) - mean(rest.map((k) => scores[k])));
+    const pitch = gapOf(raw.map((r) => r.pitchSt), strongSet);
+    const loud = gapOf(raw.map((r) => r.loudDb), strongSet);
+    const length = gapOf(raw.map((r) => r.lengthMs), strongSet);
+    standOutCues.pitchSt = pitch === null ? null : round(pitch);
+    standOutCues.loudDb = loud === null ? null : round(loud);
+    standOutCues.lengthMs = length === null ? null : round(length, 0);
+    const steps = [pitch === null ? null : pitch / STRESS.stepUp.pitchSt, loud === null ? null : loud / STRESS.stepUp.loudDb, length === null ? null : length / STRESS.stepUp.lengthMs].filter((v): v is number => v !== null);
+    if (steps.length) standOut = round(mean(steps));
   }
 
   let strongOnWords = 0;
@@ -213,6 +239,7 @@ export function scoreSyllablePeaks(features: Track, words?: TranscriptWord[] | n
   return {
     peaks: scored,
     standOut,
+    standOutCues,
     strongPeaks: strongCount,
     strongOnWords,
     contentShare: words && strongOnWords >= STRESS.minWordPeaks ? round(onContent / strongOnWords) : null,

@@ -6,11 +6,11 @@ The first three sections are carried over from the hotfix round (the old `hotfix
 
 ## Before any phone testing: server setup (once)
 
-- [ ] Run `supabase/migrations/20261025000000_dev_override.sql` in the SQL editor.
-- [ ] Add the function secret `DEV_OVERRIDE_PASSWORD` (a long password only you know).
-- [ ] Supabase → Authentication → Sign In / Providers: turn **Allow anonymous sign-ins OFF**.
-- [ ] Deploy: `npx supabase functions deploy --use-api` (new: `dev-override`; changed: `ai-converse`, `ai-generate`, `me`, and everything that uses `requireUser`).
-- [ ] A new build (the app changed: new SignIn screen, birthday step).
+- [x] Run `supabase/migrations/20261025000000_dev_override.sql` in the SQL editor.
+- [x] Add the function secret `DEV_OVERRIDE_PASSWORD` (a long password only you know).
+- [x] Supabase → Authentication → Sign In / Providers: turn **Allow anonymous sign-ins OFF**.
+- [x] Deploy: `npx supabase functions deploy --use-api` (new: `dev-override`; changed: `ai-converse`, `ai-generate`, `me`, and everything that uses `requireUser`).
+- [x] A new build (the app changed: new SignIn screen, birthday step).
 - [ ] Republish the privacy and terms pages (`docs/privacy.md`, `docs/terms.md`): sign-in is now needed for Tono AI and Plus, and the privacy text no longer mentions anonymous accounts or an age range.
 
 ## Sign-in, birthday and Tono AI
@@ -80,6 +80,20 @@ Needs a **new iPhone build** (it has the keyboard library, version 2.0.0) with t
 What I do with it: set each reading's status, tune the formulas the data shows to be off, and close Phase 1.
 
 Also, separately: the hosted judge eval (task 1.9) needs the server set up first (see the server setup section above).
+
+### Round 2
+
+Round 1 is done. These re-run the tests whose code changed, and this time the raw recordings come too, so I can do the rest of the tuning on the computer. About 25 minutes, and you can split it up.
+
+1. Get the new code onto the phone: `npx eas update --channel preview --message "Signal Lab round 2"`, then fully close and reopen the app twice. Or make a new preview build.
+2. Dev, Labs, Signal Lab: turn **all the preview switches off**. They were all on in round 1. They don't affect the tests, but they count unproven readings in this phone's scores.
+3. Do the **face check** if you haven't: real takes are scored through it, so the presence tests are now too.
+4. Run: **Capture check**, **Pitch variety**, **Pitch glide**, **Endings**, **Emphasis**, **Word stress**, **Pauses**, **Pace**, **Recognizer vs Whisper**, **Looking**, **Your preview**, **Expression**, **Face events**. Skip Volume gain, Volume and distance, Fillers, Whisper speed and Glances.
+   - Pitch glide: start the "ahhh" as soon as recording starts and hold it the whole time.
+   - Pace: tap Start just as you begin reading, and Stop as you finish.
+   - Looking: use real notes for the notes step, held where you would hold them for a talk.
+5. **Copy results as JSON** and paste it to me.
+6. **Share raw recordings** makes one file of about 30 MB. Get it onto the computer however is easiest (AirDrop isn't an option on Windows, so iCloud Drive, or Files and a cloud folder) and save it as `analysis_samples/tono-signal-lab-raw.tar`. It's your voice and face data, and that folder isn't committed.
 
 ## Phase 6: results flow
 

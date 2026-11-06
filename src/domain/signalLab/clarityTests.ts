@@ -47,6 +47,7 @@ function evaluateFillers(measures: StepMeasures): LabOutcome {
     checks.push({ label: `${id}: fillers kept`, value: `${k.kept} of ${k.expected}`, pass: null });
     numbers[`kept_${id}`] = k.kept;
   }
+  for (const [id, out] of Object.entries(m.engines)) numbers[`text_${id}`] = out.text;
   const live = m.engines[LIVE_ENGINE];
   const liveKept = live ? matchFillers(FILLER_SCRIPT, live.text).kept : null;
   const pass = verdict(checks);
@@ -77,6 +78,7 @@ function evaluateCompare(measures: StepMeasures): LabOutcome {
     checks.push({ label: `${id}: word errors`, value: pct(wer), pass: null });
     numbers[`wer_${id}`] = Math.round(wer * 1000) / 1000;
     numbers[`ms_${id}`] = out.ms;
+    numbers[`text_${id}`] = out.text;
   }
   const app = m.engines[APP_ENGINE];
   const live = m.engines[LIVE_ENGINE];
