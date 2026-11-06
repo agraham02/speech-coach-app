@@ -1,4 +1,4 @@
-import { classifyLook, DEFAULT_PRESENCE_THRESHOLDS, type PresenceSample, type PresenceThresholds } from "./presenceMetrics";
+import { centerTimeline, classifyLook, DEFAULT_PRESENCE_THRESHOLDS, type PresenceSample, type PresenceThresholds } from "./presenceMetrics";
 
 // A candidate way to score eye contact (docs/overhaul/PLAN.md, section 6.5,
 // table C). Today every frame counts the same, whether a look-away lasts a
@@ -76,8 +76,9 @@ function median(values: number[]): number {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-export function groupLooks(timeline: PresenceSample[], opts: LookGroupOptions = {}): LookGroups | null {
-  if (timeline.length < 3) return null;
+export function groupLooks(rawTimeline: PresenceSample[], opts: LookGroupOptions = {}): LookGroups | null {
+  if (rawTimeline.length < 3) return null;
+  const timeline = centerTimeline(rawTimeline);
   const t = opts.thresholds ?? DEFAULT_PRESENCE_THRESHOLDS;
   const forgiveBelowMs = opts.forgiveBelowMs ?? FORGIVE_BELOW_MS;
   const longAtMs = opts.longAtMs ?? LONG_LOOKAWAY_MS;

@@ -219,15 +219,23 @@ describe("scoring a test the way a real take is scored", () => {
     peaks: {},
   };
 
-  it("measures the eyes from the person's own centre when they did the face check", () => {
+  it("reads a look from the take's centre, however the phone is held", () => {
     const { evaluate } = entry("presence.preview");
-    const lowLens = staring({ gazeY: -0.5 });
-    const without = evaluate(measures(measure("lens", lowLens), measure("preview", lowLens)));
-    expect(without.numbers.lensLookingPercent).toBe(0);
-    expect(without.numbers.calibrated).toBe(false);
-    const withCheck = evaluate(measures(measure("lens", lowLens, { faceCalibration: calibration }), measure("preview", lowLens, { faceCalibration: calibration })));
-    expect(withCheck.numbers.lensLookingPercent).toBe(100);
+    const low = staring({ pitch: 12, gazeY: -0.15 });
+    const out = evaluate(measures(measure("lens", low), measure("preview", low)));
+    expect(out.numbers.lensLookingPercent).toBe(100);
+    expect(out.numbers.calibrated).toBe(false);
+    const withCheck = evaluate(measures(measure("lens", low, { faceCalibration: calibration }), measure("preview", low, { faceCalibration: calibration })));
     expect(withCheck.numbers.calibrated).toBe(true);
+    expect(withCheck.numbers.lensLookingPercent).toBe(100);
+  });
+
+  it("treats the steps of a test as one take, so notes read as away with the eyes barely moving", () => {
+    const out = entry("presence.looking").evaluate(
+      measures(measure("lens", staring({ pitch: 3 })), measure("notes", staring({ pitch: 19, gazeY: -0.07 })), measure("ceiling", staring({ pitch: -12 })), measure("side", staring({ pitch: 3, yaw: 30 }))),
+    );
+    expect(out.numbers).toMatchObject({ lensRightPercent: 100, notesRightPercent: 100, ceilingRightPercent: 100, sideRightPercent: 100 });
+    expect(out.pass).toBe(true);
   });
 
   it("reports where the eyes sat, for tuning the cut-offs", () => {
@@ -235,6 +243,14 @@ describe("scoring a test the way a real take is scored", () => {
     expect(out.numbers.notes_gazeY_p50).toBeCloseTo(LOOK_DOWN.gazeY as number, 1);
     expect(out.numbers).toHaveProperty("lens_headPitch_p90");
     expect(out.numbers).toHaveProperty("side_gazeX_p10");
+  });
+
+  it("doesn't let an old face check set the bar for a brow lift too low", () => {
+    const stale: FaceCalibration = { ...calibration, rest: { smile: 0, browRaise: 0.33 }, peaks: { brows: 0.29 } };
+    const lifts = withFaceEvents(20, [{ kind: "brow", atMs: 4000, durMs: 1500 }, { kind: "brow", atMs: 10000, durMs: 1500 }], 0.92);
+    const flickers = lifts.map((s) => (s.tMs > 15000 && s.tMs < 15600 ? { ...s, browRaise: 0.55 } : s));
+    const out = entry("presence.face_events").evaluate(measures(measure("events", flickers, { faceCalibration: stale, cues: [{ tMs: 4000, label: "Raise your eyebrows" }, { tMs: 10000, label: "Raise your eyebrows" }] })));
+    expect(out.numbers).toMatchObject({ counted: 2, extraEvents: 0 });
   });
 
   it("doesn't read tracker jitter on a still face as brow lifts", () => {

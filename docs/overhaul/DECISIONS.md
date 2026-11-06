@@ -83,3 +83,23 @@ Every change to `PLAN.md` after it was agreed: what changed, why, and the owner'
 **Added:** Signal Lab now keeps each test's latest audio and tracks and can share them as one file, so tuning doesn't need more recording.
 
 **Owner's OK:** asked with the round 1 report. The endings change is the one to look at.
+
+## D8. What the raw recordings showed (2026-11-06)
+
+**Corrects D7.** Stretching Whisper's word times to fit the voice (`wordAlign.ts`) was wrong. Round 2 lost half the marked pauses and every rising question to it: mid-take, Whisper's ends were already within about 100 ms of the real pauses. It is gone. `dsp/wordTrim.ts` only moves a word edge that sits in silence, which keeps the real finding: the first word "starts" at 50 ms when the voice starts at 1,676 ms. Real takes use the trim for pace, pauses and prosody. Whisper's "9% word errors" was also wrong: it wrote "9:00" for "nine", which no longer counts.
+
+**How this was checked:** `replay.local.test.ts` runs the real tests on the phone's recordings and reproduced the phone's numbers, and Praat (and SwiftF0 for pitch) gave a reference on the same audio. Everything below is tuned on one run of one low voice, which is why round 3 has to be a fresh recording.
+
+**Fixed:**
+- Pitch: folding every far frame back an octave halved real high notes, and consonants the tracker found a period in (15 to 23 semitones out, up to 170 ms) inflated the SD. Far frames are now judged a run at a time. Agreement with Praat went from 95 to 97% to about 99%, and the SD now separates the reads: 1.23, 2.71, 3.65 (it was 4.79, 3.72, 3.85). The glide passes, with a 24.5 semitone rise.
+- Pitch voicing: `maxAperiodicity` 0.35 to 0.5, which finds 47, 63, 62% of speech frames (36, 55, 53% at 0.35) and matches Praat on normal and lively.
+- Endings: the end runs on to the close of the voice, over 500 ms, with a line-fit a stray frame can't turn around. 8 of 9.
+- Pauses: 10 of 10 with none false, on the energy gate alone. Whisper's gaps added nothing.
+- Eye contact: people look at notes and ceilings with the head, not the eyes (notes: 16 degrees down, eyes barely moved). There is now a head limit, 10 degrees down and 6 up. Fixed limits don't work, because looking at the lens read 3, 8, 10 and 17 degrees in takes minutes apart, and a two-week-old face check had the eyes a quarter of the scale off. So each take is measured from its own middle. Lens 99%, notes 100%, ceiling 87%, side 99%, and your preview still counts as the lens. **Limit:** a take read entirely off notes held low can still pass as eye contact.
+- Face movement: a face check that saw a smaller lift than the take no longer sets the bar. Uncued events went from 8 to 3.
+
+**Word stress stays Beta.** This is the plan's listed outcome for a failure. No take score reads it.
+
+**Open: the Pitch variety bars.** The flat read is 3.0 semitones against "under 2.5", and pitch is found in 47% of its speech frames against 60%. Praat and SwiftF0 measure the same read at 3.3 and 3.0, and find 56% and 59%, so neither bar would pass with SwiftF0 either. Recommended: under 4 semitones and 45%. Waiting on the owner.
+
+**Owner's OK:** asked with this report.

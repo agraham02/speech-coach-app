@@ -6,7 +6,7 @@ import { computeWpmCurve } from "../../../domain/wpmCurve";
 import { StepError } from "../stepRunner";
 import { putArtifact } from "../../db/artifactsRepo";
 import { pausesFromFeatures } from "../../../domain/dsp/pauses";
-import { alignWordsToSpeech } from "../../../domain/dsp/wordAlign";
+import { trimWordsToVoice } from "../../../domain/dsp/wordTrim";
 import {
   audioQualityReasons,
   bucketSeries,
@@ -56,9 +56,9 @@ export async function audioMetricsStep(sessionId: string): Promise<void> {
 export async function recordAudioAnalysis(session: Session, run: ExtractionRun | null, decoded: boolean): Promise<void> {
   const sessionId = session.id;
   const features = run?.features ?? null;
-  // Whisper's times lined up with the voice, for everything timed below. The
+  // Whisper's times with the silence trimmed, for everything timed below. The
   // stored transcript keeps its own.
-  const words = features ? alignWordsToSpeech(session.transcriptWords, features) : session.transcriptWords;
+  const words = features ? trimWordsToVoice(session.transcriptWords, features) : session.transcriptWords;
   const verbatim = session.transcriptVerbatim;
   const fillers = verbatim ? computeFillerStats(verbatim, session.durationSeconds) : null;
   const repeated = words && words.length > 0 ? detectRepeatedWordsFromWords(words) : verbatim ? detectRepeatedWordsFromText(verbatim) : null;

@@ -2,7 +2,7 @@ import { SETTLE_MS } from "../dev/faceLab";
 import { calibratedThresholds, normalizeTimeline, type FaceCalibration } from "../faceCalibration";
 import { faceMovement, type FaceEventKind } from "../faceMovement";
 import { groupLooks } from "../lookGroups";
-import { classifyLook, computePresenceMetrics, DEFAULT_PRESENCE_THRESHOLDS, type PresenceSample, type PresenceThresholds } from "../presenceMetrics";
+import { centerTimeline, classifyLook, computePresenceMetrics, DEFAULT_PRESENCE_THRESHOLDS, takeCenter, type PresenceSample, type PresenceThresholds, type TakeCenter } from "../presenceMetrics";
 import type { LabCheck, LabOutcome, LabStep, LabTestEntry, StepMeasure, StepMeasures } from "./types";
 
 // The Presence tests (docs/overhaul/PLAN.md, section 6.5, the "Presence" rows
@@ -52,11 +52,18 @@ function scorable(m: StepMeasure | undefined): Scorable | null {
     : { face, thresholds: DEFAULT_PRESENCE_THRESHOLDS, calibration: null };
 }
 
+// The steps of a test as one take, the way a real take finds its centre. A step
+// alone can't be its own take: 20 s of looking at notes would be its own centre.
+function sharedCenter(steps: (Scorable | null)[]): TakeCenter {
+  return takeCenter(steps.flatMap((s) => (s ? s.face : [])));
+}
+
 // The plain per-sample figure: how many samples classifyLook calls looking.
 // A missing face is not looking.
-function lookingPercent({ face, thresholds }: Scorable): number {
-  const hasGaze = face.some((s) => s.present && s.gazeX !== undefined);
-  const looking = face.filter((s) => classifyLook(s, thresholds, hasGaze).looking).length;
+function lookingPercent({ face, thresholds }: Scorable, center: TakeCenter): number {
+  const centered = centerTimeline(face, center);
+  const hasGaze = centered.some((s) => s.present && s.gazeX !== undefined);
+  const looking = centered.filter((s) => classifyLook(s, thresholds, hasGaze).looking).length;
   return (looking / face.length) * 100;
 }
 
@@ -115,6 +122,7 @@ function evaluateLooking(measures: StepMeasures): LabOutcome {
   const bar = `at least ${LOOKING_BAR}% classified right`;
   const checks: LabCheck[] = [];
   const numbers: LabOutcome["numbers"] = {};
+  const center = sharedCenter(LOOKING_STEPS.map((step) => scorable(measures[step.id])));
   for (const step of LOOKING_STEPS) {
     const data = scorable(measures[step.id]);
     if (!data) {
@@ -123,11 +131,11 @@ function evaluateLooking(measures: StepMeasures): LabOutcome {
       numbers[`${step.id}Samples`] = 0;
       continue;
     }
-    const looking = lookingPercent(data);
+    const looking = lookingPercent(data, center);
     const right = step.expectLooking ? looking : 100 - looking;
     numbers[`${step.id}RightPercent`] = round1(right);
     numbers[`${step.id}Samples`] = data.face.length;
-    Object.assign(numbers, lookShape(step.id, data), calibrationNumbers(data.calibration));
+    Object.assign(numbers, lookShape(step.id, { ...data, face: centerTimeline(data.face, center) }), calibrationNumbers(data.calibration));
     checks.push({
       label: step.label,
       value: `${pctText(right)} right (read as ${step.expectLooking ? "looking" : "not looking"})`,
@@ -236,10 +244,11 @@ function evaluatePreview(measures: StepMeasures): LabOutcome {
 
   const lens = scorable(measures.lens);
   const preview = scorable(measures.preview);
-  const lensPct = lens ? lookingPercent(lens) : null;
-  const previewPct = preview ? lookingPercent(preview) : null;
-  if (lens) Object.assign(numbers, lookShape("lens", lens), calibrationNumbers(lens.calibration));
-  if (preview) Object.assign(numbers, lookShape("preview", preview));
+  const center = sharedCenter([lens, preview]);
+  const lensPct = lens ? lookingPercent(lens, center) : null;
+  const previewPct = preview ? lookingPercent(preview, center) : null;
+  if (lens) Object.assign(numbers, lookShape("lens", { ...lens, face: centerTimeline(lens.face, center) }), calibrationNumbers(lens.calibration));
+  if (preview) Object.assign(numbers, lookShape("preview", { ...preview, face: centerTimeline(preview.face, center) }));
 
   if (lensPct === null) {
     const c = notCaptured("At the lens: looking", lensBar);

@@ -44,6 +44,17 @@ describe("the recognizer vs Whisper test", () => {
     expect(out.summary).toMatch(/fewer word errors/);
   });
 
+  it("doesn't count a clock as a word error", () => {
+    const clock = COMPARE_PASSAGE.replace("at nine", "at 9:00").replace("at six", "at 6:00").replace("at ten", "at 10:00").replace("at eleven", "at 11:00");
+    const out = entry("clarity.recognizer_vs_whisper").evaluate(measure("read", { "turbo-prompted": engine(clock), system: engine(COMPARE_PASSAGE) }));
+    expect(out.numbers["wer_turbo-prompted"]).toBe(0);
+  });
+
+  it("keeps what each engine wrote", () => {
+    const out = entry("clarity.recognizer_vs_whisper").evaluate(measure("read", { system: engine("hello there") }));
+    expect(out.numbers.text_system).toBe("hello there");
+  });
+
   it("needs both engines to decide, and some transcription to say anything", () => {
     expect(entry("clarity.recognizer_vs_whisper").evaluate(measure("read", { "turbo-prompted": engine(COMPARE_PASSAGE) })).pass).toBeNull();
     expect(entry("clarity.recognizer_vs_whisper").evaluate({}).pass).toBeNull();

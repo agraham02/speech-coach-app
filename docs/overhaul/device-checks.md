@@ -95,6 +95,16 @@ Round 1 is done. These re-run the tests whose code changed, and this time the ra
 5. **Copy results as JSON** and paste it to me.
 6. **Share raw recordings** makes one file of about 30 MB. Get it onto the computer however is easiest (AirDrop isn't an option on Windows, so iCloud Drive, or Files and a cloud folder) and save it as `analysis_samples/tono-signal-lab-raw.tar`. It's your voice and face data, and that folder isn't committed.
 
+### Round 3
+
+Round 2 is done. This is a fresh recording of the tests whose formulas changed, because a formula tuned on a recording shouldn't be judged on it. About 17 minutes. Don't clear anything.
+
+1. Get the new code onto the phone: `npx eas update --channel preview --message "Signal Lab round 3"`, then fully close and reopen the app twice.
+2. **Redo the face check** (Settings, Coaching & AI, Face calibration). The saved one is from Oct 24 and saw much smaller eyebrow lifts than you make now. Hold the phone the way you hold it for a talk.
+3. Run: **Pitch variety**, **Pitch glide**, **Endings**, **Emphasis**, **Pauses**, **Looking**, **Your preview**, **Glances**, **Expression**, **Face events**. Skip the rest.
+   - Looking: use real notes again, and for the ceiling step, keep looking up for the whole step.
+4. **Copy results as JSON** and paste it to me. Then **Share raw recordings** and replace `analysis_samples/tono-signal-lab-raw.tar`. Share only once every test is done.
+
 ## Phase 6: results flow
 
 Carried over from the hotfix round. These were fixes for gestures on the old screens, and they can come back when the screens are rebuilt.

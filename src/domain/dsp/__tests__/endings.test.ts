@@ -13,11 +13,22 @@ describe("terminalSlope", () => {
   });
 
   it("is in semitones per second", () => {
-    // A 4 st rise across the 320 ms word: about 12.5 st/s over the whole word,
-    // a little less over its last 300 ms.
-    const rise = terminalSlope(take.features, take.sentenceEndsMs[1])!;
-    expect(rise).toBeGreaterThan(10);
-    expect(rise).toBeLessThan(14);
+    // Doubling every second is 12 semitones a second.
+    const f = buildFeatures([{ ms: 1000, f0: (t) => 100 * 2 ** (t / 1000) }]);
+    expect(terminalSlope(f, 1000)!).toBeCloseTo(12, 0);
+  });
+
+  it("isn't turned around by a stray frame in a creaky ending", () => {
+    const fall = (t: number) => (t > 880 && t < 910 ? 170 : 120 - t * 0.04);
+    const f = buildFeatures([{ ms: 1000, f0: fall }]);
+    expect(terminalSlope(f, 1000)!).toBeLessThan(-3);
+  });
+
+  it("runs on to the close of the voice when the word ended early", () => {
+    // Level until 800 ms, then a rise Whisper's word end at 800 misses.
+    const f = buildFeatures([{ ms: 1100, f0: (t) => (t < 800 ? 100 : 100 * 2 ** ((t - 800) / 400)) }, { ms: 500, kind: "pause" }]);
+    expect(terminalSlope(f, 800, { extendMs: 0 })!).toBeLessThan(3);
+    expect(terminalSlope(f, 800)!).toBeGreaterThanOrEqual(3);
   });
 
   it("copes with a transcript end that lands after the voice stops", () => {
@@ -34,10 +45,10 @@ describe("terminalSlope", () => {
   });
 
   it("only looks at the window", () => {
-    // Falls hard early, then holds level for the last 300 ms.
-    const f = buildFeatures([{ ms: 1000, f0: (t) => (t < 700 ? 200 - t * 0.1 : 130) }]);
+    // Falls hard early, then holds level for the last 500 ms.
+    const f = buildFeatures([{ ms: 1000, f0: (t) => (t < 500 ? 200 - t * 0.14 : 130) }]);
     expect(Math.abs(terminalSlope(f, 1000)!)).toBeLessThan(1);
-    expect(terminalSlope(f, 600, { windowMs: 300 })!).toBeLessThan(-8);
+    expect(terminalSlope(f, 500, { windowMs: 300, extendMs: 0 })!).toBeLessThan(-8);
   });
 });
 
