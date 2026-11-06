@@ -213,6 +213,8 @@ export interface SessionSubjectExtras {
   // Feeling of the Week.
   feelingEmotion?: EmotionId;
   feelingAngle?: number;
+  // The skill check's talk: a placement sample, not practice (domain/practice.ts).
+  placement?: boolean;
 }
 
 export const ADHOC_PROMPT_PREFIX = "adhoc_";

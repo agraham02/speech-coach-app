@@ -7,4 +7,9 @@ export interface PracticeContext {
   planSlot?: number;
   lessonId?: string;
   lessonStepIndex?: number;
+  // A sample for the skill check's starting levels: it is recorded, but it
+  // isn't practice, so it doesn't move a rating or count an attempt. That
+  // keeps seedSkillRatings (which skips any skill with attempts) free to place
+  // each skill from the check.
+  placement?: boolean;
 }

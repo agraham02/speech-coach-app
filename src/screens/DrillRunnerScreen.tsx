@@ -266,6 +266,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         level: setup.level,
         contentId: setup.contentId,
         lessonId: practice?.lessonId,
+        placement: practice?.placement,
         accuracyPercent: evaluated.details.accuracyPercent ?? null,
         wpm: evaluated.details.wpm ?? null,
         metrics: evaluated.details,

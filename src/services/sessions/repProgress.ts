@@ -43,7 +43,8 @@ export async function settleRepProgress(sessionId: string, options: { abandoned?
     const [scores, subject] = await Promise.all([refreshSessionScore(sessionId), describeSessionSubject(session)]);
     if (!scores) return;
     const { evidence, measured, judged } = repEvidence(scores);
-    const changes = await recordRepOutcome(evidence, {
+    // The skill check's talk places the skills (seedSkillRatings); it isn't practice.
+    const changes = session.subjectExtras?.placement ? [] : await recordRepOutcome(evidence, {
       sessionId,
       label: subject.title || "A recorded take",
       local: measured,
