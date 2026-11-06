@@ -278,6 +278,9 @@ export async function recordDrillOutcome(args: {
   accuracyPercent?: number | null;
   // Overrides the drill type's skill (guided exercises serve several skills).
   skill?: SkillId;
+  // A skill-check sample: the attempt is kept, but the skill's rating, attempts
+  // and stage are left for seedSkillRatings to place (domain/practice.ts).
+  placement?: boolean;
 }): Promise<ProgressChange> {
   const db = await getDatabase();
   const skill = args.skill ?? DRILL_SKILL[args.drillType];
@@ -305,6 +308,22 @@ export async function recordDrillOutcome(args: {
 
   const skills = await getSkillStates();
   const before = skills[skill];
+  if (args.placement) {
+    const level = speakerLevelOf(skills);
+    return {
+      skill,
+      ratingBefore: before.rating,
+      ratingAfter: before.rating,
+      levelBefore: args.level,
+      levelAfter,
+      leveledUp: Math.floor(levelAfter) > Math.floor(args.level),
+      stageBefore: before.stage,
+      stageAfter: before.stage,
+      stagedUp: false,
+      speakerLevelBefore: level,
+      speakerLevelAfter: level,
+    };
+  }
   const updated = withStage(before, { ...updateRating(before, args.outcome.score, args.level), lastPracticedAt: now }, now);
   await saveSkill(skill, updated);
   await logSkillEvent({

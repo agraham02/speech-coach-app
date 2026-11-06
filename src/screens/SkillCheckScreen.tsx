@@ -108,7 +108,9 @@ export function SkillCheckScreen({ route, navigation }: Props) {
   if (defer) return <ScreenContainer />;
 
   async function start(piece: PieceId) {
-    const practice = { planDate: SKILL_CHECK_DATE, planStepId: piece };
+    // The first check places your starting levels, so its samples aren't practice;
+    // a retake's are, as before.
+    const practice = { planDate: SKILL_CHECK_DATE, planStepId: piece, placement: !retake };
     if (piece === "read") navigation.navigate("Drill", { drill: "pace_reading", contentId: READ_PASSAGE, practice });
     if (piece === "category") {
       categoryTarget.current = paramsFor("category_fluency", await getDrillLevel("category_fluency")).target ?? 8;

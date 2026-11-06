@@ -252,6 +252,7 @@ export function ConversationRunnerScreen({ route, navigation }: Props) {
         level: setup.level,
         contentId: setup.contentId,
         lessonId: practice?.lessonId,
+        placement: practice?.placement,
         metrics,
       });
       if (replay) await markBlankMomentPracticed(replay.id);

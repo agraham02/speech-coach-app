@@ -73,6 +73,7 @@ function promptExtras(subject: Extract<RecordingSubject, { kind: "prompt" }>): S
     prepUsed: subject.prepUsed,
     feelingEmotion: subject.feeling?.emotion,
     feelingAngle: subject.feeling?.angle,
+    placement: subject.practice?.placement ? true : undefined,
   };
   return Object.values(extras).some((v) => v !== undefined) ? extras : null;
 }
