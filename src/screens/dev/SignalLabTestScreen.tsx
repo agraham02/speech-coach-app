@@ -4,6 +4,7 @@ import type { NativeStackNavigationProp, NativeStackScreenProps } from "@react-n
 import type { RootStackParamList } from "../../navigation";
 import { Screen } from "../../components/common/Screen";
 import { Card } from "../../components/common/Card";
+import { PrimaryButton } from "../../components/common/PrimaryButton";
 import { Txt } from "../../components/common/Txt";
 import { getLabResults } from "../../services/dev/signalLabStore";
 import { labTest } from "../../domain/signalLab/registry";
@@ -69,6 +70,8 @@ export function SignalLabTestScreen({ route }: Props) {
           </Txt>
         ))}
       </Card>
+
+      <PrimaryButton label={runs.length ? "Run again" : "Run this test"} disabled={!!def.blockedBy || def.steps.length === 0} onPress={() => navigation.navigate("DevSignalLabRun", { testId: def.id })} />
 
       <Txt variant="headline">Runs</Txt>
       {runs.length === 0 ? (
