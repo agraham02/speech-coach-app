@@ -45,7 +45,8 @@ export const SKILL_GUIDE: Record<SkillId, SkillGuide> = {
   confidence: {
     what: "How sure you come across: eye contact, a face that moves, a voice that carries.",
     feeds: [
-      "Projection and one-breath drills, guided exercises and warm-ups",
+      "Projection and one-breath drills",
+      "Guided exercises for this skill, by how you rate yourself afterwards. Warm-ups aren't scored",
       "Every recorded take with video: eye contact, expression and head position",
       "Tono AI's scores for eye contact, expression and conviction, which lead when a take is judged",
     ],
