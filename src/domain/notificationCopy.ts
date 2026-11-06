@@ -318,6 +318,14 @@ export function sessionReadyText(name: string | null | undefined, kind: ReadyKin
   return { title: who ? `${who}, your take is ready` : "Your take is ready", body: "Pace, pauses and fillers are in. Tap to see what stood out." };
 }
 
+// The in-app toast when Tono AI has judged a take. The number is the take's
+// own score (sessions.session_score, 0-10), and it is left out when there isn't
+// one yet: never a made-up 0.
+export function judgedToastText(title: string, sessionScore: number | null | undefined): string {
+  if (sessionScore == null || !Number.isFinite(sessionScore)) return title;
+  return `${title} — overall ${sessionScore.toFixed(1)}/10`;
+}
+
 // The in-app toast after a take lands on a streak worth noticing: a
 // milestone (3, 7, 14 days...) or a new longest run.
 export function streakToastText(streak: number, kind: "milestone" | "record"): string {
