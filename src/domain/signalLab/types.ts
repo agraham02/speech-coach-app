@@ -10,9 +10,10 @@ import type { TranscriptWord } from "../sessionTypes";
 // against the pass bar. Everything here is pure data, so evaluators are unit
 // tested with made-up measures and no phone.
 
-export type LabGroup = "voice" | "clarity" | "presence" | "content";
+export type LabGroup = "setup" | "voice" | "clarity" | "presence" | "content";
 
 export const LAB_GROUP_LABELS: Record<LabGroup, string> = {
+  setup: "Check the lab",
   voice: "Voice",
   clarity: "Clarity",
   presence: "Presence",
@@ -39,9 +40,14 @@ export interface LabStep {
   // Also transcribe the clip with Whisper (word times): for pace, pauses at
   // marks, fillers, word stress.
   words?: boolean;
+  // The person times themselves: the runner shows Start and Stop buttons, recording runs the whole time, and the time between the taps becomes the step's stopwatchMs.
+  stopwatch?: boolean;
   // Cues shown on screen at set times, for steps that ask for something to
   // happen on cue (a brow lift, a long look away).
   cues?: { atMs: number; label: string }[];
+  // Run the clip through every available transcription engine, for the
+  // recognizer vs Whisper test.
+  engines?: boolean;
 }
 
 export interface LabTestDef {

@@ -18,7 +18,7 @@ import { buildSignalLabExport, latestResult, readingStandings, STATUS_LABELS, st
 import { copyJson, exportFileName, shareJsonFile } from "../../utils/shareJson";
 import { makeStyles } from "../../theme/ThemeProvider";
 
-const GROUPS: LabGroup[] = ["voice", "clarity", "presence", "content"];
+const GROUPS: LabGroup[] = ["setup", "voice", "clarity", "presence", "content"];
 
 const STATUS_ICON: Record<LabStatus, "ellipse-outline" | "checkmark-circle" | "close-circle" | "help-circle" | "lock-closed"> = {
   not_run: "ellipse-outline",
