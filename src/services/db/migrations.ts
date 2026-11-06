@@ -7,7 +7,7 @@ import type { SessionStatus } from "../../domain/sessionTypes";
 import { logger } from "../../utils/logger";
 
 // Bump this and add a new numbered migration when the schema changes.
-export const LATEST_DB_VERSION = 35;
+export const LATEST_DB_VERSION = 36;
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>(
@@ -875,6 +875,15 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
     // heard, the volume readings, and how many times it was resumed.
     await addColumnIfMissing(db, "day_recalls", "pending_json", "TEXT");
     currentVersion = await commitVersion(db, 35);
+  }
+
+  if (currentVersion < 36) {
+    // The after-event check-in also asks how it went (1-5, Rough to Great) and,
+    // when there was a focus, whether you did it ('yes', 'partly', 'not').
+    // Both are null on rows saved before the questions existed.
+    await addColumnIfMissing(db, "speaking_events", "after_went", "INTEGER");
+    await addColumnIfMissing(db, "speaking_events", "after_focus_result", "TEXT");
+    currentVersion = await commitVersion(db, 36);
   }
 }
 

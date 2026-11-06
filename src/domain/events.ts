@@ -16,8 +16,25 @@ export interface BeforeCheckIn {
   at: string;
 }
 
+// Five stops, Rough to Great. Stored as 1-5; null when skipped or answered
+// before this question existed.
+export const WENT_LABELS = ["Rough", "Not great", "Okay", "Good", "Great"] as const;
+
+export type FocusResult = "yes" | "partly" | "not";
+
+export const FOCUS_RESULTS: { key: FocusResult; label: string }[] = [
+  { key: "yes", label: "Yes" },
+  { key: "partly", label: "Partly" },
+  { key: "not", label: "Not this time" },
+];
+
 export interface AfterCheckIn {
   nerves: number | null;
+  // How it went, 1-5 (WENT_LABELS), null when skipped.
+  went: number | null;
+  // Whether you did the focus you set before, null when there was none or it
+  // wasn't answered.
+  focusResult: FocusResult | null;
   wentOkay: string;
   tryNext: string;
   at: string;
@@ -120,6 +137,33 @@ export function nervesSummary(before: number | null | undefined, after: number |
   if (after < before) return `You expected ${before} out of 10, it felt like ${after}. Easier than you feared.`;
   if (after === before) return `You expected ${before} out of 10, and it was about that. You called it.`;
   return `You expected ${before} out of 10, it felt like ${after}. Harder than expected, and you did it anyway.`;
+}
+
+// "Good" for 4; null for anything that is not a stop.
+export function wentLabel(went: number | null | undefined): string | null {
+  if (went == null || !Number.isInteger(went) || went < 1 || went > WENT_LABELS.length) return null;
+  return WENT_LABELS[went - 1];
+}
+
+export function parseFocusResult(value: unknown): FocusResult | null {
+  return FOCUS_RESULTS.some((r) => r.key === value) ? (value as FocusResult) : null;
+}
+
+export function focusResultLabel(result: FocusResult | null | undefined): string | null {
+  return FOCUS_RESULTS.find((r) => r.key === result)?.label ?? null;
+}
+
+// One line for a finished event: "Good · Did your focus". Empty parts are
+// left out; null when neither question was answered.
+export function afterSummary(after: AfterCheckIn | null | undefined): string | null {
+  if (!after) return null;
+  const parts: string[] = [];
+  const went = wentLabel(after.went);
+  if (went) parts.push(went);
+  if (after.focusResult === "yes") parts.push("Did your focus");
+  else if (after.focusResult === "partly") parts.push("Partly did your focus");
+  else if (after.focusResult === "not") parts.push("Focus for next time");
+  return parts.length ? parts.join(" · ") : null;
 }
 
 // --- reminders -------------------------------------------------------------

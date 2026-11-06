@@ -5,12 +5,14 @@ import type { RootStackParamList } from "../navigation";
 import { Screen } from "../components/common/Screen";
 import { Card } from "../components/common/Card";
 import { Txt } from "../components/common/Txt";
+import { Chip } from "../components/common/Chip";
+import { StopTrack } from "../components/common/StopTrack";
 import { PrimaryButton } from "../components/common/PrimaryButton";
 import { ScaleSlider } from "../components/common/ScaleSlider";
 import { Field } from "../components/conversation/Field";
 import { formatEventDate } from "../components/common/DatePicker";
 import { showGlobalToast } from "../components/common/ToastProvider";
-import { eventName, nervesSummary, type SpeakingEvent } from "../domain/events";
+import { eventName, FOCUS_RESULTS, nervesSummary, WENT_LABELS, type FocusResult, type SpeakingEvent } from "../domain/events";
 import { EVENT_CONTEXT } from "../domain/profile";
 import { randomContextPrompt } from "../data/contextPrompts";
 import { getEvent, saveAfterCheckIn, saveBeforeCheckIn } from "../services/db/eventsRepo";
@@ -21,7 +23,8 @@ type Props = NativeStackScreenProps<RootStackParamList, "EventCheckIn">;
 
 // A minute before an event and a couple after. Before: how nervous you
 // expect to be, and one thing to do well. After: how nervous it actually
-// felt, what went okay, one thing for next time. Nothing is scored; the after
+// felt, how it went, whether you did your focus, what went okay, one thing
+// for next time. Nothing is scored; the after
 // check-in only puts the forecast next to what happened.
 export function EventCheckInScreen({ route, navigation }: Props) {
   const styles = useStyles();
@@ -30,6 +33,8 @@ export function EventCheckInScreen({ route, navigation }: Props) {
   const [loaded, setLoaded] = useState(false);
   const [nerves, setNerves] = useState<number | null>(null);
   const [focus, setFocus] = useState("");
+  const [went, setWent] = useState<number | null>(null);
+  const [focusResult, setFocusResult] = useState<FocusResult | null>(null);
   const [wentOkay, setWentOkay] = useState("");
   const [tryNext, setTryNext] = useState("");
   const [saving, setSaving] = useState(false);
@@ -44,6 +49,8 @@ export function EventCheckInScreen({ route, navigation }: Props) {
         }
         if (e && phase === "after" && e.after) {
           setNerves(e.after.nerves);
+          setWent(e.after.went);
+          setFocusResult(e.after.focusResult);
           setWentOkay(e.after.wentOkay);
           setTryNext(e.after.tryNext);
         }
@@ -54,6 +61,7 @@ export function EventCheckInScreen({ route, navigation }: Props) {
 
   const name = event ? eventName(event) : "event";
   const expected = event?.before?.nerves ?? null;
+  const savedFocus = event?.before?.focus.trim() ?? "";
 
   async function save(): Promise<boolean> {
     if (!event || saving) return false;
@@ -63,7 +71,7 @@ export function EventCheckInScreen({ route, navigation }: Props) {
         await saveBeforeCheckIn(event.id, { nerves, focus });
         showGlobalToast("Checked in. Good luck.", "success");
       } else {
-        await saveAfterCheckIn(event.id, { nerves, wentOkay, tryNext });
+        await saveAfterCheckIn(event.id, { nerves, went, focusResult: savedFocus ? focusResult : null, wentOkay, tryNext });
         showGlobalToast(nervesSummary(expected, nerves) ?? "Saved. Well done for doing it.", "success");
       }
       return true;
@@ -128,6 +136,23 @@ export function EventCheckInScreen({ route, navigation }: Props) {
       ) : (
         <>
           <Card style={styles.card}>
+            <Txt variant="headline">How did it go?</Txt>
+            <StopTrack labels={WENT_LABELS} value={went} onChange={setWent} accessibilityLabel="How it went, from rough to great" />
+          </Card>
+          {savedFocus ? (
+            <Card style={styles.card}>
+              <Txt variant="headline">Did you do your focus?</Txt>
+              <Txt variant="footnote" tone="secondary">
+                Your focus was: {savedFocus}
+              </Txt>
+              <View style={styles.chips}>
+                {FOCUS_RESULTS.map((r) => (
+                  <Chip key={r.key} label={r.label} selected={focusResult === r.key} onPress={() => setFocusResult(r.key)} />
+                ))}
+              </View>
+            </Card>
+          ) : null}
+          <Card style={styles.card}>
             <Txt variant="headline">How nervous did it actually feel?</Txt>
             {expected != null ? (
               <Txt variant="footnote" tone="secondary">
@@ -136,11 +161,6 @@ export function EventCheckInScreen({ route, navigation }: Props) {
             ) : null}
             <ScaleSlider key={loaded ? "loaded" : "loading"} value={nerves} onChange={setNerves} lowLabel="Calm" highLabel="Very nervous" accessibilityLabel="How nervous it felt, 0 to 10" />
           </Card>
-          {event?.before?.focus ? (
-            <Txt variant="footnote" tone="secondary">
-              Your focus was: {event.before.focus}
-            </Txt>
-          ) : null}
           <Card style={styles.card}>
             <Field label="What went okay?" value={wentOkay} onChangeText={setWentOkay} placeholder="Even something small counts" multiline />
             <Field label="One thing to try next time" value={tryNext} onChangeText={setTryNext} placeholder="Just one" multiline />
@@ -156,5 +176,6 @@ export function EventCheckInScreen({ route, navigation }: Props) {
 
 const useStyles = makeStyles((t) => ({
   card: { gap: t.space.sm },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: t.space.sm },
   footer: { gap: t.space.xs },
 }));
