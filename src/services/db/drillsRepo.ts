@@ -1,7 +1,6 @@
 import { getDatabase } from "./database";
-import { rowToDrillCompletion, type DrillCompletionRow } from "./mappers";
 import { generateId } from "../../utils/generateId";
-import type { DifficultyTier, DrillCompletion } from "../../domain/sessionTypes";
+import type { DifficultyTier } from "../../domain/sessionTypes";
 
 export interface NewDrillCompletion {
   twisterId: string;
@@ -32,20 +31,6 @@ export async function insertDrillCompletion(input: NewDrillCompletion): Promise<
       input.metrics === undefined ? null : JSON.stringify(input.metrics),
     ],
   );
-}
-
-// Live (scored) twister attempts only — manual-timer attempts have no
-// accuracy and must not count as 0% in the curriculum's drill score.
-export async function getRecentDrillCompletions(limit = 50): Promise<DrillCompletion[]> {
-  const db = await getDatabase();
-  const rows = await db.getAllAsync<DrillCompletionRow>(
-    `SELECT id, content_id AS twister_id, started_at AS completed_at, accuracy_percent, wpm, difficulty
-     FROM drill_attempts
-     WHERE drill_type = 'twister' AND accuracy_percent IS NOT NULL
-     ORDER BY started_at DESC LIMIT ?`,
-    [limit],
-  );
-  return rows.map(rowToDrillCompletion);
 }
 
 // Shape matches exactly what `computeStreaks()` (src/domain/streaks.ts)

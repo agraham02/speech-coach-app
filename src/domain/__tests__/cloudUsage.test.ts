@@ -1,4 +1,4 @@
-import { callsThisMonth, describeUsage, formatTokens, sumUsage, usageFromAnthropic, usageFromGemini, usageFromOpenAI, type CloudUsageCall } from "../cloudUsage";
+import { callsThisMonth, describeUsage, formatTokens, sumUsage, usageFromGemini, type CloudUsageCall } from "../cloudUsage";
 
 const call = (extra: Partial<CloudUsageCall> = {}): CloudUsageCall => ({
   at: "2026-10-16T12:00:00.000Z",
@@ -44,31 +44,6 @@ describe("usageFromGemini", () => {
     expect(usageFromGemini(undefined)).toBeNull();
     expect(usageFromGemini({})).toBeNull();
     expect(usageFromGemini("x")).toBeNull();
-  });
-});
-
-describe("usageFromOpenAI", () => {
-  it("takes reasoning tokens out of the output count (Responses API)", () => {
-    expect(usageFromOpenAI({ input_tokens: 900, output_tokens: 700, total_tokens: 1600, output_tokens_details: { reasoning_tokens: 200 } })).toEqual({
-      inputTokens: 900,
-      outputTokens: 500,
-      thinkingTokens: 200,
-      totalTokens: 1600,
-    });
-  });
-  it("reads the chat-completions names", () => {
-    expect(usageFromOpenAI({ prompt_tokens: 50, completion_tokens: 20 })).toEqual({ inputTokens: 50, outputTokens: 20, thinkingTokens: null, totalTokens: 70 });
-  });
-  it("is null for nothing usable", () => {
-    expect(usageFromOpenAI(null)).toBeNull();
-    expect(usageFromOpenAI({ other: 1 })).toBeNull();
-  });
-});
-
-describe("usageFromAnthropic", () => {
-  it("reads input and output", () => {
-    expect(usageFromAnthropic({ input_tokens: 3000, output_tokens: 900 })).toEqual({ inputTokens: 3000, outputTokens: 900, thinkingTokens: null, totalTokens: 3900 });
-    expect(usageFromAnthropic({})).toBeNull();
   });
 });
 

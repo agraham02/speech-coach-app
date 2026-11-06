@@ -118,10 +118,6 @@ export function buyLabel(plan: PlusPlan): string {
   return plan.trialDays ? `Start ${plan.trialDays}-day free trial` : `Subscribe for ${plan.price} / ${plan.period}`;
 }
 
-export function planPriceLine(plan: PlusPlan): string {
-  return `${plan.price} / ${plan.period}`;
-}
-
 export function planDetail(plan: PlusPlan): string {
   if (plan.id === "annual") {
     const parts = [plan.perMonth ? `${plan.perMonth} a month` : null, plan.savePercent ? `save ${plan.savePercent}%` : null].filter(Boolean);

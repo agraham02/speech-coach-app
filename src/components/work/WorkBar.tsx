@@ -25,7 +25,7 @@ export function SegmentBar({ statuses }: { statuses: StepStatus[] }) {
   );
 }
 
-const useStyles = makeStyles((t) => ({
+const useStyles = makeStyles(() => ({
   row: { flexDirection: "row", gap: 4 },
   segment: { flex: 1, height: 4, borderRadius: 2 },
 }));

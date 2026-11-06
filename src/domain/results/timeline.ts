@@ -135,10 +135,3 @@ export function valueAtMs(series: Series, ms: number): number | null {
   if (i < 0 || i >= series.v.length) return null;
   return series.v[i];
 }
-
-// The share of buckets that hold a value, for the "how much of this chart is
-// real" line.
-export function filledShare(series: Series): number {
-  if (!series.v.length) return 0;
-  return series.v.filter((x) => x != null).length / series.v.length;
-}

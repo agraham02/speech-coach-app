@@ -56,31 +56,6 @@ export function usageFromGemini(meta: unknown): TokenUsage | null {
   };
 }
 
-// OpenAI's usage object (Responses API: input_tokens, output_tokens;
-// chat-style, as OpenRouter returns: prompt_tokens, completion_tokens). Their
-// output counts include the reasoning tokens, so those are taken out of it.
-export function usageFromOpenAI(usage: unknown): TokenUsage | null {
-  const u = obj(usage);
-  if (!u) return null;
-  const input = num(u.input_tokens) ?? num(u.prompt_tokens);
-  const outputAll = num(u.output_tokens) ?? num(u.completion_tokens);
-  if (input === null && outputAll === null) return null;
-  const details = obj(u.output_tokens_details) ?? obj(u.completion_tokens_details);
-  const thinking = details ? num(details.reasoning_tokens) : null;
-  const output = outputAll === null ? null : Math.max(0, outputAll - (thinking ?? 0));
-  return { inputTokens: input, outputTokens: output, thinkingTokens: thinking, totalTokens: num(u.total_tokens) ?? total(input, output, thinking) };
-}
-
-// Anthropic's usage: input_tokens and output_tokens (thinking is inside it).
-export function usageFromAnthropic(usage: unknown): TokenUsage | null {
-  const u = obj(usage);
-  if (!u) return null;
-  const input = num(u.input_tokens);
-  const output = num(u.output_tokens);
-  if (input === null && output === null) return null;
-  return { inputTokens: input, outputTokens: output, thinkingTokens: null, totalTokens: total(input, output, null) };
-}
-
 export interface UsageTotals {
   reviews: number;
   inputTokens: number;

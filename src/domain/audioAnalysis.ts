@@ -37,5 +37,3 @@ export async function decodeVideoAudio(videoUri: string): Promise<DecodedAudio |
     return null;
   }
 }
-
-export type DspStatus = "complete" | "failed";

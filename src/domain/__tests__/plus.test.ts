@@ -4,7 +4,6 @@ import {
   buyLabel,
   freeTrialDays,
   planDetail,
-  planPriceLine,
   plansFromPackages,
   PLUS_ENTITLEMENT_ID,
   PLUS_MONTHLY_JUDGED_TAKES,
@@ -97,8 +96,6 @@ describe("the words by the buy button", () => {
   const [annual, monthly] = plansFromPackages([MONTHLY, ANNUAL]);
 
   it("prices each plan", () => {
-    expect(planPriceLine(annual)).toBe("$49.99 / year");
-    expect(planPriceLine(monthly)).toBe("$4.99 / month");
     expect(planDetail(annual)).toBe("$4.17 a month · save 17%");
     expect(planDetail(monthly)).toBe("Cancel any time");
   });

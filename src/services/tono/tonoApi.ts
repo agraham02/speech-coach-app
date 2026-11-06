@@ -5,7 +5,7 @@ import { getSupabase } from "../account/supabaseClient";
 import { TonoApiError } from "./tonoError";
 import { refuseTonoCallWhenMocked } from "../dev/mockAccount";
 
-export { isDenyCode, TonoApiError } from "./tonoError";
+export { TonoApiError } from "./tonoError";
 
 // The app's only door to Tono's server (supabase/functions). Every call carries
 // the signed-in person's token; the server decides what is allowed. Nothing

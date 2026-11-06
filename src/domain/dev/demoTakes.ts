@@ -290,8 +290,6 @@ export const PASSAGES = {
   saturday: ["Honestly, my favourite part of the week is Saturday morning, when nothing is planned."],
 } as const;
 
-export type PassageKey = keyof typeof PASSAGES;
-
 // Hesitations and contextual fillers laid into a passage: "um," at some
 // sentence starts, "uh" and "like" mid-sentence, "you know" and "actually"
 // now and then. Deterministic.

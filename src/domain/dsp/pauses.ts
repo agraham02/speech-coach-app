@@ -1,5 +1,5 @@
 import type { TranscriptWord } from "../sessionTypes";
-import { BREATH, extractAudioFeatures, SPEECH, type AudioFeatures } from "./audioFeatures";
+import { BREATH, SPEECH, type AudioFeatures } from "./audioFeatures";
 
 // Pauses from the voice-activity track (audioFeatures.ts: an energy gate
 // with hysteresis, breaths tagged), optionally classified using word
@@ -127,12 +127,6 @@ export function pausesFromFeatures(features: Pick<AudioFeatures, "speech" | "hop
     breaths,
     breathsPerMinute: Math.round((breaths / minutes) * 10) / 10,
   };
-}
-
-// Straight from a waveform (tests, labs). The pipeline extracts features
-// once and calls pausesFromFeatures.
-export function detectPauses(waveform: Float32Array, sampleRate: number, words: TranscriptWord[] | null = null): PauseAnalysis {
-  return pausesFromFeatures(extractAudioFeatures(waveform, sampleRate), words);
 }
 
 function classify(startMs: number, endMs: number, breaths: number, words: TranscriptWord[] | null): Pause {

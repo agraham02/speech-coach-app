@@ -1,4 +1,4 @@
-import { allowanceLine, dayLabel, denialMessage, isActionNeeded, isPaidPlan, nextSteps, usedUpLine, usesOneLine, type TonoAllowance } from "../aiAllowance";
+import { allowanceLine, dayLabel, denialMessage, isActionNeeded, isPaidPlan, usedUpLine, usesOneLine, type TonoAllowance } from "../aiAllowance";
 
 const NEXT_MONTH = "2026-12-01T00:00:00.000Z";
 
@@ -65,25 +65,6 @@ describe("denialMessage", () => {
     for (const r of ["plus_required", "plus_cost_cap", "budget_paused", "rate_limited", "disabled"] as const) {
       expect(denialMessage(r, null).length).toBeGreaterThan(10);
     }
-  });
-});
-
-describe("nextSteps", () => {
-  it("offers the trial to a free user who can still have it, else Plus", () => {
-    expect(nextSteps("quota_exhausted", "free", true)).toEqual(["start_trial"]);
-    expect(nextSteps("quota_exhausted", "free", false)).toEqual(["get_plus"]);
-    expect(nextSteps("plus_required", "free", true)).toEqual(["start_trial"]);
-  });
-
-  it("never offers own keys, and offers nothing to buy to a subscriber", () => {
-    expect(nextSteps("quota_exhausted", "plus", true)).toEqual([]);
-    expect(nextSteps("quota_exhausted", "trial", true)).toEqual([]);
-    expect(nextSteps("plus_cost_cap", "plus", false)).toEqual(["wait"]);
-  });
-
-  it("just says wait for the daily limit and the kill switch", () => {
-    expect(nextSteps("rate_limited", "free", true)).toEqual(["wait"]);
-    expect(nextSteps("disabled", "free", true)).toEqual(["wait"]);
   });
 });
 
