@@ -274,6 +274,9 @@ export async function recordDrillOutcome(args: {
 export async function recordTakeOutcome(evidence: Omit<AttemptEvidence, "difficulty">, context: { sessionId: string; label: string; meanScore: number | null }): Promise<ProgressChange[]> {
   // A take deleted while it was still being analysed moves nothing.
   if (!(await isSessionLive(context.sessionId))) return [];
+  // One take moves the tree once, even if it's settled twice.
+  const db = await getDatabase();
+  if (await db.getFirstAsync(`SELECT 1 FROM score_attempts WHERE session_id = ? LIMIT 1`, [context.sessionId])) return [];
   const level = await getDrillLevel("rep");
   const stages = await getNodeStages();
   const stageOf = (id: string): Stage => stages.get(id)?.stage ?? 1;

@@ -250,6 +250,8 @@ Every change to `PLAN.md` after it was agreed: what changed, why, and the owner'
 - **Old skill names on screen are now the pillars' names** (Clarity, Voice, Message, Presence, Connection), one line in `tokens.ts`. Otherwise a drill's card said "Cadence" above a trail ending in "Voice" for the same number. This is ahead of phase 5, but it's cheap and it avoids a contradiction on screen.
 - **The trail:** on a take's Result as a beat after the score, then the pillars it moved; under a drill's result on the drill, twister, conversation, live conversation and summary screens; and as a toast on guided exercises, line reps and Move it, which go back straight after saving. An attempt that moved nothing says "Counted as practice. This one doesn't move a score yet: nothing can check it for now." (rule 2).
 
+- **Within limits on a Concise take** reads its limit: inside is 100, and going over costs its share of the limit. D15 said Within limits needs "a drill or a set limit", and Concise has one, so the leaf the grid asks for now moves. The fresh review caught this.
+
 **Why:** the plan's "no more two-layer switch" means one sheet, and a contradiction between old and new names would be worse than renaming early.
 
 **Owner's OK:** not asked; these are inside tasks 3a.5 and 3a.6, except the rename. Say if you'd rather keep the old names until phase 5.

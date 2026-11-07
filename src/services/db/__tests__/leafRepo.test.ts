@@ -130,7 +130,7 @@ describeIfSqlite("the skill tree's numbers", () => {
     for (let i = 0; i < 18; i++) await recordDrillOutcome({ drillType: "twister", outcome: ok(0.95), level: 2 });
     expect((await getNodeStages()).get("speed_clarity")?.stage).toBe(2);
     for (let i = 0; i < 3; i++) await recordDrillOutcome({ drillType: "twister", outcome: ok(0.95), level: 3 });
-    expect((await getNodeStages()).get("speed_clarity")?.stage).toBeGreaterThanOrEqual(3);
+    expect((await getNodeStages()).get("speed_clarity")?.stage).toBe(3);
   });
 
   it("celebrates a pillar's stage, not every leaf's", async () => {
@@ -163,6 +163,15 @@ describeIfSqlite("the skill tree's numbers", () => {
     expect((await getSkillStates()).cadence.attempts).toBe(0);
     expect((await getLeafRatings()).speaking_rate?.attempts).toBe(1);
     expect(await getSkillEvents("cadence")).toHaveLength(0);
+  });
+
+  it("moves the tree once for a take, even if it's settled twice", async () => {
+    await mockDb.runAsync(`INSERT INTO sessions (id, prompt_id, recorded_at, video_path, duration_seconds, transcription_source, status) VALUES ('t2', 'p', '2026-11-01T10:00:00Z', 'v', 60, 'whisper_ondevice', 'done')`);
+    const take = { activityId: ACTIVITY_IDS.impromptu, leafScores: { speaking_rate: { score: 0.9 } }, source: "measured" as const };
+    await recordTakeOutcome(take, { sessionId: "t2", label: "A take", meanScore: 0.9 });
+    const once = await getLeafRatings();
+    expect(await recordTakeOutcome(take, { sessionId: "t2", label: "A take", meanScore: 0.9 })).toEqual([]);
+    expect(await getLeafRatings()).toEqual(once);
   });
 
   it("a take moves nothing once deleted, and doesn't step the rep's difficulty", async () => {

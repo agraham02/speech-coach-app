@@ -189,6 +189,14 @@ describe("Message", () => {
     expect(reading({ secondsToFirstWord: 3.5 }).starting_fast?.score).toBe(60);
   });
 
+  it("Within limits: a Concise take against its limit", () => {
+    expect(reading({ budgetSeconds: 60, durationSeconds: 45 }).within_limits?.score).toBe(100);
+    expect(reading({ budgetSeconds: 45, durationSeconds: 45 }).within_limits?.score).toBe(100);
+    expect(reading({ budgetSeconds: 45, durationSeconds: 54 }).within_limits?.score).toBe(80);
+    expect(reading({ budgetSeconds: 45, durationSeconds: 200 }).within_limits?.score).toBe(0);
+    expect(reading({ durationSeconds: 200 }).within_limits).toBeUndefined();
+  });
+
   it("gives a script nothing that reads the words", () => {
     const r = reading({ kind: "script", wpm: 145, readAccuracyPercent: 90, hedges: 5, ending: "trailing", pointFirst: true, structure: { framework: "PREP", shaped: true, beatsFound: 3 } });
     expect(Object.keys(r).sort()).toEqual(["read_accuracy", "speaking_rate"]);

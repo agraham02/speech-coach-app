@@ -87,6 +87,7 @@ export async function loadTakeFacts(session: Session): Promise<TakeFacts> {
     repeatedWordCount: session.repeatedWordCount,
     prepSeconds: session.subjectExtras?.prepUsed?.seconds ?? null,
     scriptText: script?.text ?? null,
+    budgetSeconds: session.sessionType === "concise" ? session.subjectExtras?.conciseSeconds ?? null : null,
     pitchBand,
     judged: forThisTake(judgedLeaves(review), session),
   });

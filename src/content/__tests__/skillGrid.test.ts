@@ -27,6 +27,13 @@ describe("grid coverage", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  it("never lists a leaf twice in a row, which would fail the whole attempt", () => {
+    for (const r of GRID_ROWS) {
+      const leaves = r.moves.map((m) => m.leaf);
+      expect([r.activityId, new Set(leaves).size]).toEqual([r.activityId, leaves.length]);
+    }
+  });
+
   it("has every drill type, guided exercise and warm-up", () => {
     const drills = (Object.keys(DRILL_TITLES) as DrillType[]).filter((d) => d !== "guided" && d !== "warmup" && d !== "rep");
     for (const d of drills) expect([d, !!getGridRow(drillActivityId(d))]).toEqual([d, true]);

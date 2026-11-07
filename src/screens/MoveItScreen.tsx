@@ -119,8 +119,7 @@ export function MoveItScreen({ route, navigation }: Props) {
         lessonId: practice?.lessonId,
         metrics: { measure: result.measure, lift: result.lift, takes: takes.map((t) => ({ take: t.spec.movementId ?? t.spec.kind, loudness: t.loudness, pitch: t.pitch })) },
       });
-      if (change.leveledUp) showGlobalToast("Level up — Move it asks for a little more now.", "success");
-      else announceTrail(change);
+      announceTrail(change, change.leveledUp ? "Move it asks for a little more now." : undefined);
     }
     await completePracticeStep(drillActivityId("move_it"), practice, result?.outcome.score ?? null);
     navigation.goBack();
