@@ -17,6 +17,7 @@ export type EndingKind = "clear" | "neutral" | "trailing";
 export interface TakeFacts {
   kind: TakeKindForLeaves;
   durationSeconds: number;
+  wordCount: number;
   // Voice
   wpm: number | null;
   paceSdSylPerSec: number | null;

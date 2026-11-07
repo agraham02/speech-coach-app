@@ -19,7 +19,7 @@ import { FIRST_RESULT_LATENCY_MS, fullText } from "../domain/speech/liveTranscri
 import { tokenizeHeard } from "../domain/speech/normalize";
 import { buildTarget, followLive, type WordStatus } from "../domain/speech/speechAlignment";
 import { prepareDrill, type DrillSetup } from "../domain/drills/prepareDrill";
-import { chainJudgeRequest, evaluateDrill, type DrillDetails } from "../domain/drills/evaluateDrill";
+import { chainJudgeRequest, evaluateDrill, type DrillEvaluation, type DrillDetails } from "../domain/drills/evaluateDrill";
 import { judgeChain, type ChainJudged } from "../services/drills/chainJudge";
 import { useElapsed } from "../hooks/useElapsed";
 import { ChainVerdicts } from "../components/drills/ChainVerdicts";
@@ -33,6 +33,7 @@ import { defaultsFromProfile } from "../domain/profile";
 import { getUserProfile } from "../services/prefs/prefsStore";
 import { getDrillLevel, recordDrillOutcome, type ProgressChange } from "../services/db/progressRepo";
 import { DrillProgressLine } from "../components/celebrate/DrillProgressLine";
+import { GateNote } from "../components/celebrate/GateNote";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { drillActivityId } from "../content/activities";
 import { showGlobalToast } from "../components/common/ToastProvider";
@@ -61,7 +62,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
   const checkingFor = useElapsed(stage === "finalizing");
   const [elapsedMs, setElapsedMs] = useState(0);
   const [prepLeft, setPrepLeft] = useState(0);
-  const [result, setResult] = useState<{ outcome: DrillOutcome; details: DrillDetails } | null>(null);
+  const [result, setResult] = useState<DrillEvaluation | null>(null);
   const [change, setChange] = useState<ProgressChange | null>(null);
   const startedAtRef = useRef(0);
   const finishingRef = useRef(false);
@@ -273,6 +274,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         metrics: evaluated.details,
         // A chain Tono AI checked counts in full; without it, the phone only counts.
         ...(check?.by ? { source: "judge" as const } : {}),
+        gate: evaluated.gate,
       });
       setChange(moved);
       setChainCheck(check);
@@ -285,7 +287,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
   }
 
   async function done() {
-    if (result) await completePracticeStep(drillActivityId(drill), practice, result.outcome.score);
+    if (result) await completePracticeStep(drillActivityId(drill), practice, result.gate.passed ? result.outcome.score : null);
     navigation.goBack();
   }
 
@@ -335,11 +337,12 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
           LiveStats({ setup, elapsedMs, secondsLeft, volume: speech.volume, heard: heard.map((t) => t.raw), cursor: live?.cursor ?? 0 })
         ) : null}
 
-        {stage === "result" && result ? ResultCard({ setup, result }) : null}
+        {stage === "result" && result && result.gate.passed ? ResultCard({ setup, result }) : null}
+        {stage === "result" && result && !result.gate.passed ? <GateNote gate={result.gate} /> : null}
         {stage === "result" && result && (result.details.links || result.details.steps) ? (
           <ChainVerdicts links={result.details.links} steps={result.details.steps} checkedBy={chainCheck?.by ?? null} />
         ) : null}
-        {stage === "result" && result && change && !practice?.placement ? <DrillProgressLine change={change} drillTitle={DRILL_TITLES[setup.type]} /> : null}
+        {stage === "result" && result && result.gate.passed && change && !practice?.placement ? <DrillProgressLine change={change} drillTitle={DRILL_TITLES[setup.type]} /> : null}
         {stage === "result" && !result ? (
           <Card style={styles.card}>
             <Txt variant="headline">Didn't catch anything.</Txt>
@@ -582,7 +585,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
     return null;
   }
 
-  function ResultCard({ setup, result }: { setup: DrillSetup; result: { outcome: DrillOutcome; details: DrillDetails } }) {
+  function ResultCard({ setup, result }: { setup: DrillSetup; result: DrillEvaluation }) {
     const { outcome, details } = result;
     return (
       <Card style={styles.card}>

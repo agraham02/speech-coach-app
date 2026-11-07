@@ -24,6 +24,10 @@ import {
 import { insertDrillCompletion } from "../services/db/drillsRepo";
 import { getDrillLevel, recordDrillOutcome, type ProgressChange } from "../services/db/progressRepo";
 import { DrillProgressLine } from "../components/celebrate/DrillProgressLine";
+import { GateNote } from "../components/celebrate/GateNote";
+import { accuracyGate, type GateVerdict } from "../domain/gates";
+import { getUserProfile } from "../services/prefs/prefsStore";
+import { defaultsFromProfile } from "../domain/profile";
 import { paramsFor, scoreAccuracy, type DrillOutcome } from "../domain/drills/drillSpecs";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { drillActivityId } from "../content/activities";
@@ -66,6 +70,8 @@ export function DrillSessionScreen({ route, navigation }: Props) {
   const twister = twisterId ? getTongueTwister(twisterId) : undefined;
   const targetWpm = level != null ? paramsFor("twister", level).targetWpm : undefined;
   const [lastOutcome, setLastOutcome] = useState<DrillOutcome | null>(null);
+  const [gate, setGate] = useState<GateVerdict | null>(null);
+  const relaxedAccuracy = defaultsFromProfile(getUserProfile()).relaxAccuracy;
 
   useEffect(() => {
     getDrillLevel("twister").then((l) => {
@@ -198,6 +204,8 @@ export function DrillSessionScreen({ route, navigation }: Props) {
           .join(" ")}`,
       );
       const outcome = scoreAccuracy(score.accuracyPercent, score.wpm, targetWpm);
+      const verdict = accuracyGate(score.accuracyPercent, relaxedAccuracy);
+      setGate(verdict);
       const change = await recordDrillOutcome({
         drillType: "twister",
         outcome,
@@ -207,6 +215,7 @@ export function DrillSessionScreen({ route, navigation }: Props) {
         accuracyPercent: score.accuracyPercent,
         wpm: score.wpm,
         metrics: { misses: score.misses, perRep: score.perRep, focusSounds: score.focusSounds, extraWords: score.extraWords },
+        gate: verdict,
       });
       setLevel(change.levelAfter);
       setLastOutcome(outcome);
@@ -232,7 +241,7 @@ export function DrillSessionScreen({ route, navigation }: Props) {
   }
 
   async function handleDone() {
-    await completePracticeStep(drillActivityId("twister"), practice, lastOutcome?.score ?? null);
+    await completePracticeStep(drillActivityId("twister"), practice, gate?.passed === false ? null : lastOutcome?.score ?? null);
     navigation.goBack();
   }
 
@@ -262,7 +271,7 @@ export function DrillSessionScreen({ route, navigation }: Props) {
         {stage === "result" && result?.kind === "live" ? (
           <>
             <ResultView twister={twister} target={target} wordsPerRep={wordsPerRep} result={result} />
-            {change ? <DrillProgressLine change={change} drillTitle="Twisters" /> : null}
+            {gate && !gate.passed ? <GateNote gate={gate} /> : change ? <DrillProgressLine change={change} drillTitle="Twisters" /> : null}
           </>
         ) : (
           <Card style={styles.targetCard}>

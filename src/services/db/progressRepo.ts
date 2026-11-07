@@ -17,6 +17,7 @@ import { PILLAR_OF_SKILL, STARTING_VALUE, getLeaf, skillOfPillar, type LeafId, t
 import type { Trail } from "../../domain/scoring/rollup";
 import { activityOfDrill } from "../../content/activities";
 import { SKILL_CHECK_LEAVES, type EvidenceSource } from "../../content/skillGrid";
+import type { GateVerdict } from "../../domain/gates";
 import { emitStageEarned } from "../progress/progressEvents";
 import { getAttemptsFor, getAttemptsSince, getNodeStages, getPillarProgress, getTreeScores, recordAttempt, seedLeaves, type AttemptResult } from "./leafRepo";
 import { getPathOrder } from "./pathRepo";
@@ -207,7 +208,11 @@ export async function recordDrillOutcome(args: {
   source?: EvidenceSource;
   // A number per leaf, when one number doesn't fit the whole row.
   leafScores?: Partial<Record<LeafId, LeafEvidence>>;
+  // Failed: the attempt is kept, but it has no score, moves no leaf and doesn't
+  // step the difficulty (plan 6.4, rule 2).
+  gate?: GateVerdict;
 }): Promise<ProgressChange> {
+  const gated = args.gate?.passed === false;
   const db = await getDatabase();
   const skill = args.skill ?? DRILL_SKILL[args.drillType];
   const now = new Date().toISOString();
@@ -225,20 +230,20 @@ export async function recordDrillOutcome(args: {
       skill,
       args.lessonId ?? null,
       args.level,
-      args.outcome.score,
-      args.outcome.success ? 1 : 0,
+      gated ? null : args.outcome.score,
+      !gated && args.outcome.success ? 1 : 0,
     ],
   );
-  const levelAfter = nextDifficulty(args.level, args.outcome.success);
-  await saveDrillLevel(args.drillType, levelAfter, args.outcome.success);
+  const levelAfter = gated ? args.level : nextDifficulty(args.level, args.outcome.success);
+  if (!gated) await saveDrillLevel(args.drillType, levelAfter, args.outcome.success);
 
   const stages = await getNodeStages();
   const stageOf = (id: string): Stage => stages.get(id)?.stage ?? 1;
   const result = await recordAttempt({
     evidence: {
       activityId: args.activityId ?? activityOfDrill(args.drillType, args.contentId),
-      score: args.placement ? null : args.outcome.score,
-      leafScores: args.placement ? {} : args.leafScores,
+      score: args.placement || gated ? null : args.outcome.score,
+      leafScores: args.placement || gated ? {} : args.leafScores,
       difficulty: args.level,
       source: args.source ?? drillSource(args.drillType),
     },

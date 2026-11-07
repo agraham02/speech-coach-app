@@ -330,7 +330,8 @@ export function scorePace(wpm: number, accuracyPercent: number, p: DrillParams):
   const inBand = wpm >= min && wpm <= max;
   const distance = inBand ? 0 : wpm < min ? min - wpm : wpm - max;
   const paceScore = Math.max(0, 1 - distance / 40);
-  const score = paceScore * 0.7 + (accuracyPercent / 100) * 0.3;
+  // In band × accuracy (plan section 7): wrong words can't score on pace alone.
+  const score = paceScore * (accuracyPercent / 100);
   return outcome(score, `${wpm} wpm (target ${min}–${max})`, inBand && accuracyPercent >= 70);
 }
 

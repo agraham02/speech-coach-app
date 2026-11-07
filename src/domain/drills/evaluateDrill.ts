@@ -33,6 +33,7 @@ import {
   type WordChainJudgement,
 } from "./chainJudging";
 import { countRate, countReached } from "./breathCount";
+import { accuracyGate, chainGate, PASSED, readingGate, repetitionGate, storyGate, wordsHeardGate, type GateVerdict } from "../gates";
 
 // Scores one live drill attempt from what the screen measured. Pure.
 
@@ -80,7 +81,39 @@ export interface DrillDetails {
 
 const HESITATION_MS = 2000;
 
-export function evaluateDrill(setup: DrillSetup, m: DrillMeasurements): { outcome: DrillOutcome; details: DrillDetails } {
+export interface DrillEvaluation {
+  outcome: DrillOutcome;
+  details: DrillDetails;
+  gate: GateVerdict;
+}
+
+// What must be true before an attempt can move a score (plan section 7).
+function drillGate(setup: DrillSetup, m: DrillMeasurements, details: DrillDetails): GateVerdict {
+  const tokens = tokenizeHeard(m.transcript).tokens.map((t) => t.raw);
+  switch (setup.live) {
+    case "follow":
+      if (setup.type === "pace_reading" || setup.type === "pause_reading") return readingGate(details.accuracyPercent ?? 0, m.relaxedAccuracy);
+      return accuracyGate(details.accuracyPercent ?? 0, m.relaxedAccuracy);
+    case "story":
+      return storyGate(details.usedWords?.length ?? 0);
+    case "free":
+      // Repeating isn't a fault for someone who stutters.
+      return m.ignoreSlips ? PASSED : repetitionGate(tokens);
+    case "chain":
+      return chainGate(!!(m.wordChainJudgement || m.bridgeChainJudgement));
+    case "volume":
+      return wordsHeardGate(tokens.length);
+    default:
+      return PASSED;
+  }
+}
+
+export function evaluateDrill(setup: DrillSetup, m: DrillMeasurements): DrillEvaluation {
+  const scored = scoreDrill(setup, m);
+  return { ...scored, gate: drillGate(setup, m, scored.details) };
+}
+
+function scoreDrill(setup: DrillSetup, m: DrillMeasurements): { outcome: DrillOutcome; details: DrillDetails } {
   const heard = tokenizeHeard(m.transcript);
   const rawTokens = heard.tokens.map((t) => t.raw);
 

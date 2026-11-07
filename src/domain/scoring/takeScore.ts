@@ -12,7 +12,7 @@ import { takeLeafReadings, type TakeFacts } from "./takeLeaves";
 // check the headline says Delivery and leaves Message out. Every number above a
 // leaf is worked out here, so a summary can't disagree with its breakdown. Pure.
 
-export const SCORE_SHEET_VERSION = 8;
+export const SCORE_SHEET_VERSION = 9;
 
 export type HeadlineKind = "overall" | "delivery";
 

@@ -1,4 +1,5 @@
 import { ramblingMetrics } from "../coach/ramblingMetrics";
+import { explainGate, keyWordsGate, PASSED, replyGate, type GateVerdict } from "../gates";
 import { replyTiming, type TurnMeasurement } from "../conversation/evaluateConversation";
 import { words } from "../conversation/text";
 import { outcome, type DrillOutcome } from "../drills/drillSpecs";
@@ -107,11 +108,12 @@ function evaluateTurn(setup: SummarySetup, turn: SummaryTurn, m: TurnMeasurement
   switch (setup.type) {
     case "sum_up": {
       const sum = review?.drill === "sum_up" ? review : null;
+      // Limits × content (plan section 7): missing the point can't score on being short.
       let score = 0.4 * sentenceScore + 0.3 * timeScore + 0.3 * endScore;
       if (sum) {
         const core = VERDICT_SCORE[sum.core];
         const content = sum.accurate === "not_checked" ? core : 0.6 * core + 0.4 * ACCURACY_SCORE[sum.accurate];
-        score = 0.3 * sentenceScore + 0.2 * timeScore + 0.15 * endScore + 0.35 * content;
+        score *= content;
       }
       const notes = [
         withinSentences ? plural(count.count, "sentence", "sentences") : `${plural(count.count, "sentence", "sentences")} — the limit was ${turn.sentenceLimit}`,
@@ -162,7 +164,8 @@ function evaluateTurn(setup: SummarySetup, turn: SummaryTurn, m: TurnMeasurement
       if (exp) {
         plainScore = 0.5 * plainScore + 0.5 * (1 - Math.min(1, exp.jargon.length / 3));
         const accurate = exp.accurate === "not_checked" ? 1 : ACCURACY_SCORE[exp.accurate];
-        score = 0.2 * timeScore + 0.2 * lengthScore + 0.2 * plainScore + 0.4 * accurate;
+        // Plainness × accuracy (plan section 7).
+        score = (0.35 * timeScore + 0.35 * lengthScore + 0.3 * plainScore) * accurate;
       }
       const notes = [
         timeNote,
@@ -196,7 +199,25 @@ function turnPassed(setup: SummarySetup, turn: SummaryTurn, r: SummaryTurnResult
   }
 }
 
-export function evaluateSummary(setup: SummarySetup, measurements: TurnMeasurement[], review: SummaryReview | null = null): { outcome: DrillOutcome; details: SummaryDetails } {
+// What must be true before a summary can move a score (plan section 7).
+function summaryGate(setup: SummarySetup, measurements: TurnMeasurement[], turns: SummaryTurnResult[], review: SummaryReview | null): GateVerdict {
+  const replied = replyGate(turns.some((t) => t.replied));
+  if (!replied.passed) return replied;
+  if (setup.type === "relay") return keyWordsGate(turns.reduce((n, t) => n + t.keyHits.length, 0), !!review);
+  if (setup.type === "explain_simple") {
+    const said = setup.turns.some((turn, i) => wordsHit(measurements[i]?.transcript ?? "", turn.keyWords).length > 0);
+    const exp = review?.drill === "explain_simple" ? review : null;
+    return explainGate(said, exp?.accurate === "no", !!exp && exp.accurate !== "not_checked");
+  }
+  return PASSED;
+}
+
+export function evaluateSummary(setup: SummarySetup, measurements: TurnMeasurement[], review: SummaryReview | null = null): { outcome: DrillOutcome; details: SummaryDetails; gate: GateVerdict } {
+  const scored = scoreSummary(setup, measurements, review);
+  return { ...scored, gate: summaryGate(setup, measurements, scored.details.turns, review) };
+}
+
+function scoreSummary(setup: SummarySetup, measurements: TurnMeasurement[], review: SummaryReview | null): { outcome: DrillOutcome; details: SummaryDetails } {
   const turns = setup.turns.map((turn, i) => {
     const m = measurements[i] ?? { transcript: "", partnerEndAt: 0, listenStartAt: 0, volume: [], firstResultAt: null, lastResultAt: null };
     return evaluateTurn(setup, turn, m, i, review);

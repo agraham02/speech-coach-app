@@ -255,3 +255,26 @@ Every change to `PLAN.md` after it was agreed: what changed, why, and the owner'
 **Why:** the plan's "no more two-layer switch" means one sheet, and a contradiction between old and new names would be worse than renaming early.
 
 **Owner's OK:** not asked; these are inside tasks 3a.5 and 3a.6, except the rename. Say if you'd rather keep the old names until phase 5.
+
+## D18. How the gates work (2026-11-07)
+
+**Was:** section 7 lists a gate for each activity, and rule 2 says a failed gate keeps your minutes and check-off, moves no score, and says why kindly. Several gates need checks that later tasks build.
+
+**Now:**
+- **`domain/gates.ts` holds them all.** A failed attempt is kept with no score, moves no leaf, doesn't step the difficulty, and still ticks its plan and lesson step, with no score towards the lesson's average. Its result says "Not scored" and why, or "Not checked" when nothing could check it (rule 8).
+- **Built now:** Pace and Pause reading need 70% of the words. Twister, Minimal pairs and Shadowing need 40%, since their number is already accuracy; the plan just says "Accuracy", so that floor is mine. Non-native speakers get 10 points off each, the same relief the script gate has. Random-word story needs a required word. Sixty seconds rejects heavy repetition, and never for someone who stutters. Projection needs words. Conversation drills need a reply of 3+ words. Rolling summary needs a key word or a judge. Explain it simply needs the key term or a judge. A take needs 20 words, and a script take 80% of its script (70% for a non-native speaker). Move it's "line heard" and One-breath's silence gap were already there.
+- **Word chain and Bridge chain with no judge aren't scored.** Rule 8 and section 16 say nonsense scores nothing, and today the phone can't tell a link from a random word. **So until the phone's meaning check arrives in 3b.4, these two only score with Tono AI.** That's a change people without it will notice.
+- **The numbers the plan changes:** Pace reading is in band × accuracy, Sum it up is limits × content, and Explain it simply is plainness × accuracy, so wrong words or a missed point can't score on the easy part.
+- **A take that fails its gate** has no number at all, and its Result says "We couldn't score this one".
+
+**Not built here, because they need a later task:**
+- 3b.2: the judge saying "not scorable".
+- 3b.3: Pause reading's pauses at the marks, since that needs Whisper's word times. Until then it still counts pauses anywhere, capped at the number of marks.
+- 3b.4: Category sprint's checked words, the on-topic and coherence checks on takes, Sixty seconds and Random-word story, and Word chain's phone check.
+- 3c.1 and 3c.3: Guided exercises and Line reps, which have no mic yet.
+
+Section 16's validity tests for "table" and for pauses away from marks go in with 3b.4 and 3b.3.
+
+**Why:** a gate that's honest about what it can check today beats one that pretends, and each missing piece is already a task.
+
+**Owner's OK:** not asked; this is task 3b.1. The two to look at: chains needing Tono AI until 3b.4, and the 40% floor.

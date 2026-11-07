@@ -25,6 +25,7 @@ import type { DrillOutcome } from "../domain/drills/drillSpecs";
 import type { PartnerVoice } from "../content/conversationContent";
 import { getDrillLevel, recordDrillOutcome, type ProgressChange } from "../services/db/progressRepo";
 import { DrillProgressLine } from "../components/celebrate/DrillProgressLine";
+import { GateNote } from "../components/celebrate/GateNote";
 import { deleteBlankMoment, getBlankMoment, getBlankMoments, markBlankMomentPracticed } from "../services/db/socialRepo";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { drillActivityId } from "../content/activities";
@@ -61,7 +62,7 @@ export function ConversationRunnerScreen({ route, navigation }: Props) {
   const [selfFocusBefore, setSelfFocusBefore] = useState<number | null>(null);
   const [selfFocusAfter, setSelfFocusAfter] = useState<number | null>(null);
   const [selfRating, setSelfRating] = useState<number | null>(null);
-  const [result, setResult] = useState<{ outcome: DrillOutcome; details: ConversationDetails } | null>(null);
+  const [result, setResult] = useState<ReturnType<typeof evaluateConversation> | null>(null);
   const [heardNothing, setHeardNothing] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
   const voicesRef = useRef<Record<PartnerVoice, VoiceStyle> | null>(null);
@@ -257,6 +258,7 @@ export function ConversationRunnerScreen({ route, navigation }: Props) {
         lessonId: practice?.lessonId,
         placement: practice?.placement,
         metrics,
+        gate: evaluated.gate,
       });
       if (replay) await markBlankMomentPracticed(replay.id);
       setChange(moved);
@@ -269,7 +271,7 @@ export function ConversationRunnerScreen({ route, navigation }: Props) {
   }
 
   async function done() {
-    if (result) await completePracticeStep(drillActivityId(drill), practice, result.outcome.score);
+    if (result) await completePracticeStep(drillActivityId(drill), practice, result.gate.passed ? result.outcome.score : null);
     navigation.goBack();
   }
 
@@ -421,8 +423,9 @@ export function ConversationRunnerScreen({ route, navigation }: Props) {
           </>
         ) : null}
 
-        {stage === "result" && result ? renderResult(result) : null}
-        {stage === "result" && result && change && setup && !practice?.placement ? <DrillProgressLine change={change} drillTitle={DRILL_TITLES[setup.type]} /> : null}
+        {stage === "result" && result && result.gate.passed ? renderResult(result) : null}
+        {stage === "result" && result && !result.gate.passed ? <GateNote gate={result.gate} /> : null}
+        {stage === "result" && result && result.gate.passed && change && setup && !practice?.placement ? <DrillProgressLine change={change} drillTitle={DRILL_TITLES[setup.type]} /> : null}
         {stage === "result" && heardNothing ? (
           <Card style={styles.card}>
             <Txt variant="headline">Didn't catch a reply.</Txt>

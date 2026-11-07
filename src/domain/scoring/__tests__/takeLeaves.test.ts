@@ -8,6 +8,7 @@ import { takeLeafReadings, type TakeFacts } from "../takeLeaves";
 const empty: TakeFacts = {
   kind: "impromptu",
   durationSeconds: 60,
+  wordCount: 100,
   wpm: null,
   paceSdSylPerSec: null,
   paceDriftPercent: null,

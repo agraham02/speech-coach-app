@@ -1,5 +1,7 @@
-import { getArtifact, putArtifact } from "../db/artifactsRepo";
-import { getScoreVersion, setScoreVersion } from "../prefs/prefsStore";
+import { deleteArtifact, getArtifact, putArtifact } from "../db/artifactsRepo";
+import { defaultsFromProfile } from "../../domain/profile";
+import { takeGate } from "../../domain/gates";
+import { getScoreVersion, getUserProfile, setScoreVersion } from "../prefs/prefsStore";
 import { getDatabase } from "../db/database";
 import { getSessionById, isSessionLive } from "../db/sessionsRepo";
 import { SCORE_SHEET_VERSION, takeScores, type TakeScores } from "../../domain/scoring/takeScore";
@@ -72,10 +74,20 @@ export async function refreshSessionScore(sessionId: string, preview: ReadingPre
       getArtifact<CloudTranscriptArtifact>(sessionId, "cloud_transcript"),
       getArtifact<TakeAnalyses>(sessionId, "analysis"),
     ]);
+    // No score without proof the task was done (plan 6.4, rule 2).
+    const gate = takeGate({ kind: facts.kind, wordCount: facts.wordCount, readAccuracyPercent: facts.readAccuracyPercent, relaxed: defaultsFromProfile(getUserProfile()).relaxAccuracy });
+    const db = await getDatabase();
+    if (!gate.passed) {
+      await putArtifact(sessionId, "take_gate", gate);
+      await deleteArtifact(sessionId, "session_score");
+      await db.runAsync(`UPDATE sessions SET session_score = NULL WHERE id = ?`, [sessionId]);
+      logger.info(`[score] ${sessionId}: not scored (${gate.reason})`);
+      return null;
+    }
+    await deleteArtifact(sessionId, "take_gate");
     const scores = takeScores(facts, review ? judgedBy(analyses, transcript) : undefined, { ...scoringOptions(), preview });
     if (!scores) return null;
     await putArtifact(sessionId, "session_score", scores);
-    const db = await getDatabase();
     await db.runAsync(`UPDATE sessions SET session_score = ? WHERE id = ?`, [scores.score, sessionId]);
     logger.info(`[score] ${sessionId}: ${scores.score}/100 (${scores.headline}${scores.delivery != null ? `; delivery ${scores.delivery}` : ""})`);
     return scores;
