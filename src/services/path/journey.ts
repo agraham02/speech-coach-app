@@ -28,8 +28,8 @@ async function readTakes(): Promise<{ sessionId: string; date: string; score: nu
   return rows.map((r) => {
     let score: number | null = null;
     try {
-      // The measured layer is on every take and uses one formula, so first and latest compare fairly.
-      if (r.json) score = scorePointOf(r.recorded_at, JSON.parse(r.json) as TakeScores).measured?.overall ?? null;
+      // Delivery is on every take and uses one formula, so first and latest compare fairly.
+      if (r.json) score = scorePointOf(r.recorded_at, JSON.parse(r.json) as TakeScores).delivery;
     } catch {
       score = null;
     }

@@ -319,11 +319,11 @@ export function sessionReadyText(name: string | null | undefined, kind: ReadyKin
 }
 
 // The in-app toast when Tono AI has judged a take. The number is the take's
-// own score (sessions.session_score, 0-10), and it is left out when there isn't
+// own score (sessions.session_score, 0-100), and it is left out when there isn't
 // one yet: never a made-up 0.
 export function judgedToastText(title: string, sessionScore: number | null | undefined): string {
   if (sessionScore == null || !Number.isFinite(sessionScore)) return title;
-  return `${title} — overall ${sessionScore.toFixed(1)}/10`;
+  return `${title} — ${Math.round(sessionScore)} out of 100`;
 }
 
 // The in-app toast after a take lands on a streak worth noticing: a

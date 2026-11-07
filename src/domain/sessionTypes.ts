@@ -191,7 +191,7 @@ export interface Session {
   // Migration v17. Optional because they're only ever written by their own
   // steps, never on insert. videoKeepsake: kept (compressed) when old videos
   // are cleared — see domain/videoKeepsakes.ts. sessionScore: the combined
-  // on-device + cloud score, 0-10 — see domain/sessionScore.ts.
+  // take's score, 0-100 — see domain/scoring/takeScore.ts.
   videoKeepsake?: boolean;
   sessionScore?: number | null;
 }

@@ -1,22 +1,19 @@
 import { getArtifact, putArtifact } from "../db/artifactsRepo";
-import { defaultsFromProfile } from "../../domain/profile";
-import { getScoreVersion, getUserProfile, setScoreVersion } from "../prefs/prefsStore";
+import { getScoreVersion, setScoreVersion } from "../prefs/prefsStore";
 import { getDatabase } from "../db/database";
 import { getSessionById, isSessionLive } from "../db/sessionsRepo";
-import { headlineSheet, judgedFromReview, SCORE_SHEET_VERSION, takeScores, type MeasuredFacts, type TakeScores } from "../../domain/scoring/takeScore";
+import { SCORE_SHEET_VERSION, takeScores, type TakeScores } from "../../domain/scoring/takeScore";
+import { loadTakeFacts } from "./takeFacts";
+import { scoringOptions } from "../scoring/scoringOptions";
 import { activeReadingPreview } from "../dev/signalLabStore";
 import type { ReadingPreview } from "../../domain/signalLab/readingTrust";
 import type { JudgedReview } from "../../domain/analysis/judgedReview";
 import type { Provenance } from "../../domain/analysis/types";
 import type { CloudTranscriptArtifact } from "../pipeline/steps/cloudReviewStep";
 import type { TakeAnalyses } from "../analysis/store";
-import type { CoachOutput } from "../../domain/coach/ruleCoach";
-import type { PauseAnalysis } from "../../domain/dsp/pauses";
-import type { PresenceMetrics } from "../../domain/presenceMetrics";
 import type { Session } from "../../domain/sessionTypes";
 import { logger } from "../../utils/logger";
 import { speakingWpm } from "../../domain/signals/audioSummary";
-import { computeFillerStats } from "../../domain/transcriptAnnotations";
 import { PERSONAL_BASELINE_MAX_TAKES, pitchRangeBand, type PitchRangeBand } from "../../domain/scoring/bands";
 
 // Words per minute (over the speaking span, first word to last) and pitch
@@ -41,42 +38,6 @@ export async function pitchBandFor(session: Session): Promise<PitchRangeBand> {
   return pitchRangeBand(rows.map((r) => r.pitch_range_st));
 }
 
-// Everything the phone measured about a take, flattened for the measured
-// score sheet. The phone's own counts only: the measured layer is the same
-// formula on the same kind of numbers for every take, whether or not it was
-// judged. Session 06's signals fill it: pitch range in semitones (on your
-// band), emphasis from syllable peaks, and fillers by kind, counted by the
-// phone's detector (domain/fillers.ts) on the phone's own transcript.
-export function measuredFacts(
-  session: Session,
-  parts: { pauses: PauseAnalysis | null; presence: PresenceMetrics | null; coach: CoachOutput | null; stutterMode: boolean; pitchBand?: PitchRangeBand },
-): MeasuredFacts {
-  const { pauses, presence, coach, stutterMode, pitchBand } = parts;
-  const voice = measuredVoice(session);
-  const typed = session.transcriptVerbatim ? computeFillerStats(session.transcriptVerbatim, session.durationSeconds) : null;
-  return {
-    takeKind: session.sessionType === "script_practice" ? "script" : "impromptu",
-    durationSeconds: session.durationSeconds,
-    wpm: voice.wpmAvg,
-    boundaryPauseRate: pauses?.boundaryPauseRate ?? null,
-    pitchRangeSemitones: voice.pitchRangeSt,
-    pitchBand,
-    emphasisPeakSdDb: session.loudnessPeakSdDb,
-    // Stuttering: fillers and stalls aren't measured against you.
-    fillers: !stutterMode && typed ? { hesitationPerMinute: typed.hesitation.ratePerMinute, contextualPerMinute: typed.contextual.ratePerMinute } : null,
-    stalls: !stutterMode && pauses ? pauses.hesitations : null,
-    structure: coach
-      ? { framework: coach.structure.framework, shaped: coach.structure.framework !== "None", targetFramework: session.subjectExtras?.targetFramework ?? null }
-      : null,
-    hedges: coach ? coach.hedges.length : null,
-    strongEnding: coach?.strongEnding ?? null,
-    presence:
-      presence && presence.samples > 0 && presence.presentPercent >= 40
-        ? { eyeContactPercent: presence.eyeContactPercent, eyeContactSource: presence.eyeContactSource, expressiveness: presence.expressiveness }
-        : null,
-  };
-}
-
 // Who judged the take, from the analysis record (or, failing that, from the
 // judge's copy of the transcript).
 function judgedBy(analyses: TakeAnalyses | null, transcript: CloudTranscriptArtifact | null): Provenance | undefined {
@@ -94,36 +55,29 @@ function judgedBy(analyses: TakeAnalyses | null, transcript: CloudTranscriptArti
   };
 }
 
-// Recomputes a take's two score sheets from whatever exists now. Called
-// after the coach step and after a review, so the score fills in and then the
-// judged one takes over. Readings that aren't proven yet don't count
-// (domain/signalLab/readingTrust.ts); `preview` is the Dev switch counting
-// some early, and is empty outside dev builds. Never throws — a score is a
-// bonus, not a step.
+// Recomputes a take's score from whatever exists now. Called after the coach step
+// and after a review, so the Delivery score fills in and then a judged Overall
+// takes over. Readings that aren't proven yet don't count (domain/signalLab/
+// readingTrust.ts); `preview` is the Dev switch counting some early, and is empty
+// outside dev builds. Never throws: a score is a bonus, not a step.
 export async function refreshSessionScore(sessionId: string, preview: ReadingPreview = activeReadingPreview()): Promise<TakeScores | null> {
   try {
     const session = await getSessionById(sessionId);
     // Feeling reps are process only — no score, ever. A take being deleted
     // (hidden during the undo window) gets nothing new written for it.
     if (!session || session.sessionType === "feeling" || !(await isSessionLive(sessionId))) return null;
-    const stutterMode = defaultsFromProfile(getUserProfile()).stutterMode;
-    const [pauses, presence, coach, review, transcript, analyses] = await Promise.all([
-      getArtifact<PauseAnalysis>(sessionId, "pauses"),
-      getArtifact<PresenceMetrics>(sessionId, "presence"),
-      getArtifact<CoachOutput>(sessionId, "coach"),
+    const [facts, review, transcript, analyses] = await Promise.all([
+      loadTakeFacts(session),
       getArtifact<JudgedReview>(sessionId, "judged_review"),
       getArtifact<CloudTranscriptArtifact>(sessionId, "cloud_transcript"),
       getArtifact<TakeAnalyses>(sessionId, "analysis"),
     ]);
-    const facts = measuredFacts(session, { pauses, presence, coach, stutterMode, pitchBand: await pitchBandFor(session) });
-    const scores = takeScores(facts, review ? judgedFromReview(review, facts.takeKind) : null, review ? judgedBy(analyses, transcript) : undefined, preview);
+    const scores = takeScores(facts, review ? judgedBy(analyses, transcript) : undefined, { ...scoringOptions(), preview });
     if (!scores) return null;
     await putArtifact(sessionId, "session_score", scores);
     const db = await getDatabase();
-    // The take's score: the judged one whenever it exists.
-    const headline = headlineSheet(scores);
-    await db.runAsync(`UPDATE sessions SET session_score = ? WHERE id = ?`, [headline.overall, sessionId]);
-    logger.info(`[score] ${sessionId}: ${headline.overall}/10 (${scores.headline}${scores.measured ? `; measured ${scores.measured.overall}` : ""})`);
+    await db.runAsync(`UPDATE sessions SET session_score = ? WHERE id = ?`, [scores.score, sessionId]);
+    logger.info(`[score] ${sessionId}: ${scores.score}/100 (${scores.headline}${scores.delivery != null ? `; delivery ${scores.delivery}` : ""})`);
     return scores;
   } catch (error) {
     logger.error(`[score] ${sessionId} failed — ${(error as Error).message}`);

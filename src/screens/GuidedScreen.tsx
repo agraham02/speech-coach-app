@@ -16,6 +16,7 @@ import { getGuided } from "../content/lessons";
 import { scoreSelfRating } from "../domain/drills/drillSpecs";
 import { getDrillLevel, recordDrillOutcome } from "../services/db/progressRepo";
 import { completePracticeStep } from "../services/practice/practiceEvents";
+import { announceTrail } from "../components/celebrate/trailToast";
 import { guidedActivityId, warmupActivityId } from "../content/activities";
 import { tick as hapticTick } from "../utils/haptics";
 import { duration } from "../theme/motion";
@@ -186,7 +187,7 @@ function GuidedRunner({
     const outcome = scoreSelfRating(rating);
     const level = await getDrillLevel("guided");
     // A self-rating moves inner leaves only (plan 6.4, rule 6); the mic comes in 3c.1.
-    await recordDrillOutcome({ drillType: "guided", outcome, level, contentId: exercise.id, skill: exercise.skill, source: "self" });
+    announceTrail(await recordDrillOutcome({ drillType: "guided", outcome, level, contentId: exercise.id, skill: exercise.skill, source: "self" }));
     onDone(outcome.score);
   }
 

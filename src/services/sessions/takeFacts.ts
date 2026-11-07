@@ -40,6 +40,13 @@ export function judgedLeaves(review: JudgedReview | null): TakeFacts["judged"] {
   return Object.keys(out).length ? out : undefined;
 }
 
+// A free record with no topic has no question to answer (plan section 7).
+function forThisTake(judged: TakeFacts["judged"], session: Session): TakeFacts["judged"] {
+  if (!judged || session.sessionType !== "free_record" || session.subjectExtras?.promptText) return judged;
+  const { answers_question: _none, ...rest } = judged;
+  return Object.keys(rest).length ? rest : undefined;
+}
+
 // The within-phrase band for a take: fixed, or your own once 5 or more earlier
 // takes have a number. Takes being deleted don't count.
 async function phraseBandFor(session: Session): Promise<PitchRangeBand> {
@@ -81,6 +88,6 @@ export async function loadTakeFacts(session: Session): Promise<TakeFacts> {
     prepSeconds: session.subjectExtras?.prepUsed?.seconds ?? null,
     scriptText: script?.text ?? null,
     pitchBand,
-    judged: judgedLeaves(review),
+    judged: forThisTake(judgedLeaves(review), session),
   });
 }

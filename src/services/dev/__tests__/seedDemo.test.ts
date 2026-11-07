@@ -82,8 +82,8 @@ import { getStreakState, getPracticeDates } from "../../db/progressRepo";
 import { listRewinds } from "../../db/rewindRepo";
 import { getPracticeMarkerDates } from "../../db/practiceDaysRepo";
 import { getTakeSignals } from "../../signals/signalsStore";
-import { SUBCATEGORIES } from "../../../domain/scoring/taxonomy";
-import { headlineSheet, SCORE_SHEET_VERSION, type TakeScores } from "../../../domain/scoring/takeScore";
+import { SCORE_SHEET_VERSION, type TakeScores } from "../../../domain/scoring/takeScore";
+import { LEAVES } from "../../../domain/scoring/skillTree";
 import { isoDateFromDate } from "../../../utils/dateUtils";
 
 const describeIfSqlite = sqliteAvailable() ? describe : describe.skip;
@@ -140,27 +140,30 @@ describeIfSqlite("demo takes", () => {
     for (const s of withSheets) {
       const scores = (await getArtifact<TakeScores>(s.id, "session_score"))!;
       expect(scores.version).toBe(SCORE_SHEET_VERSION);
-      const headline = headlineSheet(scores);
-      expect(s.overallScore).toBe(headline.overall);
-      // Every sub-score is a taxonomy id; every category's score lies between its sub-scores.
-      for (const sheet of [scores.measured, scores.judged]) {
-        if (!sheet) continue;
-        const weights = sheet.categories.reduce((a, c) => a + c.weight, 0);
-        expect(weights).toBeCloseTo(1, 5);
-        for (const category of sheet.categories) {
-          const scored = category.subscores.filter((x) => x.rollsUp).map((x) => x.score);
-          expect(category.score).toBeGreaterThanOrEqual(Math.min(...scored) - 0.06);
-          expect(category.score).toBeLessThanOrEqual(Math.max(...scored) + 0.06);
-          for (const sub of category.subscores) expect(SUBCATEGORIES[sub.id]).toBeDefined();
+      expect(s.overallScore).toBe(scores.score);
+      expect(scores.score).toBeGreaterThanOrEqual(0);
+      expect(scores.score).toBeLessThanOrEqual(100);
+      // The pillars in the score share it; every leaf is on the tree; every skill's
+      // score lies between its leaves'.
+      const shares = scores.pillars.reduce((a, p) => a + p.share, 0);
+      expect(shares).toBeCloseTo(1, 5);
+      for (const pillar of scores.pillars) {
+        for (const skill of pillar.skills) {
+          const counted = skill.leaves.filter((l) => l.counts).map((l) => l.score);
+          if (skill.score != null) {
+            expect(skill.score).toBeGreaterThanOrEqual(Math.min(...counted) - 1);
+            expect(skill.score).toBeLessThanOrEqual(Math.max(...counted) + 1);
+          }
+          for (const l of skill.leaves) expect(LEAVES.some((x) => x.id === l.id)).toBe(true);
         }
       }
     }
-    // The judged takes lead with the judged sheet; the rest have only the measured one.
+    // The judged takes say Overall; the rest say Delivery.
     const judged = DEMO_TAKES.filter((t) => t.judged).map((t) => demoSessionId(t.key));
     for (const s of withSheets) {
       const scores = (await getArtifact<TakeScores>(s.id, "session_score"))!;
-      expect(scores.headline).toBe(judged.includes(s.id) ? "judged" : "measured");
-      expect(!!scores.judged).toBe(judged.includes(s.id));
+      expect(scores.headline).toBe(judged.includes(s.id) ? "overall" : "delivery");
+      expect(scores.message != null).toBe(judged.includes(s.id));
       expect(s.scoreLayer).toBe(judged.includes(s.id) ? "judged" : "measured");
     }
   });
@@ -174,7 +177,7 @@ describeIfSqlite("demo takes", () => {
     expect(flat.pitchRangeSt!).toBeLessThan(2.5);
     expect(lively.pitchRangeSt!).toBeGreaterThan(flat.pitchRangeSt! + 3);
     const melody = async (key: string) =>
-      (await getArtifact<TakeScores>(demoSessionId(key), "session_score"))!.measured!.categories.flatMap((c) => c.subscores).find((x) => x.id === "melody")!.score;
+      (await getArtifact<TakeScores>(demoSessionId(key), "session_score"))!.pillars.flatMap((p) => p.skills).flatMap((x) => x.leaves).find((x) => x.id === "pitch_variety")!.score;
     expect(await melody("lively")).toBeGreaterThan(await melody("flat"));
   });
 

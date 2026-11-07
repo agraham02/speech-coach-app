@@ -26,7 +26,8 @@ import { useAccount } from "../services/account/accountStore";
 import { requestAnalysis } from "../services/analysis";
 import { openPaywall } from "../services/cloud/consent";
 import { alertGate, liveGateNow, readyForLiveConversation, whyNoLiveConversation } from "../services/conversation/liveGate";
-import { getDrillLevel, recordDrillOutcome } from "../services/db/progressRepo";
+import { getDrillLevel, recordDrillOutcome, type ProgressChange } from "../services/db/progressRepo";
+import { DrillProgressLine } from "../components/celebrate/DrillProgressLine";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { drillActivityId } from "../content/activities";
 import { getPartnerSpeed, getPartnerVoicePref, setPartnerSpeed, setPartnerVoicePref } from "../services/prefs/prefsStore";
@@ -59,6 +60,7 @@ export function LiveConversationScreen({ route, navigation }: Props) {
   const { colors } = useTheme();
   const account = useAccount();
   const [setup, setSetup] = useState<LiveSetup | null>(null);
+  const [change, setChange] = useState<ProgressChange | null>(null);
   const [stage, setStage] = useState<Stage>("intro");
   const [voicePref, setVoicePref] = useState(getPartnerVoicePref);
   const [speed, setSpeed] = useState(() => clampSpeed(getPartnerSpeed()));
@@ -126,7 +128,7 @@ export function LiveConversationScreen({ route, navigation }: Props) {
     setStage("result");
     if (!evaluated.outcome) return;
     try {
-      await recordDrillOutcome({
+      const moved = await recordDrillOutcome({
         drillType: "conv_live",
         outcome: evaluated.outcome,
         level: setup.level,
@@ -135,6 +137,7 @@ export function LiveConversationScreen({ route, navigation }: Props) {
         // Process numbers only: no transcripts are stored.
         metrics: { ...evaluated.details, selfFocusBefore, selfFocusAfter },
       });
+      setChange(moved);
     } catch (error) {
       logger.error(`[live] couldn't save — ${(error as Error).message}`);
       showGlobalToast("Couldn't save that one.", "error");
@@ -212,6 +215,7 @@ export function LiveConversationScreen({ route, navigation }: Props) {
           </Card>
         ) : null}
         {stage === "result" && result ? renderResult(result) : null}
+        {stage === "result" && change ? <DrillProgressLine change={change} drillTitle="Live conversation" /> : null}
       </ScrollView>
 
       {stage === "intro" && (gate.open || gate.reason === "no_consent") ? <PrimaryButton label="Start the conversation" onPress={start} loading={starting} /> : null}

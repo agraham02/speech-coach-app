@@ -27,6 +27,7 @@ import { listSelfLikes } from "../services/db/selfLikesRepo";
 import { toSecondPerson } from "../domain/innerVoice/secondPerson";
 import { getUserProfile } from "../services/prefs/prefsStore";
 import { completePracticeStep } from "../services/practice/practiceEvents";
+import { announceTrail } from "../components/celebrate/trailToast";
 import { ACTIVITY_IDS, drillActivityId } from "../content/activities";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
@@ -226,7 +227,7 @@ export function LineRepScreen({ route, navigation }: Props) {
     const builtIn = lines!.filter((l) => !l.mine).map((l) => l.id);
     const coachMarks = agreement.reduce((sum, a) => sum + a.coach, 0);
     const sharedMarks = agreement.reduce((sum, a) => sum + a.shared, 0);
-    await recordDrillOutcome({
+    const change = await recordDrillOutcome({
       drillType: "marked_reading",
       outcome,
       level,
@@ -242,6 +243,7 @@ export function LineRepScreen({ route, navigation }: Props) {
     await markTextsPracticed(lines!.filter((l) => l.mine && !l.phrase).map((l) => l.id));
     await markPhrasesPracticed(lines!.filter((l) => l.phrase).map((l) => l.id));
     await completePracticeStep(repActivity, practice, outcome.score);
+    announceTrail(change);
     navigation.goBack();
   }
 

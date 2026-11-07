@@ -18,6 +18,7 @@ import { keepKinds } from "../domain/cadence/marks";
 import { getDrillLevel, recordDrillOutcome } from "../services/db/progressRepo";
 import { measureTakePitchRange } from "../services/audio/takeAnalysis";
 import { completePracticeStep } from "../services/practice/practiceEvents";
+import { announceTrail } from "../components/celebrate/trailToast";
 import { drillActivityId } from "../content/activities";
 import { showGlobalToast } from "../components/common/ToastProvider";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
@@ -119,6 +120,7 @@ export function MoveItScreen({ route, navigation }: Props) {
         metrics: { measure: result.measure, lift: result.lift, takes: takes.map((t) => ({ take: t.spec.movementId ?? t.spec.kind, loudness: t.loudness, pitch: t.pitch })) },
       });
       if (change.leveledUp) showGlobalToast("Level up — Move it asks for a little more now.", "success");
+      else announceTrail(change);
     }
     await completePracticeStep(drillActivityId("move_it"), practice, result?.outcome.score ?? null);
     navigation.goBack();

@@ -2,24 +2,36 @@ import { View } from "react-native";
 import Animated from "react-native-reanimated";
 import { Card } from "../common/Card";
 import { Txt } from "../common/Txt";
-import { CountUp } from "./CountUp";
 import { DeltaBar } from "./DeltaBar";
+import { NOT_COUNTED } from "./trailToast";
 import type { ProgressChange } from "../../services/db/progressRepo";
+import { formatDelta, trailLine } from "../../domain/scoring/rollup";
 import { nextStageHint, stageName, stageProgress, type Stage } from "../../domain/levels";
 import { SKILL_LABELS } from "../../theme/tokens";
 import { enter } from "../../theme/motion";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
-// Under a drill's result: what the attempt did to the skill — its rating
-// moving within the stage's bar — and a step up in difficulty when one
+// Under a drill's result: the trail, from the leaf it moved up to Overall (plan
+// 6.3), its pillar within the stage's bar, and a step up in difficulty when one
 // came. A stage earned gets the full celebration on top (CelebrationHost).
 export function DrillProgressLine({ change, attempts, drillTitle }: { change: ProgressChange; attempts?: number; drillTitle: string }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  if (!change.trail) {
+    return (
+      <Animated.View entering={enter(2)}>
+        <Card style={styles.card}>
+          <Txt variant="footnote" tone="secondary">
+            {NOT_COUNTED}
+          </Txt>
+        </Card>
+      </Animated.View>
+    );
+  }
   const c = colors.skill[change.skill];
   const stage = (change.stageAfter ?? 1) as Stage;
   const crossed = !!change.stagedUp;
-  const delta = Math.round((change.ratingAfter - change.ratingBefore) * 10) / 10;
+  const delta = change.ratingAfter - change.ratingBefore;
   const up = delta > 0;
   return (
     <Animated.View entering={enter(2)}>
@@ -34,15 +46,14 @@ export function DrillProgressLine({ change, attempts, drillTitle }: { change: Pr
               {stageName(stage)}
             </Txt>
           </View>
-          <CountUp variant="subhead" weight="600" color={up ? colors.success : colors.textMuted} from={0} to={delta} decimals={1} prefix={up ? "+" : ""} delay={350} />
+          <Txt variant="subhead" weight="600" tabular color={up ? colors.success : colors.textMuted}>
+            {formatDelta({ delta, level: "pillar" })}
+          </Txt>
         </View>
-        <DeltaBar
-          value={stageProgress(change.ratingAfter, stage)}
-          from={crossed ? 0 : stageProgress(change.ratingBefore, stage)}
-          color={c.fg}
-          trackColor={c.bg}
-          delay={350}
-        />
+        <DeltaBar value={stageProgress(change.ratingAfter, stage)} from={crossed ? 0 : stageProgress(change.ratingBefore, stage)} color={c.fg} trackColor={c.bg} delay={350} />
+        <Txt variant="footnote" weight="500" accessibilityLabel={`What moved: ${trailLine(change.trail)}`}>
+          {trailLine(change.trail)}
+        </Txt>
         <Txt variant="footnote" tone="secondary">
           {change.leveledUp
             ? `Step up: ${drillTitle.toLowerCase()} gets a little harder now.`

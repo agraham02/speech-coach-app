@@ -8,14 +8,13 @@ import { ScreenContainer } from "../components/common/ScreenContainer";
 import { Header } from "../components/common/Header";
 import { Card } from "../components/common/Card";
 import { Badge } from "../components/common/Badge";
-import { SKILL_DEFS } from "../domain/scoring/taxonomy";
-import type { Layer } from "../domain/scoring/taxonomy";
 import { HeroCard } from "../components/common/HeroCard";
 import { ScoreTrendChart, type TrendPoint } from "../components/trends/ScoreTrendChart";
 import { ScoreLinesChart } from "../components/trends/ScoreLinesChart";
 import { highestStreakMilestone } from "../domain/streaks";
 import { getStreakState } from "../services/db/progressRepo";
-import { computeThisWeekVsLastWeek, hasLayer, TREND_SKILLS, type ScorePoint } from "../domain/trends";
+import { computeThisWeekVsLastWeek, hasLine, TREND_PILLARS, type ScorePoint, type TrendLine } from "../domain/trends";
+import { nodeName } from "../domain/scoring/skillTree";
 import {
   DEFAULT_CURRICULUM_LEVEL,
   difficultyTierLabel,
@@ -77,26 +76,26 @@ function DeltaIndicator({
   );
 }
 
-// One layer's week against the week before, by skill. Only takes that have
-// the layer are in it, so a judged week and a measured week are never mixed.
-function LayerWeek({ layer, points }: { layer: Layer; points: ScorePoint[] }) {
+// One line's week against the week before. Only takes that have the line are in
+// it: everyone has Delivery, and only judged takes have Message.
+function LineWeek({ line, points }: { line: TrendLine; points: ScorePoint[] }) {
   const styles = useStyles();
-  const { thisWeek, lastWeek } = computeThisWeekVsLastWeek(points, layer);
+  const { thisWeek, lastWeek } = computeThisWeekVsLastWeek(points, line);
   return (
     <Card style={styles.weekCard}>
-      <Text style={styles.sectionLabel}>{layer === "judged" ? "This week, judged by Tono AI" : "This week, measured on this phone"}</Text>
+      <Text style={styles.sectionLabel}>{line === "message" ? "This week, Message, judged by Tono AI" : "This week, Delivery, measured on this phone"}</Text>
       <Text style={styles.weekSessionCount}>
         {thisWeek.sessionCount} take{thisWeek.sessionCount === 1 ? "" : "s"}
       </Text>
       <View style={styles.weekStatRow}>
-        <Text style={styles.weekStatLabel}>Overall</Text>
-        <Text style={styles.weekStatValue}>{thisWeek.overall ?? "—"}/10</Text>
+        <Text style={styles.weekStatLabel}>{line === "message" ? "Message" : "Delivery"}</Text>
+        <Text style={styles.weekStatValue}>{thisWeek.score ?? "—"}/100</Text>
       </View>
-      <DeltaIndicator current={thisWeek.overall} previous={lastWeek.overall} />
-      {TREND_SKILLS.map((skill) => (
-        <View key={skill} style={styles.weekStatRow}>
-          <Text style={styles.weekStatLabel}>{SKILL_DEFS[skill].label}</Text>
-          <Text style={styles.weekStatValue}>{thisWeek.bySkill[skill] ?? "—"}/10</Text>
+      <DeltaIndicator current={thisWeek.score} previous={lastWeek.score} />
+      {line === "delivery" && TREND_PILLARS.map((pillar) => (
+        <View key={pillar} style={styles.weekStatRow}>
+          <Text style={styles.weekStatLabel}>{nodeName(pillar)}</Text>
+          <Text style={styles.weekStatValue}>{thisWeek.byPillar[pillar] ?? "—"}/100</Text>
         </View>
       ))}
     </Card>
@@ -157,7 +156,7 @@ export function TrendsScreen() {
   }
 
   const hasScoredSessions = points.length > 0;
-  const layersShown = (["judged", "measured"] as Layer[]).filter((l) => hasLayer(points, l));
+  const linesShown = (["delivery", "message"] as TrendLine[]).filter((l) => hasLine(points, l));
 
   return (
     <ScreenContainer style={styles.container}>
@@ -220,8 +219,8 @@ export function TrendsScreen() {
               <Text style={styles.sectionLabel}>Last {Math.min(points.length, CHART_TAKES)} scored takes</Text>
               <ScoreLinesChart points={points.slice(-CHART_TAKES)} />
             </Card>
-            {layersShown.map((layer) => (
-              <LayerWeek key={layer} layer={layer} points={points} />
+            {linesShown.map((line) => (
+              <LineWeek key={line} line={line} points={points} />
             ))}
           </>
         )}

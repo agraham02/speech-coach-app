@@ -1,12 +1,8 @@
 import type { SkillId } from "../../theme/tokens";
-import type { ReadingId } from "../signalLab/readingTrust";
 
-// The one scoring taxonomy (docs/decisions/scoring-taxonomy.md). Every score
-// the app shows or stores is named here: the main categories are the five
-// curriculum skills, each split into subcategories, each fed by metrics.
-// Screens, the score sheets, mastery and the reviewer prompts all take their
-// names from this file, so "Pace" means the same thing on the overview, the
-// scores tab, the coach card and the skill detail screen. Pure data.
+// The names the judge still answers in, until 3b.2 narrows it to Message on 0-5.
+// Scores themselves live on the skill tree (scoring/skillTree.ts); this is what
+// the review's answer is checked against and shown with. Pure data.
 
 // Two layers of results. "measured": what the phone measured and the rules
 // made of it, the same formula for everyone. "judged": Tono AI's assessment,
@@ -94,9 +90,7 @@ export interface MetricDef {
   definition: string;
   source: MetricSource;
   subcategory: SubcategoryId;
-  // Feeds the measured sub-score and counts today. False: shown as a fact
-  // only, or its reading is still on probation or being tuned (see
-  // SUBCATEGORY_READING), so it doesn't count towards a score.
+  // Shown as a fact, or feeding a sub-score the judge answers in.
   scored: boolean;
   // Produced by session 06's signal work; until it lands the metric is absent.
   pending06?: boolean;
@@ -344,18 +338,6 @@ export const SUBCATEGORIES: Record<SubcategoryId, SubcategoryDef> = {
     appliesTo: [],
     weight: 1,
   },
-};
-
-// The reading behind a subcategory, where one is on trial (signalLab/
-// readingTrust.ts). A subcategory whose reading doesn't count is still
-// computed and shown, labelled Beta, but leaves its category and the overall.
-// A subcategory not listed here isn't gated by a reading.
-export const SUBCATEGORY_READING: Partial<Record<SubcategoryId, ReadingId>> = {
-  pauses: "sentence_end_pauses",
-  melody: "pitch_variety",
-  emphasis: "stand_out_stress",
-  eye_contact: "on_the_lens",
-  expression: "face_movement",
 };
 
 // Subcategory order inside each skill, as shown.

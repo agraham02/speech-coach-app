@@ -23,7 +23,8 @@ import { assignPartnerVoices, type VoiceStyle } from "../domain/conversation/voi
 import type { ConversationMetrics } from "../domain/conversation/attemptMetrics";
 import type { DrillOutcome } from "../domain/drills/drillSpecs";
 import type { PartnerVoice } from "../content/conversationContent";
-import { getDrillLevel, recordDrillOutcome } from "../services/db/progressRepo";
+import { getDrillLevel, recordDrillOutcome, type ProgressChange } from "../services/db/progressRepo";
+import { DrillProgressLine } from "../components/celebrate/DrillProgressLine";
 import { deleteBlankMoment, getBlankMoment, getBlankMoments, markBlankMomentPracticed } from "../services/db/socialRepo";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { drillActivityId } from "../content/activities";
@@ -51,6 +52,7 @@ export function ConversationRunnerScreen({ route, navigation }: Props) {
   const { colors } = useTheme();
   const speech = useLiveSpeech();
   const [setup, setSetup] = useState<ConversationSetup | null>(null);
+  const [change, setChange] = useState<ProgressChange | null>(null);
   const [replay, setReplay] = useState<ReplayMoment | null>(null);
   const [stage, setStage] = useState<Stage>("intro");
   const [turnIndex, setTurnIndex] = useState(0);
@@ -247,7 +249,7 @@ export function ConversationRunnerScreen({ route, navigation }: Props) {
     try {
       const evaluated = evaluateConversation(setup, measurements, { selfRating: selfRating ?? undefined });
       const metrics: ConversationMetrics = { ...evaluated.details, selfFocusBefore, selfFocusAfter };
-      await recordDrillOutcome({
+      const moved = await recordDrillOutcome({
         drillType: setup.type,
         outcome: evaluated.outcome,
         level: setup.level,
@@ -257,6 +259,7 @@ export function ConversationRunnerScreen({ route, navigation }: Props) {
         metrics,
       });
       if (replay) await markBlankMomentPracticed(replay.id);
+      setChange(moved);
       setResult(evaluated);
     } catch (error) {
       logger.error(`[conversation] ${setup.type} failed to score — ${(error as Error).message}`);
@@ -419,6 +422,7 @@ export function ConversationRunnerScreen({ route, navigation }: Props) {
         ) : null}
 
         {stage === "result" && result ? renderResult(result) : null}
+        {stage === "result" && result && change && setup && !practice?.placement ? <DrillProgressLine change={change} drillTitle={DRILL_TITLES[setup.type]} /> : null}
         {stage === "result" && heardNothing ? (
           <Card style={styles.card}>
             <Txt variant="headline">Didn't catch a reply.</Txt>

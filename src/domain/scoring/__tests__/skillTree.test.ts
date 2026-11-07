@@ -68,10 +68,11 @@ describe("which leaves count", () => {
     // Passed in Signal Lab (D11).
     expect(leafCounts("sentence_ends")).toBe(true);
     expect(leafCounts("on_lens")).toBe(true);
+    // Now that a take reads brow lifts and smiles a minute (D11, D17).
+    expect(leafCounts("face_movement")).toBe(true);
     // Still Beta (D11).
     expect(leafCounts("endings_fall")).toBe(false);
     expect(leafCounts("stress_right_words")).toBe(false);
-    expect(leafCounts("face_movement")).toBe(false);
     expect(leafCounts("range_feelings")).toBe(false);
   });
 

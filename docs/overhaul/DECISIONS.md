@@ -235,3 +235,21 @@ Every change to `PLAN.md` after it was agreed: what changed, why, and the owner'
 **Why:** the plan says no dual writes and no shims, so the old skills had to become a view of the tree rather than a second store.
 
 **Owner's OK:** not asked; these are inside tasks 3a.3 and 3a.4. The one you'd notice: guided exercises and line reps stop moving your skills until they get a mic in 3c. That's the plan's rule, sooner.
+
+## D17. A take on the tree, and the trail (2026-11-07)
+
+**Was:** plan 6.3 says a take uses the same tree, 0 to 100, says Delivery without a content check, and shows a trail. Phases 5 and 6 replace the screens that show it.
+
+**Now:**
+- **One sheet, version 8.** The measured and judged sheets are deleted, along with `repEvidence.ts` and the switch on the Scores tab. Old takes rescore when opened or at launch. A take's number is a whole number out of 100.
+- **Delivery is Voice, Clarity and Presence,** equal shares. **Overall needs a content check,** which today means a Tono AI review: Message 40, the rest 20 each. So a judged take's Delivery is the same as it would have been unjudged. **A judged take's Message includes the phone's estimates** of the leaves the judge doesn't own (Point first, Hits the beats, Specifics and so on), since they're about the same thing, and they stay marked "phone estimate".
+- **The judge is read only where it owns the leaf,** ahead of 3b.2: its old Relevance becomes Answers the question, Structure becomes Has a shape, Clarity becomes Ideas connect, each ×10. What it says about pace, pitch and eye contact no longer counts. A free record with no topic ignores Answers the question.
+- **Face movement counts now.** D11 held it back only because the score read the old expressiveness number, and takes now read brow lifts and smiles a minute. **The bar of 12 a minute is my first guess:** the cued test ran at 15 a minute and an animated face at 80, and no normal take has been measured yet. Worth checking on the iPhone.
+- **Every leaf reads Signal Lab's formulas now:** within-phrase pitch, three-cue stand-out stress, looks over speaking time with glances forgiven, brow lifts and smiles. Those were beside the score until now. On the Later list, this closes the notes about promoted readings reading older formulas.
+- **The screens are stopgaps for phases 5 and 6.** Result's ring says "out of 100" with the attempt's word (Great, Solid and so on) and Overall or Delivery; the summary and Scores tab list the tree for this take; Trends draws Delivery and Message lines.
+- **Old skill names on screen are now the pillars' names** (Clarity, Voice, Message, Presence, Connection), one line in `tokens.ts`. Otherwise a drill's card said "Cadence" above a trail ending in "Voice" for the same number. This is ahead of phase 5, but it's cheap and it avoids a contradiction on screen.
+- **The trail:** on a take's Result as a beat after the score, then the pillars it moved; under a drill's result on the drill, twister, conversation, live conversation and summary screens; and as a toast on guided exercises, line reps and Move it, which go back straight after saving. An attempt that moved nothing says "Counted as practice. This one doesn't move a score yet: nothing can check it for now." (rule 2).
+
+**Why:** the plan's "no more two-layer switch" means one sheet, and a contradiction between old and new names would be worse than renaming early.
+
+**Owner's OK:** not asked; these are inside tasks 3a.5 and 3a.6, except the rename. Say if you'd rather keep the old names until phase 5.

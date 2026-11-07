@@ -49,9 +49,9 @@ export async function loadMoment(sessionId: string): Promise<LoadedMoment | null
   const [progress, session] = await Promise.all([readProgress(sessionId), getSessionById(sessionId)]);
   if (!progress || !session) return null;
   try {
-    // Set against earlier takes scored in the same layer (judged or measured).
+    // Set against earlier takes with the same kind of headline.
     const sheets = await getArtifact<TakeScores>(sessionId, "session_score");
-    const history = await getScoreHistoryBefore(session.recordedAt, sheets?.headline ?? "measured");
+    const history = await getScoreHistoryBefore(session.recordedAt, sheets?.headline ?? "delivery");
     const day = isoDateFromDate(new Date(session.recordedAt));
     const today = todayISODate();
     let streakDays: number | null = null;
@@ -77,6 +77,7 @@ export async function loadMoment(sessionId: string): Promise<LoadedMoment | null
         stageBefore: c.stageBefore,
         stageAfter: c.stageAfter,
       })),
+      trail: first?.trail ?? null,
       speakerLevelBefore: first?.speakerLevelBefore,
       speakerLevelAfter: first?.speakerLevelAfter,
       streakDays,

@@ -22,7 +22,7 @@ export function ScoreLinesChart({ points }: { points: ScorePoint[] }) {
   const plotW = Math.max(0, width - GUTTER - 8);
   const plotH = HEIGHT - TOP - BOTTOM;
   const x = (i: number) => GUTTER + (points.length > 1 ? (i / (points.length - 1)) * plotW : plotW / 2);
-  const y = (v: number) => TOP + (1 - v / 10) * plotH;
+  const y = (v: number) => TOP + (1 - v / 100) * plotH;
 
   function runsOf(pick: (p: ScorePoint) => number | null): Point[][] {
     const runs: Point[][] = [];
@@ -39,8 +39,8 @@ export function ScoreLinesChart({ points }: { points: ScorePoint[] }) {
   }
 
   const lines = [
-    { name: "Judged by Tono AI", color: colors.accent, runs: runsOf((p) => p.judged?.overall ?? null) },
-    { name: "Measured on this phone", color: colors.textMuted, runs: runsOf((p) => p.measured?.overall ?? null) },
+    { name: "Message, judged by Tono AI", color: colors.accent, runs: runsOf((p) => p.message) },
+    { name: "Delivery, measured on this phone", color: colors.textMuted, runs: runsOf((p) => p.delivery) },
   ].filter((l) => l.runs.length > 0);
 
   const first = points[0] && new Date(points[0].recordedAt).toLocaleDateString(undefined, { month: "numeric", day: "numeric" });
@@ -51,7 +51,7 @@ export function ScoreLinesChart({ points }: { points: ScorePoint[] }) {
       <View onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)} style={{ height: HEIGHT }}>
         {width > 0 ? (
           <Svg width={width} height={HEIGHT}>
-            {[0, 5, 10].map((v) => (
+            {[0, 50, 100].map((v) => (
               <G key={v}>
                 <Line x1={GUTTER} x2={GUTTER + plotW} y1={y(v)} y2={y(v)} stroke={colors.textMuted} strokeWidth={0.5} opacity={0.3} />
                 <SvgText x={GUTTER - 5} y={y(v) + 3.5} fontSize={10} fill={colors.textMuted} textAnchor="end" fontFamily={font("400").fontFamily}>
