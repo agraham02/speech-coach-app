@@ -437,8 +437,7 @@ const STEPS: SchemaStep[] = [
         plan_slot INTEGER,
         plan_step_id TEXT,
         lesson_id TEXT,
-        lesson_step_index INTEGER,
-        placement INTEGER NOT NULL DEFAULT 0
+        lesson_step_index INTEGER
       );
       CREATE INDEX idx_activity_log_date ON activity_log(local_date, activity_id);
       CREATE INDEX idx_activity_log_lesson ON activity_log(lesson_id, lesson_step_index);
@@ -459,12 +458,15 @@ export interface SchemaResult {
 
 // transaction lets the caller queue the work behind other transactions (see
 // inTransaction in database.ts); by default it runs directly.
+// rebuild: drop everything and build the current schema, whatever the version
+// (Reset app), in the same transaction, so a failure leaves the database as it was.
 export async function ensureSchema(
   db: SQLiteDatabase,
   transaction: (task: () => Promise<void>) => Promise<void> = (task) => db.withTransactionAsync(task),
+  options: { rebuild?: boolean } = {},
 ): Promise<SchemaResult> {
   const row = await db.getFirstAsync<{ user_version: number }>("PRAGMA user_version");
-  const version = row?.user_version ?? 0;
+  const version = options.rebuild ? 0 : row?.user_version ?? 0;
 
   if (version === SCHEMA_VERSION) return { wipedOldData: false };
   if (version >= BASELINE_VERSION && version < SCHEMA_VERSION) {

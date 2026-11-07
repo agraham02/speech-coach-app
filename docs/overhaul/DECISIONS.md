@@ -178,7 +178,11 @@ Every change to `PLAN.md` after it was agreed: what changed, why, and the owner'
 - **Plans bring the lesson's undone steps first,** so a 5- or 8-minute plan, which holds only some of a lesson, still finishes it over a few days instead of repeating the first step (`PLAN_VERSION` 6).
 - **Storage.** The plan tables no longer keep `completed_steps_json`; only `completed_at` is kept, because streaks read it. Schema version 38.
 - **Deleting a take** clears the session id on its log entry and keeps the entry, like the bare date: the step it ticked stays ticked, with no link to the take.
-- **Not wired yet:** Three things and Talk back (their completion needs the gates from 3b), and the catalogue's `gate` and `number` fields (3a.2 and 3b.1 fill them, keyed by these ids).
+- **Every lesson can be finished from Today alone.** If none of a lesson's open steps is in the plan (a conversation day has no rep; one lesson has two reps), the first open step is added, trimming extras to stay in the minutes. A test runs all 71 lessons at 5, 8 and 12 minutes.
+- **One step, once.** The same step reported twice within two seconds (a double tap on Done) is logged once, and reports are handled one at a time, so a lesson can't be completed twice.
+- **Changing the plan's minutes** still rebuilds it after a drill from Practice; only work done from the plan itself (or a skip) keeps it, as before.
+- **A step finished after midnight** still counts for the plan it was started from.
+- **Not wired yet:** the catalogue's `gate` and `number` fields (3a.2 and 3b.1 fill them, keyed by these ids). Three things (a day's three) and Talk back (a finished challenge) now log; what counts as done for them is refined with their gates in 3b. MarkItUp, PlanYourPoint and Speech study have no activity yet.
 
 **Why:** a check mark anywhere had to be the same fact everywhere, and the smallest model that gives that is rows in a log plus a few rules for who they count for.
 

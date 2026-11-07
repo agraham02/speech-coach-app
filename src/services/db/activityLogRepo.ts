@@ -63,9 +63,8 @@ function newId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-// Writes one entry. A take that already has an entry for this activity (the
-// save and the result screen both report the same rep) isn't logged twice;
-// the entry already there comes back.
+// Writes one entry. A take that already has an entry for this activity isn't
+// logged twice (a retry after a failure); the entry already there comes back.
 export async function logActivity(n: NewActivity): Promise<ActivityEntry> {
   const db = await getDatabase();
   if (n.sessionId) {
@@ -114,10 +113,11 @@ export async function logActivity(n: NewActivity): Promise<ActivityEntry> {
   return entry;
 }
 
-// Everything logged on one local day, oldest first.
+// Everything logged on one local day, oldest first, and everything done from
+// that day's plan even if it was finished after midnight.
 export async function getEntriesOn(localDate: string): Promise<ActivityEntry[]> {
   const db = await getDatabase();
-  const rows = await db.getAllAsync<Row>(`SELECT * FROM activity_log WHERE local_date = ? ORDER BY at`, [localDate]);
+  const rows = await db.getAllAsync<Row>(`SELECT * FROM activity_log WHERE local_date = ? OR plan_date = ? ORDER BY at`, [localDate, localDate]);
   return rows.map(toEntry);
 }
 

@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { completePracticeStep } from "../services/practice/practiceEvents";
+import { ACTIVITY_IDS } from "../content/activities";
 import { View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -64,6 +66,7 @@ export function ThoughtChallengeScreen({ route }: Props) {
     if (saving || before == null) return;
     setSaving(true);
     await addChallenge({ thoughtId: thought!.id, beliefBefore: before, evidenceFor: forText, evidenceAgainst: againstText, balanced, beliefAfter: after });
+    completePracticeStep(ACTIVITY_IDS.talkBack, undefined, null).catch(() => undefined);
     success();
     const change = after == null ? "same" : beliefChange(before, after);
     showGlobalToast(

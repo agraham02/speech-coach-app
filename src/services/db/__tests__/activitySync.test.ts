@@ -33,7 +33,7 @@ jest.mock("../../path/pathService", () => ({
 import { ensureSchema } from "../schema";
 import { getEntriesForLesson, getEntriesOn, getLessonStepsDone, logActivity } from "../activityLogRepo";
 import { getLessonStates, getLessonStepsState, getTodaysPlan, getTopUpPlan, skipPlanStep } from "../progressRepo";
-import { completePracticeStep, subscribePracticeSteps, type PracticeStepDone } from "../../practice/practiceEvents";
+import { completePracticeStep, forgetRecentSteps, subscribePracticeSteps, type PracticeStepDone } from "../../practice/practiceEvents";
 import { ACTIVITY_IDS, activityIdOfStep, variantOfStep } from "../../../content/activities";
 import { LESSONS, type Lesson } from "../../../content/lessons";
 import { todayISODate } from "../../../utils/dateUtils";
@@ -46,6 +46,7 @@ const lesson: Lesson = LESSONS.find((l) => l.steps.length >= 3 && new Set(l.step
 const stepActivity = (i: number) => activityIdOfStep(lesson.steps[i]);
 
 beforeEach(async () => {
+  forgetRecentSteps();
   mockDb = createTestDatabase();
   await ensureSchema(mockDb as never);
   mockCurrentLessons = [];
@@ -144,15 +145,56 @@ describeIfSqlite("check-offs on the plan", () => {
     expect(again.completedStepIds).toContain(step.id);
   });
 
-  it("keeps a top-up's rep out of the daily plan", async () => {
+  it("keeps a top-up's activity out of the daily plan, even when they ask for the same one", async () => {
     const main = await getTodaysPlan(8);
-    const topUp = await getTopUpPlan(1);
-    const step = topUp.plan.steps[0];
-    await completePracticeStep(activityIdOfStep(step.lessonStep!), { planDate: topUp.plan.date, planSlot: 1, planStepId: step.id }, 0.9);
-    expect((await getTopUpPlan(1)).completedStepIds).toContain(step.id);
-    const mainSteps = main.plan.steps.filter((s) => s.lessonStep && activityIdOfStep(s.lessonStep) === activityIdOfStep(step.lessonStep!));
-    const mainAfter = await getTodaysPlan(8);
-    for (const s of mainSteps) expect(mainAfter.completedStepIds).not.toContain(s.id);
+    const shared = main.plan.steps.find((st) => st.lessonStep && st.kind === "drill")!;
+    // A top-up holding the same activity as one of the daily plan's steps.
+    const topUpPlan = { ...main.plan, steps: [{ ...shared, id: "0" }] };
+    await mockDb.runAsync("INSERT INTO daily_topups (date, slot, plan_json) VALUES (?, 1, ?)", [main.plan.date, JSON.stringify(topUpPlan)]);
+
+    await completePracticeStep(activityIdOfStep(shared.lessonStep!), { planDate: main.plan.date, planSlot: 1, planStepId: "0" }, 0.9);
+
+    expect((await getTopUpPlan(1)).completedStepIds).toEqual(["0"]);
+    expect((await getTodaysPlan(8)).completedStepIds).not.toContain(shared.id);
+  });
+
+  it("counts a step finished after midnight for the plan it belonged to", async () => {
+    const { plan } = await getTodaysPlan(8);
+    const step = plan.steps[0];
+    const lateAt = new Date(new Date(`${plan.date}T12:00:00`).getTime() + 13 * 3_600_000).toISOString(); // 01:00 the next day
+    await logActivity({ activityId: activityIdOfStep(step.lessonStep!), planDate: plan.date, planStepId: step.id, at: lateAt });
+    expect((await getTodaysPlan(8)).completedStepIds).toContain(step.id);
+  });
+
+  it("keeps the plan when it has been worked on, but not for a drill done from Practice", async () => {
+    const first = await getTodaysPlan(8);
+    await completePracticeStep(activityIdOfStep(first.plan.steps.find((st) => st.lessonStep)!.lessonStep!), undefined, 0.8);
+    // Only Practice touched it: new minutes rebuild it.
+    expect((await getTodaysPlan(12, true)).plan.minutes).toBe(12);
+    // Now a step is done from the plan: it stays as it is.
+    const plan = (await getTodaysPlan(12)).plan;
+    const step = plan.steps.find((st) => st.lessonStep)!;
+    await completePracticeStep(activityIdOfStep(step.lessonStep!), { planDate: plan.date, planStepId: step.id }, 0.8);
+    expect((await getTodaysPlan(5, true)).plan.minutes).toBe(12);
+  });
+
+  it("counts one tap on Done once, however many times it fires", async () => {
+    const { plan } = await getTodaysPlan(8);
+    const step = plan.steps.find((st) => st.lessonStep && st.kind === "drill")!;
+    const context = { planDate: plan.date, planStepId: step.id };
+    await Promise.all([completePracticeStep(activityIdOfStep(step.lessonStep!), context, 0.8), completePracticeStep(activityIdOfStep(step.lessonStep!), context, 0.8)]);
+    expect((await getEntriesOn(plan.date)).filter((e) => e.planStepId === step.id)).toHaveLength(1);
+  });
+
+  it("finishes a lesson once when its last step is reported twice at the same time", async () => {
+    for (let i = 0; i < lesson.steps.length - 1; i++) await completePracticeStep(stepActivity(i), { lessonId: lesson.id, lessonStepIndex: i }, 0.8);
+    const last = lesson.steps.length - 1;
+    await Promise.all([
+      completePracticeStep(stepActivity(last), { lessonId: lesson.id, lessonStepIndex: last }, 0.8),
+      completePracticeStep(stepActivity(last), { lessonId: lesson.id, lessonStepIndex: last, planStepId: "x" }, 0.8),
+    ]);
+    expect((await getLessonStates())[lesson.id].attempts).toBe(1);
+    expect(mockLessonDone).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -231,6 +273,7 @@ describeIfSqlite("check-offs on a lesson", () => {
 
     // completed_at is stamped a moment after the last entry; a review is later.
     await new Promise((r) => setTimeout(r, 5));
+    forgetRecentSteps();
     for (let i = 0; i < lesson.steps.length; i++) await completePracticeStep(stepActivity(i), { lessonId: lesson.id, lessonStepIndex: i }, 0.6);
     const state = (await getLessonStates())[lesson.id];
     expect(state.attempts).toBe(2);

@@ -531,6 +531,12 @@ async function readStored(date: string, slot: number): Promise<StoredPlan | null
 const readPlan = (date: string) => readStored(date, 0);
 const readTopUp = (date: string, slot: number) => readStored(date, slot);
 
+async function planWorkedOn(date: string): Promise<boolean> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ n: number }>(`SELECT COUNT(*) AS n FROM activity_log WHERE plan_date = ? AND COALESCE(plan_slot, 0) = 0`, [date]);
+  return (row?.n ?? 0) > 0;
+}
+
 // After something was logged: the day's plans may now be finished.
 export async function refreshPlanCompletion(date: string): Promise<void> {
   for (const slot of [0, 1, 2]) await readStored(date, slot);
@@ -546,7 +552,10 @@ export async function getTodaysPlan(minutes: PlanMinutes, regenerate = false): P
   // started, it's remade.
   const pathless = existing && !existing.plan.followsPath && path.length > 0;
   if (existing && !regenerate && !outdated && !pathless && existing.plan.minutes === minutes) return existing;
-  if (existing && existing.completedStepIds.length > 0) return existing;
+  // Once the plan itself has been worked on (a step done from it, or skipped)
+  // it is kept. A drill done from Practice earlier in the day ticks the plan
+  // but doesn't freeze it, so changing the minutes still rebuilds it.
+  if (existing && (await planWorkedOn(date))) return existing;
 
   const db = await getDatabase();
   const [skills, lessons, recent, lessonStepsDone] = await Promise.all([

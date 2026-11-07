@@ -100,8 +100,7 @@ describeIfSqlite("the 2.0.0 schema", () => {
     const db = createTestDatabase();
     await ensureSchema(db as never);
     await db.runAsync("INSERT INTO confidence_checkins (date, rating) VALUES ('2026-11-06', 4)");
-    db.raw.exec("PRAGMA user_version = 0;");
-    await ensureSchema(db as never);
+    await ensureSchema(db as never, undefined, { rebuild: true });
     expect(await db.getFirstAsync<{ n: number }>("SELECT COUNT(*) AS n FROM confidence_checkins")).toEqual({ n: 0 });
     expect(await version(db)).toBe(SCHEMA_VERSION);
   });
@@ -132,7 +131,7 @@ describeIfSqlite("the 2.0.0 schema", () => {
     await ensureSchema(db as never);
     const log = await db.getAllAsync<{ name: string }>("PRAGMA table_info(activity_log)");
     expect(log.map((c) => c.name)).toEqual(
-      expect.arrayContaining(["activity_id", "kind", "variant", "outcome", "at", "local_date", "score", "session_id", "plan_date", "plan_slot", "plan_step_id", "lesson_id", "lesson_step_index", "placement"]),
+      expect.arrayContaining(["activity_id", "kind", "variant", "outcome", "at", "local_date", "score", "session_id", "plan_date", "plan_slot", "plan_step_id", "lesson_id", "lesson_step_index"]),
     );
     for (const table of ["daily_plans", "daily_topups"]) {
       expect((await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`)).map((c) => c.name)).not.toContain("completed_steps_json");

@@ -35,6 +35,27 @@ export interface PracticeExtra {
   variant?: string | null;
 }
 
+let queue: Promise<unknown> = Promise.resolve();
+
+// The same step reported twice within a moment (a double tap on Done, a screen
+// that reports on save and again on leaving) is one step, not two.
+const DUPLICATE_WINDOW_MS = 2000;
+const recent = new Map<string, number>();
+
+function isRecentDuplicate(activityId: string, context: PracticeContext | undefined, extra: PracticeExtra): boolean {
+  const key = [activityId, context?.planDate, context?.planSlot, context?.planStepId, context?.lessonId, context?.lessonStepIndex, extra.sessionId, extra.variant].join("|");
+  const now = Date.now();
+  for (const [k, at] of recent) if (now - at > DUPLICATE_WINDOW_MS) recent.delete(k);
+  if (recent.has(key)) return true;
+  recent.set(key, now);
+  return false;
+}
+
+// For tests: forget what was just reported.
+export function forgetRecentSteps(): void {
+  recent.clear();
+}
+
 // A lesson that passes needs an average of 70% on its scored steps.
 const LESSON_PASS = 0.7;
 
@@ -45,9 +66,16 @@ const LESSON_PASS = 0.7;
 export async function completePracticeStep(activityId: string, context: PracticeContext | undefined, score: number | null, extra: PracticeExtra = {}): Promise<void> {
   let lessonCompleted: string | undefined;
   // The skill check's own samples are recorded but are not practice.
-  if (!context?.placement) {
+  if (!context?.placement && !isRecentDuplicate(activityId, context, extra)) {
+    // One at a time: two taps on Done can't both see a lesson as one step
+    // short, or finish it twice.
+    const run = queue.then(() => recordActivity(activityId, context ?? {}, score, extra));
+    queue = run.then(
+      () => undefined,
+      () => undefined,
+    );
     try {
-      lessonCompleted = await recordActivity(activityId, context ?? {}, score, extra);
+      lessonCompleted = await run;
     } catch (error) {
       logger.error(`[practice] couldn't log ${activityId} — ${(error as Error).message}`);
     }
@@ -94,9 +122,17 @@ async function recordActivity(activityId: string, context: PracticeContext, scor
     lessonStepIndex,
   });
 
+  // The day's plans may now be finished; that is written before the reminder
+  // looks, so a finished day doesn't get a nudge. A failure here must not stop
+  // the lesson check below.
+  try {
+    await refreshPlanCompletion(entry.planDate ?? entry.localDate);
+    if (entry.planDate && entry.planDate !== entry.localDate) await refreshPlanCompletion(entry.localDate);
+  } catch (error) {
+    logger.error(`[practice] couldn't update the plan — ${(error as Error).message}`);
+  }
   // A finished step may satisfy a reminder that's still armed.
   syncDailyReminder().catch(() => undefined);
-  await refreshPlanCompletion(entry.localDate);
 
   // The lesson is complete when every one of its steps is done in this go at
   // it. Its score is the real average of the steps that were scored.

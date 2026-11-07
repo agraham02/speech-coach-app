@@ -59,6 +59,26 @@ describe("daily plan and the lesson's own steps", () => {
   });
 });
 
+describe("every lesson can be finished from Today alone", () => {
+  // Someone who only ever does the plan: each day they do every step that came
+  // from the lesson. The lesson must complete, whatever the plan length.
+  const cases = LESSONS.flatMap((lesson) => ([5, 8, 12] as const).map((minutes) => [lesson.id, minutes] as const));
+
+  it.each(cases)("%s on a %i-minute plan", (lessonId, minutes) => {
+    const lesson = LESSONS.find((l) => l.id === lessonId)!;
+    const earlier = Object.fromEntries(
+      LESSONS.filter((l) => l.unitId === lesson.unitId && LESSONS.indexOf(l) < LESSONS.indexOf(lesson)).map((l) => [l.id, { done: true, nextReviewAt: null }]),
+    );
+    const done = new Set<number>();
+    for (let day = 0; day < 12 && done.size < lesson.steps.length; day++) {
+      const plan = buildDailyPlan(input({ minutes, path: [lesson.unitId], lessons: earlier, lessonStepsDone: { [lesson.id]: [...done] } }));
+      expect(plan.lessonId).toBe(lesson.id);
+      for (const step of plan.steps) if (step.lessonStepIndex != null) done.add(step.lessonStepIndex);
+    }
+    expect([...done].sort((a, b) => a - b)).toEqual(lesson.steps.map((_, i) => i));
+  });
+});
+
 describe("daily plan", () => {
   it("is deterministic for the same day and inputs", () => {
     expect(buildDailyPlan(input())).toEqual(buildDailyPlan(input()));
