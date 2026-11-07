@@ -1,5 +1,4 @@
 import type { GeminiQuoteAnnotation, LocatedAnnotation } from "../transcriptAnnotations";
-import { SUBCATEGORIES } from "../scoring/taxonomy";
 
 // Tono AI's marks on the transcript tab, kept only when they hold up.
 //
@@ -13,15 +12,14 @@ import { SUBCATEGORIES } from "../scoring/taxonomy";
 //   - it is about the words (structure, the point, a repeated idea), and
 //   - its quote is found in the transcript on screen, whole words, ignoring
 //     case and punctuation, in exactly one place.
-// Anything else is dropped, never guessed at. The label is the taxonomy's
-// name for what it is evidence for. Pure.
+// Anything else is dropped, never guessed at. Pure.
 
 export type AiMarkCategory = "structure" | "content" | "restated_point";
 
-// What a mark is evidence for, in the taxonomy's names.
+// What a mark is evidence for.
 const MARK_LABELS: Record<AiMarkCategory, string> = {
-  structure: SUBCATEGORIES.structure.label,
-  content: SUBCATEGORIES.relevance.label,
+  structure: "Structure",
+  content: "On the point",
   restated_point: "Repeated idea",
 };
 

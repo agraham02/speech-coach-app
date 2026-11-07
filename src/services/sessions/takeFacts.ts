@@ -5,37 +5,28 @@ import { defaultsFromProfile } from "../../domain/profile";
 import { phrasePitchBand, PERSONAL_BASELINE_MAX_TAKES, type PitchRangeBand } from "../../domain/scoring/bands";
 import { buildTakeFacts } from "../../domain/scoring/takeFacts";
 import type { TakeFacts } from "../../domain/scoring/takeLeaves";
-import type { LeafId } from "../../domain/scoring/skillTree";
+import { JUDGED_SCALE, type LeafId } from "../../domain/scoring/skillTree";
 import { unpackAudioTrack } from "../../domain/signals/audioSummary";
 import { trimWordsToVoice } from "../../domain/dsp/wordTrim";
 import { unpackFaceTrack } from "../../domain/signals/faceTrack";
 import type { CoachOutput } from "../../domain/coach/ruleCoach";
-import type { JudgedReview } from "../../domain/analysis/judgedReview";
+import type { JudgedLeafLevel, JudgedReview } from "../../domain/analysis/judgedReview";
 import type { PauseAnalysis } from "../../domain/dsp/pauses";
 import type { PresenceMetrics } from "../../domain/presenceMetrics";
 import type { Session } from "../../domain/sessionTypes";
-import type { SubcategoryId } from "../../domain/scoring/taxonomy";
 import { getFaceCalibration, getUserProfile } from "../prefs/prefsStore";
 import { getTakeSignals } from "../signals/signalsStore";
 
 // Everything a take left behind, read once and flattened for its leaves
 // (domain/scoring/takeFacts.ts).
 
-// The judge still scores on 1-10 by the old names until 3b.2 narrows it to
-// Message on 0-5. Only what it owns counts (plan 6.4, rule 4), on the leaf that
-// means the same: it stops scoring pace and pitch from numbers it can't hear.
-const JUDGED_LEAF: Partial<Record<SubcategoryId, LeafId>> = {
-  relevance: "answers_question",
-  structure: "has_shape",
-  clarity: "ideas_connect",
-};
-
+// A judge's level on the leaves it owns, ×20 (plan 6.6). A review from before it
+// was narrowed to Message has none, so that take simply says Delivery.
 export function judgedLeaves(review: JudgedReview | null): TakeFacts["judged"] {
-  if (!review) return undefined;
+  if (!review?.leaves) return undefined;
   const out: NonNullable<TakeFacts["judged"]> = {};
-  for (const [sub, leaf] of Object.entries(JUDGED_LEAF) as [SubcategoryId, LeafId][]) {
-    const judged = review.subscores[sub];
-    if (judged && Number.isFinite(judged.score)) out[leaf] = { score: judged.score * 10, notes: judged.notes || null };
+  for (const [leaf, judged] of Object.entries(review.leaves) as [LeafId, JudgedLeafLevel][]) {
+    out[leaf] = { score: judged.level * JUDGED_SCALE.multiplier, notes: judged.notes || null };
   }
   return Object.keys(out).length ? out : undefined;
 }
@@ -90,5 +81,6 @@ export async function loadTakeFacts(session: Session): Promise<TakeFacts> {
     budgetSeconds: session.sessionType === "concise" ? session.subjectExtras?.conciseSeconds ?? null : null,
     pitchBand,
     judged: forThisTake(judgedLeaves(review), session),
+    notScorable: review?.notScorable ?? null,
   });
 }

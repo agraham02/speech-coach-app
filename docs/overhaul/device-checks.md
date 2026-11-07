@@ -141,8 +141,14 @@ A new JS bundle is enough; no new build. Do a few real takes first, since the nu
 - [ ] **Self-ratings.** Finish a guided exercise about delivery (Rate contrast): the toast says it doesn't move a score yet. Finish one about the inner game (Reset before you speak): the toast shows a trail.
 - [ ] **New names.** Skills read Clarity, Voice, Message, Presence, Connection everywhere. Tell me if a screen still says Cadence or Articulation.
 
-## Phase 3b: gates
+## Phase 3b: gates and the judge
 
+**Do this first:** run `npx supabase functions deploy --use-api`. Until you do, Tono AI reviews of takes fail on this code, because the answer format changed.
+
+- [ ] **A judged take.** Ask Tono AI to review a take. It comes back with Answers the question, Point first, Has a shape, Hits the beats, Ideas connect and Specifics, each with a level of 0 to 5 and a note. Nothing about pace, pitch or eye contact says Tono AI.
+- [ ] **Do the levels ring true?** Compare them with how you'd rate the take. The wording of each level is mine (`supabase/functions/_shared/prompts/takeReview.ts`). Tell me where it's off.
+- [ ] **Off-topic.** Answer a different question fluently. Answers the question should be low. If you recite something unrelated, it may say "We couldn't score this one".
+- [ ] **A script take with a review.** You get coaching, and no Message score.
 - [ ] **Wrong words.** On Pace reading, read something else: it says "Not scored" and why, the drill's difficulty stays put, and the step still ticks.
 - [ ] **Babble.** On Sixty seconds, say "blah" for a while: "Not scored".
 - [ ] **Chains.** With Tono AI off or signed out, a Word chain says "Not checked". With it on, it scores as usual.

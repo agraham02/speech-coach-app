@@ -75,7 +75,7 @@ export async function refreshSessionScore(sessionId: string, preview: ReadingPre
       getArtifact<TakeAnalyses>(sessionId, "analysis"),
     ]);
     // No score without proof the task was done (plan 6.4, rule 2).
-    const gate = takeGate({ kind: facts.kind, wordCount: facts.wordCount, readAccuracyPercent: facts.readAccuracyPercent, relaxed: defaultsFromProfile(getUserProfile()).relaxAccuracy });
+    const gate = takeGate({ kind: facts.kind, wordCount: facts.wordCount, readAccuracyPercent: facts.readAccuracyPercent, relaxed: defaultsFromProfile(getUserProfile()).relaxAccuracy, judgeSays: facts.notScorable });
     const db = await getDatabase();
     if (!gate.passed) {
       await putArtifact(sessionId, "take_gate", gate);

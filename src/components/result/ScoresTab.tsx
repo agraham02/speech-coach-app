@@ -12,7 +12,7 @@ import { TimelineProvider } from "./charts/TimelineContext";
 import { LoudnessChart, PaceChart, PitchChart } from "./charts/ScoreCharts";
 import type { LeafScore, PillarScore, TakeScores } from "../../domain/scoring/takeScore";
 import type { LeafId } from "../../domain/scoring/skillTree";
-import type { Session, SessionScores } from "../../domain/sessionTypes";
+import type { Session } from "../../domain/sessionTypes";
 import { producerName, provenanceLabel } from "../../domain/analysis/provenance";
 import { trustLabel } from "../../domain/signalLab/readingTrust";
 import { FIXED_PITCH_BAND } from "../../domain/scoring/bands";
@@ -29,15 +29,13 @@ import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 // the layout (plan section 10).
 interface ScoresTabProps {
   scores: TakeScores;
-  // The judge's stored rubric, for the body-language note the totals leave out.
-  rubric: SessionScores | null;
   session: Session;
   // The take's video file when it still exists: "Play from here" on a chart
   // plays its sound right here, so the line moves along the charts.
   videoUri?: string | null;
 }
 
-export function ScoresTab({ scores, rubric, session, videoUri }: ScoresTabProps) {
+export function ScoresTab({ scores, session, videoUri }: ScoresTabProps) {
   const styles = useStyles();
   const [voice, setVoice] = useState<VoiceCharts | null | undefined>(undefined);
   const [fullSt, setFullSt] = useState<number>(FIXED_PITCH_BAND.fullSt);
@@ -94,7 +92,6 @@ export function ScoresTab({ scores, rubric, session, videoUri }: ScoresTabProps)
             pitch_variety: <PitchChart voice={voice} fullSt={fullSt} />,
             stand_out_stress: <LoudnessChart voice={voice} />,
           }}
-          bodyNote={pillar.id === "presence" && checked && rubric?.bodyLanguageNotes ? rubric.bodyLanguageNotes : null}
         />
       ))}
       </ScrollView>
@@ -171,7 +168,7 @@ function useScorePlayer(videoUri: string | null) {
   return { playFrom, bar, playheadMs: started ? positionMs : null, playing: isPlaying };
 }
 
-function PillarCard({ pillar: p, judge, charts, bodyNote }: { pillar: PillarScore; judge: string; charts: Partial<Record<LeafId, ReactNode>>; bodyNote: string | null }) {
+function PillarCard({ pillar: p, judge, charts }: { pillar: PillarScore; judge: string; charts: Partial<Record<LeafId, ReactNode>> }) {
   const styles = useStyles();
   const { colors } = useTheme();
   return (
@@ -204,19 +201,6 @@ function PillarCard({ pillar: p, judge, charts, bodyNote }: { pillar: PillarScor
           ))}
         </View>
       ))}
-      {bodyNote ? (
-        <View style={styles.sub}>
-          <Txt variant="subhead" weight="600">
-            Body language{" "}
-            <Txt variant="footnote" tone="muted">
-              · {judge}, not in the total
-            </Txt>
-          </Txt>
-          <Txt variant="footnote" tone="secondary">
-            {bodyNote}
-          </Txt>
-        </View>
-      ) : null}
     </Card>
   );
 }

@@ -205,9 +205,10 @@ describeIfSqlite("demo takes", () => {
   it("makes the judged take's review pass the real schema, with annotations located in the transcript", async () => {
     await addDemoData(OPTIONS);
     const id = demoSessionId("judged");
-    const review = (await getArtifact<{ subscores: Record<string, unknown>; annotations: { quote: string }[] }>(id, "judged_review"))!;
-    expect(Object.keys(review.subscores).length).toBeGreaterThanOrEqual(8);
-    expect(review.annotations.length).toBeGreaterThanOrEqual(3);
+    const review = (await getArtifact<{ leaves: Record<string, unknown>; annotations: { quote: string }[] }>(id, "judged_review"))!;
+    // Every quote the demo judge gives is really in its transcript, or the level is dropped.
+    expect(Object.keys(review.leaves)).toHaveLength(6);
+    expect(review.annotations.length).toBeGreaterThanOrEqual(1);
     const transcript = (await getSessionById(id))!.transcriptVerbatim!.toLowerCase();
     for (const a of review.annotations) expect(transcript.includes(a.quote.toLowerCase())).toBe(true);
     const coach = (await getArtifact<{ provenance?: { producer: string } }>(id, "coach"))!;

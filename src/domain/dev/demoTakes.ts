@@ -3,7 +3,7 @@ import { percentile } from "../dsp/pitchTracker";
 import { BLENDSHAPE_NAMES, expressionFromBlendshapes } from "../faceSignals";
 import type { PresenceSample } from "../presenceMetrics";
 import { countSyllables } from "../signals/audioSummary";
-import type { SubcategoryId } from "../scoring/taxonomy";
+import type { JudgedLeafId } from "../analysis/judgedReview";
 import type { SessionType, TranscriptWord } from "../sessionTypes";
 
 // Demo takes for the Dev tab (Dev, App tools, Add demo takes). Everything here
@@ -234,9 +234,9 @@ export function synthFace(durationMs: number, face: DemoFace, seed = 1): Presenc
 // --- Judged answers, written to the real review schema --------------------------
 
 export interface DemoJudgement {
-  scores: Partial<Record<SubcategoryId, { score: number; notes: string; evidence: string }>>;
+  leaves: Partial<Record<JudgedLeafId, { level: number; quote: string; notes: string }>>;
   structureUsed: "what/why/how" | "story arc" | "none detected" | "other";
-  annotations: { quote: string; subcategory: SubcategoryId | "restated_point"; note: string }[];
+  annotations: { quote: string; subcategory: JudgedLeafId | "restated_point"; note: string }[];
   coaching: { summary: string; strength: string; focus: string; drill: string };
   quickCoach: { strength: string; tip: string; focus_skill: string; follow_up_question: string };
 }
@@ -247,7 +247,9 @@ export function rawReview(judgement: DemoJudgement, transcriptClean: string): un
   return {
     transcript_clean: transcriptClean,
     structure_used: judgement.structureUsed,
-    subscores: judgement.scores,
+    scorable: true,
+    not_scorable_reason: "",
+    leaves: judgement.leaves,
     annotations: judgement.annotations,
     coaching: judgement.coaching,
     quick_coach: judgement.quickCoach,
@@ -344,24 +346,17 @@ const talk = (sentences: readonly string[], wpm: number, extra: Partial<DemoSpee
 
 const TRAIN_JUDGEMENT: DemoJudgement = {
   structureUsed: "story arc",
-  scores: {
-    pace: { score: 8, notes: "A comfortable pace that was easy to follow, with a little more speed in the middle.", evidence: "about 135 words a minute" },
-    pauses: { score: 7.5, notes: "You paused at most sentence ends. A longer beat after the turning point would make it land.", evidence: "Then I made a quick choice." },
-    melody: { score: 7, notes: "Your voice moved with the story and dropped at the end of the lines that mattered.", evidence: "pitch range 5.5 semitones" },
-    emphasis: { score: 6.5, notes: "The key words stood out some of the time. Lean on 'next station' and 'four minutes'.", evidence: "we arrived with four minutes to spare" },
-    tone: { score: 7, notes: "Warm and steady, with a light moment near the end.", evidence: "they laughed" },
-    structure: { score: 8.5, notes: "A clear story shape: a setback, a choice, a result and a lesson.", evidence: "Then I made a quick choice." },
-    relevance: { score: 8, notes: "Every sentence served the point about staying calm.", evidence: "I learned that staying calm is a skill you can practice." },
-    clarity: { score: 8, notes: "Plain words and short sentences. The listener never has to guess who did what.", evidence: "she drove me to the next station down the line" },
-    eye_contact: { score: 7, notes: "You looked at the lens for most of the take and glanced away between thoughts.", evidence: "on the lens about 75% of the time" },
-    expression: { score: 6, notes: "A little more movement in your face on the funny line would help it come across.", evidence: "expressiveness 38 of 100" },
-    conviction: { score: 8, notes: "A firm lesson at the end with no hedging.", evidence: "I learned that staying calm is a skill you can practice." },
+  leaves: {
+    answers_question: { level: 4, quote: "I learned that staying calm", notes: "Every sentence served the point about staying calm." },
+    point_first: { level: 2, quote: "I learned that staying calm", notes: "The point arrives at the end. Say it first, and it will land harder." },
+    has_shape: { level: 4, quote: "Then I made a quick choice", notes: "A clear story shape: a setback, a choice, a result and a lesson." },
+    hits_beats: { level: 4, quote: "Then I made a quick choice", notes: "Every beat of the story is there." },
+    ideas_connect: { level: 4, quote: "Then I made a quick choice", notes: "Plain words and short sentences. The listener never has to guess who did what." },
+    specifics: { level: 4, quote: "we arrived with four minutes to spare", notes: "Real details: the station, the minutes to spare." },
   },
   annotations: [
-    { quote: "Then I made a quick choice.", subcategory: "structure", note: "The turn of the story: short and clear." },
-    { quote: "I learned that staying calm is a skill you can practice.", subcategory: "conviction", note: "A firm closing line that says what it means." },
-    { quote: "we arrived with four minutes to spare", subcategory: "emphasis", note: "Say 'four minutes' a touch louder; it is the payoff." },
-    { quote: "my stomach dropped", subcategory: "melody", note: "Let your voice drop with the words here." },
+    { quote: "Then I made a quick choice.", subcategory: "has_shape", note: "The turn of the story: short and clear." },
+    { quote: "I learned that staying calm is a skill you can practice.", subcategory: "answers_question", note: "A firm closing point." },
   ],
   coaching: {
     summary: "A clear story with a good lesson at the end.",
@@ -379,18 +374,16 @@ const TRAIN_JUDGEMENT: DemoJudgement = {
 
 const REMOTE_JUDGEMENT: DemoJudgement = {
   structureUsed: "what/why/how",
-  scores: {
-    pace: { score: 6.5, notes: "A little fast in the opening sentence, then settled.", evidence: "about 150 words a minute" },
-    pauses: { score: 6, notes: "Pauses came at some sentence ends but not before your main point.", evidence: "My view is that a mix works best" },
-    melody: { score: 5.5, notes: "Fairly even pitch. Lift the words that carry the argument.", evidence: "pitch range 3.2 semitones" },
-    structure: { score: 8, notes: "Point, reason, counter-point, recommendation and a summary.", evidence: "To sum up, the place matters less than having a plan for how people learn." },
-    relevance: { score: 7.5, notes: "On topic throughout.", evidence: "remote work helps people who already know their job" },
-    clarity: { score: 7, notes: "Clear, with one long opening sentence that could be split.", evidence: "I think remote work helps people who already know their job" },
-    conviction: { score: 6, notes: "The opening 'I think' softens a point you then support well.", evidence: "I think remote work helps" },
+  leaves: {
+    answers_question: { level: 4, quote: "My view is that a mix works best", notes: "On topic throughout." },
+    point_first: { level: 3, quote: "My view is that a mix works best", notes: "Your view comes after a long opening. Lead with it." },
+    has_shape: { level: 4, quote: "My view is that a mix works best", notes: "Point, reason, counter-point, recommendation and a summary." },
+    hits_beats: { level: 4, quote: "My view is that a mix works best", notes: "The beats are there." },
+    ideas_connect: { level: 3, quote: "My view is that a mix works best", notes: "Clear, with one long opening sentence that could be split." },
+    specifics: { level: 2, quote: "My view is that a mix works best", notes: "An argument more than examples. One real case would help." },
   },
   annotations: [
-    { quote: "My view is that a mix works best", subcategory: "structure", note: "A clear statement of your position." },
-    { quote: "I think remote work helps", subcategory: "conviction", note: "Try dropping 'I think' and stating it." },
+    { quote: "My view is that a mix works best", subcategory: "has_shape", note: "A clear statement of your point." },
   ],
   coaching: {
     summary: "A well-built argument with a slightly hesitant opening.",

@@ -278,3 +278,23 @@ Section 16's validity tests for "table" and for pauses away from marks go in wit
 **Why:** a gate that's honest about what it can check today beats one that pretends, and each missing piece is already a task.
 
 **Owner's OK:** not asked; this is task 3b.1. The two to look at: chains needing Tono AI until 3b.4, and the 40% floor.
+
+## D19. The judge, narrowed to Message on 0 to 5 (2026-11-07)
+
+**Was:** the judge scored 14 subcategories on 1 to 10, delivery included, and quoted evidence only loosely. Plan 6.4 and 6.6 say it owns content only, on written levels 0 to 5 with a required quote the phone verifies.
+
+**Now:**
+- **It scores six leaves:** Answers the question, Point first, Has a shape, Hits the beats, Ideas connect and Specifics, each with six levels written for that leaf. These are the Message leaves a take can show that are about meaning. Plain words, No detours and Starting fast stay measured.
+- **A level needs a quote that's really in the transcript.** Case and punctuation don't matter. A level whose quote isn't found doesn't count, and the phone's estimate of that leaf stands, if it has one. Level 0 needs no quote, since there's nothing to show. Under 3 levels that hold up, the review is refused.
+- **It can say a take can't be scored,** with a reason, and the take then says "We couldn't score this one".
+- **A script take is coached, not scored,** since its words were given. "Following the marks" goes with it, because it's delivery; Line rep's marks measure it from 3c.3.
+- **It no longer gets word timings,** which only served pauses, so a call costs a little less. It still gets the phone's measurements, for its coaching's words.
+- **Deleted:** `domain/scoring/taxonomy.ts`, tone fit and body language. The video setting in Dev stays, for the coaching only.
+- **The `scores` table stays** for the coaching and annotations the Result screen reads, with its delivery columns empty, until phase 6.
+- **Takes judged before this** keep their coaching and their score becomes Delivery, since their old answer has no levels.
+
+**Not validated.** The six rubrics are my wording, and nothing has measured them. 1.9's eval and your 30 hand-rated takes are what will say whether they hold up, and its `spikes/inference-eval/app_prompts.json` needs regenerating first.
+
+**Needs a deploy, which I did not do:** the answer format went from 3 to 4, and the server refuses a version it doesn't know. **Until you run `npx supabase functions deploy --use-api`, Tono AI reviews of takes fail on this code.** Everything else works. There's one format on purpose, as the plan has no backwards compatibility.
+
+**Owner's OK:** not asked for the wording; it's inside task 3b.2. Please read the levels in `supabase/functions/_shared/prompts/takeReview.ts`, since you know how you'd rate a take.

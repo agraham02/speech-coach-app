@@ -10,7 +10,8 @@ import type { LeafId } from "./skillTree";
 // words and how the voice lands. Numbers marked "tune" are first guesses to set
 // from real takes. Pure.
 
-export type TakeKindForLeaves = "impromptu" | "script";
+export type TakeKind = "impromptu" | "script";
+export type TakeKindForLeaves = TakeKind;
 
 export type EndingKind = "clear" | "neutral" | "trailing";
 
@@ -52,6 +53,8 @@ export interface TakeFacts {
   secondsToFirstWord: number | null;
   // Tono AI's rubric levels, 0-100, on the leaves it owns.
   judged?: Partial<Record<LeafId, { score: number; notes: string | null }>>;
+  // The judge says this can't be scored as an answer: why.
+  notScorable?: string | null;
 }
 
 export interface LeafReading {
@@ -202,7 +205,7 @@ export function takeLeafReadings(f: TakeFacts): TakeLeafReadings {
     measured("starting_fast", 100 - Math.max(0, f.secondsToFirstWord - START_FREE_SECONDS) * START_COST, `${round1(f.secondsToFirstWord)} s to your first word`, `With no prep. Full marks inside ${START_FREE_SECONDS} seconds.`);
   }
   for (const [leaf, judged] of Object.entries(f.judged ?? {}) as [LeafId, { score: number; notes: string | null }][]) {
-    out[leaf] = { score: round1(clamp(judged.score)), source: "judge", value: `${Math.round(judged.score)} of 100`, rule: out[leaf]?.rule ?? "Judged by Tono AI against a written rubric.", notes: judged.notes };
+    out[leaf] = { score: round1(clamp(judged.score)), source: "judge", value: `Level ${Math.round(judged.score / 20)} of 5`, rule: out[leaf]?.rule ?? "Judged by Tono AI against written levels, 0 to 5.", notes: judged.notes };
   }
   return out;
 }

@@ -101,7 +101,8 @@ export function takeReviewInputs(input: TakeReviewInput) {
         ? { text: context.script.text, marked: context.cuesEnabled ? markedScriptText(context.script, context.markLevel ?? "full") : null }
         : null,
     transcript,
-    words: transcript && session.transcriptWords?.length ? session.transcriptWords.map((w) => [w.text, w.startMs, w.endMs] as [string, number, number]) : null,
+    // Pauses are the phone's to score, so the judge no longer needs word timings.
+    words: null,
     measurements,
     speaker: speakerForReview(),
     stutterMode: stutters,

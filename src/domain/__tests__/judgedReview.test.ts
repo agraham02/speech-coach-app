@@ -1,51 +1,87 @@
-import { acceptJudgedReview, annotationCategoryFor } from "../analysis/judgedReview";
+import { acceptJudgedReview, annotationCategoryFor, JUDGED_LEAF_IDS, TAKE_REVIEW_SCHEMA_VERSION as APP_SCHEMA } from "../analysis/judgedReview";
+import { JUDGED_LEAVES, TAKE_REVIEW_SCHEMA_VERSION as SERVER_SCHEMA } from "../../../supabase/functions/_shared/prompts/takeReview";
 import { isAdultFromBirthDate } from "../profile";
 
-const sub = (score: number) => ({ score, notes: "Grounded note.", evidence: "keep going" });
 const TRANSCRIPT = "um so my point is simple, start small and keep going";
+const leaf = (level: number, quote = "start small and keep going") => ({ level, quote, notes: "Grounded note." });
 const answer = (over: Record<string, unknown> = {}) => ({
   transcript_clean: "So my point is simple: start small and keep going.",
   structure_used: "what/why/how",
-  subscores: { pace: sub(7), pauses: sub(6), structure: sub(5), relevance: sub(6), clarity: sub(6), conviction: sub(4) },
-  annotations: [{ quote: "start small and keep going", subcategory: "structure", note: "The point." }],
+  scorable: true,
+  not_scorable_reason: "",
+  leaves: { answers_question: leaf(3), point_first: leaf(4, "my point is simple"), has_shape: leaf(2), hits_beats: leaf(2), ideas_connect: leaf(3), specifics: leaf(1) },
+  annotations: [{ quote: "start small and keep going", subcategory: "has_shape", note: "The point." }],
   coaching: { summary: "s", strength: "t", focus: "f", drill: "d" },
   quick_coach: { tip: "x" },
   ...over,
 });
+const take = { kind: "impromptu" as const, transcript: TRANSCRIPT };
 
 describe("acceptJudgedReview", () => {
-  it("keeps a judgement in the taxonomy's terms", () => {
-    const review = acceptJudgedReview(answer(), { kind: "impromptu", transcript: TRANSCRIPT })!;
-    expect(review.subscores.structure).toEqual({ score: 5, notes: "Grounded note.", evidence: "keep going" });
+  it("keeps a level on each leaf the judge owns", () => {
+    const review = acceptJudgedReview(answer(), take)!;
+    expect(review.leaves.point_first).toEqual({ level: 4, quote: "my point is simple", notes: "Grounded note." });
+    expect(Object.keys(review.leaves)).toHaveLength(6);
+    expect(review.notScorable).toBeNull();
     expect(review.structureUsed).toBe("what/why/how");
     expect(review.transcriptVerbatim).toBeNull();
     expect(review.annotations).toEqual([{ quote: "start small and keep going", category: "structure", note: "The point." }]);
     expect(review.quickCoach).toEqual({ tip: "x" });
   });
 
-  it("holds scores to 1-10 and drops what isn't a judged subcategory for this take", () => {
-    const review = acceptJudgedReview(answer({ subscores: { ...answer().subscores, pace: sub(14), fluency: sub(9), congruence: sub(3), tone: sub(0) } }), {
-      kind: "impromptu",
-      transcript: TRANSCRIPT,
-    })!;
-    expect(review.subscores.pace?.score).toBe(10);
-    expect(review.subscores.tone?.score).toBe(1);
-    expect(review.subscores).not.toHaveProperty("fluency");
-    expect(review.subscores).not.toHaveProperty("congruence");
-    const script = acceptJudgedReview(answer(), { kind: "script", transcript: TRANSCRIPT });
-    expect(script).toBeNull(); // only pace and pauses apply to a script here: too little to count
+  it("holds levels to 0-5, and ignores what isn't the judge's", () => {
+    const review = acceptJudgedReview(answer({ leaves: { ...answer().leaves, answers_question: leaf(9), specifics: leaf(-2, ""), speaking_rate: leaf(5), pace: leaf(5) } }), take)!;
+    expect(review.leaves.answers_question?.level).toBe(5);
+    expect(review.leaves.specifics?.level).toBe(0);
+    expect(review.leaves).not.toHaveProperty("speaking_rate");
+    expect(review.leaves).not.toHaveProperty("pace");
+  });
+
+  it("drops a level whose quote was never said: the judge must show it", () => {
+    const review = acceptJudgedReview(answer({ leaves: { ...answer().leaves, answers_question: leaf(5, "words nobody said at all") } }), take)!;
+    expect(review.leaves).not.toHaveProperty("answers_question");
+    expect(Object.keys(review.leaves)).toHaveLength(5);
+  });
+
+  it("finds a quote whatever its case and punctuation", () => {
+    expect(acceptJudgedReview(answer({ leaves: { ...answer().leaves, answers_question: leaf(3, "My point is simple start small") } }), take)!.leaves.answers_question?.level).toBe(3);
+  });
+
+  it("needs no quote at level 0, where there's nothing to show", () => {
+    expect(acceptJudgedReview(answer({ leaves: { ...answer().leaves, specifics: leaf(0, "") } }), take)!.leaves.specifics?.level).toBe(0);
+    expect(acceptJudgedReview(answer({ leaves: { ...answer().leaves, specifics: leaf(1, "") } }), take)!.leaves).not.toHaveProperty("specifics");
+  });
+
+  it("refuses a judgement when too few levels hold up", () => {
+    expect(acceptJudgedReview(answer({ leaves: { answers_question: leaf(3), has_shape: leaf(3) } }), take)).toBeNull();
+    expect(acceptJudgedReview(answer({ leaves: { answers_question: leaf(3, "made up"), has_shape: leaf(3, "made up"), specifics: leaf(3, "made up") } }), take)).toBeNull();
+  });
+
+  it("lets the judge say it can't be scored", () => {
+    const review = acceptJudgedReview(answer({ scorable: false, not_scorable_reason: "That was a recital of a recipe.", leaves: {} }), take)!;
+    expect(review.notScorable).toBe("That was a recital of a recipe.");
+    expect(review.leaves).toEqual({});
+    expect(acceptJudgedReview(answer({ scorable: false, not_scorable_reason: " ", leaves: {} }), take)!.notScorable).toContain("couldn't score");
+  });
+
+  it("coaches a script and scores nothing on it", () => {
+    const review = acceptJudgedReview(answer({ scorable: undefined, leaves: undefined }), { kind: "script", transcript: TRANSCRIPT })!;
+    expect(review.leaves).toEqual({});
+    expect(review.notScorable).toBeNull();
+    expect(review.coaching.summary).toBe("s");
+    expect(acceptJudgedReview(answer(), { kind: "script", transcript: TRANSCRIPT })!.leaves).toEqual({});
   });
 
   it("drops annotations that quote words never said, and any it can't show", () => {
     const review = acceptJudgedReview(
       answer({
         annotations: [
-          { quote: "START SMALL", subcategory: "clarity", note: "Case doesn't matter." },
-          { quote: "nobody said this", subcategory: "structure", note: "Made up." },
+          { quote: "START SMALL", subcategory: "ideas_connect", note: "Case doesn't matter." },
+          { quote: "nobody said this", subcategory: "has_shape", note: "Made up." },
           { quote: "keep going", subcategory: "made_up", note: "Unknown." },
         ],
       }),
-      { kind: "impromptu", transcript: TRANSCRIPT },
+      take,
     )!;
     expect(review.annotations.map((a) => a.quote)).toEqual(["START SMALL"]);
   });
@@ -53,21 +89,27 @@ describe("acceptJudgedReview", () => {
   it("uses the judge's transcript only when the phone had none", () => {
     const review = acceptJudgedReview(answer({ transcript_verbatim: TRANSCRIPT }), { kind: "impromptu", transcript: null })!;
     expect(review.transcriptVerbatim).toBe(TRANSCRIPT);
-    expect(acceptJudgedReview(answer({ transcript_verbatim: "other words" }), { kind: "impromptu", transcript: TRANSCRIPT })!.transcriptVerbatim).toBeNull();
+    expect(acceptJudgedReview(answer({ transcript_verbatim: "other words" }), take)!.transcriptVerbatim).toBeNull();
   });
 
   it("refuses junk and empty notes", () => {
-    expect(acceptJudgedReview(null, { kind: "impromptu", transcript: TRANSCRIPT })).toBeNull();
-    expect(acceptJudgedReview({ subscores: {} }, { kind: "impromptu", transcript: TRANSCRIPT })).toBeNull();
-    const empty = { pace: { score: 6, notes: " " }, structure: { score: 6, notes: "" }, clarity: sub(5) };
-    expect(acceptJudgedReview(answer({ subscores: empty }), { kind: "impromptu", transcript: TRANSCRIPT })).toBeNull();
+    expect(acceptJudgedReview(null, take)).toBeNull();
+    expect(acceptJudgedReview({ leaves: {} }, take)).toBeNull();
+    const empty = { answers_question: { level: 3, quote: "keep going", notes: " " }, has_shape: { level: 3, quote: "keep going", notes: "" }, specifics: leaf(2) };
+    expect(acceptJudgedReview(answer({ leaves: empty }), take)).toBeNull();
   });
 
   it("files each annotation where the transcript shows it", () => {
-    expect(annotationCategoryFor("relevance")).toBe("content");
-    expect(annotationCategoryFor("conviction")).toBe("content");
+    expect(annotationCategoryFor("answers_question")).toBe("content");
+    expect(annotationCategoryFor("has_shape")).toBe("structure");
     expect(annotationCategoryFor("restated_point")).toBe("restated_point");
     expect(annotationCategoryFor("nonsense")).toBeNull();
+    expect(annotationCategoryFor("pace")).toBeNull();
+  });
+
+  it("owns the same leaves as the server", () => {
+    expect([...JUDGED_LEAF_IDS].sort()).toEqual(Object.keys(JUDGED_LEAVES).sort());
+    expect(APP_SCHEMA).toBe(SERVER_SCHEMA);
   });
 });
 

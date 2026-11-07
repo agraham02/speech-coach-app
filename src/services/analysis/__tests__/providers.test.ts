@@ -70,14 +70,16 @@ const take: TakeReviewInput = {
   stutterMode: false,
 };
 
-const sub = (score: number) => ({ score, notes: "n", evidence: "start small" });
+const leaf = (level: number) => ({ level, notes: "n", quote: "start small" });
 const judgedAnswer = {
   transcript_clean: "So my point is simple: start small and keep going.",
   structure_used: "what/why/how",
-  subscores: { pace: sub(7), pauses: sub(6), melody: sub(5), emphasis: sub(5), structure: sub(6), relevance: sub(7), clarity: sub(6), eye_contact: sub(5), expression: sub(5), conviction: sub(6) },
+  scorable: true,
+  not_scorable_reason: "",
+  leaves: { answers_question: leaf(4), point_first: leaf(3), has_shape: leaf(3), hits_beats: leaf(2), ideas_connect: leaf(3), specifics: leaf(2) },
   annotations: [
-    { quote: "start small and keep going", subcategory: "structure", note: "A clear point." },
-    { quote: "words never said", subcategory: "clarity", note: "Made up." },
+    { quote: "start small and keep going", subcategory: "has_shape", note: "A clear point." },
+    { quote: "words never said", subcategory: "ideas_connect", note: "Made up." },
   ],
   coaching: { summary: "s", strength: "t", focus: "f", drill: "d" },
   quick_coach: { strength: "Clear point.", tip: "Pause after it.", focus_skill: "cadence", follow_up_question: "Why?" },
@@ -93,13 +95,13 @@ describe("Tono AI take review from the transcript (the default)", () => {
     const out = await tonoAiProvider.run("take_review", take, ctx(), { producers: ["tono_ai"], blocked: null, tonoInput: "text" });
     const request = mockGenerate.mock.calls[0][0];
     expect(mockEnsure).toHaveBeenCalled();
-    expect(request).toMatchObject({ task: "take_review", schemaVersion: 3, inputs: { takeKind: "impromptu", prompt: "What should a beginner do first?", transcript: session.transcriptVerbatim } });
+    expect(request).toMatchObject({ task: "take_review", schemaVersion: 4, inputs: { takeKind: "impromptu", prompt: "What should a beginner do first?", transcript: session.transcriptVerbatim } });
     expect(request.media).toBeUndefined();
     expect(JSON.stringify(request)).not.toMatch(/You are a/);
     expect(request.inputs.measurements).toMatchObject({ durationSeconds: 60, pace: { wpm: 142 } });
     expect(out).toMatchObject({
       ok: true,
-      value: { heardAudio: false, review: { subscores: { structure: { score: 6 }, conviction: { score: 6 } }, quickCoach: judgedAnswer.quick_coach } },
+      value: { heardAudio: false, review: { leaves: { has_shape: { level: 3 }, answers_question: { level: 4 } }, quickCoach: judgedAnswer.quick_coach } },
       provenance: { producer: "tono_ai", model: "gemini-3.5-flash-lite", promptVersion: "take-review/2026-10-23/text", judged: true, input: "text" },
     });
     // Only annotations that quote the real words are kept.
@@ -123,7 +125,7 @@ describe("Tono AI take review from the transcript (the default)", () => {
   });
 
   it("refuses an answer with too little in it", async () => {
-    mockGenerate.mockResolvedValue(reply({ ...judgedAnswer, subscores: { pace: sub(7) } }));
+    mockGenerate.mockResolvedValue(reply({ ...judgedAnswer, leaves: { answers_question: leaf(3) } }));
     const out = await tonoAiProvider.run("take_review", take, ctx(), { producers: ["tono_ai"], blocked: null, tonoInput: "text" });
     expect(out).toMatchObject({ ok: false, reason: "error" });
   });
