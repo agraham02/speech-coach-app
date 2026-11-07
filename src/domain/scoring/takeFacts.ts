@@ -46,6 +46,8 @@ export interface TakeFactsInput {
   budgetSeconds?: number | null;
   pitchBand?: PitchRangeBand;
   judged?: Partial<Record<LeafId, { score: number; notes: string | null }>>;
+  // The judge says this can't be scored as an answer: why.
+  notScorable?: string | null;
 }
 
 // Under this much of the take in frame, the face scores are left out.
@@ -148,5 +150,6 @@ export function buildTakeFacts(input: TakeFactsInput): TakeFacts {
     secondsToFirstWord: kind === "impromptu" && !input.prepSeconds ? firstVoiceSeconds(features, words) : null,
     budgetSeconds: input.budgetSeconds,
     judged: input.judged,
+    notScorable: input.notScorable ?? null,
   };
 }

@@ -68,12 +68,14 @@ export function explainGate(keyTermSaid: boolean, judgedInaccurate: boolean, jud
   return keyTermSaid ? PASSED : failed("We didn't hear the idea's key term, so this one isn't scored.");
 }
 
-// A take. Enough words to score, and a script that was really read. On-topic and
-// coherence checks join this with the phone's meaning check (3b.4).
+// A take. Enough words to score, a script that was really read, and a judge who
+// didn't say it can't be scored. On-topic and coherence checks join this with the
+// phone's meaning check (3b.4).
 export const TAKE_MIN_WORDS = 20;
 export const SCRIPT_READ_BAR = 80;
 
-export function takeGate(input: { kind: "impromptu" | "script"; wordCount: number; readAccuracyPercent: number | null; relaxed?: boolean }): GateVerdict {
+export function takeGate(input: { kind: "impromptu" | "script"; wordCount: number; readAccuracyPercent: number | null; relaxed?: boolean; judgeSays?: string | null }): GateVerdict {
+  if (input.judgeSays) return failed(`We couldn't score this one. ${input.judgeSays} You keep your minutes.`);
   if (input.wordCount < TAKE_MIN_WORDS) return failed("We couldn't score this one: there weren't enough words to go on. You keep your minutes.");
   if (input.kind === "script" && input.readAccuracyPercent != null && input.readAccuracyPercent < bar(SCRIPT_READ_BAR, input.relaxed)) {
     return failed(`We couldn't score this one: we heard ${Math.round(input.readAccuracyPercent)}% of the script, and it needs ${bar(SCRIPT_READ_BAR, input.relaxed)}%. You keep your minutes.`);

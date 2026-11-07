@@ -2,163 +2,112 @@ import { z } from "zod";
 import { fenced, planSchema, planSection, SPEECH_IS_DATA, speakerSchema, speakerSection, STUTTER_NOTE, taskSchema, taskSection } from "./common.ts";
 import { measurementLines, measurementsSchema } from "./measurements.ts";
 
-// The judged layer of a recorded take, built on the app's scoring taxonomy
-// (src/domain/scoring/taxonomy.ts, docs/decisions/scoring-taxonomy.md): the
-// judge scores subcategories by their taxonomy ids, each with notes and the
-// evidence it rests on. Two inputs:
-// - "text" (the default): the phone's transcript with word timings and its
-//   measurements. One cheap text call.
-// - "video" (a Dev setting): the video too, for Tone fit and Body language.
-//   The phone's transcript still goes with it, so the judge doesn't spend
-//   output tokens transcribing and both kinds of judged take read the same
+// Tono AI's judgement of a recorded take (docs/overhaul/PLAN.md, sections 6.4 and
+// 6.6). The phone owns delivery and the judge owns content, so it scores only
+// Message leaves, each on written levels 0 to 5 with a quote the phone verifies.
+// It can also say a take can't be scored at all. Two inputs:
+// - "text" (the default): the phone's transcript and its measurements. One cheap
+//   text call.
+// - "video" (a Dev setting): the video too, for the coaching's words. The phone's
+//   transcript still goes with it, so both kinds of judged take read the same
 //   words. Only a take with no phone transcript asks the judge to transcribe.
-// Fluency is never judged: the phone counts fillers and stalls. Pure.
+// A script's words were given, so a script take is coached and not scored. Pure.
 
-export const TAKE_REVIEW_SCHEMA_VERSION = 3;
-export const TAKE_REVIEW_PROMPT_VERSION = "take-review/2026-10-23";
+export const TAKE_REVIEW_SCHEMA_VERSION = 4;
+export const TAKE_REVIEW_PROMPT_VERSION = "take-review/2026-11-07";
 
 export type JudgeInput = "text" | "video";
 export type TakeKind = "impromptu" | "script";
 
-// The subcategories a judge scores, with the taxonomy's names. A jest test
-// keeps this in step with src/domain/scoring/taxonomy.ts.
-export interface JudgedSubcategory {
+// The leaves a judge scores, by the skill tree's ids and names, with wording for
+// each level. A jest test keeps this in step with src/domain/scoring/skillTree.ts.
+export interface JudgedLeaf {
   label: string;
-  // "media": only a judge that hears or sees the take can score it.
-  needs: "text" | "media";
-  kinds: TakeKind[];
-  // What to judge it from, by input.
-  guide: Record<JudgeInput, string>;
+  // What to judge, and levels 0 to 5 in order.
+  guide: string;
+  levels: [string, string, string, string, string, string];
 }
 
-const BOTH: TakeKind[] = ["impromptu", "script"];
-const IMPROMPTU: TakeKind[] = ["impromptu"];
+export const JUDGED_LEAVES = {
+  answers_question: {
+    label: "Answers the question",
+    guide: "Does it answer THIS prompt, or could it answer almost anything?",
+    levels: [
+      "Doesn't address the prompt.",
+      "Touches the topic but never answers.",
+      "Answers part of it, or drifts away for long stretches.",
+      "Answers it, with some vague stretches.",
+      "Clearly answers it, specifically.",
+      "Answers exactly what was asked; every part earns its place.",
+    ],
+  },
+  point_first: {
+    label: "Point first",
+    guide: "How soon does the listener know the point?",
+    levels: [
+      "The point is never stated.",
+      "The point only arrives at the very end.",
+      "The point comes after a long wind-up.",
+      "The point comes within the first few sentences.",
+      "The first sentence carries the point.",
+      "The first sentence carries the point, sharply enough to remember.",
+    ],
+  },
+  has_shape: {
+    label: "Has a shape",
+    guide: "Shape only, not substance: a point, support and a clear finish (a what/why/how frame or a story arc), or a shapeless ramble?",
+    levels: [
+      "No shape at all.",
+      "A hint of a shape that falls apart.",
+      "Parts of a shape, out of order or with one missing.",
+      "A recognizable shape with one weak part.",
+      "A clear start, support and finish.",
+      "The shape makes it easy to follow and to remember.",
+    ],
+  },
+  hits_beats: {
+    label: "Hits the beats",
+    guide: "The beats of the framework they were asked for, or else of the one they used.",
+    levels: [
+      "None of the beats.",
+      "One beat, weakly.",
+      "Some of the beats.",
+      "Most of the beats.",
+      "All of the beats.",
+      "All of the beats, each clearly marked.",
+    ],
+  },
+  ideas_connect: {
+    label: "Ideas connect",
+    guide: "Does each idea follow from the last? Watch for RESTATED POINTS: a point made again in other words without adding anything, not a deliberate callback.",
+    levels: [
+      "Unconnected remarks.",
+      "Rarely follows from what came before.",
+      "Some jumps the listener has to bridge.",
+      "Mostly follows, with a jump or a repeat.",
+      "Each idea leads to the next.",
+      "It builds, so the conclusion feels earned.",
+    ],
+  },
+  specifics: {
+    label: "Specifics",
+    guide: "Names, numbers, moments and senses, rather than generalities.",
+    levels: [
+      "Only generalities.",
+      "One vague detail.",
+      "A few details.",
+      "Several real details.",
+      "Concrete names, numbers or moments throughout.",
+      "Vivid and precise throughout.",
+    ],
+  },
+} satisfies Record<string, JudgedLeaf>;
 
-export const JUDGED_SUBCATEGORIES = {
-  pace: {
-    label: "Pace",
-    needs: "text",
-    kinds: BOTH,
-    guide: {
-      text: "from the measured pace and how much it varied, and whether it suited the moment. Pace only: filler words are scored on the phone (Fluency), so don't lower Pace for them. State the numbers.",
-      video: "from the measured pace (more precise than your own estimate) and whether it suited the moment, as you hear it. Pace only: fillers are scored on the phone.",
-    },
-  },
-  pauses: {
-    label: "Pauses",
-    needs: "text",
-    kinds: BOTH,
-    guide: {
-      text: "from the bracketed gaps in the timed transcript and the measured pauses: deliberate pauses where a thought ends (good) against mid-phrase gaps and hesitations (bad). Quote where.",
-      video: "deliberate pauses where a thought ends (good) against mid-phrase gaps and hesitations (bad), using the timed transcript and what you hear. Quote where.",
-    },
-  },
-  melody: {
-    label: "Pitch variety",
-    needs: "text",
-    kinds: BOTH,
-    guide: {
-      text: "from the measured pitch span in semitones and its spread.",
-      video: "from the measured pitch span in semitones and how the voice rises and falls as you hear it.",
-    },
-  },
-  emphasis: {
-    label: "Emphasis",
-    needs: "text",
-    kinds: BOTH,
-    guide: {
-      text: "from the loudness range and the syllable-peak variation: whether the words that carry the point would have stood out.",
-      video: "whether they leaned on the words that matter, with loudness and pitch, using the measured loudness numbers and what you hear.",
-    },
-  },
-  tone: {
-    label: "Tone fit",
-    needs: "media",
-    kinds: BOTH,
-    guide: { text: "", video: "whether the tone of voice suits what is being said, as you hear it." },
-  },
-  cues: {
-    label: "Following the marks",
-    needs: "text",
-    kinds: ["script"],
-    guide: {
-      text: "against the delivery marks in the script they were shown. You can only verify timing here: did they pause where the marks ask (the bracketed gaps) and slow down or speed up where marked? Stress and rises can't be checked from text; say so.",
-      video: "against the delivery marks in the script they were shown: pauses, stressed words, rises and falls, slow and soft stretches. Name hits and misses, quoting the words. Reasonable fidelity, not perfection.",
-    },
-  },
-  structure: {
-    label: "Structure",
-    needs: "text",
-    kinds: IMPROMPTU,
-    guide: {
-      text: "Matt Abrahams' structured spontaneity: a point up front, support, and a clear finish (a what/why/how frame or a story arc), or a shapeless ramble? Shape only, not substance.",
-      video: "Matt Abrahams' structured spontaneity: a point up front, support, and a clear finish (a what/why/how frame or a story arc), or a shapeless ramble? Shape only, not substance.",
-    },
-  },
-  relevance: {
-    label: "On the point",
-    needs: "text",
-    kinds: IMPROMPTU,
-    guide: {
-      text: "does it specifically and concretely answer THIS prompt, or could it answer almost anything? Penalize vagueness.",
-      video: "does it specifically and concretely answer THIS prompt, or could it answer almost anything? Penalize vagueness.",
-    },
-  },
-  clarity: {
-    label: "Clarity",
-    needs: "text",
-    kinds: IMPROMPTU,
-    guide: {
-      text: "clear sentences that move forward. Watch for RESTATED POINTS (a point made, then made again in other words without adding anything, not a deliberate callback): name each in the notes and add a restated_point annotation for BOTH occurrences.",
-      video: "clear sentences that move forward. Watch for RESTATED POINTS (a point made, then made again in other words without adding anything, not a deliberate callback): name each in the notes and add a restated_point annotation for BOTH occurrences.",
-    },
-  },
-  eye_contact: {
-    label: "Eye contact",
-    needs: "text",
-    kinds: BOTH,
-    guide: {
-      text: "from the measured eye contact with the lens, looking down and the longest look-away. Don't restate the number as the judgement: say what it meant for a listener.",
-      video: "from the measured share (more precise than the video, which you see about once a second) and what you see: does the gaze come back to the lens?",
-    },
-  },
-  expression: {
-    label: "Expression",
-    needs: "text",
-    kinds: BOTH,
-    guide: {
-      text: "from the measured expressiveness, smiling and eyebrow raises: does the face move with the words?",
-      video: "does the face move with the words? Use the measured expressiveness and what you see.",
-    },
-  },
-  conviction: {
-    label: "Conviction",
-    needs: "text",
-    kinds: IMPROMPTU,
-    guide: {
-      text: "saying it like they mean it: few hedges (maybe, I guess, kind of, sort of, I think when it softens a claim) and an ending that lands instead of trailing off. Quote the hedges and the last line.",
-      video: "saying it like they mean it: few hedges (maybe, I guess, kind of, sort of, I think when it softens a claim) and an ending that lands instead of trailing off. Quote the hedges and the last line.",
-    },
-  },
-  body: {
-    label: "Body language",
-    needs: "media",
-    kinds: BOTH,
-    guide: { text: "", video: "posture, gestures and physical energy, as you see them. Specific and evidence-based." },
-  },
-} satisfies Record<string, JudgedSubcategory>;
+export type JudgedLeafId = keyof typeof JUDGED_LEAVES;
 
-export type JudgedSubcategoryId = keyof typeof JUDGED_SUBCATEGORIES;
-
-// Which subcategories this take is judged on.
-export function subcategoriesFor(kind: TakeKind, input: JudgeInput, hasMarks: boolean): JudgedSubcategoryId[] {
-  return (Object.keys(JUDGED_SUBCATEGORIES) as JudgedSubcategoryId[]).filter((id) => {
-    const def: JudgedSubcategory = JUDGED_SUBCATEGORIES[id];
-    if (!def.kinds.includes(kind)) return false;
-    if (def.needs === "media" && input !== "video") return false;
-    if (id === "cues" && !hasMarks) return false;
-    return true;
-  });
+// Which leaves this take is judged on: none for a script, whose words were given.
+export function leavesFor(kind: TakeKind): JudgedLeafId[] {
+  return kind === "script" ? [] : (Object.keys(JUDGED_LEAVES) as JudgedLeafId[]);
 }
 
 // ---- inputs ----
@@ -175,7 +124,8 @@ export const takeReviewInputsSchema = z.object({
   // A scripted reading: the script, and the marks they were shown as the
   // app's notation (null when none were shown).
   script: z.object({ text: z.string().max(20_000), marked: z.string().max(30_000).nullable() }).nullable(),
-  // The phone's on-device transcript (Whisper, fillers kept), and its timing.
+  // The phone's on-device transcript (Whisper, fillers kept). Its timing is no
+  // longer used: pauses are the phone's to score.
   transcript: z.string().max(40_000).nullable(),
   words: z.array(word).max(12_000).nullable(),
   measurements: measurementsSchema,
@@ -185,44 +135,25 @@ export const takeReviewInputsSchema = z.object({
 
 export type TakeReviewInputs = z.infer<typeof takeReviewInputsSchema>;
 
-const PAUSE_MARK_MS = 400;
-
-// The transcript with every gap of 0.4 s or more shown in brackets.
-export function timedTranscript(words: [string, number, number][]): string {
-  const out: string[] = [];
-  words.forEach(([text, start], i) => {
-    const gap = i > 0 ? start - words[i - 1][2] : 0;
-    if (gap >= PAUSE_MARK_MS) out.push(`[${(gap / 1000).toFixed(1)}s]`);
-    out.push(text.trim());
-  });
-  return out.join(" ");
-}
-
 export const MARK_LEGEND =
   "*word* = stress this word · word↗ / word↘ = pitch rises / falls at the end of this word · | = short pause · || = long pause · {slow …} {fast …} {louder …} {softer …} = a stretch said that way · [[…]] = a tone direction for what follows";
 
 // ---- the answer's shape (Gemini's JSON Schema subset) ----
 
-const NOTES =
-  "2-4 sentences, evidence-based: name a specific number, quote or moment, say what capped the score, and what a 10 would look like. Never generic praise or vague criticism.";
-
-function subscoreSchema(label: string) {
+function leafSchema(label: string) {
   return {
     type: "object",
     description: label,
     properties: {
-      score: { type: "number", description: "1-10. Most unrehearsed takes land 4-7. Don't round up out of politeness." },
-      notes: { type: "string", description: NOTES },
-      evidence: { type: "string", description: "The evidence this score rests on: an exact quote from the transcript, or a measured number you cited." },
+      level: { type: "integer", description: "0 to 5, from the written levels. Most unrehearsed takes land 2 or 3. Don't round up out of politeness." },
+      quote: { type: "string", description: "3-12 words copied EXACTLY from the plain transcript that show why. It is checked by exact search, and a leaf whose quote isn't found doesn't count. Empty only at level 0." },
+      notes: { type: "string", description: "1-2 sentences: what you saw, and what the next level up would take." },
     },
-    required: ["score", "notes", "evidence"],
+    required: ["level", "quote", "notes"],
   };
 }
 
-// The subcategories whose moments are marked on the transcript.
-const ANNOTATED: JudgedSubcategoryId[] = ["structure", "relevance", "clarity", "conviction"];
-
-export function takeReviewResponseSchema(ids: JudgedSubcategoryId[], opts: { kind: TakeKind; transcribe: boolean }): Record<string, unknown> {
+export function takeReviewResponseSchema(ids: JudgedLeafId[], opts: { kind: TakeKind; transcribe: boolean }): Record<string, unknown> {
   const properties: Record<string, unknown> = {};
   const required: string[] = [];
   if (opts.transcribe) {
@@ -238,23 +169,25 @@ export function takeReviewResponseSchema(ids: JudgedSubcategoryId[], opts: { kin
     properties.structure_used = { type: "string", enum: ["what/why/how", "story arc", "none detected", "other"], description: "Which structure the take followed, if any." };
     required.push("structure_used");
   }
-  properties.subscores = {
-    type: "object",
-    properties: Object.fromEntries(ids.map((id) => [id, subscoreSchema(JUDGED_SUBCATEGORIES[id].label)])),
-    required: ids,
-  };
-  // The transcript only marks what a reader can act on in the words: the
-  // shape, the content and restated points. Delivery and presence moments
-  // aren't shown, so they aren't asked for (output tokens cost money).
-  const marked = ANNOTATED.filter((id) => ids.includes(id));
+  if (ids.length) {
+    properties.scorable = { type: "boolean", description: "False only if this can't be judged as an answer: gibberish, a recital of something unrelated, or nothing of substance said." };
+    properties.not_scorable_reason = { type: "string", description: "When scorable is false: one kind sentence saying why. Otherwise empty." };
+    properties.leaves = {
+      type: "object",
+      properties: Object.fromEntries(ids.map((id) => [id, leafSchema(JUDGED_LEAVES[id].label)])),
+      required: ids,
+    };
+    required.push("scorable", "not_scorable_reason", "leaves");
+  }
+  // The transcript only marks what a reader can act on in the words.
   properties.annotations = {
     type: "array",
-    description: "Up to 5 of the most telling moments for structure and content, plus every restated-point pair.",
+    description: "Up to 5 of the most telling moments for the content, plus every restated-point pair.",
     items: {
       type: "object",
       properties: {
         quote: { type: "string", description: "3-12 words copied EXACTLY from the plain transcript (it is found by exact search). Enough words to pin down one occurrence." },
-        subcategory: { type: "string", enum: [...marked, "restated_point"], description: "Which subcategory this moment is evidence for, or restated_point." },
+        subcategory: { type: "string", enum: [...ids, "restated_point"], description: "Which leaf this moment is evidence for, or restated_point." },
         note: { type: "string", description: "One short, specific sentence: what happened here and what to do instead." },
       },
       required: ["quote", "subcategory", "note"],
@@ -281,7 +214,7 @@ export function takeReviewResponseSchema(ids: JudgedSubcategoryId[], opts: { kin
     },
     required: ["strength", "tip", "focus_skill", "follow_up_question"],
   };
-  required.push("subscores", "annotations", "coaching", "quick_coach");
+  required.push("annotations", "coaching", "quick_coach");
   return { type: "object", properties, required };
 }
 
@@ -300,41 +233,51 @@ export function buildTakeReview(inputs: TakeReviewInputs, input: JudgeInput): Bu
   const transcript = inputs.transcript?.trim() ? inputs.transcript : null;
   // Only a video take with no phone transcript asks the judge to write one.
   const transcribe = input === "video" && !transcript;
-  const ids = subcategoriesFor(inputs.takeKind, input, hasMarks);
+  const ids = leavesFor(inputs.takeKind);
 
   const intro =
     input === "text"
-      ? "You can't see or hear the recording. You have what the phone measured while they spoke: its on-device transcript (fillers kept) with word timings, and voice and face measurements."
+      ? "You can't see or hear the recording. You have what the phone measured while they spoke: its on-device transcript (fillers kept), and voice and face measurements."
       : transcript
-        ? "You have the video of the take: watch and listen to it. You also have the phone's on-device transcript (fillers kept) with word timings: use it as the words of the take, don't transcribe. Quote from it."
+        ? "You have the video of the take: watch and listen to it. You also have the phone's on-device transcript (fillers kept): use it as the words of the take, don't transcribe. Quote from it."
         : "You have the video of the take: watch and listen to it. There is no phone transcript, so write transcript_verbatim yourself, exactly as heard: every um, uh, er and hmm, false starts and repeated words, never tidied.";
 
   const what = scripted
     ? `This was a SCRIPTED reading: the words were given in advance.\n\nTHE SCRIPT THEY READ:\n"""\n${fenced(inputs.script?.text ?? "")}\n"""${
         hasMarks ? `\n\nTHE SCRIPT WITH THE DELIVERY MARKS THEY WERE SHOWN (${MARK_LEGEND}):\n"""\n${fenced(inputs.script!.marked!)}\n"""` : ""
-      }\n\nOnly delivery and presence are being practiced. If they deviated meaningfully from the script (skipped or added large sections, lost their place), say so in the coaching.`
+      }\n\nThe phone scores this reading. Your job is the coaching. If they deviated meaningfully from the script (skipped or added large sections, lost their place), say so in the coaching.`
     : `THE PROMPT THEY ANSWERED: "${fenced(inputs.prompt ?? "")}"${taskSection(inputs.task)}${planSection(inputs.plan)}`;
 
-  const subLines = ids.map((id) => `- ${id} (${JUDGED_SUBCATEGORIES[id].label}): ${JUDGED_SUBCATEGORIES[id].guide[input]}`).join("\n");
+  const leafLines = ids
+    .map((id) => {
+      const leaf: JudgedLeaf = JUDGED_LEAVES[id];
+      return `- ${id} (${leaf.label}): ${leaf.guide}\n${leaf.levels.map((text, level) => `    ${level}: ${text}`).join("\n")}`;
+    })
+    .join("\n");
 
   const system = `You are a rigorous, critical speaking coach judging one take of someone's speaking practice: not a supportive cheerleader. ${intro}
 
 ${what}
 
-HOW TO SCORE (read before scoring anything):
-- Be honest and demanding. Most unrehearsed takes land 4-7. Reserve 8-10 for genuinely strong, polished delivery. Don't round up out of politeness, and don't default to the middle when unsure: look for evidence either way.
-- Anchors: 1-2 unacceptable, 3-4 weak, 5-6 developing (competent with clear, nameable flaws), 7-8 strong, 9-10 exceptional.
-- The phone's measurements are facts, measured more precisely than you can: use them as evidence for your scores and quote them in your notes. Never contradict a measured number (don't claim a different pace or eye-contact share).
-- Every subscore has notes that name specific evidence and say what's missing to reach a 10, and an evidence field: an exact quote from the transcript or a measured number you cited.
+${
+    scripted
+      ? "THE PHONE OWNS DELIVERY. It measures pace, pauses, pitch, emphasis, fillers and eye contact more precisely than you can, and it scores them. Don't score anything. Coach from its numbers, and never contradict one."
+      : `YOU JUDGE THE CONTENT. THE PHONE OWNS DELIVERY: it measures pace, pauses, pitch, emphasis, fillers and eye contact, and it scores them, so don't. Use its numbers only for your coaching, and never contradict one.
 
-SCORE EXACTLY THESE SUBCATEGORIES, by their ids in "subscores", each 1-10:
-${subLines}
+HOW TO SCORE:
+- Be honest and demanding. Most unrehearsed takes land 2 or 3, and 5 is rare. Don't round up out of politeness, and don't default to the middle when unsure: look for evidence.
+- Each leaf gets a level from its written levels, a quote from the plain transcript that shows why, and a short note. A leaf whose quote isn't found in the transcript doesn't count, so copy it exactly.
+- Set scorable to false only if this can't be judged as an answer at all, and say why in not_scorable_reason. A weak answer is still scorable: give it low levels.
 
-Don't score filler words, stalls or repeated words: the phone measures Fluency itself. You may mention them in notes.
-${scripted ? "" : "\nSet structure_used to the structure the take followed: what/why/how, story arc, none detected, or other.\n"}
+SCORE EXACTLY THESE LEAVES, by their ids in "leaves":
+${leafLines}
+
+Set structure_used to the structure the take followed: what/why/how, story arc, none detected, or other.`
+  }
+
 Write transcript_clean: the transcript rewritten as clean prose, fillers and false starts removed, meaning and word choice preserved, nothing summarized or added.
 
-ANNOTATIONS: up to 5 of the most telling moments for ${scripted ? "the reading (only restated points apply to a script, so usually none)" : "Structure, On the point, Clarity and Conviction"}, plus every restated-point pair. Each quote is 3-12 words copied EXACTLY from the plain transcript (not the timed one), because it is found by exact string search, and it must occur only once in it: include enough words to pin down the one you mean. Don't annotate delivery, eye contact or filler words: the phone shows those itself.
+ANNOTATIONS: up to 5 of the most telling moments for ${scripted ? "the reading (only restated points apply to a script, so usually none)" : "the content"}, plus every restated-point pair. Each quote is 3-12 words copied EXACTLY from the plain transcript, because it is found by exact string search, and it must occur only once in it: include enough words to pin down the one you mean. Don't annotate delivery, eye contact or filler words: the phone shows those itself.
 
 COACHING: a 2-3 sentence summary (honest, not softened), the single top strength, the single most useful focus, and one concrete drill for next time.
 
@@ -351,9 +294,6 @@ Respond only with JSON matching the provided schema.`;
 
   const parts: string[] = [];
   if (transcript) parts.push(`TRANSCRIPT (the phone's on-device speech recognition, fillers included):\n"""\n${fenced(transcript)}\n"""`);
-  if (transcript && inputs.words?.length) {
-    parts.push(`TIMED TRANSCRIPT (gaps of ${PAUSE_MARK_MS / 1000} s or more shown in [brackets]):\n"""\n${fenced(timedTranscript(inputs.words as [string, number, number][]))}\n"""`);
-  }
   parts.push(`MEASURED ON THE PHONE:\n${measurementLines(inputs.measurements).join("\n")}`);
 
   return {

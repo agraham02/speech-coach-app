@@ -3,43 +3,37 @@ import type { HeadlineKind } from "../../domain/scoring/takeScore";
 import { rowToScores, type ScoreRow } from "./mappers";
 import type { SessionScores } from "../../domain/sessionTypes";
 import type { JudgedReview } from "../../domain/analysis/judgedReview";
-import type { SubcategoryId } from "../../domain/scoring/taxonomy";
 
-// The `scores` row: the copy of Tono AI's judgement that the Scores tab
-// reads. The judgement itself, in the taxonomy's terms, is the take's
-// `judged_review` artifact, and the judged score sheet is made from that
-// (services/sessions/sessionScoreService.ts). Subcategories the judge didn't
-// score on this take (Tone fit and Body language without the video; Structure
-// and the content ones on a scripted reading) are 0 here, which the Scores
-// tab leaves out. The cut ones (face-voice match, archetype, the judge's own
-// overall) are no longer asked for: 0 and empty.
+// The `scores` row: what the Result screen still reads of Tono AI's judgement,
+// which is the coaching, the annotations and that a review exists. The judgement
+// itself is the take's `judged_review` artifact, and the take's score is made from
+// that (services/sessions/sessionScoreService.ts). The judge no longer scores
+// delivery, so those columns are 0 and empty until the table goes with the Result
+// screen's rewrite (phase 6).
 export function judgedReviewToScores(sessionId: string, review: JudgedReview, opts: { wpm: number | null }): SessionScores {
-  const sub = (id: SubcategoryId) => review.subscores[id];
-  const score = (id: SubcategoryId) => sub(id)?.score ?? 0;
-  const notes = (id: SubcategoryId) => sub(id)?.notes ?? "";
   return {
     sessionId,
-    structureScore: score("structure"),
+    structureScore: (review.leaves.has_shape?.level ?? 0) * 2,
     structureUsed: review.structureUsed ?? "other",
-    structureNotes: notes("structure"),
-    relevanceScore: score("relevance"),
-    relevanceNotes: notes("relevance"),
-    coherenceScore: score("clarity"),
-    coherenceNotes: notes("clarity"),
-    rateScore: score("pace"),
+    structureNotes: review.leaves.has_shape?.notes ?? "",
+    relevanceScore: (review.leaves.answers_question?.level ?? 0) * 2,
+    relevanceNotes: review.leaves.answers_question?.notes ?? "",
+    coherenceScore: (review.leaves.ideas_connect?.level ?? 0) * 2,
+    coherenceNotes: review.leaves.ideas_connect?.notes ?? "",
+    rateScore: 0,
     rateWpmAvg: Math.round(opts.wpm ?? 0),
-    rateNotes: notes("pace"),
-    volumeScore: score("emphasis"),
-    volumeNotes: notes("emphasis"),
-    pitchMelodyScore: score("melody"),
-    pitchMelodyNotes: notes("melody"),
-    tonalityScore: score("tone"),
-    tonalityNotes: notes("tone"),
-    pausingScore: score("pauses"),
-    pausingNotes: notes("pauses"),
-    eyeContactScore: score("eye_contact"),
-    facialExpressivenessScore: score("expression"),
-    bodyLanguageNotes: notes("body"),
+    rateNotes: "",
+    volumeScore: 0,
+    volumeNotes: "",
+    pitchMelodyScore: 0,
+    pitchMelodyNotes: "",
+    tonalityScore: 0,
+    tonalityNotes: "",
+    pausingScore: 0,
+    pausingNotes: "",
+    eyeContactScore: 0,
+    facialExpressivenessScore: 0,
+    bodyLanguageNotes: "",
     faceVoiceCongruenceScore: 0,
     archetypeDetected: "Educator",
     archetypeFitForTopic: "",
@@ -49,8 +43,8 @@ export function judgedReviewToScores(sessionId: string, review: JudgedReview, op
     topFocusArea: review.coaching.focus,
     recommendedDrill: review.coaching.drill,
     annotations: review.annotations,
-    cueComplianceScore: sub("cues") ? score("cues") : null,
-    cueComplianceNotes: sub("cues") ? notes("cues") : null,
+    cueComplianceScore: null,
+    cueComplianceNotes: null,
   };
 }
 

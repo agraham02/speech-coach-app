@@ -529,7 +529,7 @@ export function ResultScreen({ route, navigation }: Props) {
         </TourScrollContext.Provider>
       ) : null}
 
-      {tab === "scores" && takeScores ? <ScoresTab scores={takeScores} rubric={scores} session={session} videoUri={hasVideo ? videoUri : null} /> : null}
+      {tab === "scores" && takeScores ? <ScoresTab scores={takeScores} session={session} videoUri={hasVideo ? videoUri : null} /> : null}
 
       {tab === "transcript" ? (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
