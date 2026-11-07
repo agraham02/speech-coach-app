@@ -141,6 +141,15 @@ A new JS bundle is enough; no new build. Do a few real takes first, since the nu
 - [ ] **Self-ratings.** Finish a guided exercise about delivery (Rate contrast): the toast says it doesn't move a score yet. Finish one about the inner game (Reset before you speak): the toast shows a trail.
 - [ ] **New names.** Skills read Clarity, Voice, Message, Presence, Connection everywhere. Tell me if a screen still says Cadence or Articulation.
 
+## Phase 3b: gates
+
+- [ ] **Wrong words.** On Pace reading, read something else: it says "Not scored" and why, the drill's difficulty stays put, and the step still ticks.
+- [ ] **Babble.** On Sixty seconds, say "blah" for a while: "Not scored".
+- [ ] **Chains.** With Tono AI off or signed out, a Word chain says "Not checked". With it on, it scores as usual.
+- [ ] **A very short take.** Record a few words and stop: "We couldn't score this one", no number, and the take is still in your Library.
+- [ ] **A wrong script.** On a script take, read something else: the same message. Read the script: it scores.
+- [ ] **Fair enough?** Tell me if a real attempt ever gets rejected. The 40% floor on Twister, Minimal pairs and Shadowing is my number, and the live recognizer is rough until 3b.3.
+
 ## Phase 6: results flow
 
 Carried over from the hotfix round. These were fixes for gestures on the old screens, and they can come back when the screens are rebuilt.

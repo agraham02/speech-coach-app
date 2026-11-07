@@ -27,6 +27,8 @@ import { ScoreSummaryCard } from "../components/result/ScoreSummaryCard";
 import { ScoresTab } from "../components/result/ScoresTab";
 import { SCORE_SHEET_VERSION, type TakeScores } from "../domain/scoring/takeScore";
 import { attemptLabel } from "../domain/levels";
+import type { GateVerdict } from "../domain/gates";
+import { GateNote } from "../components/celebrate/GateNote";
 import { measuredVoice, refreshSessionScore } from "../services/sessions/sessionScoreService";
 import { FeltCard, ObservedCard, useFeltObserved } from "../components/result/FeltObservedCard";
 import { CloudUsageNote } from "../components/result/CloudUsageNote";
@@ -114,6 +116,10 @@ export function ResultScreen({ route, navigation }: Props) {
   const [subjectSummary, setSubjectSummary] = useState<SessionSubjectSummary | null>(null);
   const [coach, setCoach] = useState<CoachOutput | null>(null);
   const [takeScores, setTakeScores] = useState<TakeScores | null>(null);
+  const [takeGate, setTakeGate] = useState<Extract<GateVerdict, { passed: false }> | null>(null);
+  // The score, or why there isn't one, has been read. Until then the top of the
+  // page holds its place, so nothing lands above what you're reading.
+  const [scoreChecked, setScoreChecked] = useState(false);
   // Felt vs observed: the first question at the top, the second by the video.
   const feltObserved = useFeltObserved(sessionId);
   const [comparison, setComparison] = useState<Awaited<ReturnType<typeof getPromptComparison>>>(null);
@@ -133,8 +139,11 @@ export function ResultScreen({ route, navigation }: Props) {
     // Overall, Delivery with Delivery), never across the two.
     getArtifact<TakeScores>(sessionId, "session_score")
       .then((b) => (b && b.version >= SCORE_SHEET_VERSION ? b : refreshSessionScore(sessionId)))
-      .then((fresh) => {
+      .then(async (fresh) => {
+        const gate = fresh ? null : await getArtifact<Extract<GateVerdict, { passed: false }>>(sessionId, "take_gate");
+        setTakeGate(gate);
         setTakeScores(fresh);
+        setScoreChecked(true);
         getSessionById(sessionId).then((s) => {
           if (s && fresh) getPreviousOverallScore(s.recordedAt, fresh.headline).then(setPreviousOverallScore);
         });
@@ -380,8 +389,12 @@ export function ResultScreen({ route, navigation }: Props) {
                 ) : null}
               </HeroCard>
             </Reveal>
-          ) : measuring || reviewing ? (
-            <SkeletonHero key="hero-skeleton" note={measuring ? "Listening back and measuring, on this phone…" : "Waiting for Tono AI…"} />
+          ) : takeGate && !measuring && !reviewing ? (
+            <Reveal key="gate">
+              <GateNote gate={takeGate} />
+            </Reveal>
+          ) : measuring || reviewing || !scoreChecked ? (
+            <SkeletonHero key="hero-skeleton" note={measuring ? "Listening back and measuring, on this phone…" : reviewing ? "Waiting for Tono AI…" : ""} />
           ) : coach ? null : (
             <Reveal key="numbers">
               <Card style={styles.numbersCard}>

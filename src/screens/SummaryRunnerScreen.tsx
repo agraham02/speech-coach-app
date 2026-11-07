@@ -18,6 +18,7 @@ import { evaluateSummary, type SummaryDetails } from "../domain/summary/evaluate
 import { words } from "../domain/conversation/text";
 import { getDrillLevel, recordDrillOutcome, type ProgressChange } from "../services/db/progressRepo";
 import { DrillProgressLine } from "../components/celebrate/DrillProgressLine";
+import { GateNote } from "../components/celebrate/GateNote";
 import { reviewSummary, type SummaryReviewResult } from "../services/summary/summaryReview";
 import { producerName } from "../domain/analysis/provenance";
 import { completePracticeStep } from "../services/practice/practiceEvents";
@@ -40,7 +41,7 @@ export function SummaryRunnerScreen({ route, navigation }: Props) {
   const [stage, setStage] = useState<Stage>("intro");
   const [change, setChange] = useState<ProgressChange | null>(null);
   const [turnIndex, setTurnIndex] = useState(0);
-  const [result, setResult] = useState<{ outcome: DrillOutcome; details: SummaryDetails } | null>(null);
+  const [result, setResult] = useState<ReturnType<typeof evaluateSummary> | null>(null);
   const [reviewed, setReviewed] = useState<SummaryReviewResult | null>(null);
   const [heardNothing, setHeardNothing] = useState(false);
   const measurementsRef = useRef<TurnMeasurement[]>([]);
@@ -121,6 +122,7 @@ export function SummaryRunnerScreen({ route, navigation }: Props) {
         lessonId: practice?.lessonId,
         metrics: { ...evaluated.details, reviewSource: review ? review.provenance.producer : null },
         ...(review ? { source: "judge" as const } : {}),
+        gate: evaluated.gate,
       });
       setChange(moved);
       setReviewed(review);
@@ -133,7 +135,7 @@ export function SummaryRunnerScreen({ route, navigation }: Props) {
   }
 
   async function done() {
-    if (result) await completePracticeStep(drillActivityId(drill), practice, result.outcome.score);
+    if (result) await completePracticeStep(drillActivityId(drill), practice, result.gate.passed ? result.outcome.score : null);
     navigation.goBack();
   }
 
@@ -232,8 +234,9 @@ export function SummaryRunnerScreen({ route, navigation }: Props) {
           </View>
         ) : null}
 
-        {stage === "result" && result ? renderResult(result) : null}
-        {stage === "result" && result && change && setup ? <DrillProgressLine change={change} drillTitle={DRILL_TITLES[setup.type]} /> : null}
+        {stage === "result" && result && result.gate.passed ? renderResult(result) : null}
+        {stage === "result" && result && !result.gate.passed ? <GateNote gate={result.gate} /> : null}
+        {stage === "result" && result && result.gate.passed && change && setup ? <DrillProgressLine change={change} drillTitle={DRILL_TITLES[setup.type]} /> : null}
         {stage === "result" && heardNothing ? (
           <Card style={styles.card}>
             <Txt variant="headline">Didn't catch an answer.</Txt>

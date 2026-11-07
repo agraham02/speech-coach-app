@@ -87,6 +87,9 @@ import { LEAVES } from "../../../domain/scoring/skillTree";
 import { isoDateFromDate } from "../../../utils/dateUtils";
 
 const describeIfSqlite = sqliteAvailable() ? describe : describe.skip;
+// The very short take and the silent one have too few words to score.
+const NOT_SCORED = ["very-short", "silent"];
+
 const OPTIONS = { placeholderMedia: false, moveRatings: false };
 
 beforeEach(async () => {
@@ -126,7 +129,8 @@ describeIfSqlite("demo takes", () => {
       expect(signals.audio!.frames).toBeGreaterThan(100);
       expect(!!signals.face).toBe(!!spec.face);
       const kinds = (await listArtifacts(id)).map((a) => a.kind);
-      expect(kinds).toEqual(expect.arrayContaining(["signals", "coach", "session_score"]));
+      // Too few words to score: the gate says so, and there's no score (plan 6.4, rule 2).
+      expect(kinds).toEqual(expect.arrayContaining(["signals", "coach", NOT_SCORED.includes(spec.key) ? "take_gate" : "session_score"]));
       expect(kinds.includes("analysis")).toBe(!!spec.judged);
       expect(kinds.includes("judged_review")).toBe(!!spec.judged);
       // Even a take with no voice has its (empty) pause analysis.
@@ -136,7 +140,7 @@ describeIfSqlite("demo takes", () => {
 
   it("builds score sheets that agree with the taxonomy", async () => {
     await addDemoData(OPTIONS);
-    const withSheets = await getAllSessionsWithScores();
+    const withSheets = (await getAllSessionsWithScores()).filter((s) => !NOT_SCORED.some((key) => demoSessionId(key) === s.id));
     for (const s of withSheets) {
       const scores = (await getArtifact<TakeScores>(s.id, "session_score"))!;
       expect(scores.version).toBe(SCORE_SHEET_VERSION);
@@ -218,7 +222,7 @@ describeIfSqlite("demo takes", () => {
     const months = new Set(sessions.map((s) => s.recordedAt.slice(0, 7)));
     expect(months.size).toBeGreaterThanOrEqual(4);
     const series = await getScoreSeries();
-    expect(series.length).toBe(DEMO_TAKES.length);
+    expect(series.length).toBe(DEMO_TAKES.length - NOT_SCORED.length);
     expect((await getSessionMetricSeries()).length).toBeGreaterThan(8);
     const streak = await getStreakState();
     expect(streak.currentStreak).toBeGreaterThanOrEqual(6);

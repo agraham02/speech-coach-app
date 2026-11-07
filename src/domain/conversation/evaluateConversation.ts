@@ -2,6 +2,7 @@ import { summarizeVolume, type VolumeReading } from "../dsp/volumePauses";
 import { FIRST_RESULT_LATENCY_MS } from "../speech/liveTranscript";
 import { ramblingMetrics, type RamblingMetrics } from "../coach/ramblingMetrics";
 import { outcome, type DrillOutcome } from "../drills/drillSpecs";
+import { replyGate, type GateVerdict } from "../gates";
 import { countQuestions } from "./questions";
 import { contentWords, mentions, stem, words } from "./text";
 import type { ConversationSetup, ConversationTurn } from "./prepareConversation";
@@ -181,11 +182,13 @@ function evaluateTurn(setup: ConversationSetup, turn: ConversationTurn, m: TurnM
   }
 }
 
-export function evaluateConversation(
-  setup: ConversationSetup,
-  measurements: TurnMeasurement[],
-  extra: { selfRating?: number } = {},
-): { outcome: DrillOutcome; details: ConversationDetails } {
+export function evaluateConversation(setup: ConversationSetup, measurements: TurnMeasurement[], extra: { selfRating?: number } = {}): { outcome: DrillOutcome; details: ConversationDetails; gate: GateVerdict } {
+  const scored = scoreConversation(setup, measurements, extra);
+  // Reply length of 3+ words is the gate for all of these (plan section 7).
+  return { ...scored, gate: replyGate(scored.details.turns.some((t) => t.replied)) };
+}
+
+function scoreConversation(setup: ConversationSetup, measurements: TurnMeasurement[], extra: { selfRating?: number }): { outcome: DrillOutcome; details: ConversationDetails } {
   const turns = measurements.map((m, i) => evaluateTurn(setup, setup.turns[i], m, i === measurements.length - 1));
   const replies = turns.filter((t) => t.replied).length;
   const allReplied = replies === turns.length && turns.length > 0;

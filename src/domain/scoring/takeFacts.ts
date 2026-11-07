@@ -121,6 +121,7 @@ export function buildTakeFacts(input: TakeFactsInput): TakeFacts {
   return {
     kind,
     durationSeconds,
+    wordCount: text ? text.split(/\s+/).filter((w) => /[a-z0-9]/i.test(w)).length : 0,
     wpm: summary?.rate?.speakingWpm ?? speakingWpm(words),
     paceSdSylPerSec: summary?.rate?.paceSdSylPerSec ?? null,
     paceDriftPercent: summary?.rate?.paceDriftPercent ?? null,

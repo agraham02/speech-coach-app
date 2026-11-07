@@ -165,6 +165,19 @@ describeIfSqlite("the skill tree's numbers", () => {
     expect(await getSkillEvents("cadence")).toHaveLength(0);
   });
 
+  it("a failed gate keeps the attempt, moves nothing, and doesn't step the difficulty", async () => {
+    const gate = { passed: false as const, kind: "failed" as const, reason: "Not the words on the screen." };
+    const change = await recordDrillOutcome({ drillType: "pace_reading", outcome: ok(0.9), level: 3, gate });
+    expect(change.trail).toBeNull();
+    expect(change.leveledUp).toBe(false);
+    expect(change.levelAfter).toBe(3);
+    expect(await getLeafRatings()).toEqual({});
+    expect(await mockDb.getFirstAsync("SELECT score, success FROM drill_attempts")).toEqual({ score: null, success: 0 });
+    expect(await mockDb.getFirstAsync("SELECT level FROM drill_difficulty WHERE drill_type = 'pace_reading'")).toBeNull();
+    const passed = await recordDrillOutcome({ drillType: "pace_reading", outcome: ok(0.9), level: 3, gate: { passed: true } });
+    expect(passed.trail).not.toBeNull();
+  });
+
   it("moves the tree once for a take, even if it's settled twice", async () => {
     await mockDb.runAsync(`INSERT INTO sessions (id, prompt_id, recorded_at, video_path, duration_seconds, transcription_source, status) VALUES ('t2', 'p', '2026-11-01T10:00:00Z', 'v', 60, 'whisper_ondevice', 'done')`);
     const take = { activityId: ACTIVITY_IDS.impromptu, leafScores: { speaking_rate: { score: 0.9 } }, source: "measured" as const };

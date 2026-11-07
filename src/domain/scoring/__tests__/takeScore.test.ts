@@ -8,6 +8,7 @@ import type { TakeFacts } from "../takeLeaves";
 const facts = (patch: Partial<TakeFacts> = {}): TakeFacts => ({
   kind: "impromptu",
   durationSeconds: 60,
+  wordCount: 100,
   wpm: 145,
   paceSdSylPerSec: 0.8,
   paceDriftPercent: 2,

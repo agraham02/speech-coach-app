@@ -6,7 +6,7 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 
 ## Where we left off
 
-2026-11-07: Phase 3a's tasks are all done (D15 to D17). A fresh review of the whole phase found four real problems, all fixed: the Library's ring read 0 to 10, the Path finale compared the check's number with the pillar's, Concise never moved Within limits, and Move it hid the trail on a level-up. Next is 3b.1, gates. The owner's iPhone checks for phases 0, 2 and 3a are in `device-checks.md`. Still open from before: 1.5 and 1.9 (blocked), and republishing `docs/privacy.md` and `docs/terms.md`. To replay recordings against the code: unpack the tar and run `LAB_RAW_DIR=path LAB_OUT=out.json npx jest replay.local`.
+2026-11-07: Phase 3a's tasks are all done (D15 to D17). A fresh review of the whole phase found four real problems, all fixed: the Library's ring read 0 to 10, the Path finale compared the check's number with the pillar's, Concise never moved Within limits, and Move it hid the trail on a level-up. 3b.1 (gates) is done (D18). Next is 3b.2. The owner's iPhone checks for phases 0, 2 and 3a are in `device-checks.md`. Still open from before: 1.5 and 1.9 (blocked), and republishing `docs/privacy.md` and `docs/terms.md`. To replay recordings against the code: unpack the tar and run `LAB_RAW_DIR=path LAB_OUT=out.json npx jest replay.local`.
 
 **Running the emulator:** another project's Metro may be on 8081, and a stale Metro of this repo can be left on 8082 or elsewhere without showing in `netstat` or `Get-NetTCPConnection`, so the emulator loads old code from it. Check with `curl 127.0.0.1:PORT/status`, find leftovers with `Get-CimInstance Win32_Process` for node processes started from this repo, kill them by id, and use a port that refuses connections (8083 worked). Check the installed app too: `adb shell dumpsys package com.ahmadgraham.tono | grep versionName` must say 2.0.0, and the dev client needs a build that has `react-native-keyboard-controller`; a stale APK fails with "doesn't seem to be linked". `adb install -r -d C:/dev/tb/android/app/build/outputs/apk/debug/app-debug.apk` fixed it without a rebuild. Otherwise use `--port 8082` and open the dev client with that port. Rebuild the dev client with `bash scripts/build-android-dev.sh [git ref]` (only when native code changes). It builds in a worktree at `C:/dev/tb`, because the repo's path is too long for the native build tools; stop leftover Gradle and Kotlin daemons first if it fails with EBUSY or out-of-memory. To see the soft keyboard, see section 2.5b of the emulator plan. If a Metro hangs, kill it by its process id: stopping the background shell doesn't always end it.
 
@@ -80,10 +80,10 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 
 | ID | Task | Status | Evidence |
 |---|---|---|---|
-| 3b.1 | A gate for every activity in section 7, with validity tests | todo | |
-| 3b.2 | Phone owns delivery; the judge narrowed to Message on 0–5, with verified quotes | todo | |
-| 3b.3 | Whisper scores drills; the live recognizer is display only | todo | |
-| 3b.4 | Phone content checks with `NLEmbedding` (new build) | todo | |
+| 3b.1 | A gate for every activity in section 7, with validity tests | done | `domain/gates.ts`, `gates.test.ts`: every gate the phone can check today, and a real-database test that a failed gate moves nothing and keeps the attempt. The gates that need a later task are named in D18 and on those rows. Emulator, real expo-sqlite: rescoring at launch left the two demo takes with too few words unscored, and a Result says "We couldn't score this one". Not run on the emulator: a live drill's gate, since it has no usable mic |
+| 3b.2 | Phone owns delivery; the judge narrowed to Message on 0–5, with verified quotes | todo | Carries from 3b.1: the judge can say "not scorable" |
+| 3b.3 | Whisper scores drills; the live recognizer is display only | todo | Carries from 3b.1: Pause reading counts pauses at the marks, with its validity test |
+| 3b.4 | Phone content checks with `NLEmbedding` (new build) | todo | Carries from 3b.1: Category sprint's checked words ("table" isn't an animal), on-topic and coherence on takes, Sixty seconds and Random-word story, Word chain's phone check |
 | 3b.5 | Small content check: server pool, routing, consent, privacy and terms | todo | |
 | 3b.6 | Checkpoints | todo | |
 
@@ -182,6 +182,7 @@ Things that came up and aren't in this plan. The readings still on Beta, and wha
 - `KeyboardForm` serves the older `ScreenContainer` screens; fold those into `Screen` when they move in phases 5 and 8, and drop it.
 - The dark-mode filler highlight is a deep gold (`#7A6200`); revisit its look in phase 8 if you'd like it brighter.
 - `KeyboardProvider` preloads the keyboard at start, which can flash it on iOS launch. If you see that on the iPhone, set `preload={false}` in `App.tsx`.
+- One "database is locked" warning from the launch's purge step after a dev reload, on the emulator (2026-11-07). It didn't recur on the next launch, and a reload can leave the old JS holding the database. Watch for it on a cold start.
 - One uncaught SQLite error on the first launch after installing the new dev client (`NativeDatabase.prepareAsync`: "Cannot use shared object that was already released"). It didn't come back in 3 cold starts, nor in the 2 launches that tested 2.1's new schema code. Watch for it.
 - The clean start runs after the database is wiped. If the app is killed between the two, the old videos and settings stay until Reset app. They are test data, so it isn't worth a marker yet.
 - Videos already uploaded for a deep review aren't deleted from Google by the clean start (Reset app does it, from the sessions table, before the wipe). Google drops them after 48 hours anyway.
