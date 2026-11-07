@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AppErrorBoundary, installGlobalErrorLogging } from "./src/components/common/AppErrorBoundary";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
@@ -12,6 +12,7 @@ import { retryWaitingTakes } from "./src/services/pipeline/retryWaitingTakes";
 import { watchForOfflineReviews } from "./src/services/pipeline/retryOfflineReviews";
 import { initAccount } from "./src/services/account/accountStore";
 import { initPurchases } from "./src/services/purchases/purchases";
+import { runCleanStart } from "./src/services/data/cleanStart";
 import { logger } from "./src/utils/logger";
 import { clearPrepAlert } from "./src/services/recording/prepAlert";
 import { ToastProvider } from "./src/components/common/ToastProvider";
@@ -42,6 +43,14 @@ export default function App() {
     "InstrumentSans-SemiBold": require("./assets/fonts/InstrumentSans-SemiBold.ttf"),
     "InstrumentSans-Bold": require("./assets/fonts/InstrumentSans-Bold.ttf"),
   });
+
+  // The first launch of 2.0.0 wipes a 1.x database and the files and settings
+  // that went with it (cleanStart.ts). The first screen waits for it, so it
+  // reads the fresh settings.
+  const [cleanStartDone, setCleanStartDone] = useState(false);
+  useEffect(() => {
+    runCleanStart().finally(() => setCleanStartDone(true));
+  }, []);
 
   // Old model files and abandoned partial downloads go (whisperModels.ts).
   useEffect(() => tidyModelsFolder(), []);
@@ -79,7 +88,7 @@ export default function App() {
       {/* The keyboard, the same on both platforms: screens move above it (Screen, KeyboardAwareScrollView). The app already draws edge to edge and handles insets itself. */}
       <KeyboardProvider statusBarTranslucent navigationBarTranslucent>
       <ThemeProvider>
-        {fontsLoaded || fontError ? (
+        {(fontsLoaded || fontError) && cleanStartDone ? (
           <AppErrorBoundary>
             <ToastProvider>
               <GuideProvider>

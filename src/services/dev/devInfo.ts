@@ -1,7 +1,7 @@
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 import { getDatabase } from "../db/database";
-import { LATEST_DB_VERSION } from "../db/migrations";
+import { SCHEMA_VERSION } from "../db/schema";
 import { DEFAULT_ASR_MODEL, isModelDownloaded } from "../asr/whisperModels";
 
 // What the Dev hub's status card shows. Everything here is read-only.
@@ -21,7 +21,7 @@ export function osLabel(): string {
 export async function readDbVersion(): Promise<{ current: number; latest: number }> {
   const db = await getDatabase();
   const row = await db.getFirstAsync<{ user_version: number }>("PRAGMA user_version");
-  return { current: row?.user_version ?? 0, latest: LATEST_DB_VERSION };
+  return { current: row?.user_version ?? 0, latest: SCHEMA_VERSION };
 }
 
 // Steps of saved takes that failed, or were cut off and not resumed.

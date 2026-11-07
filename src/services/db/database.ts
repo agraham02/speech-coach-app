@@ -1,15 +1,21 @@
 import * as SQLite from "expo-sqlite";
-import { runMigrations } from "./migrations";
+import { ensureSchema } from "./schema";
 
 const DB_NAME = "speech_coach.db";
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
+// Set when opening the database found one from before 2.0.0 and emptied it.
+// Whoever clears the rest of the old data (files, settings) takes it once:
+// see takeOldDataWipe.
+let oldDataWiped = false;
+
 export function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (!dbPromise) {
     const opening = (async () => {
       const db = await SQLite.openDatabaseAsync(DB_NAME);
-      await runMigrations(db);
+      const result = await ensureSchema(db);
+      if (result.wipedOldData) oldDataWiped = true;
       return db;
     })();
     // Don't cache a failure: a rejected open/migration would otherwise
@@ -38,24 +44,25 @@ export function inTransaction(db: Pick<SQLite.SQLiteDatabase, "withTransactionAs
   return run;
 }
 
-// Empties the database back to a fresh install (Reset app): every table is
-// dropped, the schema version goes back to 0, and the migrations run again
-// (they also seed the built-in prompts and starting ratings). Done in place
+// True once if opening the database wiped a pre-2.0 one, then false until it
+// happens again. Waits for the database to open first.
+export async function takeOldDataWipe(): Promise<boolean> {
+  await getDatabase();
+  const wiped = oldDataWiped;
+  oldDataWiped = false;
+  return wiped;
+}
+
+// Empties the database back to a fresh install (Reset app): the schema
+// version goes back to 0, so the schema code drops every table and builds the
+// current schema again (it also seeds the built-in prompts). Done in place
 // rather than deleting the file, which fails while any other connection —
 // even a stale one from a dev reload — still has it open.
 export async function wipeDatabase(): Promise<void> {
   const db = await getDatabase();
-  const tables = await db.getAllAsync<{ name: string }>(`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`);
-  // Child rows (scores -> sessions) would block dropping a parent while
-  // foreign keys are enforced; it can't change inside a transaction.
-  const fk = await db.getFirstAsync<{ foreign_keys: number }>("PRAGMA foreign_keys");
-  await db.execAsync("PRAGMA foreign_keys = OFF;");
-  await inTransaction(db, async () => {
-    for (const { name } of tables) await db.execAsync(`DROP TABLE IF EXISTS "${name}";`);
-    await db.execAsync("PRAGMA user_version = 0;");
-  });
-  if (fk?.foreign_keys) await db.execAsync("PRAGMA foreign_keys = ON;");
-  await runMigrations(db);
+  await db.execAsync("PRAGMA user_version = 0;");
+  // Through the queue, like every other transaction (see inTransaction).
+  await ensureSchema(db, (task) => inTransaction(db, task));
   // Give the freed pages back to the file system.
   await db.execAsync("VACUUM;");
 }
