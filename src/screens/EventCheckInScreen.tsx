@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { completePracticeStep } from "../services/practice/practiceEvents";
+import { ACTIVITY_IDS } from "../content/activities";
 import { View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
@@ -74,6 +76,7 @@ export function EventCheckInScreen({ route, navigation }: Props) {
         await saveAfterCheckIn(event.id, { nerves, went, focusResult: savedFocus ? focusResult : null, wentOkay, tryNext });
         showGlobalToast(nervesSummary(expected, nerves) ?? "Saved. Well done for doing it.", "success");
       }
+      completePracticeStep(phase === "before" ? ACTIVITY_IDS.eventBefore : ACTIVITY_IDS.eventAfter, undefined, null).catch(() => undefined);
       return true;
     } catch (error) {
       logger.error(`[events] check-in save failed — ${(error as Error).message}`);

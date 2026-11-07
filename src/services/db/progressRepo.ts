@@ -27,6 +27,8 @@ import { getPathOrder } from "./pathRepo";
 import { isSessionLive } from "./sessionsRepo";
 import { getPracticeMarkerDates } from "./practiceDaysRepo";
 import { buildDailyPlan, PLAN_VERSION, type DailyPlan, type PlanMinutes } from "../../domain/dailyPlan";
+import { doneStepsByPlan, lessonProgress, wantedByPlanStep } from "../../domain/activityLog";
+import { getEntriesForLesson, getEntriesOn, getLessonStepsDone, logActivity } from "./activityLogRepo";
 import { getLesson } from "../../content/lessons";
 import { summarizeAttempt, type AttemptSummary } from "../../domain/conversation/attemptMetrics";
 
@@ -464,7 +466,17 @@ export async function getLessonStates(): Promise<Record<string, LessonState>> {
   );
 }
 
-export async function completeLesson(lessonId: string, score: number, success: boolean): Promise<void> {
+// The steps of a lesson done in the current go at it (since it was last
+// completed), from the activity log. They carry over between days and from
+// wherever the steps were done: the lesson, a plan or Practice.
+export async function getLessonStepsState(lessonId: string): Promise<Set<number>> {
+  const [entries, states] = await Promise.all([getEntriesForLesson(lessonId), getLessonStates()]);
+  return lessonProgress(lessonId, entries, states[lessonId]?.completedAt ?? null).done;
+}
+
+// score is the real average of the lesson's scored steps, or null when none
+// was scored (then the lesson counts as passed: every step was done).
+export async function completeLesson(lessonId: string, score: number | null, success: boolean): Promise<void> {
   if (!getLesson(lessonId)) return;
   const db = await getDatabase();
   const existing = (await getLessonStates())[lessonId];
@@ -489,14 +501,45 @@ export interface StoredPlan {
   completedAt: string | null;
 }
 
-async function readPlan(date: string): Promise<StoredPlan | null> {
+// Which steps of a stored plan are done is not stored with it: it is worked
+// out from the activity log (domain/activityLog.ts), so a step done anywhere
+// ticks everywhere. Only when the plan finishes is that remembered (completed_at),
+// because streaks and the path read it.
+async function readStored(date: string, slot: number): Promise<StoredPlan | null> {
   const db = await getDatabase();
-  const row = await db.getFirstAsync<{ plan_json: string; completed_steps_json: string; completed_at: string | null }>(
-    `SELECT * FROM daily_plans WHERE date = ?`,
-    [date],
+  const rows = await db.getAllAsync<{ slot: number; plan_json: string; completed_at: string | null }>(
+    `SELECT 0 AS slot, plan_json, completed_at FROM daily_plans WHERE date = ?
+     UNION ALL SELECT slot, plan_json, completed_at FROM daily_topups WHERE date = ?`,
+    [date, date],
   );
-  if (!row) return null;
-  return { plan: JSON.parse(row.plan_json), completedStepIds: JSON.parse(row.completed_steps_json), completedAt: row.completed_at };
+  const mine = rows.find((r) => r.slot === slot);
+  if (!mine) return null;
+  const plans = rows.map((r) => ({ date, slot: r.slot, steps: (JSON.parse(r.plan_json) as DailyPlan).steps }));
+  const done = doneStepsByPlan(plans, await getEntriesOn(date))[slot] ?? new Set<string>();
+  const plan = JSON.parse(mine.plan_json) as DailyPlan;
+  const completedStepIds = plan.steps.filter((st) => done.has(st.id)).map((st) => st.id);
+  const allDone = plan.steps.length > 0 && completedStepIds.length === plan.steps.length;
+  let completedAt = mine.completed_at;
+  if (allDone && !completedAt) {
+    completedAt = new Date().toISOString();
+    if (slot === 0) await db.runAsync(`UPDATE daily_plans SET completed_at = ? WHERE date = ?`, [completedAt, date]);
+    else await db.runAsync(`UPDATE daily_topups SET completed_at = ? WHERE date = ? AND slot = ?`, [completedAt, date, slot]);
+  }
+  return { plan, completedStepIds, completedAt };
+}
+
+const readPlan = (date: string) => readStored(date, 0);
+const readTopUp = (date: string, slot: number) => readStored(date, slot);
+
+async function planWorkedOn(date: string): Promise<boolean> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ n: number }>(`SELECT COUNT(*) AS n FROM activity_log WHERE plan_date = ? AND COALESCE(plan_slot, 0) = 0`, [date]);
+  return (row?.n ?? 0) > 0;
+}
+
+// After something was logged: the day's plans may now be finished.
+export async function refreshPlanCompletion(date: string): Promise<void> {
+  for (const slot of [0, 1, 2]) await readStored(date, slot);
 }
 
 // Today's plan — generated once per day and stored, so it can be resumed.
@@ -509,13 +552,17 @@ export async function getTodaysPlan(minutes: PlanMinutes, regenerate = false): P
   // started, it's remade.
   const pathless = existing && !existing.plan.followsPath && path.length > 0;
   if (existing && !regenerate && !outdated && !pathless && existing.plan.minutes === minutes) return existing;
-  if (existing && existing.completedStepIds.length > 0) return existing;
+  // Once the plan itself has been worked on (a step done from it, or skipped)
+  // it is kept. A drill done from Practice earlier in the day ticks the plan
+  // but doesn't freeze it, so changing the minutes still rebuilds it.
+  if (existing && (await planWorkedOn(date))) return existing;
 
   const db = await getDatabase();
-  const [skills, lessons, recent] = await Promise.all([
+  const [skills, lessons, recent, lessonStepsDone] = await Promise.all([
     getSkillStates(),
     getLessonStates(),
     db.getAllAsync<{ plan_json: string }>(`SELECT plan_json FROM daily_plans WHERE date < ? ORDER BY date DESC LIMIT 2`, [date]),
+    getLessonStepsDone(),
   ]);
   const plan = buildDailyPlan({
     date,
@@ -528,45 +575,34 @@ export async function getTodaysPlan(minutes: PlanMinutes, regenerate = false): P
     lessons: Object.fromEntries(Object.entries(lessons).map(([id, l]) => [id, { done: l.done, nextReviewAt: l.nextReviewAt }])),
     priority: priorityFor(getUserProfile(), date, getNextEvent()),
     path,
+    lessonStepsDone,
   });
-  await db.runAsync(
-    `INSERT OR REPLACE INTO daily_plans (date, plan_json, completed_steps_json, completed_at) VALUES (?, ?, '[]', NULL)`,
-    [date, JSON.stringify(plan)],
-  );
-  return { plan, completedStepIds: [], completedAt: null };
+  await db.runAsync(`INSERT OR REPLACE INTO daily_plans (date, plan_json, completed_at) VALUES (?, ?, NULL)`, [date, JSON.stringify(plan)]);
+  // Anything already done today (from Practice, say) ticks the new plan at once.
+  return (await readPlan(date)) ?? { plan, completedStepIds: [], completedAt: null };
 }
 
-export async function completePlanStep(date: string, stepId: string): Promise<StoredPlan | null> {
-  const stored = await readPlan(date);
-  if (!stored) return null;
-  const ids = stored.completedStepIds.includes(stepId) ? stored.completedStepIds : [...stored.completedStepIds, stepId];
-  const allDone = stored.plan.steps.every((s) => ids.includes(s.id));
-  const db = await getDatabase();
-  await db.runAsync(`UPDATE daily_plans SET completed_steps_json = ?, completed_at = ? WHERE date = ?`, [
-    JSON.stringify(ids),
-    allDone ? stored.completedAt ?? new Date().toISOString() : null,
-    date,
-  ]);
-  if (allDone && !stored.completedAt) {
-    // Finishing the daily plan completes its lesson for spaced review.
-    await completeLesson(stored.plan.lessonId, 0.8, true);
-  }
-  return { ...stored, completedStepIds: ids, completedAt: allDone ? stored.completedAt ?? new Date().toISOString() : null };
+// Skipping a step counts it done for this plan only. It is logged as a skip,
+// not as the activity, so nothing else ticks and no lesson step is satisfied.
+export async function skipPlanStep(date: string, slot: number, stepId: string): Promise<StoredPlan | null> {
+  const stored = await readStored(date, slot);
+  const step = stored?.plan.steps.find((st) => st.id === stepId);
+  if (!stored || !step) return stored;
+  const wanted = wantedByPlanStep(step);
+  await logActivity({
+    activityId: wanted?.activityId ?? "review:take",
+    variant: wanted?.variant ?? null,
+    outcome: "skipped",
+    planDate: date,
+    planSlot: slot || null,
+    planStepId: stepId,
+  });
+  return readStored(date, slot);
 }
 
 // ---------------------------------------------------------------------------
 // Daily goal: top-up sessions (2 and 3)
 // ---------------------------------------------------------------------------
-
-async function readTopUp(date: string, slot: number): Promise<StoredPlan | null> {
-  const db = await getDatabase();
-  const row = await db.getFirstAsync<{ plan_json: string; completed_steps_json: string; completed_at: string | null }>(
-    `SELECT * FROM daily_topups WHERE date = ? AND slot = ?`,
-    [date, slot],
-  );
-  if (!row) return null;
-  return { plan: JSON.parse(row.plan_json), completedStepIds: JSON.parse(row.completed_steps_json), completedAt: row.completed_at };
-}
 
 // Today's top-up for a slot — built once on a skill today hasn't touched yet,
 // then stored so it can be resumed.
@@ -574,7 +610,7 @@ export async function getTopUpPlan(slot: 1 | 2, options: { quiet?: boolean } = {
   const date = todayISODate();
   const existing = await readTopUp(date, slot);
   if (existing) return existing;
-  const [main, other, skills, lessons] = await Promise.all([readPlan(date), readTopUp(date, slot === 1 ? 2 : 1), getSkillStates(), getLessonStates()]);
+  const [main, other, skills, lessons, lessonStepsDone] = await Promise.all([readPlan(date), readTopUp(date, slot === 1 ? 2 : 1), getSkillStates(), getLessonStates(), getLessonStepsDone()]);
   const doneSkills = [main?.plan.focusSkill, other?.plan.focusSkill].filter((s): s is SkillId => !!s);
   const plan = buildTopUpPlan({
     date,
@@ -588,14 +624,11 @@ export async function getTopUpPlan(slot: 1 | 2, options: { quiet?: boolean } = {
     >,
     recentFocus: [],
     lessons: Object.fromEntries(Object.entries(lessons).map(([id, l]) => [id, { done: l.done, nextReviewAt: l.nextReviewAt }])),
+    lessonStepsDone,
   });
   const db = await getDatabase();
-  await db.runAsync(`INSERT OR REPLACE INTO daily_topups (date, slot, plan_json, completed_steps_json, completed_at) VALUES (?, ?, ?, '[]', NULL)`, [
-    date,
-    slot,
-    JSON.stringify(plan),
-  ]);
-  return { plan, completedStepIds: [], completedAt: null };
+  await db.runAsync(`INSERT OR REPLACE INTO daily_topups (date, slot, plan_json, completed_at) VALUES (?, ?, ?, NULL)`, [date, slot, JSON.stringify(plan)]);
+  return (await readTopUp(date, slot)) ?? { plan, completedStepIds: [], completedAt: null };
 }
 
 // Which top-up slots are finished today.
@@ -603,17 +636,6 @@ export async function getCompletedTopUpSlots(date = todayISODate()): Promise<num
   const db = await getDatabase();
   const rows = await db.getAllAsync<{ slot: number }>(`SELECT slot FROM daily_topups WHERE date = ? AND completed_at IS NOT NULL`, [date]);
   return rows.map((r) => r.slot);
-}
-
-export async function completeTopUpStep(date: string, slot: number, stepId: string): Promise<StoredPlan | null> {
-  const stored = await readTopUp(date, slot);
-  if (!stored) return null;
-  const ids = stored.completedStepIds.includes(stepId) ? stored.completedStepIds : [...stored.completedStepIds, stepId];
-  const allDone = stored.plan.steps.every((s) => ids.includes(s.id));
-  const completedAt = allDone ? stored.completedAt ?? new Date().toISOString() : null;
-  const db = await getDatabase();
-  await db.runAsync(`UPDATE daily_topups SET completed_steps_json = ?, completed_at = ? WHERE date = ? AND slot = ?`, [JSON.stringify(ids), completedAt, date, slot]);
-  return { ...stored, completedStepIds: ids, completedAt };
 }
 
 // Sessions done per local day: the first counts for any practice that day

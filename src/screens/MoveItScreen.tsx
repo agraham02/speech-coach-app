@@ -18,6 +18,7 @@ import { keepKinds } from "../domain/cadence/marks";
 import { getDrillLevel, recordDrillOutcome } from "../services/db/progressRepo";
 import { measureTakePitchRange } from "../services/audio/takeAnalysis";
 import { completePracticeStep } from "../services/practice/practiceEvents";
+import { drillActivityId } from "../content/activities";
 import { showGlobalToast } from "../components/common/ToastProvider";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
@@ -119,7 +120,7 @@ export function MoveItScreen({ route, navigation }: Props) {
       });
       if (change.leveledUp) showGlobalToast("Level up — Move it asks for a little more now.", "success");
     }
-    await completePracticeStep(practice, result?.outcome.score ?? null);
+    await completePracticeStep(drillActivityId("move_it"), practice, result?.outcome.score ?? null);
     navigation.goBack();
   }
 

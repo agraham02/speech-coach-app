@@ -1,4 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
+import { completePracticeStep } from "../services/practice/practiceEvents";
+import { ACTIVITY_IDS } from "../content/activities";
 import { View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -69,6 +71,8 @@ export function ThreeThingsScreen() {
     }
     const like = await addSelfLike({ text: written, promptId, round: run.round });
     setEntries((current) => [...(current ?? []), like]);
+    // A day's three (one, in the light mode) is the activity.
+    if (todays.length + 1 === (run.mode === "light" ? 1 : 3)) completePracticeStep(ACTIVITY_IDS.threeThings, undefined, null).catch(() => undefined);
     setText("");
     setPromptId(null);
     setWarning(null);

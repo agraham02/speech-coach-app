@@ -60,9 +60,8 @@ export async function takeOldDataWipe(): Promise<boolean> {
 // even a stale one from a dev reload — still has it open.
 export async function wipeDatabase(): Promise<void> {
   const db = await getDatabase();
-  await db.execAsync("PRAGMA user_version = 0;");
   // Through the queue, like every other transaction (see inTransaction).
-  await ensureSchema(db, (task) => inTransaction(db, task));
+  await ensureSchema(db, (task) => inTransaction(db, task), { rebuild: true });
   // Give the freed pages back to the file system.
   await db.execAsync("VACUUM;");
 }

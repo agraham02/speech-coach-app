@@ -33,6 +33,10 @@ export interface PlanInput {
   // Your path's units still to do, in order. Without one (or once it's
   // finished) the plan picks a skill by need, as before paths existed.
   path?: string[];
+  // Positions of the steps already done in each lesson's current go (from the
+  // activity log). A plan that covers only some of a lesson's steps brings the
+  // ones still to do first, so a short plan still gets the lesson finished.
+  lessonStepsDone?: Record<string, number[]>;
 }
 
 export type PlanStepKind = "warmup" | "line" | "drill" | "guided" | "rep" | "review";
@@ -44,13 +48,18 @@ export interface PlanStep {
   detail: string;
   minutes: number;
   lessonStep?: LessonStep;
+  // Where lessonStep sits in the lesson's own steps, when it came from there
+  // (not from another lesson or the generic apply step). Logged with the step
+  // so the lesson knows exactly which of its steps this was.
+  lessonStepIndex?: number;
 }
 
 // Bumped when the plan's shape changes, so a stored plan nobody has started
 // yet is rebuilt (v2: line of the day; v3: a lesson's own warm-up no longer
 // takes one of its practice slots; v4: lessons come from your path; v5: the
-// 12-minute plan adds steps instead of repeating the 8-minute one).
-export const PLAN_VERSION = 5;
+// 12-minute plan adds steps instead of repeating the 8-minute one; v6: steps
+// from the lesson carry their position, and steps not yet done come first).
+export const PLAN_VERSION = 6;
 
 // This many lessons due for review make the day a review day.
 export const REVIEW_DAY_DUE = 3;
@@ -193,8 +202,10 @@ export function buildDailyPlan(input: PlanInput): DailyPlan {
   const steps: PlanStep[] = [];
   const push = (step: LessonStep) => {
     const d = describeStep(step);
-    steps.push({ id: `${steps.length}`, ...d, lessonStep: step });
+    const at = lesson.steps.indexOf(step);
+    steps.push({ id: `${steps.length}`, ...d, lessonStep: step, ...(at >= 0 ? { lessonStepIndex: at } : {}) });
   };
+  const doneInLesson = new Set(input.lessonStepsDone?.[lesson.id] ?? []);
 
   // 1. Warm-up — the lesson's own if it opens with one — then the line of
   // the day. A 5-minute plan swaps the generic warm-up for the line, so it
@@ -218,13 +229,27 @@ export function buildDailyPlan(input: PlanInput): DailyPlan {
   }
 
   // 2. Lesson practice (drills / guided), more of it in longer sessions.
-  const practice = lesson.steps.filter((s) => s.kind !== "rep" && s.kind !== "warmup");
+  // Steps not yet done come first (in lesson order), then the ones already done.
+  const practice = lesson.steps.filter((s) => s.kind !== "rep" && s.kind !== "warmup").sort((a, b) => Number(doneInLesson.has(lesson.steps.indexOf(a))) - Number(doneInLesson.has(lesson.steps.indexOf(b))));
   const practiceCount = input.minutes === 5 ? 1 : input.minutes === 8 ? 2 : practice.length;
   practice.slice(0, Math.max(1, practiceCount)).forEach(push);
 
   // 3. One apply step. Conversation: a partner drill. Otherwise one
   // impromptu rep: the lesson's own, or a framework rep.
-  const lessonRep = lesson.steps.find((s): s is Extract<LessonStep, { kind: "rep" }> => s.kind === "rep");
+  const isRep = (s: LessonStep): s is Extract<LessonStep, { kind: "rep" }> => s.kind === "rep";
+  // A lesson with two reps gets the first one not yet done.
+  const lessonRep = lesson.steps.find((s) => isRep(s) && !doneInLesson.has(lesson.steps.indexOf(s))) ?? lesson.steps.find(isRep);
+  // Every lesson has to be finishable from Today alone. Usually the steps
+  // still open come around by themselves; but a conversation day has no rep,
+  // and a lesson can have two. When none of the open steps is in the plan, the
+  // plan would only repeat what is done, so the first open step is added.
+  const ensureLessonReachable = (): boolean => {
+    const covered = new Set(steps.map((st) => st.lessonStepIndex));
+    const open = lesson.steps.map((_, i) => i).filter((i) => !doneInLesson.has(i));
+    if (open.length === 0 || open.some((i) => covered.has(i))) return false;
+    push(lesson.steps[open[0]]);
+    return true;
+  };
   if (focusSkill === "conversation") {
     // The lesson's own drill comes first — a short plan may have kept only
     // its guided step, and finishing the plan marks the lesson done.
@@ -239,6 +264,7 @@ export function buildDailyPlan(input: PlanInput): DailyPlan {
         push(extra);
       }
     }
+    ensureLessonReachable();
     // No video rep to review on a conversation day.
     return { version: PLAN_VERSION, date: input.date, minutes: input.minutes, focusSkill, lessonId: lesson.id, isReview, steps, unitId, followsPath: !!input.path?.length };
   }
@@ -272,6 +298,23 @@ export function buildDailyPlan(input: PlanInput): DailyPlan {
       steps.splice(at, 0, { id: "", ...describeStep(extra), detail: "More of the same skill", lessonStep: extra });
     }
     steps.forEach((s, i) => (s.id = `${i}`));
+  }
+
+  if (ensureLessonReachable()) {
+    // Make room for it: extras that aren't the lesson's own go first, then
+    // repeats of lesson steps already done, so the plan stays within its
+    // minutes where it can.
+    const added = steps[steps.length - 1];
+    const extra = (st: PlanStep) => st !== added && st.lessonStepIndex == null && ((st.kind === "drill" && st.detail === "More of the same skill") || (st.kind === "rep" && st.detail.startsWith("A second rep")));
+    const repeat = (st: PlanStep) => st !== added && st.lessonStepIndex != null && doneInLesson.has(st.lessonStepIndex) && st.kind !== "warmup";
+    while (spent() > input.minutes) {
+      let at = steps.findIndex(extra);
+      if (at < 0) at = steps.findIndex(repeat);
+      if (at < 0) break;
+      if (steps[at].kind === "rep") reviewMinutes = Math.max(0, reviewMinutes - 1);
+      steps.splice(at, 1);
+    }
+    steps.forEach((st, i) => (st.id = `${i}`));
   }
 
   // 4. Quick review of today's rep(s) (the three-pass method).

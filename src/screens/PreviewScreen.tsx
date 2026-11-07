@@ -13,6 +13,7 @@ import { createSessionFromTake } from "../services/pipeline/sessionPipeline";
 import { setVideoKeepsake } from "../services/data/videoKeepsakes";
 import { logger } from "../utils/logger";
 import { completePracticeStep } from "../services/practice/practiceEvents";
+import { activityOfTake } from "../domain/takeActivity";
 import { getCloudReviewDefault, getJudgeInput, hasTonoConsent } from "../services/prefs/prefsStore";
 import { showLevelFor } from "../services/analysis";
 import { getAccount, useAccount } from "../services/account/accountStore";
@@ -124,8 +125,10 @@ export function PreviewScreen({ route, navigation }: Props) {
         // save without judging.
         wantsCloudReview: wantsCloudReview && (await showLevelFor("take_review", { hasVideo: true, hasTranscript: true, takeOptIn: true })) === "judged",
       });
-      // A lesson / daily-plan rep counts as done once the take is kept.
-      if (subject.kind === "prompt") completePracticeStep(subject.practice, null, sessionId);
+      // A take counts as done once it is kept: it is logged, and ticks a plan
+      // or lesson step if one asked for it.
+      const taken = activityOfTake(subject);
+      completePracticeStep(taken.activityId, subject.kind === "prompt" ? subject.practice : undefined, null, { sessionId, variant: taken.variant });
       if (subject.kind === "prompt" && subject.skillCheck) {
         // Kept for the side-by-side at the 30-day retake; no scored result
         // during onboarding.

@@ -20,6 +20,7 @@ import { getDrillLevel, recordDrillOutcome } from "../services/db/progressRepo";
 import { reviewSummary, type SummaryReviewResult } from "../services/summary/summaryReview";
 import { producerName } from "../domain/analysis/provenance";
 import { completePracticeStep } from "../services/practice/practiceEvents";
+import { drillActivityId } from "../content/activities";
 import { logger } from "../utils/logger";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
@@ -128,7 +129,7 @@ export function SummaryRunnerScreen({ route, navigation }: Props) {
   }
 
   async function done() {
-    if (result) await completePracticeStep(practice, result.outcome.score);
+    if (result) await completePracticeStep(drillActivityId(drill), practice, result.outcome.score);
     navigation.goBack();
   }
 

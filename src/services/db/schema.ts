@@ -11,14 +11,14 @@ import { logger } from "../../utils/logger";
 // compatibility"). A database the app has already built at this version is
 // left alone. user_version holds the schema version.
 //
-// Changing the schema: add the change to SCHEMA_SQL for new installs, bump
-// SCHEMA_VERSION, and add a step for installs already at the old version. No
-// step exists yet; the first one arrives with the activity log (task 2.2).
-// Until the overhaul ships, phones holding only test data can also simply
-// reset from Settings.
+// Changing the schema: leave SCHEMA_SQL (the 2.0 baseline, version 37) alone
+// and add a numbered step to STEPS. A new install builds the baseline and then
+// every step; a phone already at an earlier version runs just the steps it
+// hasn't had, in order, in one transaction. Nothing before the baseline is
+// ever migrated.
 
-// 36 was the last 1.x version. Anything at or below it is wiped.
-export const SCHEMA_VERSION = 37;
+// 36 was the last 1.x version. Anything below the baseline is wiped.
+export const BASELINE_VERSION = 37;
 
 const SCHEMA_SQL = `
 CREATE TABLE blank_moments (
@@ -412,6 +412,44 @@ CREATE INDEX idx_social_events_created ON social_events(created_at);
 CREATE INDEX idx_speaking_events_date ON speaking_events(event_date);
 `;
 
+interface SchemaStep {
+  version: number;
+  description: string;
+  sql: string;
+}
+
+const STEPS: SchemaStep[] = [
+  {
+    version: 38,
+    description: "the activity log (task 2.2); plan check-offs become queries over it, so the plans stop storing them",
+    sql: `
+      CREATE TABLE activity_log (
+        id TEXT PRIMARY KEY NOT NULL,
+        activity_id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        variant TEXT,
+        outcome TEXT NOT NULL DEFAULT 'done',
+        at TEXT NOT NULL,
+        local_date TEXT NOT NULL,
+        score REAL,
+        session_id TEXT,
+        plan_date TEXT,
+        plan_slot INTEGER,
+        plan_step_id TEXT,
+        lesson_id TEXT,
+        lesson_step_index INTEGER
+      );
+      CREATE INDEX idx_activity_log_date ON activity_log(local_date, activity_id);
+      CREATE INDEX idx_activity_log_lesson ON activity_log(lesson_id, lesson_step_index);
+      CREATE INDEX idx_activity_log_session ON activity_log(session_id) WHERE session_id IS NOT NULL;
+      ALTER TABLE daily_plans DROP COLUMN completed_steps_json;
+      ALTER TABLE daily_topups DROP COLUMN completed_steps_json;
+    `,
+  },
+];
+
+export const SCHEMA_VERSION = STEPS[STEPS.length - 1].version;
+
 export interface SchemaResult {
   // True when the database held a pre-2.0 schema and was emptied to build the
   // new one. The caller clears the files and settings that went with it.
@@ -420,14 +458,28 @@ export interface SchemaResult {
 
 // transaction lets the caller queue the work behind other transactions (see
 // inTransaction in database.ts); by default it runs directly.
+// rebuild: drop everything and build the current schema, whatever the version
+// (Reset app), in the same transaction, so a failure leaves the database as it was.
 export async function ensureSchema(
   db: SQLiteDatabase,
   transaction: (task: () => Promise<void>) => Promise<void> = (task) => db.withTransactionAsync(task),
+  options: { rebuild?: boolean } = {},
 ): Promise<SchemaResult> {
   const row = await db.getFirstAsync<{ user_version: number }>("PRAGMA user_version");
-  const version = row?.user_version ?? 0;
+  const version = options.rebuild ? 0 : row?.user_version ?? 0;
 
   if (version === SCHEMA_VERSION) return { wipedOldData: false };
+  if (version >= BASELINE_VERSION && version < SCHEMA_VERSION) {
+    // Built by this version of the app earlier: add what it hasn't had.
+    await transaction(async () => {
+      for (const step of STEPS.filter((x) => x.version > version)) {
+        logger.info(`[db] schema step ${step.version}: ${step.description}`);
+        await db.execAsync(step.sql);
+        await db.execAsync(`PRAGMA user_version = ${step.version};`);
+      }
+    });
+    return { wipedOldData: false };
+  }
   if (version > SCHEMA_VERSION) {
     // Made by a newer build (a downgrade). Leave it alone rather than guess.
     logger.warn(`[db] schema version ${version} is newer than this build's ${SCHEMA_VERSION}; leaving it as it is`);
@@ -446,6 +498,7 @@ export async function ensureSchema(
     await transaction(async () => {
       for (const { name } of tables) await db.execAsync(`DROP TABLE IF EXISTS "${name}";`);
       await db.execAsync(SCHEMA_SQL);
+      for (const step of STEPS) await db.execAsync(step.sql);
       await seed(db);
       // Set inside the transaction with everything else: a failure part way
       // rolls it all back, drops included, and the next launch tries again.

@@ -100,10 +100,42 @@ describeIfSqlite("the 2.0.0 schema", () => {
     const db = createTestDatabase();
     await ensureSchema(db as never);
     await db.runAsync("INSERT INTO confidence_checkins (date, rating) VALUES ('2026-11-06', 4)");
-    db.raw.exec("PRAGMA user_version = 0;");
-    await ensureSchema(db as never);
+    await ensureSchema(db as never, undefined, { rebuild: true });
     expect(await db.getFirstAsync<{ n: number }>("SELECT COUNT(*) AS n FROM confidence_checkins")).toEqual({ n: 0 });
     expect(await version(db)).toBe(SCHEMA_VERSION);
+  });
+
+  it("adds the activity log to a database built at 37, and keeps its rows", async () => {
+    const db = createTestDatabase();
+    await ensureSchema(db as never);
+    // Make it look like a 2.0 database from before the activity log.
+    db.raw.exec(`
+      DROP TABLE activity_log;
+      ALTER TABLE daily_plans ADD COLUMN completed_steps_json TEXT NOT NULL DEFAULT '[]';
+      ALTER TABLE daily_topups ADD COLUMN completed_steps_json TEXT NOT NULL DEFAULT '[]';
+      INSERT INTO daily_plans (date, plan_json, completed_steps_json) VALUES ('2026-11-06', '{}', '["0"]');
+      INSERT INTO confidence_checkins (date, rating) VALUES ('2026-11-06', 4);
+      PRAGMA user_version = 37;
+    `);
+    expect(await ensureSchema(db as never)).toEqual({ wipedOldData: false });
+    expect(await version(db)).toBe(SCHEMA_VERSION);
+    expect(await tableNames(db)).toContain("activity_log");
+    expect(await db.getFirstAsync("SELECT rating FROM confidence_checkins")).toEqual({ rating: 4 });
+    expect(await db.getFirstAsync<{ date: string }>("SELECT date FROM daily_plans")).toEqual({ date: "2026-11-06" });
+    const columns = await db.getAllAsync<{ name: string }>("PRAGMA table_info(daily_plans)");
+    expect(columns.map((c) => c.name)).not.toContain("completed_steps_json");
+  });
+
+  it("builds the activity log on a fresh install, and the plans keep nothing about steps", async () => {
+    const db = createTestDatabase();
+    await ensureSchema(db as never);
+    const log = await db.getAllAsync<{ name: string }>("PRAGMA table_info(activity_log)");
+    expect(log.map((c) => c.name)).toEqual(
+      expect.arrayContaining(["activity_id", "kind", "variant", "outcome", "at", "local_date", "score", "session_id", "plan_date", "plan_slot", "plan_step_id", "lesson_id", "lesson_step_index"]),
+    );
+    for (const table of ["daily_plans", "daily_topups"]) {
+      expect((await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`)).map((c) => c.name)).not.toContain("completed_steps_json");
+    }
   });
 
   it("rolls everything back if the build fails part way, so the next launch can try again", async () => {

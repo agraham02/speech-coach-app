@@ -58,6 +58,7 @@ import { FeelingResultView } from "../components/feelings/FeelingResultView";
 import type { SessionStep } from "../domain/sessionSteps";
 import { logger } from "../utils/logger";
 import { completePracticeStep } from "../services/practice/practiceEvents";
+import { ACTIVITY_IDS } from "../content/activities";
 import { colorForCategory } from "../domain/categoryColor";
 import { makeAdhocPrompt, type Prompt, type Session, type SessionScores } from "../domain/sessionTypes";
 import { taskLabel, taskOf } from "../domain/promptTask";
@@ -211,7 +212,7 @@ export function ResultScreen({ route, navigation }: Props) {
   }
 
   async function handleDone() {
-    if (route.params.practice) await completePracticeStep(route.params.practice, null);
+    if (route.params.practice) await completePracticeStep(ACTIVITY_IDS.review, route.params.practice, null, { sessionId: route.params.sessionId });
     leave();
   }
 

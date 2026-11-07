@@ -133,6 +133,11 @@ async function addTake(id: string, recordedAt: string, overall: number, extra: P
   await putArtifact(id, "cloud_usage", { calls: [{ at: recordedAt, provider: "tono", model: "m" }] });
   await putArtifact(id, "pauses", [{ at: 1 }]);
   await markReviewPass(id, "watch");
+  // The rep was logged when the take was kept (the activity log).
+  await mockDb.runAsync(
+    `INSERT INTO activity_log (id, activity_id, kind, at, local_date, session_id) VALUES (?, 'speak:impromptu', 'speak', ?, ?, ?)`,
+    [`act-${id}`, recordedAt, recordedAt.slice(0, 10), id],
+  );
   await mockDb.runAsync(`INSERT INTO session_steps (session_id, step, status, attempts, updated_at) VALUES (?, 'transcribe', 'done', 1, ?)`, [id, recordedAt]);
   await mockDb.runAsync(
     `INSERT INTO skill_events (id, skill, at, rating_before, rating_after, source, label, session_id) VALUES (?, 'pace', ?, 40, 45, 'rep', 'Rep', ?)`,
@@ -171,7 +176,7 @@ describeIfSqlite("deleting a take", () => {
   it("covers every table that holds a session id", async () => {
     // If this list grows, make sure eraseSessionRows removes the new table's rows.
     expect((await sessionLinkedTables()).sort()).toEqual(
-      ["review_passes", "scores", "session_artifacts", "session_steps", "skill_checks", "skill_events"].sort(),
+      ["activity_log", "review_passes", "scores", "session_artifacts", "session_steps", "skill_checks", "skill_events"].sort(),
     );
   });
 
@@ -252,6 +257,12 @@ describeIfSqlite("deleting a take", () => {
     expect(dump).not.toContain("made up words for gone");
     expect(dump).not.toContain("prompt-gone");
     expect(dump).not.toContain("files/abc");
+    // That the rep was done stays in the activity log (so the plan and lesson steps it ticked stay ticked), with no link to the take.
+    const logged = await mockDb.getAllAsync<{ id: string; session_id: string | null }>(`SELECT id, session_id FROM activity_log ORDER BY id`);
+    expect(logged).toEqual([
+      { id: "act-gone", session_id: null },
+      { id: "act-keep", session_id: "keep" },
+    ]);
     // The only trace is the local date.
     expect(await getPracticeMarkerDates()).toEqual([isoDateFromDate(new Date(at(2)))]);
   });

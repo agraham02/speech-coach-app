@@ -16,6 +16,7 @@ import { getGuided } from "../content/lessons";
 import { scoreSelfRating } from "../domain/drills/drillSpecs";
 import { getDrillLevel, recordDrillOutcome } from "../services/db/progressRepo";
 import { completePracticeStep } from "../services/practice/practiceEvents";
+import { guidedActivityId, warmupActivityId } from "../content/activities";
 import { tick as hapticTick } from "../utils/haptics";
 import { duration } from "../theme/motion";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
@@ -37,7 +38,7 @@ export function GuidedScreen({ route, navigation }: Props) {
   return null;
 
   async function finish(score: number | null) {
-    await completePracticeStep(practice, score);
+    await completePracticeStep(warmupId ? warmupActivityId(warmupId) : guidedActivityId(guidedId!), practice, score);
     navigation.goBack();
   }
 }

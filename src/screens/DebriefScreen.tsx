@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { completePracticeStep } from "../services/practice/practiceEvents";
+import { ACTIVITY_IDS } from "../content/activities";
 import { Pressable, View } from "react-native";
 import { KeyboardForm } from "../components/common/KeyboardForm";
 import { Ionicons } from "@expo/vector-icons";
@@ -67,6 +69,7 @@ export function DebriefScreen({ route, navigation }: Props) {
         actualAwkward: actual,
         blankMoments,
       });
+      completePracticeStep(ACTIVITY_IDS.debrief, undefined, null).catch(() => undefined);
       let message = "Debrief saved.";
       if (primed?.predictedAwkward != null && actual != null) {
         const gap = primed.predictedAwkward - actual;

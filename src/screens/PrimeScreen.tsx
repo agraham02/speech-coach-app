@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { completePracticeStep } from "../services/practice/practiceEvents";
+import { ACTIVITY_IDS } from "../content/activities";
 import { View } from "react-native";
 import { KeyboardForm } from "../components/common/KeyboardForm";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -47,6 +49,7 @@ export function PrimeScreen({ navigation }: Props) {
     setSaving(true);
     try {
       await createPrimedEvent({ label, topics, questions, outwardGoal: goal, predictedAwkward: predicted });
+      completePracticeStep(ACTIVITY_IDS.prime, undefined, null).catch(() => undefined);
       showGlobalToast("Primed. Afterwards, debrief it from Today.", "success");
       navigation.goBack();
     } catch (error) {

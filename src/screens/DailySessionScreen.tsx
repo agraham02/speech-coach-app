@@ -13,7 +13,7 @@ import { duration } from "../theme/motion";
 import { Card } from "../components/common/Card";
 import { Txt } from "../components/common/Txt";
 import { PrimaryButton } from "../components/common/PrimaryButton";
-import { getTodaysPlan, getTopUpPlan, completePlanStep, completeTopUpStep, type StoredPlan } from "../services/db/progressRepo";
+import { getTodaysPlan, getTopUpPlan, skipPlanStep, type StoredPlan } from "../services/db/progressRepo";
 import { SKILL_LABELS } from "../theme/tokens";
 import { getAllSessions } from "../services/db/sessionsRepo";
 import { getPlanMinutes, getUserProfile } from "../services/prefs/prefsStore";
@@ -22,7 +22,6 @@ import { launchStep } from "../services/practice/launchStep";
 import { subscribePracticeSteps } from "../services/practice/practiceEvents";
 import { showGlobalToast } from "../components/common/ToastProvider";
 import { getLesson } from "../content/lessons";
-import { onLessonCompleted } from "../services/path/pathService";
 import { SessionRecap } from "../components/celebrate/SessionRecap";
 import { success } from "../utils/haptics";
 import { isoDateFromDate, todayISODate } from "../utils/dateUtils";
@@ -66,7 +65,7 @@ export function DailySessionScreen({ route, navigation }: Props) {
     if (launching) return;
     setLaunching(true);
     try {
-      const practice = { planDate: plan.date, planStepId: step.id, planSlot: slot, lessonId: plan.lessonId || undefined };
+      const practice = { planDate: plan.date, planStepId: step.id, planSlot: slot, lessonId: plan.lessonId || undefined, lessonStepIndex: step.lessonStepIndex };
       if (step.kind === "review") {
         // Review today's rep with the three-pass player.
         const today = todayISODate();
@@ -97,9 +96,8 @@ export function DailySessionScreen({ route, navigation }: Props) {
     const before = stored;
     setStored((prev) => (prev && !prev.completedStepIds.includes(step.id) ? { ...prev, completedStepIds: [...prev.completedStepIds, step.id] } : prev));
     try {
-      const updated = slot ? await completeTopUpStep(plan.date, slot, step.id) : await completePlanStep(plan.date, step.id);
+      const updated = await skipPlanStep(plan.date, slot ?? 0, step.id);
       if (updated) setStored(updated);
-      if (!slot && updated?.completedAt) onLessonCompleted();
     } catch (error) {
       logger.error(`[daily] skip failed — ${(error as Error).message}`);
       setStored(before);

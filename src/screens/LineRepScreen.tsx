@@ -27,6 +27,7 @@ import { listSelfLikes } from "../services/db/selfLikesRepo";
 import { toSecondPerson } from "../domain/innerVoice/secondPerson";
 import { getUserProfile } from "../services/prefs/prefsStore";
 import { completePracticeStep } from "../services/practice/practiceEvents";
+import { ACTIVITY_IDS, drillActivityId } from "../content/activities";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "LineRep">;
@@ -70,6 +71,8 @@ export function LineRepScreen({ route, navigation }: Props) {
   const [rating, setRating] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const lineOfDay = mode === "lineOfDay";
+  // Reading saved phrases is the Phrasebook; anything else is a line rep.
+  const repActivity = phraseIds?.length ? ACTIVITY_IDS.phrasebook : drillActivityId("marked_reading");
   const config: LineRepConfig = useMemo(() => {
     const c = lineRepConfig(level);
     return lineOfDay ? { ...c, mode: "given", lines: 1, remix: false } : c;
@@ -209,7 +212,7 @@ export function LineRepScreen({ route, navigation }: Props) {
       return;
     }
     if (lineOfDay) {
-      await completePracticeStep(practice, null);
+      await completePracticeStep(repActivity, practice, null);
       navigation.goBack();
       return;
     }
@@ -231,7 +234,7 @@ export function LineRepScreen({ route, navigation }: Props) {
     });
     await markTextsPracticed(lines!.filter((l) => l.mine && !l.phrase).map((l) => l.id));
     await markPhrasesPracticed(lines!.filter((l) => l.phrase).map((l) => l.id));
-    await completePracticeStep(practice, outcome.score);
+    await completePracticeStep(repActivity, practice, outcome.score);
     navigation.goBack();
   }
 

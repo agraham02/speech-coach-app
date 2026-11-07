@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { GuideTip, TourTarget } from "../components/common/GuideTip";
 import { MarkKey } from "../components/cadence/MarkKey";
 import { Pressable, View } from "react-native";
@@ -18,7 +18,7 @@ import { getLesson, getGuided, type LessonStep } from "../content/lessons";
 import { WARM_UPS } from "../content/drillContent";
 import { DRILL_TITLES } from "../domain/drills/drillSpecs";
 import { FRAMEWORK_LABELS } from "../domain/coach/structureHeuristics";
-import { completeLesson, getLessonStates, type LessonState } from "../services/db/progressRepo";
+import { getLessonStates, getLessonStepsState, type LessonState } from "../services/db/progressRepo";
 import { launchStep } from "../services/practice/launchStep";
 import { subscribePracticeSteps } from "../services/practice/practiceEvents";
 import { SKILL_LABELS } from "../theme/tokens";
@@ -66,45 +66,48 @@ export function LessonScreen({ route, navigation }: Props) {
   const [showTeach, setShowTeach] = useState<boolean | null>(null);
   const [done, setDone] = useState<Set<number>>(new Set());
   const [state, setState] = useState<LessonState | null>(null);
-  const scoresRef = useRef<number[]>([]);
   // Set when the lesson was finished on this visit: what comes next.
   const [finished, setFinished] = useState<{ next: { lessonId: string; title: string; label: string } | null } | null>(null);
 
-  useEffect(() => {
-    getLessonStates().then((s) => setState(s[route.params.lessonId] ?? null));
+  // The steps done come from the activity log: they stay ticked when you
+  // leave and come back, and a step done from the plan or Practice ticks here.
+  const load = useCallback(() => {
+    getLessonStepsState(route.params.lessonId).then(setDone);
+    getLessonStates().then((all) => setState(all[route.params.lessonId] ?? null));
   }, [route.params.lessonId]);
 
+  useEffect(load, [load]);
+
+  // Something was done (here, or from a plan or Practice): reload. If it
+  // finished this lesson, the way on is worked out.
   useEffect(
     () =>
-      subscribePracticeSteps(({ context, score }) => {
-        if (context.lessonId !== lesson?.id || context.lessonStepIndex == null || context.planStepId) return;
-        if (score != null) scoresRef.current.push(score);
-        setDone((prev) => new Set(prev).add(context.lessonStepIndex!));
+      subscribePracticeSteps(({ lessonCompleted }) => {
+        if (!lesson || lessonCompleted !== lesson.id) {
+          load();
+          return;
+        }
+        // Finished just now: every step stays ticked while the way on shows.
+        // (A new go at the lesson, a review, starts from nothing.)
+        setDone(new Set(lesson.steps.map((_, i) => i)));
+        // The path moves on (and a finished unit celebrates) before the way on
+        // is worked out.
+        (async () => {
+          const view = await getPathView().catch(() => null);
+          const states = await getLessonStates();
+          setState(states[lesson.id] ?? null);
+          const inUnit = nextLessonInUnit(lesson.unitId, Object.fromEntries(Object.entries(states).map(([id, l]) => [id, { done: l.done }])));
+          const onPath = view?.units.find((u) => u.status === "active" && u.unitId !== lesson.unitId && u.nextLessonId);
+          const next = inUnit
+            ? { lessonId: inUnit, title: getLesson(inUnit)?.title ?? "", label: "Next" }
+            : onPath?.nextLessonId
+              ? { lessonId: onPath.nextLessonId, title: onPath.title, label: "Next on your path" }
+              : null;
+          setFinished({ next });
+        })();
       }),
-    [lesson?.id],
+    [lesson, load],
   );
-
-  // All steps done: record the lesson (spaced review starts here).
-  useEffect(() => {
-    if (!lesson || done.size < lesson.steps.length) return;
-    const scores = scoresRef.current;
-    const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0.8;
-    completeLesson(lesson.id, avg, avg >= 0.7).then(async () => {
-      // The path moves on (and a finished unit celebrates) before the way on
-      // is worked out.
-      const view = await getPathView().catch(() => null);
-      const states = await getLessonStates();
-      setState(states[lesson.id] ?? null);
-      const inUnit = nextLessonInUnit(lesson.unitId, Object.fromEntries(Object.entries(states).map(([id, l]) => [id, { done: l.done }])));
-      const onPath = view?.units.find((u) => u.status === "active" && u.unitId !== lesson.unitId && u.nextLessonId);
-      const next = inUnit
-        ? { lessonId: inUnit, title: getLesson(inUnit)?.title ?? "", label: "Next" }
-        : onPath?.nextLessonId
-          ? { lessonId: onPath.nextLessonId, title: onPath.title, label: "Next on your path" }
-          : null;
-      setFinished({ next });
-    });
-  }, [done, lesson]);
 
   if (!lesson) return <ScreenContainer />;
   const skill = colors.skill[lesson.skill];
