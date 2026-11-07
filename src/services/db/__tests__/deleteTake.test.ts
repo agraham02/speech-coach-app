@@ -2,7 +2,7 @@ import { createTestDatabase, sqliteAvailable } from "./sqliteTestDb";
 
 // Delete means delete: after a take is deleted, nothing about it is left, and
 // no aggregate counts it. These run against a real SQLite database (the real
-// migrations), with the file, network and toast edges mocked. Every value here
+// schema), with the file, network and toast edges mocked. Every value here
 // is made up; no real transcript or recording is used.
 
 const mockDeletedFiles: string[] = [];
@@ -35,7 +35,7 @@ jest.mock("../../dev/devStore", () => ({ forgetTakeInDevStore: () => undefined }
 jest.mock("../../tono/tonoApi", () => ({ tonoDeleteFile: async (name: string) => void mockRemoteDeletes.push(name) }));
 jest.mock("../../../components/common/ToastProvider", () => ({ showGlobalToast: () => undefined }));
 
-import { runMigrations } from "../migrations";
+import { ensureSchema } from "../schema";
 import { insertSession, getAllSessionsWithScores, getRecentlyUsedPromptIds, getTodaysSession, markSessionDeleted, restoreSession } from "../sessionsRepo";
 import { upsertScores, getPreviousOverallScore, getScoreHistoryBefore } from "../scoresRepo";
 import { putArtifact, listArtifactsOfKind } from "../artifactsRepo";
@@ -164,7 +164,7 @@ beforeEach(async () => {
   mockDeletedFiles.length = 0;
   mockRemoteDeletes.length = 0;
   mockDb = createTestDatabase();
-  await runMigrations(mockDb as never);
+  await ensureSchema(mockDb as never);
 });
 
 describeIfSqlite("deleting a take", () => {

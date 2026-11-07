@@ -1,5 +1,5 @@
 jest.mock("expo-sqlite", () => ({}));
-jest.mock("../migrations", () => ({ runMigrations: async () => undefined }));
+jest.mock("../schema", () => ({ ensureSchema: async () => ({ wipedOldData: false }) }));
 
 import { inTransaction } from "../database";
 

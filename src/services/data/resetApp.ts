@@ -11,7 +11,7 @@ import { logger } from "../../utils/logger";
 
 // Puts the app back to a fresh install: every session, video, score, drill
 // level, lesson, plan, skill check and feeling rep (every table is dropped
-// and the migrations rebuild the database), every preference including the
+// and the schema is built again), every preference including the
 // onboarding profile, the logs, the Dev tab's data and any reminders. The
 // Tono account and the downloaded on-device models are kept. Callers
 // then send the user to onboarding.
@@ -28,18 +28,27 @@ async function deleteUploadedCopies(): Promise<void> {
   }
 }
 
-export async function resetApp(): Promise<void> {
-  logger.info("[reset] resetting the app");
+// Everything that lives outside the database: reminders, videos, Rewind audio,
+// temp files, preferences, logs and the Dev tab's data. Shared by Reset app and
+// the clean start after a pre-2.0 database is wiped (cleanStart.ts).
+export async function clearLocalData(): Promise<number> {
   await Notifications.cancelAllScheduledNotificationsAsync().catch(() => undefined);
   await Notifications.dismissAllNotificationsAsync().catch(() => undefined);
   clearDecodedAudio();
-  await deleteUploadedCopies();
-  await wipeDatabase();
   deleteAllRecordings();
   deleteAllRewindAudio();
   const temp = deleteTempMedia();
   clearAllPrefs();
   clearLogs();
   clearDevStore();
+  return temp;
+}
+
+export async function resetApp(): Promise<void> {
+  logger.info("[reset] resetting the app");
+  // Before the wipe: the uploaded copies are found through the sessions table.
+  await deleteUploadedCopies();
+  await wipeDatabase();
+  const temp = await clearLocalData();
   logger.info(`[reset] done — database, videos and settings cleared, ${temp} temp file(s) removed`);
 }

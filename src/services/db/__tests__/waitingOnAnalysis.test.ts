@@ -1,6 +1,6 @@
 import { createTestDatabase, sqliteAvailable } from "./sqliteTestDb";
 
-// The waiting state, against a real SQLite database with the real migrations:
+// The waiting state, against a real SQLite database with the real schema:
 // what Today lists as working / stuck / ready, a ready marker that goes when
 // the result is opened, a Rewind that keeps what it needs to start again, and
 // the launch-time resume of one that was cut off. Everything is made up; the
@@ -36,7 +36,7 @@ jest.mock("../../pipeline/jobQueue", () => ({
 const mockRequestStep = jest.fn(async () => undefined);
 jest.mock("../../pipeline/sessionPipeline", () => ({ requestStep: (...a: unknown[]) => mockRequestStep(...(a as [])) }));
 
-import { runMigrations, LATEST_DB_VERSION } from "../migrations";
+import { ensureSchema } from "../schema";
 import { insertSession } from "../sessionsRepo";
 import { putArtifact, getArtifact } from "../artifactsRepo";
 import { createRewind, getRewind, listProcessingRewinds, updateRewind } from "../rewindRepo";
@@ -89,15 +89,13 @@ async function waitFor(check: () => Promise<boolean>, tries = 50) {
 describeIfSqlite("the waiting state, from the database", () => {
   beforeEach(async () => {
     mockDb = createTestDatabase();
-    await runMigrations(mockDb as never);
+    await ensureSchema(mockDb as never);
     mockTranscribe.mockReset();
     mockDecode.mockReset();
     mockRequestStep.mockClear();
   });
 
-  it("migrates to the version that adds the Rewind pending column", async () => {
-    const v = await mockDb.getFirstAsync<{ user_version: number }>("PRAGMA user_version");
-    expect(v?.user_version).toBe(LATEST_DB_VERSION);
+  it("has the Rewind pending column", async () => {
     const columns = await mockDb.getAllAsync<{ name: string }>("PRAGMA table_info(day_recalls)");
     expect(columns.map((c) => c.name)).toContain("pending_json");
   });

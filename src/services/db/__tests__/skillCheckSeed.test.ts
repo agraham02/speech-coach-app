@@ -3,7 +3,7 @@ import { createTestDatabase, sqliteAvailable } from "./sqliteTestDb";
 // The onboarding skill check places each skill (seedSkillRatings). It used to
 // skip any skill with attempts, and the check's own drills and talk counted as
 // attempts, so most skills were never placed. A placement sample is recorded
-// but isn't practice. Real DB, real migrations; every value is made up.
+// but isn't practice. Real DB, real schema; every value is made up.
 
 let mockDb: ReturnType<typeof createTestDatabase>;
 
@@ -23,7 +23,7 @@ jest.mock("../../prefs/prefsStore", () => ({
 }));
 jest.mock("../../progress/progressEvents", () => ({ emitStageEarned: () => undefined }));
 
-import { runMigrations } from "../migrations";
+import { ensureSchema } from "../schema";
 import { getSkillEvents, getSkillStates, recordDrillOutcome, seedSkillRatings } from "../progressRepo";
 
 const describeIfSqlite = sqliteAvailable() ? describe : describe.skip;
@@ -33,7 +33,7 @@ const outcome = { score: 0.9, success: true } as never;
 describeIfSqlite("the skill check's placement", () => {
   beforeEach(async () => {
     mockDb = createTestDatabase();
-    await runMigrations(mockDb as never);
+    await ensureSchema(mockDb as never);
   });
 
   it("a placement sample keeps the attempt but leaves the skill unplaced and unpractised", async () => {

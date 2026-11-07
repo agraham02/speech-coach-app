@@ -1,7 +1,7 @@
 import { createTestDatabase, sqliteAvailable } from "../../db/__tests__/sqliteTestDb";
 
 // The demo takes (Dev, App tools) against a real SQLite database with the
-// real migrations: they are stored like real takes, their score sheets come
+// real schema: they are stored like real takes, their score sheets come
 // from the taxonomy's own code, and removing them leaves nothing behind. The
 // file, network and toast edges are mocked. Every word here is made up.
 
@@ -71,7 +71,7 @@ jest.mock("../../analysis", () => {
   };
 });
 
-import { runMigrations } from "../../db/migrations";
+import { ensureSchema } from "../../db/schema";
 import { addDemoData, countDemoData, removeDemoData } from "../seedDemo";
 import { DEMO_CHAINS, DEMO_ID_PREFIX, DEMO_REWINDS, DEMO_TAKES, demoSessionId } from "../../../domain/dev/demoTakes";
 import { getAllSessionsWithScores, getSessionById } from "../../db/sessionsRepo";
@@ -93,7 +93,7 @@ beforeEach(async () => {
   mockDeletedFiles.length = 0;
   mockFiles.clear();
   mockDb = createTestDatabase();
-  await runMigrations(mockDb as never);
+  await ensureSchema(mockDb as never);
 });
 
 describeIfSqlite("demo takes", () => {

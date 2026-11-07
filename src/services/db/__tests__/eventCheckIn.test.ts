@@ -2,7 +2,7 @@ import { createTestDatabase, sqliteAvailable } from "./sqliteTestDb";
 import { rowToSpeakingEvent, type SpeakingEventRow } from "../mappers";
 
 // The after-event check-in's two answers (how it went, whether you did your
-// focus): the v36 migration against a real SQLite database, the row mapping,
+// focus): the schema against a real SQLite database, the row mapping,
 // and saving through the repo. Everything is made up.
 
 let mockDb: ReturnType<typeof createTestDatabase>;
@@ -16,7 +16,7 @@ jest.mock("../../prefs/prefsStore", () => ({
   setNextEvent: () => undefined,
 }));
 
-import { runMigrations, LATEST_DB_VERSION } from "../migrations";
+import { ensureSchema } from "../schema";
 import { createEvent, deleteEvent, getEvent, saveAfterCheckIn } from "../eventsRepo";
 
 const describeIfSqlite = sqliteAvailable() ? describe : describe.skip;
@@ -63,34 +63,13 @@ describe("rowToSpeakingEvent", () => {
 describeIfSqlite("the after-event check-in, from the database", () => {
   beforeEach(async () => {
     mockDb = createTestDatabase();
-    await runMigrations(mockDb as never);
+    await ensureSchema(mockDb as never);
   });
 
-  it("migrates to v36 and adds the two nullable columns", async () => {
-    expect(LATEST_DB_VERSION).toBeGreaterThanOrEqual(36);
-    const v = await mockDb.getFirstAsync<{ user_version: number }>("PRAGMA user_version");
-    expect(v?.user_version).toBe(LATEST_DB_VERSION);
+  it("has the two nullable columns", async () => {
     const columns = await mockDb.getAllAsync<{ name: string; notnull: number }>("PRAGMA table_info(speaking_events)");
     expect(columns.find((c) => c.name === "after_went")).toMatchObject({ notnull: 0 });
     expect(columns.find((c) => c.name === "after_focus_result")).toMatchObject({ notnull: 0 });
-  });
-
-  it("upgrades a v35 database without touching the rows already there", async () => {
-    const old = createTestDatabase();
-    await runMigrations(old as never);
-    old.raw.exec("ALTER TABLE speaking_events DROP COLUMN after_went; ALTER TABLE speaking_events DROP COLUMN after_focus_result; PRAGMA user_version = 35;");
-    await old.runAsync(`INSERT INTO speaking_events (id, kind, title, event_date, created_at, after_json) VALUES (?, ?, ?, ?, ?, ?)`, [
-      "old",
-      "pitch",
-      null,
-      "2026-09-01",
-      "2026-08-01T09:00:00.000Z",
-      JSON.stringify({ nerves: 5, wentOkay: "x", tryNext: "y", at: "2026-09-02T12:00:00.000Z" }),
-    ]);
-    await runMigrations(old as never);
-    const row = await old.getFirstAsync<SpeakingEventRow>("SELECT * FROM speaking_events WHERE id = 'old'");
-    expect(row).toMatchObject({ after_went: null, after_focus_result: null });
-    expect(rowToSpeakingEvent(row as SpeakingEventRow).after).toMatchObject({ nerves: 5, went: null, focusResult: null });
   });
 
   it("saves both answers with the check-in and reads them back", async () => {

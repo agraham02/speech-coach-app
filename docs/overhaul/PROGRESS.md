@@ -6,9 +6,9 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 
 ## Where we left off
 
-2026-11-06: Phase 1 is finished apart from two things that can't be done yet: the content tests (1.5) need the phone meaning check from phase 3b, and the hosted judge eval (1.9) needs the server. Signal Lab ran on the owner's iPhone in four rounds and the statuses are set (`DECISIONS.md` D7 to D11). Phase 0's iPhone checks are still open in `device-checks.md`. Next is Phase 2, starting at 2.1; read plan sections 5.2 and 14 ("No backwards compatibility": one new schema, old test data wiped on first launch, no migrations). To replay recordings against the code: unpack the tar and run `LAB_RAW_DIR=path LAB_OUT=out.json npx jest replay.local`.
+2026-11-06: Phase 2 has started. Task 2.1 is done: one baseline schema (`src/services/db/schema.ts`, version 37), the 1.x database wiped on first launch of 2.0.0, and a clean start that clears the matching videos, audio and settings. Next is 2.2, the `activity_log` table written by `completePracticeStep` (plan 5.2). It adds the first step after the baseline, so it also builds the small mechanism for that (see the note in `schema.ts`). Phase 1 still waits on 1.5 and 1.9, and Phase 0's iPhone checks are open in `device-checks.md`. To replay recordings against the code: unpack the tar and run `LAB_RAW_DIR=path LAB_OUT=out.json npx jest replay.local`.
 
-**Running the emulator:** another project's Metro may be on 8081, so use `--port 8082` and open the dev client with that port. Rebuild the dev client with `bash scripts/build-android-dev.sh [git ref]` (only when native code changes). It builds in a worktree at `C:/dev/tb`, because the repo's path is too long for the native build tools; stop leftover Gradle and Kotlin daemons first if it fails with EBUSY or out-of-memory. To see the soft keyboard, see section 2.5b of the emulator plan. If a Metro hangs, kill it by its process id: stopping the background shell doesn't always end it.
+**Running the emulator:** another project's Metro may be on 8081, and a stale Metro of this repo can be left on 8082 or elsewhere without showing in `netstat` or `Get-NetTCPConnection`, so the emulator loads old code from it. Check with `curl 127.0.0.1:PORT/status`, find leftovers with `Get-CimInstance Win32_Process` for node processes started from this repo, kill them by id, and use a port that refuses connections (8083 worked). Check the installed app too: `adb shell dumpsys package com.ahmadgraham.tono | grep versionName` must say 2.0.0, and the dev client needs a build that has `react-native-keyboard-controller`; a stale APK fails with "doesn't seem to be linked". `adb install -r -d C:/dev/tb/android/app/build/outputs/apk/debug/app-debug.apk` fixed it without a rebuild. Otherwise use `--port 8082` and open the dev client with that port. Rebuild the dev client with `bash scripts/build-android-dev.sh [git ref]` (only when native code changes). It builds in a worktree at `C:/dev/tb`, because the repo's path is too long for the native build tools; stop leftover Gradle and Kotlin daemons first if it fails with EBUSY or out-of-memory. To see the soft keyboard, see section 2.5b of the emulator plan. If a Metro hangs, kill it by its process id: stopping the background shell doesn't always end it.
 
 ## Step −1: clean the repo
 
@@ -58,12 +58,12 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 
 | ID | Task | Status | Evidence |
 |---|---|---|---|
-| 2.1 | New schema, wiping old data on first launch | todo | |
+| 2.1 | New schema, wiping old data on first launch | done | `db/schema.ts` replaces the 36 migrations; a test proved it identical to them (31 tables, columns, keys, 10 indexes, seeds). 1,820 tests pass, `tsc` clean, both bundles build. Android emulator, real expo-sqlite: a version 27 database became 37, the `sessions` folder and preferences were cleared, onboarding showed, a second launch left it alone (`DECISIONS.md` D13) |
 | 2.2 | `activity_log`, written by every runner through `completePracticeStep` | todo | |
 | 2.3 | `src/content/activities.ts` catalogue | todo | |
 | 2.4 | Check-offs as queries, syncing both ways | todo | |
 | 2.5 | Lesson steps persist across days; lessons use real average scores | todo | |
-| 2.6 | Seeded demo takes still work on the new schema | todo | |
+| 2.6 | Seeded demo takes still work on the new schema | todo | `seedDemo.test.ts` already passes on the new schema; check again after 2.2 to 2.5 |
 
 ## Phase 3a: tree and grid
 
@@ -179,4 +179,6 @@ Things that came up and aren't in this plan. The readings still on Beta, and wha
 - `KeyboardForm` serves the older `ScreenContainer` screens; fold those into `Screen` when they move in phases 5 and 8, and drop it.
 - The dark-mode filler highlight is a deep gold (`#7A6200`); revisit its look in phase 8 if you'd like it brighter.
 - `KeyboardProvider` preloads the keyboard at start, which can flash it on iOS launch. If you see that on the iPhone, set `preload={false}` in `App.tsx`.
-- One uncaught SQLite error on the first launch after installing the new dev client (`NativeDatabase.prepareAsync`: "Cannot use shared object that was already released"). It didn't come back in 3 cold starts. Watch for it; phase 2's new schema touches this code.
+- One uncaught SQLite error on the first launch after installing the new dev client (`NativeDatabase.prepareAsync`: "Cannot use shared object that was already released"). It didn't come back in 3 cold starts, nor in the 2 launches that tested 2.1's new schema code. Watch for it.
+- The clean start runs after the database is wiped. If the app is killed between the two, the old videos and settings stay until Reset app. They are test data, so it isn't worth a marker yet.
+- Videos already uploaded for a deep review aren't deleted from Google by the clean start (Reset app does it, from the sessions table, before the wipe). Google drops them after 48 hours anyway.

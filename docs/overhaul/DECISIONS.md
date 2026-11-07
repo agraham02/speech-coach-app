@@ -152,3 +152,16 @@ Every change to `PLAN.md` after it was agreed: what changed, why, and the owner'
 **Why:** the owner asked for both. They also match what Signal Lab found: eye contact needed head angle and eyes together, pauses needed the voice gate and Whisper's gaps, and emphasis needed pitch, loudness and length.
 
 **Owner's OK:** asked for by the owner, 2026-11-06.
+
+## D13. How the 2.0.0 schema and clean start work (2026-11-06)
+
+**Was:** the plan says one new schema, no migrations from old tables, and old test data wiped on first launch (sections 5.2 and 14). It doesn't say how.
+
+**Now:**
+- `src/services/db/schema.ts` replaces the 36 migrations. It holds the final schema as plain SQL (the same 31 tables and 10 indexes, proved identical by a test run against the old migrations before they were deleted) and starts at `user_version` 37. A database at 36 or below is dropped and rebuilt in one transaction; one at 37 is left alone; a newer one is left alone with a warning.
+- Changes after this, such as the `activity_log` table in 2.2, are small additive steps on top of the baseline, so the owner's test data isn't wiped again. The plan's "no migrations" means none from before 2.0.0.
+- The wipe also clears what the old rows pointed at: videos, Rewind audio, temp files, preferences, logs, the Dev tab's data and reminders, the same as Reset app, keeping the Tono account and downloaded models. So the first launch starts at onboarding. The first screen waits for this to finish (`App.tsx`).
+
+**Why:** wiping only the tables would leave orphaned video files and settings pointing at deleted data, and the plan's "clean start" reads as the whole app.
+
+**Owner's OK:** not asked; it is inside task 2.1 and the "no backwards compatibility" rule. Say so if you'd rather keep preferences (for example the onboarding profile) across the wipe.
