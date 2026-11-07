@@ -215,7 +215,7 @@ function JourneySection({ journey, onOpenTake }: { journey: JourneyFacts; onOpen
           </Txt>
           {story ? (
             <Txt variant="footnote" tone="secondary">
-              {`Your first scored take measured ${story.first} out of 10. Your latest ${story.over} average ${story.now}${story.change > 0 ? `, up ${story.change}` : story.change < 0 ? `, ${Math.abs(story.change)} lower` : ", level"}. The same formula scores every take, so they compare fairly.`}
+              {`Your first scored take measured ${story.first} out of 100. Your latest ${story.over} average ${story.now}${story.change > 0 ? `, up ${story.change}` : story.change < 0 ? `, ${Math.abs(story.change)} lower` : ", level"}. The same formula scores every take, so they compare fairly.`}
             </Txt>
           ) : null}
         </Card>
@@ -226,7 +226,7 @@ function JourneySection({ journey, onOpenTake }: { journey: JourneyFacts; onOpen
             <ListRow
               icon="play-circle-outline"
               title="Your first take"
-              subtitle={shortDate(journey.firstTake.date) + (journey.firstTake.score != null ? ` · ${journey.firstTake.score} out of 10` : "")}
+              subtitle={shortDate(journey.firstTake.date) + (journey.firstTake.score != null ? ` · ${journey.firstTake.score} out of 100` : "")}
               chevron
               onPress={() => onOpenTake(journey.firstTake!.sessionId)}
             />
@@ -235,7 +235,7 @@ function JourneySection({ journey, onOpenTake }: { journey: JourneyFacts; onOpen
             <ListRow
               icon="trophy-outline"
               title="Your best take"
-              subtitle={shortDate(journey.bestTake.date) + ` · ${journey.bestTake.score} out of 10`}
+              subtitle={shortDate(journey.bestTake.date) + ` · ${journey.bestTake.score} out of 100`}
               chevron
               onPress={() => onOpenTake(journey.bestTake!.sessionId)}
             />

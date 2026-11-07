@@ -2,7 +2,7 @@ import { getDatabase } from "./database";
 import { scorePointOf, type ScorePoint } from "../../domain/trends";
 import type { TakeScores } from "../../domain/scoring/takeScore";
 
-// Every scored impromptu take's two score sheets, oldest first, as trend
+// Every scored impromptu take's score sheet, oldest first, as trend
 // points. Script readings are left out (their categories differ, so their
 // overall isn't comparable); a deleted take is hidden at once.
 export async function getScoreSeries(): Promise<ScorePoint[]> {

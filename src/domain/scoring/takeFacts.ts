@@ -8,7 +8,7 @@ import { phrasePitchVariation, splitPhrases } from "../dsp/phrasePitch";
 import { scoreSyllablePeaks } from "../dsp/stressCues";
 import { ramblingMetrics } from "../coach/ramblingMetrics";
 import { countDetails } from "../rewind/stats";
-import { countSyllables } from "../signals/audioSummary";
+import { countSyllables, speakingWpm } from "../signals/audioSummary";
 import type { SignalSummary } from "../signals/types";
 import { alignFinal, buildTarget, scoreAlignment } from "../speech/speechAlignment";
 import { tokenizeHeard } from "../speech/normalize";
@@ -120,7 +120,7 @@ export function buildTakeFacts(input: TakeFactsInput): TakeFacts {
   return {
     kind,
     durationSeconds,
-    wpm: summary?.rate?.speakingWpm ?? null,
+    wpm: summary?.rate?.speakingWpm ?? speakingWpm(words),
     paceSdSylPerSec: summary?.rate?.paceSdSylPerSec ?? null,
     paceDriftPercent: summary?.rate?.paceDriftPercent ?? null,
     boundaryPauseRate: input.pauses?.boundaryPauseRate ?? null,

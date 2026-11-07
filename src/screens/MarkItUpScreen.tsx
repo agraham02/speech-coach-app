@@ -73,7 +73,7 @@ export function MarkItUpScreen({ route, navigation }: Props) {
 
   return (
     <ScreenContainer style={styles.container}>
-      <Header eyebrow="Cadence" title="Mark it up" onBack={() => navigation.goBack()} backIcon="close" />
+      <Header eyebrow="Voice" title="Mark it up" onBack={() => navigation.goBack()} backIcon="close" />
       <ChipGroup
         options={[
           { key: "lines", label: "Lines" },

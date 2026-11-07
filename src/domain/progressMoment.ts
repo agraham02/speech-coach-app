@@ -1,10 +1,11 @@
 import type { SkillId } from "../theme/tokens";
 import { stageProgress, type Stage } from "./levels";
+import { trailLine, type Trail } from "./scoring/rollup";
 
 // What one take changed, as a short sequence of "beats" the Result screen
 // plays one after another: a stage earned, a personal best, the score
-// against your last takes, the skills it moved, the streak or goal it kept,
-// and where it leaves you on your path. At most four, most meaningful first.
+// against your last takes, the trail, the skills it moved, the streak or goal it
+// kept, and where it leaves you on your path. At most four, most meaningful first.
 // A drop is never shamed: one take is noise, so a dip is always set against
 // the trend. Pure.
 
@@ -23,6 +24,8 @@ export interface MomentInput {
   // Best overall score of any earlier take.
   previousBest: number | null;
   moves: SkillMove[];
+  // What the take did, from its biggest move up to Overall (plan 6.3).
+  trail?: Trail | null;
   speakerLevelBefore?: number;
   speakerLevelAfter?: number;
   // This take kept the streak going (the day's first practice).
@@ -37,6 +40,7 @@ export type Beat =
   | { kind: "stage"; skill: SkillId; stage: Stage; speakerLevel: number | null }
   | { kind: "best"; score: number; previousBest: number }
   | { kind: "score"; score: number; previous: number; direction: "up" | "down" | "same"; title: string; detail: string | null }
+  | { kind: "trail"; line: string; moreLeaves: number }
   | { kind: "skills"; moves: (SkillMove & { delta: number; progressBefore: number; progressAfter: number })[] }
   | { kind: "streak"; days: number }
   | { kind: "goal"; done: number; goal: number }
@@ -103,7 +107,10 @@ export function buildMoment(input: MomentInput): Beat[] {
     if (line) beats.push(line);
   }
 
-  // 4. The skills it moved, biggest first.
+  // 4. The trail: what moved, from a leaf up to Overall.
+  if (input.trail) beats.push({ kind: "trail", line: trailLine(input.trail), moreLeaves: Math.max(0, input.trail.leaves.length - 1) });
+
+  // 5. The skills it moved, biggest first.
   const moves = input.moves
     .map((m) => {
       const delta = round1(m.ratingAfter - m.ratingBefore);
@@ -122,7 +129,7 @@ export function buildMoment(input: MomentInput): Beat[] {
     .slice(0, 3);
   if (moves.length) beats.push({ kind: "skills", moves });
 
-  // 5. The path, then the streak or the goal.
+  // 6. The path, then the streak or the goal.
   if (input.path) beats.push({ kind: "path", ...input.path });
   if (input.streakDays && input.streakDays > 0) beats.push({ kind: "streak", days: input.streakDays });
   else if (input.goal && input.goal.goal > 1) beats.push({ kind: "goal", ...input.goal });

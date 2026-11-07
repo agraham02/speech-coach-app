@@ -339,7 +339,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         {stage === "result" && result && (result.details.links || result.details.steps) ? (
           <ChainVerdicts links={result.details.links} steps={result.details.steps} checkedBy={chainCheck?.by ?? null} />
         ) : null}
-        {stage === "result" && result && change ? <DrillProgressLine change={change} drillTitle={DRILL_TITLES[setup.type]} /> : null}
+        {stage === "result" && result && change && !practice?.placement ? <DrillProgressLine change={change} drillTitle={DRILL_TITLES[setup.type]} /> : null}
         {stage === "result" && !result ? (
           <Card style={styles.card}>
             <Txt variant="headline">Didn't catch anything.</Txt>

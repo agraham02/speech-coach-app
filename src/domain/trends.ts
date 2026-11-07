@@ -1,62 +1,50 @@
 import { dateFromISODate, daysBetween } from "../utils/dateUtils";
-import type { SkillId } from "../theme/tokens";
-import type { Layer } from "./scoring/taxonomy";
+import type { PillarId } from "./scoring/skillTree";
 import type { TakeScores } from "./scoring/takeScore";
 
-// Score trends, from the take score sheets (domain/scoring/takeScore.ts).
-// The two layers are never put on one line or averaged together: the measured
-// score is on every take, the judged one only on takes Tono AI judged, so a
-// judged take adds a point to the judged line and the measured line still has
-// one for it. A take without a judgement is a gap in the judged line, never a
-// zero. Pure.
+// Score trends, from the take sheets (domain/scoring/takeScore.ts): a Delivery
+// line for everyone, a Message line for judged takes (plan 6.3). A take without a
+// judgement is a gap in the Message line, never a zero. Pure.
 
-export interface LayerNumbers {
-  overall: number;
-  bySkill: Partial<Record<SkillId, number>>;
-}
+export type TrendLine = "delivery" | "message";
 
 export interface ScorePoint {
   recordedAt: string; // ISO datetime
-  measured: LayerNumbers | null;
-  judged: LayerNumbers | null;
+  delivery: number | null;
+  message: number | null;
+  byPillar: Partial<Record<PillarId, number>>;
 }
 
-export const TREND_SKILLS: SkillId[] = ["cadence", "impromptu", "confidence"];
-
-function numbersOf(sheet: TakeScores["measured"]): LayerNumbers | null {
-  if (!sheet) return null;
-  const bySkill: Partial<Record<SkillId, number>> = {};
-  for (const c of sheet.categories) bySkill[c.skill] = c.score;
-  return { overall: sheet.overall, bySkill };
-}
+export const TREND_PILLARS: PillarId[] = ["voice", "clarity", "presence"];
 
 export function scorePointOf(recordedAt: string, scores: TakeScores): ScorePoint {
-  return { recordedAt, measured: numbersOf(scores.measured), judged: numbersOf(scores.judged) };
+  const byPillar: ScorePoint["byPillar"] = {};
+  for (const p of scores.pillars) if (p.score != null) byPillar[p.id] = p.score;
+  return { recordedAt, delivery: scores.delivery, message: scores.message, byPillar };
 }
 
 export interface WeekStats {
   sessionCount: number;
-  overall: number | null;
-  bySkill: Partial<Record<SkillId, number | null>>;
+  score: number | null;
+  byPillar: Partial<Record<PillarId, number | null>>;
 }
 
 function average(nums: number[]): number | null {
   if (nums.length === 0) return null;
-  return Math.round((nums.reduce((sum, n) => sum + n, 0) / nums.length) * 10) / 10;
+  return Math.round(nums.reduce((sum, n) => sum + n, 0) / nums.length);
 }
 
 // daysAgoRange is [inclusive, exclusive): [0, 7) is the last 7 days including
 // today, [7, 14) the 7 days before that.
-function statsForWindow(points: ScorePoint[], layer: Layer, today: Date, daysAgoRange: [number, number]): WeekStats {
+function statsForWindow(points: ScorePoint[], line: TrendLine, today: Date, daysAgoRange: [number, number]): WeekStats {
   const [startInclusive, endExclusive] = daysAgoRange;
   const inWindow = points.filter((p) => {
     const daysAgo = daysBetween(dateFromISODate(p.recordedAt), today);
-    return daysAgo >= startInclusive && daysAgo < endExclusive && p[layer] != null;
+    return daysAgo >= startInclusive && daysAgo < endExclusive && p[line] != null;
   });
-  const numbers = inWindow.map((p) => p[layer]!);
-  const bySkill: WeekStats["bySkill"] = {};
-  for (const skill of TREND_SKILLS) bySkill[skill] = average(numbers.map((n) => n.bySkill[skill]).filter((v): v is number => v != null));
-  return { sessionCount: inWindow.length, overall: average(numbers.map((n) => n.overall)), bySkill };
+  const byPillar: WeekStats["byPillar"] = {};
+  if (line === "delivery") for (const pillar of TREND_PILLARS) byPillar[pillar] = average(inWindow.map((p) => p.byPillar[pillar]).filter((v): v is number => v != null));
+  return { sessionCount: inWindow.length, score: average(inWindow.map((p) => p[line]!)), byPillar };
 }
 
 export interface WeeklyComparison {
@@ -64,15 +52,14 @@ export interface WeeklyComparison {
   lastWeek: WeekStats;
 }
 
-// One layer's week against the week before, using only the takes that have
-// that layer.
-export function computeThisWeekVsLastWeek(points: ScorePoint[], layer: Layer, today: Date = new Date()): WeeklyComparison {
+// One line's week against the week before, using only the takes that have it.
+export function computeThisWeekVsLastWeek(points: ScorePoint[], line: TrendLine, today: Date = new Date()): WeeklyComparison {
   return {
-    thisWeek: statsForWindow(points, layer, today, [0, 7]),
-    lastWeek: statsForWindow(points, layer, today, [7, 14]),
+    thisWeek: statsForWindow(points, line, today, [0, 7]),
+    lastWeek: statsForWindow(points, line, today, [7, 14]),
   };
 }
 
-export function hasLayer(points: ScorePoint[], layer: Layer): boolean {
-  return points.some((p) => p[layer] != null);
+export function hasLine(points: ScorePoint[], line: TrendLine): boolean {
+  return points.some((p) => p[line] != null);
 }

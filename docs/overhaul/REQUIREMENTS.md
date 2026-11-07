@@ -16,7 +16,7 @@ From Appendix B of `PLAN.md`. A phase can't close while one of its IDs is open. 
 | R10 | Felt vs observed as a track, not a button row | 6.5, 10 | Screen test; same track shows all three markers | 6 | todo |  |
 | R11 | Analysis in an accordion | 10 | Screen test | 6 | todo |  |
 | R12 | One scoring logic across the whole app | 6 | Grid coverage test | 3a | done | Every attempt goes through the grid onto leaves (`scoring/leafEvidence.ts`, `db/leafRepo.ts`); `skillGrid.test.ts` for coverage |
-| R13 | Everything earns a score, including Rewind | 7 | Grid coverage test | 3a | todo |  |
+| R13 | Everything earns a score, including Rewind | 7 | Grid coverage test | 3a | done | `skillGrid.test.ts`: every activity has a number and a row. Rewind's and the other personal rows' numbers start moving leaves in 3c.4 |
 | R14 | One curriculum, like Duolingo | 5 | Plan, Path and Practice read the same catalogue | 2 | todo |  |
 | R15 | Rewind, Feeling, Conversations in the daily session | 5.3 | Session builder tests | 4 | todo |  |
 | R16 | Check-offs sync both ways | 5.2 | Tests and emulator | 2 | todo |  |
@@ -38,7 +38,7 @@ From Appendix B of `PLAN.md`. A phase can't close while one of its IDs is open. 
 | R32 | Rewatch is a collapsible accordion | 10 | Screen test: open if skipped, closed if done | 6 | todo |  |
 | R33 | Mermaid skill tree | 6.2 | Diagrams in the plan | 3a | done | Diagrams in PLAN.md section 6.2 |
 | R34 | Overall, pillars, secondary skills, leaves | 6.2 | `check:overhaul`: tree matches the plan, weights add up | 3a | done | `domain/scoring/skillTree.ts`, compared with Appendix C in `overhaulPlan.test.ts` |
-| R35 | See how each skill contributes upward | 6.3 | The trail on every result | 3a | todo |  |
+| R35 | See how each skill contributes upward | 6.3 | The trail on every result | 3a | done | `rollup.ts` `buildTrail`, on takes, drills and as a toast; emulator on a take's Result |
 | R36 | Grid for every drill and lesson, and how much | 7, Appendix A | Grid coverage test | 3a | done | `content/skillGrid.ts`; `skillGrid.test.ts` for coverage, `overhaulPlan.test.ts` against section 7 and Appendix A |
 | R37 | Quantifiable judging of everything | 7 | Grid coverage test: every activity has a number | 3a | done | `skillGrid.test.ts`: every catalogue activity has a row with a number |
 | R38 | Rewind works for morning users | 5.3 | Rewind timing tests | 4 | todo |  |

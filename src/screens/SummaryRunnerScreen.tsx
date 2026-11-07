@@ -16,7 +16,8 @@ import type { TurnMeasurement } from "../domain/conversation/evaluateConversatio
 import { prepareSummary, type SummarySetup } from "../domain/summary/prepareSummary";
 import { evaluateSummary, type SummaryDetails } from "../domain/summary/evaluateSummary";
 import { words } from "../domain/conversation/text";
-import { getDrillLevel, recordDrillOutcome } from "../services/db/progressRepo";
+import { getDrillLevel, recordDrillOutcome, type ProgressChange } from "../services/db/progressRepo";
+import { DrillProgressLine } from "../components/celebrate/DrillProgressLine";
 import { reviewSummary, type SummaryReviewResult } from "../services/summary/summaryReview";
 import { producerName } from "../domain/analysis/provenance";
 import { completePracticeStep } from "../services/practice/practiceEvents";
@@ -37,6 +38,7 @@ export function SummaryRunnerScreen({ route, navigation }: Props) {
   const speech = useLiveSpeech();
   const [setup, setSetup] = useState<SummarySetup | null>(null);
   const [stage, setStage] = useState<Stage>("intro");
+  const [change, setChange] = useState<ProgressChange | null>(null);
   const [turnIndex, setTurnIndex] = useState(0);
   const [result, setResult] = useState<{ outcome: DrillOutcome; details: SummaryDetails } | null>(null);
   const [reviewed, setReviewed] = useState<SummaryReviewResult | null>(null);
@@ -111,7 +113,7 @@ export function SummaryRunnerScreen({ route, navigation }: Props) {
       const transcripts = current.turns.map((_, i) => measurements[i]?.transcript ?? "");
       const review = await reviewSummary(current, transcripts);
       const evaluated = evaluateSummary(current, measurements, review?.review ?? null);
-      await recordDrillOutcome({
+      const moved = await recordDrillOutcome({
         drillType: current.type,
         outcome: evaluated.outcome,
         level: current.level,
@@ -120,6 +122,7 @@ export function SummaryRunnerScreen({ route, navigation }: Props) {
         metrics: { ...evaluated.details, reviewSource: review ? review.provenance.producer : null },
         ...(review ? { source: "judge" as const } : {}),
       });
+      setChange(moved);
       setReviewed(review);
       setResult(evaluated);
     } catch (error) {
@@ -230,6 +233,7 @@ export function SummaryRunnerScreen({ route, navigation }: Props) {
         ) : null}
 
         {stage === "result" && result ? renderResult(result) : null}
+        {stage === "result" && result && change && setup ? <DrillProgressLine change={change} drillTitle={DRILL_TITLES[setup.type]} /> : null}
         {stage === "result" && heardNothing ? (
           <Card style={styles.card}>
             <Txt variant="headline">Didn't catch an answer.</Txt>

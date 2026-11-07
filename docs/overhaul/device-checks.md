@@ -128,6 +128,19 @@ These need the microphone or camera, which the emulator doesn't have. Update the
 - [ ] **A rep ticks once.** Record an impromptu rep from Practice. Today's rep step ticks; a second rep step (12-minute plan) stays open until you record a second one.
 - [ ] **Delete a take.** Delete the rep you recorded. The step stays ticked, and the take is gone from the library.
 
+## Phase 3a: scores on the tree
+
+A new JS bundle is enough; no new build. Do a few real takes first, since the numbers below need your voice.
+
+- [ ] **A take scores out of 100.** Record an impromptu take without Tono AI. The ring says out of 100, a word (Great, Solid, Getting there, Keep going) and "Delivery, measured on this phone". Message says "Not checked".
+- [ ] **Do the numbers feel right?** On the Scores tab, tap down to the leaves. Each shows a raw number ("2.1 ums a minute"). Say which ones look wrong for how the take went. These are first guesses: Rhythm, Restarts, No detours, Specifics, Starting fast, Face movement.
+- [ ] **Face movement.** It counts now. Do one take with a still face and one animated: do the scores differ the way you'd expect? Its bar of 12 brow lifts and smiles a minute is my guess.
+- [ ] **Flat vs lively.** Do one flat take and one lively take. Pitch variety and Stand-out stress should clearly differ. The bars come from your Signal Lab recordings, so a real take is the fresh test.
+- [ ] **A judged take.** With Tono AI, the ring says Overall, and Delivery stays the same as without a review. Only Answers the question, Has a shape and Ideas connect say Tono AI.
+- [ ] **The trail.** Under the score, a line like "Ums and uhs +3.2 · Fillers +2.5 · Clarity +1.1 · Overall +0.4". Do a drill too: the same line sits on its result card.
+- [ ] **Self-ratings.** Finish a guided exercise about delivery (Rate contrast): the toast says it doesn't move a score yet. Finish one about the inner game (Reset before you speak): the toast shows a trail.
+- [ ] **New names.** Skills read Clarity, Voice, Message, Presence, Connection everywhere. Tell me if a screen still says Cadence or Articulation.
+
 ## Phase 6: results flow
 
 Carried over from the hotfix round. These were fixes for gestures on the old screens, and they can come back when the screens are rebuilt.

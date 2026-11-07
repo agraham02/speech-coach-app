@@ -22,6 +22,7 @@ import { getArtifact } from "../services/db/artifactsRepo";
 import { measuredVoice } from "../services/sessions/sessionScoreService";
 import { getScoresBySessionId } from "../services/db/scoresRepo";
 import type { TakeScores } from "../domain/scoring/takeScore";
+import { skillOfPillar } from "../domain/scoring/skillTree";
 import type { SessionScores } from "../domain/sessionTypes";
 import { getLessonStates, getSkillStates, seedSkillRatings } from "../services/db/progressRepo";
 import { completeOnboarding, resetToTabs } from "../services/onboarding/onboarding";
@@ -67,8 +68,8 @@ async function buildInput(check: StoredSkillCheck, session: Session | null): Pro
     getArtifact<TakeScores>(session.id, "session_score"),
   ]);
   const voice = measuredVoice(session);
-  // The judged sheet's skill scores, when the talk was judged.
-  const judged = scores?.judged ? Object.fromEntries(scores.judged.categories.map((c) => [c.skill, c.score])) : null;
+  // The pillars' scores, 0-10 as the check reads them, when the talk was judged.
+  const judged = scores?.headline === "overall" ? Object.fromEntries(scores.pillars.filter((p) => p.score != null && skillOfPillar(p.id)).map((p) => [skillOfPillar(p.id)!, p.score! / 10])) : null;
   return {
     ...input,
     review: judged ? { cadence: judged.cadence ?? null, impromptu: judged.impromptu ?? null, confidence: judged.confidence ?? null } : null,

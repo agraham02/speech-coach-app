@@ -1,409 +1,132 @@
-import type { SkillId } from "../../theme/tokens";
 import type { Provenance } from "../analysis/types";
-import {
-  convictionScore,
-  EMPHASIS_FULL_DB,
-  emphasisScore,
-  eyeContactScore,
-  eyeContactTarget,
-  fillerScore,
-  hedgeCost,
-  paceScore,
-  PACE_BAND,
-  pauseScore,
-  PAUSE_FULL_RATE,
-  pitchScore,
-  FIXED_PITCH_BAND,
-  type PitchRangeBand,
-  stallScore,
-  stallsPerMinute,
-  structureScore,
-  expressionScore,
-  EXPRESSION_FULL,
-} from "./bands";
-import { SKILL_DEFS, SUBCATEGORIES, SUBCATEGORY_ORDER, SUBCATEGORY_READING, TAKE_SKILLS, type Layer, type SubcategoryId, type TakeKind } from "./taxonomy";
-import { READINGS, readingCounts, type ReadingPreview, type TrustStatus } from "../signalLab/readingTrust";
+import { READINGS, type ReadingPreview, type TrustStatus } from "../signalLab/readingTrust";
+import type { EvidenceSource } from "../../content/skillGrid";
+import { leafIsCounted, weightedAverage, type CountOptions } from "./rollup";
+import { SKILL_TREE, TAKE_WEIGHTS, getLeaf, type LeafDef, type LeafId, type PillarId, type SkillNodeId } from "./skillTree";
+import { takeLeafReadings, type TakeFacts } from "./takeLeaves";
 
-// A take's scores, in two layers (docs/decisions/scoring-taxonomy.md):
-// - measured: the phone's measurements through the bands in bands.ts. Every
-//   take has it, the formula is the same for everyone, so it is what free
-//   takes are scored on and what trend lines compare.
-// - judged: Tono AI's sub-scores, the ground truth on the takes that have
-//   them. Where the judge scored a subcategory its score stands; where it
-//   didn't (fluency, conviction), the measured sub-score fills in and says so.
-// Category scores and the overall are always worked out here, from the
-// sub-scores, with the taxonomy's weights: the summary can never disagree
-// with its breakdown.
-// A sub-score whose reading isn't proven yet (signalLab/readingTrust.ts) is
-// still worked out and shown, marked with its trust status, but doesn't roll
-// up: its category's other sub-scores share the weight, and a category with
-// nothing left that counts is dropped. Pure; the optional `preview` is the
-// Dev-only list of readings counted early, passed in by the app's services.
+// A take's score, on the same tree as your skills (docs/overhaul/PLAN.md, section
+// 6.3), showing this attempt's score at each node, 0 to 100. One sheet, not two
+// layers: the phone owns delivery and the judge owns content (plan 6.4, rule 4),
+// so a take's Delivery is the same whether or not it was judged. Without a content
+// check the headline says Delivery and leaves Message out. Every number above a
+// leaf is worked out here, so a summary can't disagree with its breakdown. Pure.
 
-export const SCORE_SHEET_VERSION = 7;
+export const SCORE_SHEET_VERSION = 8;
 
-// What the phone measured, flattened from the take's artifacts. Fields are
-// null when not measured. Session 06's signals fill the optional ones.
-export interface MeasuredFacts {
-  takeKind: TakeKind;
-  durationSeconds: number;
-  wpm: number | null;
-  boundaryPauseRate: number | null;
-  // p10 to p90 semitones; null without enough clear voice (8+ voiced s).
-  pitchRangeSemitones?: number | null;
-  // The fixed band, or your own after 5 takes (bands.ts pitchRangeBand).
-  pitchBand?: PitchRangeBand;
-  emphasisPeakSdDb?: number | null;
-  // Null: not counted against this speaker (stutter mode) or no transcript.
-  fillers: { hesitationPerMinute: number; contextualPerMinute: number | null } | null;
-  stalls: number | null;
-  structure: { framework: string; shaped: boolean; targetFramework: string | null } | null;
-  hedges: number | null;
-  strongEnding: boolean | null;
-  // Null when the face wasn't measured or was out of frame most of the time.
-  presence: { eyeContactPercent: number; eyeContactSource?: "gaze" | "head"; expressiveness: number } | null;
-}
+export type HeadlineKind = "overall" | "delivery";
 
-// One measured ingredient of a sub-score, explained.
-export interface ScoreFactor {
-  label: string;
-  value: string;
-  score?: number;
-  delta?: number;
-  rule: string;
-}
-
-export interface SubScore {
-  id: SubcategoryId;
-  label: string;
+export interface LeafScore {
+  id: LeafId;
+  name: string;
   score: number;
-  // Where this number came from.
-  layer: Layer;
-  // Counts towards its category: false for media-only judgements and for a
-  // reading that isn't proven yet.
-  rollsUp: boolean;
-  // Set when the reading behind this number doesn't count yet (Beta).
+  source: EvidenceSource;
+  // Counts towards the skill above it.
+  counts: boolean;
+  // Why it doesn't count, when that's because its reading isn't proven yet.
   trust?: TrustStatus;
-  factors?: ScoreFactor[];
-  // The judge's note: the evidence and what a 10 would take.
+  // The raw number, in words, and how the score was worked out.
+  value: string;
+  rule: string;
+  // The judge's note.
   notes?: string | null;
 }
 
-export interface CategoryScore {
-  skill: SkillId;
-  label: string;
-  score: number;
-  // Share of the overall, after leaving out absent skills.
-  weight: number;
-  subscores: SubScore[];
+export interface SkillScore {
+  id: SkillNodeId;
+  name: string;
+  // Null when every leaf under it is Beta.
+  score: number | null;
+  leaves: LeafScore[];
 }
 
-export interface ScoreSheet {
-  layer: Layer;
-  overall: number;
-  categories: CategoryScore[];
+export interface PillarScore {
+  id: PillarId;
+  name: string;
+  score: number | null;
+  // Its share of the take's score, after leaving out what's absent. 0: not in it.
+  share: number;
+  skills: SkillScore[];
 }
 
 export interface TakeScores {
   version: number;
-  measured: ScoreSheet | null;
-  judged: ScoreSheet | null;
-  // Which sheet is the take's score: judged whenever it exists.
-  headline: Layer;
-  // Who judged it, for the label ("Judged by Tono AI").
+  // The take's score: Overall when its content was checked, otherwise Delivery.
+  score: number;
+  headline: HeadlineKind;
+  delivery: number | null;
+  // Null without a content check, even when the phone has estimates of its leaves.
+  message: number | null;
+  // Message (estimates included), Voice, Clarity, Presence, whatever this take shows.
+  pillars: PillarScore[];
   judgedBy?: Provenance;
 }
 
-// The judge's answer, by subcategory.
-export type JudgedSubscores = Partial<Record<SubcategoryId, { score: number; notes: string | null }>>;
+const TAKE_PILLARS = ["message", "voice", "clarity", "presence"] as const;
+const DELIVERY_PILLARS = ["voice", "clarity", "presence"] as const;
 
-const round1 = (n: number) => Math.round(n * 10) / 10;
-const clamp10 = (n: number) => Math.max(0, Math.min(10, n));
+const whole = (n: number | null): number | null => (n == null ? null : Math.round(n));
 
-// --- measured sub-scores -----------------------------------------------------
-
-type Measured = Partial<Record<SubcategoryId, { score: number; factors: ScoreFactor[] }>>;
-
-function mean(xs: number[]): number | null {
-  return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+function trustOf(id: LeafId, counts: boolean): TrustStatus | undefined {
+  const reading = getLeaf(id).reading;
+  return !counts && reading ? READINGS[reading].status : undefined;
 }
 
-export function measuredSubscores(f: MeasuredFacts): Measured {
-  const out: Measured = {};
+export function takeScores(facts: TakeFacts, judgedBy?: Provenance, options: CountOptions = {}): TakeScores | null {
+  const readings = takeLeafReadings(facts);
+  const judged = Object.values(readings).some((r) => r?.source === "judge");
+  const exact = {} as Record<(typeof TAKE_PILLARS)[number], number | null>;
+  const pillars: PillarScore[] = [];
 
-  if (f.wpm != null) {
-    const wpm = Math.round(f.wpm);
-    const score = round1(paceScore(wpm));
-    out.pace = {
-      score,
-      factors: [
-        {
-          label: "Speaking rate",
-          value: `${wpm} words a minute`,
-          score,
-          rule:
-            wpm < PACE_BAND.low
-              ? `Full marks between ${PACE_BAND.low} and ${PACE_BAND.high} words a minute. You were ${PACE_BAND.low - wpm} under, and every ${PACE_BAND.perPoint} under costs a point.`
-              : wpm > PACE_BAND.high
-                ? `Full marks between ${PACE_BAND.low} and ${PACE_BAND.high} words a minute. You were ${wpm - PACE_BAND.high} over, and every ${PACE_BAND.perPoint} over costs a point. A pause at each full stop slows you down without dragging.`
-                : `Between ${PACE_BAND.low} and ${PACE_BAND.high} words a minute, where listeners follow easily: full marks.`,
-        },
-      ],
-    };
-  }
-
-  if (f.boundaryPauseRate != null) {
-    const rate = f.boundaryPauseRate;
-    const score = round1(pauseScore(rate));
-    out.pauses = {
-      score,
-      factors: [
-        {
-          label: "Pauses at full stops",
-          value: `${Math.round(rate * 100)}% of sentence ends`,
-          score,
-          rule:
-            rate >= PAUSE_FULL_RATE
-              ? `You paused at most sentence ends: full marks from ${PAUSE_FULL_RATE * 100}% up.`
-              : `Full marks once ${PAUSE_FULL_RATE * 100}% of your sentence ends get a pause. A beat at each full stop lets the point land.`,
-        },
-      ],
-    };
-  }
-
-  if (f.pitchRangeSemitones != null) {
-    const band = f.pitchBand ?? FIXED_PITCH_BAND;
-    const st = round1(f.pitchRangeSemitones);
-    const score = round1(pitchScore(st, band));
-    const bar = band.source === "personal" ? `${band.fullSt} semitones (a little over your usual ${band.usualSt})` : `${band.fullSt} semitones`;
-    out.melody = {
-      score,
-      factors: [
-        {
-          label: "Pitch range",
-          value: `${st} semitones`,
-          score,
-          rule:
-            st >= band.fullSt
-              ? `Your voice moved through a wide range: full marks from ${bar} up.`
-              : `Full marks at a range of ${bar}. A narrow range sounds flat; lift the key word in each sentence.`,
-        },
-      ],
-    };
-  }
-
-  if (f.emphasisPeakSdDb != null) {
-    const score = round1(emphasisScore(f.emphasisPeakSdDb));
-    out.emphasis = {
-      score,
-      factors: [
-        {
-          label: "Emphasis",
-          value: `${round1(f.emphasisPeakSdDb)} dB`,
-          score,
-          rule: `How far your strongest syllables stand out. Full marks at ${EMPHASIS_FULL_DB} dB; lean on the word that carries the point.`,
-        },
-      ],
-    };
-  }
-
-  const fluency: ScoreFactor[] = [];
-  if (f.fillers) {
-    const { hesitationPerMinute: h, contextualPerMinute: c } = f.fillers;
-    const score = round1(fillerScore(h, c ?? 0));
-    fluency.push({
-      label: c != null ? "Fillers" : "Filler words",
-      value: c != null ? `${round1(h)} ums a minute, ${round1(c)} likes and actuallys` : `${round1(h)} a minute`,
-      score,
-      rule:
-        "The first 2 a minute go unnoticed, and each one after costs 0.8. Words like \"like\" and \"actually\" count at half, since some of them aren't fillers. Swap \"um\" for a closed-mouth pause.",
-    });
-  }
-  if (f.stalls != null) {
-    const perMinute = stallsPerMinute(f.stalls, f.durationSeconds);
-    fluency.push({
-      label: "Stalls",
-      value: `${f.stalls} (${round1(perMinute)} a minute)`,
-      score: round1(stallScore(f.stalls, f.durationSeconds)),
-      rule: "A stall is a long gap in the middle of a phrase, and each one a minute costs 2 points. Pausing between sentences is fine; only the mid-phrase gaps count.",
-    });
-  }
-  const fluencyScore = mean(fluency.map((x) => x.score!));
-  if (fluencyScore != null) out.fluency = { score: round1(fluencyScore), factors: fluency };
-
-  if (f.structure && f.takeKind === "impromptu") {
-    const { framework, shaped, targetFramework } = f.structure;
-    const missedTarget = !!targetFramework && targetFramework !== "None" && framework !== targetFramework;
-    const score = structureScore(shaped, missedTarget);
-    const factors: ScoreFactor[] = [
-      {
-        label: "Shape",
-        value: shaped ? framework : "None found",
-        score: shaped ? 8 : 4,
-        rule: shaped
-          ? `The phone's rules recognised a clear shape (${framework}), which starts this at 8.`
-          : "The phone's rules found no clear shape, which starts this at 4. Lead with your point, back it with a reason or an example, then say the point again.",
-      },
-    ];
-    if (missedTarget && score < (shaped ? 8 : 4)) {
-      factors.push({
-        label: "Practice target",
-        value: `Asked for ${targetFramework}`,
-        delta: score - (shaped ? 8 : 4),
-        rule: `This rep practices ${targetFramework}, and a different shape caps this at 5.`,
-      });
+  for (const id of TAKE_PILLARS) {
+    const pillar = SKILL_TREE.find((p) => p.id === id)!;
+    const skills: SkillScore[] = [];
+    const skillScores: { score: number | null; weight: number }[] = [];
+    for (const skill of pillar.skills) {
+      const leaves: LeafScore[] = [];
+      const leafScores: { score: number | null; weight: number }[] = [];
+      for (const leaf of skill.leaves as readonly LeafDef[]) {
+        const leafId = leaf.id as LeafId;
+        const reading = readings[leafId];
+        if (!reading) continue;
+        const counts = leafIsCounted(leafId, options);
+        leaves.push({ id: leafId, name: leaf.name, score: Math.round(reading.score), source: reading.source, counts, trust: trustOf(leafId, counts), value: reading.value, rule: reading.rule, notes: reading.notes });
+        leafScores.push({ score: counts ? reading.score : null, weight: leaf.weight });
+      }
+      if (!leaves.length) continue;
+      const score = weightedAverage(leafScores);
+      skills.push({ id: skill.id, name: skill.name, score: whole(score), leaves });
+      skillScores.push({ score, weight: skill.weight });
     }
-    out.structure = { score, factors };
+    exact[id] = weightedAverage(skillScores);
+    if (skills.length) pillars.push({ id, name: pillar.name, score: whole(exact[id]), share: 0, skills });
   }
 
-  if (f.takeKind === "impromptu" && (f.hedges != null || f.strongEnding != null)) {
-    const hedges = f.hedges ?? 0;
-    const score = round1(convictionScore(hedges, f.strongEnding));
-    const factors: ScoreFactor[] = [];
-    if (f.strongEnding === true) factors.push({ label: "Ending", value: "Clear", delta: 1, rule: "You ended on a clear statement instead of trailing off: +1 on a start of 8." });
-    else if (f.strongEnding === false) factors.push({ label: "Ending", value: "Trailed off", delta: -2, rule: "The answer trailed off: -2 on a start of 8. Finish on your point, then stop talking." });
-    const cost = hedgeCost(hedges);
-    factors.push({
-      label: "Hedges",
-      value: `${hedges}`,
-      delta: cost ? -cost : undefined,
-      rule: cost
-        ? "\"I think\", \"maybe\", \"I guess\": the first two are free, and each one after costs 0.5 (up to 3). Say it as if you mean it."
-        : "\"I think\", \"maybe\", \"I guess\": the first two are free.",
-    });
-    out.conviction = { score, factors };
+  const shareOf = (ids: readonly (typeof TAKE_PILLARS)[number][]) => ids.map((id) => ({ id, score: exact[id], weight: TAKE_WEIGHTS[id] }));
+  const delivery = weightedAverage(shareOf(DELIVERY_PILLARS));
+  const inScore = judged ? shareOf(TAKE_PILLARS) : shareOf(DELIVERY_PILLARS);
+  const score = weightedAverage(inScore);
+  if (score == null) return null;
+
+  const totalWeight = inScore.filter((p) => p.score != null).reduce((sum, p) => sum + p.weight, 0);
+  for (const pillar of pillars) {
+    const entry = inScore.find((p) => p.id === pillar.id);
+    pillar.share = entry && entry.score != null ? entry.weight / totalWeight : 0;
   }
 
-  if (f.presence) {
-    const p = f.presence;
-    const eye = round1(eyeContactScore(p.eyeContactPercent, p.eyeContactSource));
-    out.eye_contact = {
-      score: eye,
-      factors: [
-        {
-          label: "On the lens",
-          value: `${Math.round(p.eyeContactPercent)}% of the time`,
-          score: eye,
-          rule: `Full marks at ${eyeContactTarget(p.eyeContactSource)}% of the time on the lens${p.eyeContactSource === "head" ? " (only the head direction was known, so the bar is higher)" : ""}.`,
-        },
-      ],
-    };
-    const face = round1(expressionScore(p.expressiveness));
-    out.expression = {
-      score: face,
-      factors: [
-        {
-          label: "Expression",
-          value: `${Math.round(p.expressiveness)} of 100`,
-          score: face,
-          rule: `Full marks once your face moves with what you're saying (${EXPRESSION_FULL} on this scale). A still face reads as flat, even with a lively voice.`,
-        },
-      ],
-    };
-  }
-
-  return out;
-}
-
-// --- sheets -------------------------------------------------------------------
-
-function applies(id: SubcategoryId, kind: TakeKind): boolean {
-  return SUBCATEGORIES[id].appliesTo.includes(kind);
-}
-
-// Whether a sub-score counts towards its category and, when its reading is on
-// trial and doesn't count, the status to label it with.
-function standing(id: SubcategoryId, preview?: ReadingPreview): { rollsUp: boolean; trust?: TrustStatus } {
-  const reading = SUBCATEGORY_READING[id];
-  if (!reading || readingCounts(reading, preview)) return { rollsUp: SUBCATEGORIES[id].rollsUp };
-  return { rollsUp: false, trust: READINGS[reading].status };
-}
-
-function buildSheet(layer: Layer, subs: SubScore[]): ScoreSheet | null {
-  const categories: Omit<CategoryScore, "weight">[] = [];
-  for (const skill of TAKE_SKILLS) {
-    const own = subs.filter((s) => SUBCATEGORIES[s.id].skill === skill);
-    const rolling = own.filter((s) => s.rollsUp);
-    const totalWeight = rolling.reduce((sum, s) => sum + SUBCATEGORIES[s.id].weight, 0);
-    if (!rolling.length || totalWeight <= 0) continue;
-    const score = rolling.reduce((sum, s) => sum + s.score * SUBCATEGORIES[s.id].weight, 0) / totalWeight;
-    categories.push({ skill, label: SKILL_DEFS[skill].label, score: round1(score), subscores: own });
-  }
-  if (!categories.length) return null;
-  const total = categories.reduce((sum, c) => sum + SKILL_DEFS[c.skill].takeWeight, 0);
-  const withWeights = categories.map((c) => ({ ...c, weight: SKILL_DEFS[c.skill].takeWeight / total }));
-  const overall = withWeights.reduce((sum, c) => sum + c.score * c.weight, 0);
-  return { layer, overall: round1(clamp10(overall)), categories: withWeights };
-}
-
-export function measuredSheet(facts: MeasuredFacts, preview?: ReadingPreview): ScoreSheet | null {
-  const measured = measuredSubscores(facts);
-  const subs: SubScore[] = [];
-  for (const id of SUBCATEGORY_ORDER) {
-    const m = measured[id];
-    if (!m || !applies(id, facts.takeKind)) continue;
-    subs.push({ id, label: SUBCATEGORIES[id].label, score: m.score, layer: "measured", ...standing(id, preview), factors: m.factors });
-  }
-  return buildSheet("measured", subs);
-}
-
-// The judged sheet: the judge's sub-scores, with the measured ones filling
-// the subcategories it doesn't score. Null when the judge scored nothing.
-export function judgedSheet(judged: JudgedSubscores, facts: MeasuredFacts, preview?: ReadingPreview): ScoreSheet | null {
-  const measured = measuredSubscores(facts);
-  const subs: SubScore[] = [];
-  let anyJudged = false;
-  for (const id of SUBCATEGORY_ORDER) {
-    if (!applies(id, facts.takeKind)) continue;
-    const def = SUBCATEGORIES[id];
-    const j = judged[id];
-    if (j && Number.isFinite(j.score)) {
-      anyJudged = true;
-      subs.push({ id, label: def.label, score: round1(clamp10(j.score)), layer: "judged", ...standing(id, preview), notes: j.notes, factors: measured[id]?.factors });
-      continue;
-    }
-    const m = measured[id];
-    if (m) subs.push({ id, label: def.label, score: m.score, layer: "measured", ...standing(id, preview), factors: m.factors });
-  }
-  return anyJudged ? buildSheet("judged", subs) : null;
-}
-
-export function takeScores(facts: MeasuredFacts, judged: JudgedSubscores | null, judgedBy?: Provenance, preview?: ReadingPreview): TakeScores | null {
-  const measured = measuredSheet(facts, preview);
-  const judgedOne = judged ? judgedSheet(judged, facts, preview) : null;
-  if (!measured && !judgedOne) return null;
   return {
     version: SCORE_SHEET_VERSION,
-    measured,
-    judged: judgedOne,
-    headline: judgedOne ? "judged" : "measured",
-    ...(judgedOne && judgedBy ? { judgedBy } : {}),
+    score: Math.round(score),
+    headline: judged ? "overall" : "delivery",
+    delivery: whole(delivery),
+    message: judged ? whole(exact.message) : null,
+    pillars,
+    ...(judged && judgedBy ? { judgedBy } : {}),
   };
 }
 
-export function headlineSheet(scores: TakeScores): ScoreSheet {
-  return (scores.headline === "judged" ? scores.judged : scores.measured) ?? (scores.judged ?? scores.measured)!;
+export function pillarOf(scores: TakeScores, id: PillarId): PillarScore | undefined {
+  return scores.pillars.find((p) => p.id === id);
 }
 
-// One layer's sheet, for the Scores tab's switch; the headline when that layer is absent.
-export function sheetFor(scores: TakeScores, layer: Layer): ScoreSheet {
-  return (layer === "judged" ? scores.judged : scores.measured) ?? headlineSheet(scores);
-}
-
-// What Tono AI's judgement says, by subcategory (domain/analysis/judgedReview.ts).
-// Only subcategories that apply to this kind of take count.
-export function judgedFromReview(review: { subscores: Partial<Record<SubcategoryId, { score: number; notes: string }>> }, kind: TakeKind): JudgedSubscores {
-  const out: JudgedSubscores = {};
-  for (const [id, sub] of Object.entries(review.subscores) as [SubcategoryId, { score: number; notes: string }][]) {
-    if (!SUBCATEGORIES[id]?.appliesTo.includes(kind) || !Number.isFinite(sub.score)) continue;
-    out[id] = { score: sub.score, notes: sub.notes || null };
-  }
-  return out;
-}
-
-// A sheet's score per skill, 0-1: what a take moves mastery by.
-export function skillEvidence(sheet: ScoreSheet): Partial<Record<SkillId, number>> {
-  const out: Partial<Record<SkillId, number>> = {};
-  for (const c of sheet.categories) out[c.skill] = Math.max(0, Math.min(1, c.score / 10));
-  return out;
-}
+export type { ReadingPreview };

@@ -182,9 +182,9 @@ export function shadows(scheme: "light" | "dark"): { card: ViewStyle; float: Vie
 }
 
 export const SKILL_LABELS: Record<SkillId, string> = {
-  articulation: "Articulation",
-  cadence: "Cadence",
-  impromptu: "Impromptu",
-  confidence: "Confidence",
-  conversation: "Conversation",
+  articulation: "Clarity",
+  cadence: "Voice",
+  impromptu: "Message",
+  confidence: "Presence",
+  conversation: "Connection",
 };

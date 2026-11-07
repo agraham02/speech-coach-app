@@ -2,6 +2,27 @@ import { buildMoment, MAX_BEATS, scoreLine, type MomentInput } from "../progress
 
 const base: MomentInput = { score: 7, previousScores: [6.5, 6, 6.2], previousBest: 7.5, moves: [] };
 
+describe("the trail on a take", () => {
+  const trail = (leaves: number) => ({
+    path: [
+      { id: "ums_uhs", name: "Ums and uhs", level: "leaf" as const, before: 25, after: 35, delta: 10 },
+      { id: "overall", name: "Overall", level: "overall" as const, before: 25, after: 26, delta: 1 },
+    ],
+    leaves: Array.from({ length: leaves }, (_, i) => ({ id: `l${i}`, name: "x", level: "leaf" as const, before: 25, after: 26, delta: 1 })),
+    pillars: [],
+  });
+  const input = { score: 70, previousScores: [], previousBest: null, moves: [] };
+
+  it("says what moved, from a leaf up to Overall, and how many more", () => {
+    expect(buildMoment({ ...input, trail: trail(5) })).toEqual([{ kind: "trail", line: "Ums and uhs +10.0 · Overall +1.00", moreLeaves: 4 }]);
+    expect(buildMoment({ ...input, trail: trail(1) })[0]).toMatchObject({ moreLeaves: 0 });
+  });
+
+  it("has no beat when nothing moved", () => {
+    expect(buildMoment({ ...input, trail: null })).toEqual([]);
+  });
+});
+
 describe("score line", () => {
   it("says nothing on a first take", () => {
     expect(scoreLine(6, [])).toBeNull();

@@ -95,6 +95,8 @@ function BeatRow({ beat, delay, animate }: { beat: Beat; delay: number; animate:
           detail={beat.detail}
         />
       );
+    case "trail":
+      return <Line icon="git-commit-outline" color={colors.textPrimary} bg={colors.surfaceRaised} title={beat.line} detail={beat.moreLeaves > 0 ? `And ${beat.moreLeaves} more ${beat.moreLeaves === 1 ? "skill" : "skills"} this take moved.` : null} />;
     case "skills":
       return (
         <View style={styles.skills}>

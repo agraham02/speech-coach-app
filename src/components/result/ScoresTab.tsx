@@ -6,13 +6,12 @@ import { useVideoPlayer } from "expo-video";
 import { Card } from "../common/Card";
 import { IconButton } from "../common/IconButton";
 import { Scrubber } from "../playback/Scrubber";
-import { SegmentedControl } from "../common/SegmentedControl";
 import { Txt } from "../common/Txt";
 import { colorForScore } from "./scoreColor";
 import { TimelineProvider } from "./charts/TimelineContext";
 import { LoudnessChart, PaceChart, PitchChart } from "./charts/ScoreCharts";
-import { sheetFor, type CategoryScore, type ScoreFactor, type SubScore, type TakeScores } from "../../domain/scoring/takeScore";
-import type { Layer, SubcategoryId } from "../../domain/scoring/taxonomy";
+import type { LeafScore, PillarScore, TakeScores } from "../../domain/scoring/takeScore";
+import type { LeafId } from "../../domain/scoring/skillTree";
 import type { Session, SessionScores } from "../../domain/sessionTypes";
 import { producerName, provenanceLabel } from "../../domain/analysis/provenance";
 import { trustLabel } from "../../domain/signalLab/readingTrust";
@@ -22,11 +21,12 @@ import { loadVoiceCharts, type VoiceCharts } from "../../services/signals/voiceC
 import { tick } from "../../utils/haptics";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
-// The deep breakdown of a take: every skill, every subcategory under it with
-// its score, who gave it (Tono AI or this phone), the judge's note and the
-// measured numbers behind it, and, directly under each, the graph of that
-// thing over time. It reads the same score sheets as the Overview's summary
-// (domain/scoring/takeScore.ts), so the names and numbers always agree.
+// The deep breakdown of a take: the skill tree for this attempt. Every pillar,
+// every skill under it, every leaf with its score, who checked it, the judge's
+// note, the raw number behind it and, under the few that have one, the graph of
+// it over time. It reads the same sheet as the Overview's summary (domain/
+// scoring/takeScore.ts), so the names and numbers always agree. Phase 6 replaces
+// the layout (plan section 10).
 interface ScoresTabProps {
   scores: TakeScores;
   // The judge's stored rubric, for the body-language note the totals leave out.
@@ -39,7 +39,6 @@ interface ScoresTabProps {
 
 export function ScoresTab({ scores, rubric, session, videoUri }: ScoresTabProps) {
   const styles = useStyles();
-  const [layer, setLayer] = useState<Layer>(scores.headline);
   const [voice, setVoice] = useState<VoiceCharts | null | undefined>(undefined);
   const [fullSt, setFullSt] = useState<number>(FIXED_PITCH_BAND.fullSt);
 
@@ -57,9 +56,8 @@ export function ScoresTab({ scores, rubric, session, videoUri }: ScoresTabProps)
   }, [session]);
 
   const { playFrom, bar, playheadMs, playing } = useScorePlayer(videoUri ?? null);
-  const both = !!(scores.measured && scores.judged);
-  const sheet = sheetFor(scores, layer);
   const judge = producerName(scores.judgedBy);
+  const checked = scores.headline === "overall";
   const durationMs = Math.max(session.durationSeconds * 1000, voice?.durationMs ?? 0);
 
   return (
@@ -69,48 +67,34 @@ export function ScoresTab({ scores, rubric, session, videoUri }: ScoresTabProps)
         <View style={styles.headTop}>
           <View style={styles.flex}>
             <Txt variant="footnote" tone="muted">
-              {layer === "judged" ? `Judged by ${judge}` : "Measured on this phone"}
+              {checked ? `Overall, with Message judged by ${judge}` : "Delivery, measured on this phone"}
             </Txt>
             <Txt variant="footnote" tone="secondary">
-              {layer === "judged"
-                ? "Each score below says whether Tono AI judged it or the phone measured it."
-                : "The same formula for every take, from what the phone measured."}
+              {checked ? "Each score below says whether Tono AI judged it or the phone measured it." : "The same formula for every take, from what the phone measured. Message wasn't checked, so it isn't in this score."}
             </Txt>
           </View>
           <Txt variant="title1" tabular>
-            {sheet.overall}
+            {scores.score}
           </Txt>
         </View>
-        {both ? (
-          <SegmentedControl
-            size="sm"
-            value={layer}
-            onChange={setLayer}
-            options={[
-              { key: "judged", label: judge },
-              { key: "measured", label: "This phone" },
-            ]}
-          />
-        ) : null}
-        {scores.judged && layer === "judged" ? (
+        {checked ? (
           <Txt variant="caption1" tone="muted">
             {provenanceLabel(scores.judgedBy)}
           </Txt>
         ) : null}
       </Card>
 
-      {sheet.categories.map((category) => (
-        <CategoryCard
-          key={category.skill}
-          category={category}
+      {scores.pillars.map((pillar) => (
+        <PillarCard
+          key={pillar.id}
+          pillar={pillar}
           judge={judge}
-          other={otherScore(scores, layer, category.skill)}
           charts={{
-            pace: <PaceChart curve={session.wpmCurve} />,
-            melody: <PitchChart voice={voice} fullSt={fullSt} />,
-            emphasis: <LoudnessChart voice={voice} />,
+            speaking_rate: <PaceChart curve={session.wpmCurve} />,
+            pitch_variety: <PitchChart voice={voice} fullSt={fullSt} />,
+            stand_out_stress: <LoudnessChart voice={voice} />,
           }}
-          bodyNote={category.skill === "confidence" && layer === "judged" && rubric?.bodyLanguageNotes ? rubric.bodyLanguageNotes : null}
+          bodyNote={pillar.id === "presence" && checked && rubric?.bodyLanguageNotes ? rubric.bodyLanguageNotes : null}
         />
       ))}
       </ScrollView>
@@ -187,44 +171,38 @@ function useScorePlayer(videoUri: string | null) {
   return { playFrom, bar, playheadMs: started ? positionMs : null, playing: isPlaying };
 }
 
-function otherScore(scores: TakeScores, layer: Layer, skill: CategoryScore["skill"]): { name: string; score: number } | null {
-  const other = layer === "judged" ? scores.measured : scores.judged;
-  const found = other?.categories.find((c) => c.skill === skill);
-  return found ? { name: layer === "judged" ? "This phone" : "Judged", score: found.score } : null;
-}
-
-function CategoryCard({
-  category: c,
-  judge,
-  other,
-  charts,
-  bodyNote,
-}: {
-  category: CategoryScore;
-  judge: string;
-  other: { name: string; score: number } | null;
-  charts: Partial<Record<SubcategoryId, ReactNode>>;
-  bodyNote: string | null;
-}) {
+function PillarCard({ pillar: p, judge, charts, bodyNote }: { pillar: PillarScore; judge: string; charts: Partial<Record<LeafId, ReactNode>>; bodyNote: string | null }) {
   const styles = useStyles();
   const { colors } = useTheme();
   return (
     <Card style={styles.category}>
       <View style={styles.categoryHead}>
         <Txt variant="headline" style={styles.flex}>
-          {c.label}
+          {p.name}
         </Txt>
-        <Txt variant="title2" tabular color={colorForScore(c.score, colors)}>
-          {c.score}
+        <Txt variant="title2" tabular color={p.score != null ? colorForScore(p.score, colors) : colors.textMuted}>
+          {p.score ?? "–"}
         </Txt>
       </View>
       <Txt variant="caption1" tone="muted">
-        {Math.round(c.weight * 100)}% of the total{other ? ` · ${other.name} ${other.score}` : ""}
+        {p.share > 0 ? `${Math.round(p.share * 100)}% of the total` : "Phone estimates, not in the total"}
       </Txt>
-      {c.subscores.map((s) => (
-        <SubScoreBlock key={s.id} sub={s} judge={judge}>
-          {charts[s.id]}
-        </SubScoreBlock>
+      {p.skills.map((skill) => (
+        <View key={skill.id} style={styles.skill}>
+          <View style={styles.subTop}>
+            <Txt variant="callout" weight="600" style={styles.flex}>
+              {skill.name}
+            </Txt>
+            <Txt variant="callout" weight="600" tabular>
+              {skill.score ?? "–"}
+            </Txt>
+          </View>
+          {skill.leaves.map((leaf) => (
+            <LeafBlock key={leaf.id} leaf={leaf} judge={judge}>
+              {charts[leaf.id]}
+            </LeafBlock>
+          ))}
+        </View>
       ))}
       {bodyNote ? (
         <View style={styles.sub}>
@@ -243,89 +221,64 @@ function CategoryCard({
   );
 }
 
-function SubScoreBlock({ sub: s, judge, children }: { sub: SubScore; judge: string; children?: ReactNode }) {
+const SOURCE_LABEL = { measured: "measured on the phone", phone_estimate: "phone estimate", self: "you said" } as const;
+
+function LeafBlock({ leaf: l, judge, children }: { leaf: LeafScore; judge: string; children?: ReactNode }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const [open, setOpen] = useState(false);
-  const color = colorForScore(s.score, colors);
+  const color = colorForScore(l.score, colors);
   return (
     <View style={styles.sub}>
       <View style={styles.subTop}>
         <Txt variant="subhead" weight="600" style={styles.flex}>
-          {s.label}{" "}
+          {l.name}{" "}
           <Txt variant="footnote" tone="muted">
-            · {s.layer === "judged" ? judge : "measured on the phone"}
-            {s.rollsUp || s.trust ? "" : ", not in the total"}
+            · {l.source === "judge" ? judge : SOURCE_LABEL[l.source]}
           </Txt>
         </Txt>
         <Txt variant="subhead" weight="600" tabular color={color}>
-          {s.score}
+          {l.score}
         </Txt>
       </View>
       <View style={styles.track}>
-        <View style={[styles.fill, { width: `${Math.max(0, Math.min(10, s.score)) * 10}%`, backgroundColor: color }]} />
+        <View style={[styles.fill, { width: `${Math.max(0, Math.min(100, l.score))}%`, backgroundColor: color }]} />
       </View>
-      {s.trust ? (
+      {l.trust ? (
         <Txt variant="caption1" tone="muted">
-          {trustLabel(s.trust)}, not in the total
+          {trustLabel(l.trust)}, not in the total
         </Txt>
       ) : null}
-      {s.notes ? (
+      {l.notes ? (
         <Txt variant="footnote" tone="secondary">
-          {s.notes}
+          {l.notes}
         </Txt>
       ) : null}
       {children}
-      {s.factors?.length ? (
-        <>
-          <Pressable
-            onPress={() => {
-              tick();
-              setOpen((o) => !o);
-            }}
-            accessibilityRole="button"
-            accessibilityState={{ expanded: open }}
-            style={styles.how}
-          >
-            <Txt variant="footnote" tone="accent" weight="600">
-              {open ? "Hide how it's measured" : "How it's measured"}
-            </Txt>
-            <Ionicons name={open ? "chevron-up" : "chevron-down"} size={13} color={colors.accent} />
-          </Pressable>
-          {open ? s.factors.map((f) => <FactorRow key={f.label} factor={f} />) : null}
-        </>
-      ) : null}
-    </View>
-  );
-}
-
-function FactorRow({ factor: f }: { factor: ScoreFactor }) {
-  const styles = useStyles();
-  const { colors } = useTheme();
-  const badge =
-    f.delta != null
-      ? { text: f.delta > 0 ? `+${f.delta}` : `${f.delta}`, color: f.delta > 0 ? colors.success : colors.warning }
-      : f.score != null
-        ? { text: `${f.score}`, color: colorForScore(f.score, colors) }
-        : null;
-  return (
-    <View style={styles.factor}>
-      <View style={styles.subTop}>
-        <Txt variant="footnote" weight="600" style={styles.flex}>
-          {f.label}{" "}
-          <Txt variant="footnote" tone="muted">
-            · {f.value}
-          </Txt>
+      <Pressable
+        onPress={() => {
+          tick();
+          setOpen((o) => !o);
+        }}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        style={styles.how}
+      >
+        <Txt variant="footnote" tone="accent" weight="600">
+          {open ? "Hide how it's measured" : l.value}
         </Txt>
-        {badge ? (
-          <Txt variant="footnote" weight="600" tabular color={badge.color}>
-            {badge.text}
+        <Ionicons name={open ? "chevron-up" : "chevron-down"} size={13} color={colors.accent} />
+      </Pressable>
+      {open ? (
+        <View style={styles.factor}>
+          <Txt variant="footnote" weight="600">
+            {l.value}
           </Txt>
-        ) : null}
-      </View>
-      <Txt variant="footnote" tone="secondary">
-        {f.rule}
-      </Txt>
+          <Txt variant="footnote" tone="secondary">
+            {l.rule}
+          </Txt>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -338,6 +291,7 @@ const useStyles = makeStyles((t) => ({
   headTop: { flexDirection: "row", alignItems: "center", gap: t.space.md },
   category: { gap: t.space.md },
   categoryHead: { flexDirection: "row", alignItems: "baseline", gap: t.space.sm },
+  skill: { gap: t.space.sm },
   sub: { gap: t.space.xs + 2 },
   subTop: { flexDirection: "row", alignItems: "baseline", gap: t.space.sm },
   track: { height: 6, borderRadius: t.radius.pill, backgroundColor: t.colors.surfaceRaised, overflow: "hidden" },

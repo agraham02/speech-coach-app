@@ -25,7 +25,8 @@ import { CoachCard } from "../components/result/CoachCard";
 import { ComparisonCard } from "../components/result/ComparisonCard";
 import { ScoreSummaryCard } from "../components/result/ScoreSummaryCard";
 import { ScoresTab } from "../components/result/ScoresTab";
-import { headlineSheet, SCORE_SHEET_VERSION, type TakeScores } from "../domain/scoring/takeScore";
+import { SCORE_SHEET_VERSION, type TakeScores } from "../domain/scoring/takeScore";
+import { attemptLabel } from "../domain/levels";
 import { measuredVoice, refreshSessionScore } from "../services/sessions/sessionScoreService";
 import { FeltCard, ObservedCard, useFeltObserved } from "../components/result/FeltObservedCard";
 import { CloudUsageNote } from "../components/result/CloudUsageNote";
@@ -128,8 +129,8 @@ export function ResultScreen({ route, navigation }: Props) {
     getScoresBySessionId(sessionId).then(setScores);
     getArtifact<CoachOutput>(sessionId, "coach").then(setCoach);
     // A take scored before the current rules is rescored now. The delta
-    // compares with the last take scored in the same layer (judged with
-    // judged, measured with measured), never across the two.
+    // compares with the last take whose headline is the same kind (Overall with
+    // Overall, Delivery with Delivery), never across the two.
     getArtifact<TakeScores>(sessionId, "session_score")
       .then((b) => (b && b.version >= SCORE_SHEET_VERSION ? b : refreshSessionScore(sessionId)))
       .then((fresh) => {
@@ -156,7 +157,7 @@ export function ResultScreen({ route, navigation }: Props) {
   // until its card is, and a pill points at things that land out of view.
   const seen = useScrollVisibility();
   // Impromptu takes move your skills; their Result plays what moved.
-  const movesSkills = session?.sessionType === "spontaneous" || session?.sessionType === "concise";
+  const movesSkills = !!session && session.sessionType !== "feeling";
   const { moment, animate, playing } = useProgressMoment(sessionId, movesSkills, seen.visible.progress === true);
   const sections = useRef<Record<string, number>>({});
 
@@ -277,9 +278,8 @@ export function ResultScreen({ route, navigation }: Props) {
   // Pace over the speaking span, and pitch range in semitones: the same
   // numbers the score reads.
   const { wpmAvg: avgWpm, pitchRangeSt: pitchRange } = measuredVoice(session);
-  // The take's score: the judged sheet's overall whenever it exists, else
-  // the measured one (domain/scoring/takeScore.ts).
-  const overall = takeScores ? headlineSheet(takeScores).overall : null;
+  // The take's score (domain/scoring/takeScore.ts).
+  const overall = takeScores ? takeScores.score : null;
   // The transcript shown is always the phone's own. Tono AI's marks are kept
   // only where their quote is found in it (domain/results/aiMarks.ts).
   const shownTranscript = session.transcriptVerbatim ?? "";
@@ -295,7 +295,7 @@ export function ResultScreen({ route, navigation }: Props) {
   const reviewing = working("cloud_review");
   // A free take that wasn't judged: one quiet line where the judged layer
   // would be. Nothing for a subscriber who chose not to, or for under-18s.
-  const judgedLocked = !!takeScores && !takeScores.judged && !reviewing && (account.allowance?.tier ?? "free") === "free" && !tonoAgeGated();
+  const judgedLocked = !!takeScores && !(takeScores?.headline === "overall") && !reviewing && (account.allowance?.tier ?? "free") === "free" && !tonoAgeGated();
   // The total waits until every part is in: averaging only what has finished
   // makes it jump (a lone voice score read 10, then settled at 9). A take that
   // already has a review keeps its score while it is reviewed again.
@@ -360,14 +360,14 @@ export function ResultScreen({ route, navigation }: Props) {
                 accent={colorForScore(overall, colors)}
                 accentSecondary={colors.violet}
               >
-                <ProgressRing size={156} strokeWidth={8} progress={overall / 10} color={colorForScore(overall, colors)}>
+                <ProgressRing size={156} strokeWidth={8} progress={overall / 100} color={colorForScore(overall, colors)}>
                   <Txt variant="display" style={styles.scoreHeroNumber}>
                     {overall}
                   </Txt>
-                  <Text style={styles.scoreHeroOutOf}>out of 10</Text>
+                  <Text style={styles.scoreHeroOutOf}>out of 100</Text>
                 </ProgressRing>
                 <Text style={styles.scoreHeroLayer}>
-                  {takeScores?.headline === "judged" ? `Judged by ${producerName(takeScores.judgedBy)}` : "Measured on this phone"}
+                  {attemptLabel(overall)} · {takeScores?.headline === "overall" ? `Overall, with Message judged by ${producerName(takeScores.judgedBy)}` : "Delivery, measured on this phone"}
                 </Text>
                 {movesSkills ? null : <ScoreDelta current={overall} previous={previousOverallScore} />}
                 {reviewing ? (
@@ -438,7 +438,7 @@ export function ResultScreen({ route, navigation }: Props) {
             <Reveal key="coach">
               <CoachCard
                 coach={coach}
-                review={scores && takeScores?.headline === "judged" ? { summary: scores.coachingSummary, drill: scores.recommendedDrill } : null}
+                review={scores && takeScores?.headline === "overall" ? { summary: scores.coachingSummary, drill: scores.recommendedDrill } : null}
                 onAnswerFollowUp={handleAnswerFollowUp}
               />
             </Reveal>
@@ -533,7 +533,7 @@ export function ResultScreen({ route, navigation }: Props) {
               transcriptWords={session.transcriptWords}
               repeatedWordCount={session.repeatedWordCount}
               aiMarks={aiMarks}
-              aiBy={takeScores?.headline === "judged" ? producerName(takeScores.judgedBy) : null}
+              aiBy={takeScores?.headline === "overall" ? producerName(takeScores.judgedBy) : null}
             />
           </Card>
 

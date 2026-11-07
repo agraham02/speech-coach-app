@@ -1,4 +1,5 @@
 import { getDatabase } from "./database";
+import type { HeadlineKind } from "../../domain/scoring/takeScore";
 import { rowToScores, type ScoreRow } from "./mappers";
 import type { SessionScores } from "../../domain/sessionTypes";
 import type { JudgedReview } from "../../domain/analysis/judgedReview";
@@ -148,11 +149,11 @@ export async function getScoresBySessionId(sessionId: string): Promise<SessionSc
 // Result screen's "vs your last session" delta — the combined session score,
 // or the cloud score for sessions from before it existed. Null if this is
 // the first scored session.
-// The score of the last take before this one scored in the same layer: a
+// The score of the last take before this one with the same kind of headline: a
 // judged score is only set against a judged one, a measured against a
 // measured (docs/decisions/scoring-taxonomy.md). The layer is read from the
 // take's score sheets.
-export async function getPreviousOverallScore(recordedAt: string, layer: "measured" | "judged"): Promise<number | null> {
+export async function getPreviousOverallScore(recordedAt: string, layer: HeadlineKind): Promise<number | null> {
   const db = await getDatabase();
   const row = await db.getFirstAsync<{ overall_score: number }>(
     `SELECT s.session_score AS overall_score
@@ -167,7 +168,7 @@ export async function getPreviousOverallScore(recordedAt: string, layer: "measur
 
 // Overall scores of the takes before this one, most recent first, and the
 // best of them all — what a take's progress moment measures against.
-export async function getScoreHistoryBefore(recordedAt: string, layer: "measured" | "judged", limit = 5): Promise<{ previous: number[]; best: number | null }> {
+export async function getScoreHistoryBefore(recordedAt: string, layer: HeadlineKind, limit = 5): Promise<{ previous: number[]; best: number | null }> {
   const db = await getDatabase();
   // Same layer only, as for the delta above.
   const from = `FROM sessions s JOIN session_artifacts a ON a.session_id = s.id AND a.kind = 'session_score'`;

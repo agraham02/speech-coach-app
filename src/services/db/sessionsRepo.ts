@@ -243,7 +243,7 @@ export async function getAllSessionsWithScores(): Promise<SessionWithScore[]> {
   return rows.map((row) => ({
     ...rowToSession(row),
     overallScore: row.overall_score,
-    scoreLayer: row.overall_score == null ? null : row.score_layer === "judged" ? "judged" : "measured",
+    scoreLayer: row.overall_score == null ? null : row.score_layer === "overall" ? "judged" : "measured",
   }));
 }
 

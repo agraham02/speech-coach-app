@@ -43,9 +43,7 @@ export const READINGS: Record<ReadingId, ReadingDef> = {
   on_the_lens: { id: "on_the_lens", label: "Eye contact on the lens", status: "now", tests: ["presence.looking", "presence.glances", "presence.preview"] },
   // Needs Looking too: a look down at notes that reads as looking is never counted.
   long_lookaways: { id: "long_lookaways", label: "Long look-aways", status: "now", tests: ["presence.glances", "presence.looking"] },
-  // Passed its tests, but today's score still reads the old expressiveness number.
-  // It moves to "now" when the skill tree reads brow lifts and smiles a minute (3a).
-  face_movement: { id: "face_movement", label: "Face movement", status: "tuning", tests: ["presence.expression", "presence.face_events"] },
+  face_movement: { id: "face_movement", label: "Face movement", status: "now", tests: ["presence.expression", "presence.face_events"] },
   range_across_feelings: { id: "range_across_feelings", label: "Range across feelings", status: "probation", tests: ["voice.pitch_variety", "presence.expression"] },
 };
 
