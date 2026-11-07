@@ -37,10 +37,10 @@ From Appendix B of `PLAN.md`. A phase can't close while one of its IDs is open. 
 | R31 | Playback is always the 3 passes | 10 | iPhone walkthrough | 6 | todo |  |
 | R32 | Rewatch is a collapsible accordion | 10 | Screen test: open if skipped, closed if done | 6 | todo |  |
 | R33 | Mermaid skill tree | 6.2 | Diagrams in the plan | 3a | done | Diagrams in PLAN.md section 6.2 |
-| R34 | Overall, pillars, secondary skills, leaves | 6.2 | `check:overhaul`: tree matches the plan, weights add up | 3a | todo |  |
+| R34 | Overall, pillars, secondary skills, leaves | 6.2 | `check:overhaul`: tree matches the plan, weights add up | 3a | done | `domain/scoring/skillTree.ts`, compared with Appendix C in `overhaulPlan.test.ts` |
 | R35 | See how each skill contributes upward | 6.3 | The trail on every result | 3a | todo |  |
-| R36 | Grid for every drill and lesson, and how much | 7, Appendix A | Grid coverage test | 3a | todo |  |
-| R37 | Quantifiable judging of everything | 7 | Grid coverage test: every activity has a number | 3a | todo |  |
+| R36 | Grid for every drill and lesson, and how much | 7, Appendix A | Grid coverage test | 3a | done | `content/skillGrid.ts`; `skillGrid.test.ts` for coverage, `overhaulPlan.test.ts` against section 7 and Appendix A |
+| R37 | Quantifiable judging of everything | 7 | Grid coverage test: every activity has a number | 3a | done | `skillGrid.test.ts`: every catalogue activity has a row with a number |
 | R38 | Rewind works for morning users | 5.3 | Rewind timing tests | 4 | todo |  |
 | R39 | A reasoned rubric scale | 6.6 | 0–5 in prompts; checked against hand-rated takes | 3b | todo |  |
 | R40 | Testing suite in Dev | 6.5 | Signal Lab runs every test on iPhone | 1 | done | PRs #36 to #46. Signal Lab ran on the iPhone: 18 of 21 tests, the other 3 are the content tests, blocked until phase 3b. Results in D7 to D11 |
