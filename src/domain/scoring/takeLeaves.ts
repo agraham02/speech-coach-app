@@ -39,6 +39,8 @@ export interface TakeFacts {
   hedges: number | null;
   ending: EndingKind | null;
   // Message, from the words. Coarse: these are phone estimates.
+  // A Concise take's limit, in seconds.
+  budgetSeconds?: number | null;
   pointFirst: boolean | null;
   structure: { framework: string; shaped: boolean; beatsFound: number } | null;
   wordsPerSentence: number | null;
@@ -184,6 +186,10 @@ export function takeLeafReadings(f: TakeFacts): TakeLeafReadings {
     const longCost = Math.max(0, f.longWordShare - PLAIN_LONG_SHARE) * 200;
     const wordCost = Math.max(0, f.wordsPerSentence - PLAIN_WORDS_PER_SENTENCE) * 4;
     measured("plain_words", 100 - longCost - wordCost, `${Math.round(f.wordsPerSentence)} words a sentence, ${Math.round(f.longWordShare * 100)}% long words`, `Full marks at ${PLAIN_WORDS_PER_SENTENCE} words a sentence or fewer, with ${PLAIN_LONG_SHARE * 100}% long words or fewer.`);
+  }
+  if (f.budgetSeconds) {
+    const over = Math.max(0, f.durationSeconds - f.budgetSeconds);
+    measured("within_limits", (1 - over / f.budgetSeconds) * 100, `${Math.round(f.durationSeconds)} of ${f.budgetSeconds} seconds`, "Inside the limit is full marks. Going over costs its share of the limit.");
   }
   if (f.detoursPerMinute != null) {
     measured("no_detours", 100 - f.detoursPerMinute * DETOUR_COST, `${round1(f.detoursPerMinute)} a minute`, "\"By the way\", \"anyway\" and other side roads.");

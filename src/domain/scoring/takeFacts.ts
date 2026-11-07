@@ -43,6 +43,7 @@ export interface TakeFactsInput {
   // Seconds of prep; 0 or null is a cold start.
   prepSeconds: number | null;
   scriptText: string | null;
+  budgetSeconds?: number | null;
   pitchBand?: PitchRangeBand;
   judged?: Partial<Record<LeafId, { score: number; notes: string | null }>>;
 }
@@ -144,6 +145,7 @@ export function buildTakeFacts(input: TakeFactsInput): TakeFacts {
     detoursPerMinute: rambling ? rambling.tangentMarkers / minutes : null,
     detailsPerMinute: text ? countDetails(text).total / minutes : null,
     secondsToFirstWord: kind === "impromptu" && !input.prepSeconds ? firstVoiceSeconds(features, words) : null,
+    budgetSeconds: input.budgetSeconds,
     judged: input.judged,
   };
 }

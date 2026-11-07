@@ -98,6 +98,12 @@ describe("a take's evidence", () => {
     expect(planned.speaking_rate).toBe(1);
   });
 
+  it("moves Within limits on a Concise take, and not on an impromptu one", () => {
+    const withLimit = { ...readings, within_limits: { score: 80, source: "measured" as const, value: "", rule: "" } };
+    expect(byLeaf(moves({ activityId: ACTIVITY_IDS.concise, readings: withLimit })).within_limits).toBe(1);
+    expect(byLeaf(moves({ readings: withLimit })).within_limits).toBeUndefined();
+  });
+
   it("gives a script no Message", () => {
     const planned = byLeaf(moves({ activityId: ACTIVITY_IDS.script }));
     expect(planned).toEqual({ speaking_rate: 1 });

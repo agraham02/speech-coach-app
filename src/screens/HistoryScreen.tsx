@@ -428,7 +428,7 @@ export function HistoryScreen() {
                   <Ionicons name="play-back-outline" size={18} color={colors.textPrimary} />
                 </View>
               ) : (
-                <ProgressRing size={42} strokeWidth={3} progress={score != null ? score / 10 : 0} color={scoreColor}>
+                <ProgressRing size={42} strokeWidth={3} progress={score != null ? score / 100 : 0} color={scoreColor}>
                   <Txt variant="subhead" weight="600" color={score != null ? colors.textPrimary : colors.textMuted} tabular>
                     {score != null ? score : "–"}
                   </Txt>
