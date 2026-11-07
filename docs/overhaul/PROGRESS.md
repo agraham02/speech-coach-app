@@ -2,11 +2,11 @@
 
 Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything not in the plan goes on the "Later" list at the bottom.
 
-**Status values:** `todo`, `doing`, `done`, `iphone` (the code is finished and it's waiting on the owner's phone test). A `done` or `iphone` row must say what proved it.
+**Status values:** `todo`, `doing`, `done`, `iphone` (the code is finished and it's waiting on the owner's phone test), `blocked` (can't start until something outside the code happens; the row says what). A `done` or `iphone` row must say what proved it.
 
 ## Where we left off
 
-2026-11-06: Phase 1 is finished apart from two things that can't be done yet: the content tests (1.5) need the phone meaning check from phase 3b, and the hosted judge eval (1.9) needs the server. Signal Lab ran on the owner's iPhone in four rounds and the statuses are set (`DECISIONS.md` D7 to D11). Phase 0's iPhone checks are still open in `device-checks.md`. Next is Phase 2, on the owner's go. To replay recordings against the code: unpack the tar and run `LAB_RAW_DIR=path LAB_OUT=out.json npx jest replay.local`.
+2026-11-06: Phase 1 is finished apart from two things that can't be done yet: the content tests (1.5) need the phone meaning check from phase 3b, and the hosted judge eval (1.9) needs the server. Signal Lab ran on the owner's iPhone in four rounds and the statuses are set (`DECISIONS.md` D7 to D11). Phase 0's iPhone checks are still open in `device-checks.md`. Next is Phase 2, starting at 2.1; read plan sections 5.2 and 14 ("No backwards compatibility": one new schema, old test data wiped on first launch, no migrations). To replay recordings against the code: unpack the tar and run `LAB_RAW_DIR=path LAB_OUT=out.json npx jest replay.local`.
 
 **Running the emulator:** another project's Metro may be on 8081, so use `--port 8082` and open the dev client with that port. Rebuild the dev client with `bash scripts/build-android-dev.sh [git ref]` (only when native code changes). It builds in a worktree at `C:/dev/tb`, because the repo's path is too long for the native build tools; stop leftover Gradle and Kotlin daemons first if it fails with EBUSY or out-of-memory. To see the soft keyboard, see section 2.5b of the emulator plan. If a Metro hangs, kill it by its process id: stopping the background shell doesn't always end it.
 
@@ -48,11 +48,11 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 | 1.2 | Voice tests: pitch variety, glide, endings, gain, distance, emphasis, word stress, pauses, pace | done | PRs #40, #43 to #46. Run on the iPhone. Passed: pitch variety, glide, gain, distance, emphasis, pauses, pace. Failed, so those leaves stay display-only as the plan says: endings, word stress (D11) |
 | 1.3 | Clarity tests: fillers, recognizer vs Whisper, Whisper speed | done | PRs #41, #44. Run on the iPhone: Whisper kept 10 of 10 fillers, reads 30 s in 3.4 s, no real word errors. The rule stands: scores read Whisper, because the system recognizer dropped every filler |
 | 1.4 | Presence tests: looking, glances, preview, expression, face events | done | PRs #39, #43 to #45. Run on the iPhone, all pass: looking, glances, preview, expression, face events |
-| 1.5 | Content tests: word links, on topic, judge | doing | PR #41. The three content tests are listed and blocked: the phone meaning check is phase 3b, the judge needs the hosted eval and about 30 hand-rated takes |
+| 1.5 | Content tests: word links, on topic, judge | blocked | PR #41. The three content tests are listed and blocked: the phone meaning check is phase 3b, the judge needs the hosted eval and about 30 hand-rated takes |
 | 1.6 | Better formulas from 6.5C: within-phrase pitch variation, pitch cleanup, multi-cue emphasis, Whisper-gap pauses, look grouping, face events against rest | done | PRs #39, #40, #43 to #45. Tried on real recordings against Praat and SwiftF0, logged in D7 to D9. Real takes use: far pitch frames judged a run at a time, the level gate, the silence trim, the head limits from each take's centre. Beside the score until 3a reads them: within-phrase pitch, stand-out, brow lifts and smiles. Not built, because no test needs them: the take audio-session experiment, SwiftF0, Silero |
 | 1.7 | Trust status for each reading, in code, that scoring obeys; preview switch in Dev | done | PRs #36, #38, #48. `readingTrust.ts` decides what counts, and scoring obeys it |
 | 1.8 | Owner runs Signal Lab on iPhone; statuses set from results | done | Four rounds on an iPhone. Counts now: pauses at sentence ends, deliberate pauses, pitch variety, stand-out stress, volume carry, eye contact, long look-aways. Stay Beta: endings, stress on the right words, range across feelings, face movement (D11) |
-| 1.9 | Run the hosted judge eval | todo | |
+| 1.9 | Run the hosted judge eval | blocked | Needs the server set up and about 30 takes the owner rates by hand (`spikes/inference-eval`) |
 
 ## Phase 2: log and sync
 
