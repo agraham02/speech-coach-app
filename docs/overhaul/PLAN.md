@@ -554,6 +554,7 @@ These line up with the rating formula. A steady 80% settles near 10 × difficult
 7. **A reading counts only after it passes its test in Signal Lab** (6.5).
 8. **If nothing can check it,** such as an unjudged Bridge chain offline, the attempt earns minutes and says "not checked". Today it still moves your rating.
 9. **Scores read Whisper's words, not the live recognizer's** (6.6).
+10. **A metric built on more than one signal is computed from them together, and tested as the combination.** One signal alone is often fooled where two together aren't. Signal Lab showed it three times: the eye reading alone called looking down at notes "on the lens" and only head angle and eyes together caught it; pause detection is the voice-activity gate plus Whisper's word gaps; stand-out stress is pitch, loudness and length together, where loudness alone failed. So when a leaf's "number" lists several inputs (Appendix C and section 7), its formula takes them together; its Signal Lab test checks the combination; and when one signal fails a test alone, try combining it with another before giving the reading up. Section 6.5F lists the combinations still to try.
 
 ### 6.5 Pitch, volume and face: what I found, and what to do
 
@@ -630,6 +631,36 @@ How it works:
 - This replaces the three charts, zoom buttons and long captions. It uses data already stored.
 
 **E. An experiment, not a commitment: let the judge hear audio.** The default text judge can't hear you. Audio-only input would cost about 0.09¢ for 90 seconds by my estimate, and could give an independent "flat vs lively" read. The prior decision was no audio by default, so this needs consent and a test first.
+
+**F. What is still Beta or thin, and what to research next.** Found by Signal Lab's four rounds on one iPhone (`DECISIONS.md` D7 to D11). Everything below counts or stays out of scores until the research is done; all of it was proven on one low voice on one phone, so a higher voice and a second device apply to every reading.
+
+*Still Beta (don't count; display-only)*
+
+| Reading | What happened | Research to try, combining signals where it helps |
+|---|---|---|
+| Endings that fall | Failed on fresh audio every round (6 to 8 of 10); Praat read the same audio 8 to 9 of 10 | Find a sentence's end from the pause, not Whisper's end; add loudness drop and the length of the last word to the pitch slope; handle creak at the very end; try SwiftF0 for the last 500 ms |
+| Stress on the right words | 1 to 2 of 7 reads; Whisper's word times are too coarse in a short sentence | Better word times: Apple SpeechAnalyzer's, Whisper's DTW timestamps (native change), or forced alignment of the known script. Then combine syllable peaks with word spans |
+| Range across feelings | No test of its own; needs voice and face together | Same line read four ways: pitch and loudness range plus brow and smile range; check face moves with the voice |
+| Face movement | Passed, but today's score reads the old formula (variation times 600) | Move the score to brow lifts and smiles a minute against your own rest (3a); explain uncued events (3 to 8 a take); try brow lifts against stressed words |
+
+*Counts, but thin (re-check before launch)*
+
+| Reading | Weak spot | Research to try |
+|---|---|---|
+| Eye contact on the lens | Measured from each take's own middle, so a take read entirely off notes held low can pass | Add eyelid openness (about 0.35 to 0.65 looking down, 0.8 to 0.9 elsewhere); only score while speaking; combine head, gaze and eyelids |
+| Long look-aways | Same limit as above; proven but no score reads it until 3a | As above |
+| Pitch variety | One low voice (80 to 120 Hz); the bars and score band were set after seeing the data; the app finds 47 to 63% of speech frames, Praat 56 to 62% | A higher voice and a second phone; an echoey room; SwiftF0 if either fails; check the personal band after 5 takes |
+| Stand-out stress | Bands set from one voice; the score reads today's peak spread, not the plan's three-cue formula | Wire the three-cue formula in 3a, then retune the band |
+| Pauses at sentence ends, deliberate pauses | One passage, read aloud; 2 false pauses is the limit | Spontaneous speech, not just reading; real takes with breaths and hesitations |
+| Volume carry | One run, and no take score reads it yet | A second device; wire it with the face-size distance correction (volume plus face size) |
+
+*Not tested yet*
+
+| Reading | Waiting on |
+|---|---|
+| Word links, on topic (content) | The phone's meaning check, phase 3b |
+| Judge | The hosted eval and about 30 takes rated by hand |
+| Whether Apple's recognizer should replace Whisper on iOS 26 | It matched Whisper on one passage, three times faster with no 574 MB download, and kept all fillers; needs word times and more passages |
 
 ### 6.6 Who checks content, and what it costs
 

@@ -144,3 +144,11 @@ Every change to `PLAN.md` after it was agreed: what changed, why, and the owner'
 **Evidence and its limits:** pauses, emphasis, glances, preview and pitch held on round 3's fresh audio, looking on round 4's. It's one low voice on one phone, and the pitch bars and bands were set after seeing that data. The plan's second-device check stands, and the Later list adds a higher voice.
 
 **Owner's OK:** promotion follows the plan: "I set what counts from your results." The owner was told this list before round 4, except the band changes, which are in this report.
+
+## D12. Combine signals, and a research list for the readings not yet trusted (2026-11-06)
+
+**Added to the plan:** rule 10 in section 6.4 (a metric built on more than one signal is computed from them together and tested as the combination) and section 6.5F (what is still Beta or thin, with research to try for each). Task 3a.3 now says leaves combine their signals.
+
+**Why:** the owner asked for both. They also match what Signal Lab found: eye contact needed head angle and eyes together, pauses needed the voice gate and Whisper's gaps, and emphasis needed pitch, loudness and length.
+
+**Owner's OK:** asked for by the owner, 2026-11-06.
