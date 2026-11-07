@@ -87,7 +87,7 @@ describe("the tracking files", () => {
 
   it("uses only known task statuses", () => {
     for (const row of tableRows(read("PROGRESS.md"))) {
-      expect(["todo", "doing", "done", "iphone"]).toContain(row[2]);
+      expect(["todo", "doing", "done", "iphone", "blocked"]).toContain(row[2]);
     }
   });
 
