@@ -1,6 +1,6 @@
 import { ACTIVITY_IDS } from "../content/activities";
 import { isFreeRecordPrompt } from "../data/topics";
-import type { RecordingSubject } from "./sessionTypes";
+import type { RecordingSubject, Session } from "./sessionTypes";
 
 // Which activity a saved take is, for the activity log: a script take, the
 // skill check's talk, a Feeling of the week rep, a free record, a Concise
@@ -13,4 +13,21 @@ export function activityOfTake(subject: RecordingSubject): { activityId: string;
   if (subject.conciseSeconds != null) return { activityId: ACTIVITY_IDS.concise, variant: null };
   const framework = subject.targetFramework;
   return { activityId: ACTIVITY_IDS.impromptu, variant: framework && framework !== "None" ? framework : null };
+}
+
+// The same, for a saved take (the grid's row for it).
+export function activityOfSession(session: Pick<Session, "sessionType" | "subjectExtras">): string {
+  if (session.subjectExtras?.placement) return ACTIVITY_IDS.skillCheck;
+  switch (session.sessionType) {
+    case "script_practice":
+      return ACTIVITY_IDS.script;
+    case "feeling":
+      return ACTIVITY_IDS.feeling;
+    case "free_record":
+      return ACTIVITY_IDS.freeRecord;
+    case "concise":
+      return ACTIVITY_IDS.concise;
+    default:
+      return ACTIVITY_IDS.impromptu;
+  }
 }

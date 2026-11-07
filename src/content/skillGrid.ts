@@ -1,12 +1,12 @@
 import { ACTIVITY_IDS, guidedActivityId, lessonActivityId, warmupActivityId, drillActivityId } from "./activities";
 import { LESSONS, lessonsInUnit } from "./lessons";
-import { isContentLeaf, type LeafId } from "../domain/scoring/skillTree";
+import { isContentLeaf, isInnerLeaf, type LeafId } from "../domain/scoring/skillTree";
 
 // The scoring grid (docs/overhaul/PLAN.md, section 7, and Appendix A): every
 // activity, its number, its gate, and which leaves it moves by how much. It is
 // one data file, keyed by the catalogue's ids (activities.ts), so a new activity
 // with no row fails a test, and a test compares the rows with the plan's tables.
-// Nothing reads it to move a score yet; that is the next task (3a.3).
+// What it moves is worked out in domain/scoring/leafEvidence.ts.
 
 // Dots in the plan: main ●●● 1, partial ●● 0.5, light ● 0.25.
 export type GridWeight = "main" | "partial" | "light";
@@ -237,6 +237,10 @@ const PERSONAL: GridRow[] = [
   row(ACTIVITY_IDS.planPoint, "Fields filled ÷ 3", [["has_shape", 1]]),
 ];
 
+// What the skill check touches, to set starting values on: its read-aloud, its
+// category sprint, its partner line, and its talk, which is a take.
+export const SKILL_CHECK_LEAVES: LeafId[] = [...new Set<LeafId>(["read_accuracy", "word_retrieval", "reply_start", "follow_ups", ...TAKE_VOICE, ...TAKE_CLARITY, ...TAKE_PRESENCE, ...TAKE_MESSAGE])];
+
 export const GRID_ROWS: GridRow[] = [...TAKES, ...READING, ...THINKING, ...CONVERSATION, ...GUIDED_ROWS, ...WARM_UP_ROWS, ...PERSONAL];
 
 // -----------------------------------------------------------------------------
@@ -346,13 +350,15 @@ export function unitTargetLeaf(unitId: string): LeafId | null {
   return best;
 }
 
-// What a move is worth for an attempt checked by a phone estimate or a judge. A
-// content leaf moves ● at most from a phone estimate (plan 6.4, rule 5): the phone
-// can't judge meaning. Everything else moves as the grid says.
+// What a move is worth for an attempt checked by a phone estimate, a judge or
+// you. A content leaf moves ● at most from a phone estimate (plan 6.4, rule 5):
+// the phone can't judge meaning. What you say about yourself moves only inner
+// leaves (rule 6). Everything else moves as the grid says.
 export type EvidenceSource = "measured" | "phone_estimate" | "judge" | "self";
 
 export function effectiveWeight(move: LeafMove, source: EvidenceSource): number {
   if (move.displayOnly) return 0;
+  if (source === "self" && !isInnerLeaf(move.leaf)) return 0;
   const weight = GRID_WEIGHTS[move.weight];
   if (source === "phone_estimate" && isContentLeaf(move.leaf)) return Math.min(weight, GRID_WEIGHTS.light);
   return weight;

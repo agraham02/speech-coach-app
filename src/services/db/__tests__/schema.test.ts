@@ -44,7 +44,7 @@ describeIfSqlite("the 2.0.0 schema", () => {
     const db = createTestDatabase();
     expect(await ensureSchema(db as never)).toEqual({ wipedOldData: false });
     expect(await version(db)).toBe(SCHEMA_VERSION);
-    expect(await tableNames(db)).toEqual(expect.arrayContaining(["sessions", "scores", "skill_mastery", "lesson_progress", "daily_plans", "path_units", "speaking_events", "day_recalls", "prompts"]));
+    expect(await tableNames(db)).toEqual(expect.arrayContaining(["sessions", "scores", "leaf_ratings", "lesson_progress", "daily_plans", "path_units", "speaking_events", "day_recalls", "prompts"]));
   });
 
   it("starts after 1.x's last version, so every 1.x database is old", () => {
@@ -111,6 +111,14 @@ describeIfSqlite("the 2.0.0 schema", () => {
     // Make it look like a 2.0 database from before the activity log.
     db.raw.exec(`
       DROP TABLE activity_log;
+      DROP TABLE leaf_events;
+      DROP TABLE score_attempts;
+      DROP TABLE leaf_ratings;
+      DROP TABLE node_stages;
+      DROP TABLE speaker_level;
+      ALTER TABLE sessions DROP COLUMN pitch_phrase_sd_st;
+      CREATE TABLE skill_events (id TEXT PRIMARY KEY NOT NULL, skill TEXT NOT NULL);
+      CREATE TABLE skill_mastery (skill TEXT PRIMARY KEY NOT NULL, rating REAL NOT NULL);
       ALTER TABLE daily_plans ADD COLUMN completed_steps_json TEXT NOT NULL DEFAULT '[]';
       ALTER TABLE daily_topups ADD COLUMN completed_steps_json TEXT NOT NULL DEFAULT '[]';
       INSERT INTO daily_plans (date, plan_json, completed_steps_json) VALUES ('2026-11-06', '{}', '["0"]');
@@ -124,6 +132,32 @@ describeIfSqlite("the 2.0.0 schema", () => {
     expect(await db.getFirstAsync<{ date: string }>("SELECT date FROM daily_plans")).toEqual({ date: "2026-11-06" });
     const columns = await db.getAllAsync<{ name: string }>("PRAGMA table_info(daily_plans)");
     expect(columns.map((c) => c.name)).not.toContain("completed_steps_json");
+  });
+
+  it("swaps the five skill ratings for the tree's tables at 39, and keeps other rows", async () => {
+    const db = createTestDatabase();
+    await ensureSchema(db as never);
+    db.raw.exec(`
+      DROP TABLE leaf_events;
+      DROP TABLE score_attempts;
+      DROP TABLE leaf_ratings;
+      DROP TABLE node_stages;
+      DROP TABLE speaker_level;
+      ALTER TABLE sessions DROP COLUMN pitch_phrase_sd_st;
+      CREATE TABLE skill_events (id TEXT PRIMARY KEY NOT NULL, skill TEXT NOT NULL);
+      CREATE TABLE skill_mastery (skill TEXT PRIMARY KEY NOT NULL, rating REAL NOT NULL);
+      INSERT INTO confidence_checkins (date, rating) VALUES ('2026-11-06', 4);
+      PRAGMA user_version = 38;
+    `);
+    expect(await ensureSchema(db as never)).toEqual({ wipedOldData: false });
+    expect(await version(db)).toBe(SCHEMA_VERSION);
+    const tables = await tableNames(db);
+    expect(tables).toEqual(expect.arrayContaining(["leaf_ratings", "leaf_events", "score_attempts", "node_stages", "speaker_level"]));
+    expect(tables).not.toContain("skill_mastery");
+    expect(tables).not.toContain("skill_events");
+    const columns = await db.getAllAsync<{ name: string }>("PRAGMA table_info(sessions)");
+    expect(columns.map((c) => c.name)).toContain("pitch_phrase_sd_st");
+    expect(await db.getFirstAsync("SELECT rating FROM confidence_checkins")).toEqual({ rating: 4 });
   });
 
   it("builds the activity log on a fresh install, and the plans keep nothing about steps", async () => {

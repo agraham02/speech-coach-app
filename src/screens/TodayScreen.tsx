@@ -29,10 +29,10 @@ import {
   getTopUpPlan,
   getStreakState,
   getSessionsDoneToday,
-  speakerLevelOf,
   type SkillState,
   type StoredPlan,
 } from "../services/db/progressRepo";
+import { getSpeakerLevel } from "../services/db/leafRepo";
 import { getDailySessionGoal, getPlanMinutes, getPracticeAnchor, getPracticeAnchorHour, getReminderSettings, getUserProfile, setPlanMinutes } from "../services/prefs/prefsStore";
 import { formatReminderHour, reminderHours } from "../domain/reminderSettings";
 import { defaultsFromProfile } from "../domain/profile";
@@ -74,6 +74,7 @@ export function TodayScreen() {
   const [minutes, setMinutes] = useState(getPlanMinutes());
   const [stored, setStored] = useState<StoredPlan | null>(null);
   const [skillStates, setSkillStates] = useState<Record<SkillId, SkillState> | null>(null);
+  const [level, setLevel] = useState<number | null>(null);
   const [streak, setStreak] = useState(0);
   const [freezes, setFreezes] = useState(0);
   const [goal, setGoal] = useState(getDailySessionGoal());
@@ -93,6 +94,7 @@ export function TodayScreen() {
         .then(() => getTodaysPlan(m));
       planned.then(setStored);
       getSkillStates().then(setSkillStates);
+      getSpeakerLevel().then(setLevel);
       getStreakState().then((state) => {
         setStreak(state.currentStreak);
         setFreezes(state.freezesHeld);
@@ -129,7 +131,6 @@ export function TodayScreen() {
   const firstOpen = plan?.steps.findIndex((s) => !done.has(s.id)) ?? -1;
   const mastery = skillStates ? (Object.fromEntries(SKILLS.map((k) => [k, skillStates[k].rating])) as Record<SkillId, number>) : null;
   const stages = skillStates ? (Object.fromEntries(SKILLS.map((k) => [k, skillStates[k].stage])) as Record<SkillId, Stage>) : undefined;
-  const level = skillStates ? speakerLevelOf(skillStates) : null;
   const planUnit = plan?.unitId ? pathView?.units.find((u) => u.unitId === plan.unitId) : undefined;
   const position = plan && planUnit ? lessonPosition(plan.lessonId) : null;
 

@@ -7,6 +7,7 @@ import { StepError } from "../stepRunner";
 import { putArtifact } from "../../db/artifactsRepo";
 import { pausesFromFeatures } from "../../../domain/dsp/pauses";
 import { trimWordsToVoice } from "../../../domain/dsp/wordTrim";
+import { phrasePitchVariation } from "../../../domain/dsp/phrasePitch";
 import {
   audioQualityReasons,
   bucketSeries,
@@ -102,6 +103,7 @@ export async function recordAudioAnalysis(session: Session, run: ExtractionRun |
     pitchMedianHz: pitch?.medianHz ?? null,
     pitchRangeSt: pitchRangeScorable(pitch, loudness) ? pitch!.rangeSemitones : null,
     pitchSdSt: pitch?.sdSemitones ?? null,
+    pitchPhraseSdSt: features ? phrasePitchVariation(features).weightedMeanSdSt : null,
     loudnessSpreadDb: loudness?.spreadDb ?? null,
     loudnessPeakSdDb: loudness?.syllablePeakSdDb ?? null,
     wpmCurve: words && words.length > 0 ? computeWpmCurve(words, session.durationSeconds) : null,

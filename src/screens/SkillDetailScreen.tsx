@@ -71,7 +71,7 @@ export function SkillDetailScreen({ route, navigation }: Props) {
             </Txt>
             <DeltaBar value={stageProgress(state.rating, state.stage)} color={c.fg} trackColor={c.bg} growIn />
             <Txt variant="footnote" tone="secondary" align="center">
-              {isRusty(state.rating, state.stage) ? "A bit rusty. A few sessions brings it back." : nextStageHint(state.rating, state.attempts, state.stage)}
+              {isRusty(state.rating, state.stage) ? "A bit rusty. A few sessions brings it back." : nextStageHint(state.rating, state.attempts, state.stage, state.goodAt)}
             </Txt>
           </View>
         ) : null}
@@ -168,14 +168,10 @@ function EventRow({ event: e, last, onOpen }: { event: SkillEvent; last: boolean
   const delta = Math.round((e.ratingAfter - e.ratingBefore) * 10) / 10;
   const why =
     e.source === "seed"
-      ? `Your starting point: ${Math.round(e.ratingAfter)}.`
-      : e.score != null && e.expected != null
-        ? `Scored ${pct(e.score)} where ${pct(e.expected)} was expected${e.level != null ? ` at level ${e.level.toFixed(1)}` : ""} — ${e.score > e.expected ? "better than predicted" : e.score < e.expected ? "below what was predicted" : "right on it"}.`
+      ? "Your starting point, from the skill check."
+      : e.score != null
+        ? `Scored ${pct(e.score)}${e.level != null ? ` at difficulty ${e.level.toFixed(1)}` : ""}.`
         : null;
-  const sources =
-    e.detail && (e.detail.local != null || e.detail.cloud != null)
-      ? [e.detail.local != null ? `phone ${pct(e.detail.local)}` : null, e.detail.cloud != null ? `AI coach ${pct(e.detail.cloud)}` : null].filter(Boolean).join(" · ")
-      : null;
   return (
     <Pressable onPress={onOpen} disabled={!onOpen} style={[styles.event, !last && styles.eventRule]} accessibilityRole={onOpen ? "button" : undefined}>
       <View style={styles.flex}>
@@ -185,11 +181,6 @@ function EventRow({ event: e, last, onOpen }: { event: SkillEvent; last: boolean
         {why ? (
           <Txt variant="footnote" tone="secondary">
             {why}
-          </Txt>
-        ) : null}
-        {sources ? (
-          <Txt variant="caption1" tone="muted">
-            From {sources}
           </Txt>
         ) : null}
         <Txt variant="caption1" tone="muted">

@@ -1,6 +1,7 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { JUDGED_SCALE, LEAVES, SCORE_SCALE, SKILL_CHECK_SEED, SKILL_TREE, STARTING_VALUE, TAKE_WEIGHTS } from "../scoring/skillTree";
+import { ATTEMPT_LABELS, GOOD_ATTEMPT, LEVEL_2_AT, MAX_SPEAKER_LEVEL, POINTS_PER_LEVEL, PROOF_DIFFICULTIES, STAGE_FLOORS, STAGE_MIN_ATTEMPTS, STAGE_NAMES, STAGE_PROOF, type Stage } from "../levels";
 import { GRID_ROWS, GRID_WEIGHTS, LESSON_TARGETS, getGridRow } from "../../content/skillGrid";
 import { ACTIVITIES, ACTIVITY_IDS, activityIdOfStep, drillActivityId, getActivity, warmupActivityId } from "../../content/activities";
 import { LESSONS } from "../../content/lessons";
@@ -38,7 +39,9 @@ function appendixC() {
     tree: Pillar[];
     takeWeights: Record<string, number>;
     level: { min: number; max: number; level2At: number; pointsPerLevel: number };
-    stages: { name: string; from: number }[];
+    stages: { name: string; from: number; attempts: number; proof: { good: number; difficulty: number } | null }[];
+    goodAttempt: number;
+    attemptLabels: { name: string; from: number }[];
   };
 }
 
@@ -169,6 +172,28 @@ function movesInCell(cell: string): [string, number][] {
 
 const DOTS: Record<string, number> = { main: 3, partial: 2, light: 1 };
 const byNameThenDots = (a: [string, number], b: [string, number]) => a[0].localeCompare(b[0]) || a[1] - b[1];
+
+describe("the code's levels and stages against Appendix C", () => {
+  const data = appendixC();
+
+  it("has the same level steps", () => {
+    expect({ min: 1, max: MAX_SPEAKER_LEVEL, level2At: LEVEL_2_AT, pointsPerLevel: POINTS_PER_LEVEL }).toEqual(data.level);
+  });
+
+  it("has the same stages, floors, attempts and proof", () => {
+    const code = ([1, 2, 3, 4, 5] as Stage[]).map((s) => ({ name: STAGE_NAMES[s], from: STAGE_FLOORS[s], attempts: STAGE_MIN_ATTEMPTS[s], proof: STAGE_PROOF[s] }));
+    expect(code).toEqual(data.stages);
+  });
+
+  it("counts proof at every difficulty a stage asks for", () => {
+    for (const s of data.stages) if (s.proof) expect(PROOF_DIFFICULTIES).toContain(s.proof.difficulty);
+  });
+
+  it("has the same good attempt and attempt labels", () => {
+    expect(GOOD_ATTEMPT).toBe(data.goodAttempt);
+    expect(ATTEMPT_LABELS).toEqual(data.attemptLabels);
+  });
+});
 
 describe("the grid against the plan's section 7", () => {
   const plan = read("PLAN.md");

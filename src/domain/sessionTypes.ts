@@ -166,6 +166,8 @@ export interface Session {
   pitchMedianHz: number | null;
   pitchRangeSt: number | null;
   pitchSdSt: number | null;
+  // The same SD worked out inside each phrase and averaged: Pitch variety's number.
+  pitchPhraseSdSt?: number | null;
   // Loudness while speaking only: p90 - p10 of 50 ms levels, and the SD of
   // syllable-peak levels (emphasis).
   loudnessSpreadDb: number | null;

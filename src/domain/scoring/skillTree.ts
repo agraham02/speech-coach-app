@@ -1,4 +1,5 @@
 import { readingCounts, type ReadingId, type ReadingPreview } from "../signalLab/readingTrust";
+import type { SkillId } from "../../theme/tokens";
 
 // The skill tree (docs/overhaul/PLAN.md, sections 6.1 and 6.2, and Appendix C):
 // Overall, 6 pillars, 26 secondary skills, 63 leaves. A leaf is always one
@@ -151,4 +152,39 @@ export function leafCounts(id: LeafId, preview?: ReadingPreview): boolean {
 export function isContentLeaf(id: LeafId): boolean {
   const { trust } = getLeaf(id);
   return trust === "judge" || trust === "phone+judge";
+}
+
+// An inner state or a count of what happened: the only leaves a number you
+// report yourself can move (plan 6.4, rule 6).
+export function isInnerLeaf(id: LeafId): boolean {
+  const { trust } = getLeaf(id);
+  return trust === "self" || trust === "count";
+}
+
+// If your profile says you stutter, Fillers and Flow don't count (plan 6.2).
+export const STUTTER_EXCLUDED: readonly LeafId[] = LEAVES.filter((l) => l.skillId === "fillers" || l.skillId === "flow").map((l) => l.id);
+
+// The screens still group by the five old skills until phase 5. Each is now its
+// pillar's score (plan 6.2, "How old skills map"), so nothing is stored twice.
+// Composure has no old skill: it shows only on the trail until the You tab.
+export const PILLAR_OF_SKILL: Record<SkillId, PillarId> = {
+  articulation: "clarity",
+  cadence: "voice",
+  impromptu: "message",
+  confidence: "presence",
+  conversation: "connection",
+};
+
+export function skillOfPillar(pillar: PillarId): SkillId | null {
+  const found = (Object.entries(PILLAR_OF_SKILL) as [SkillId, PillarId][]).find(([, p]) => p === pillar);
+  return found ? found[0] : null;
+}
+
+export function nodeName(id: string): string {
+  if (id === "overall") return "Overall";
+  for (const pillar of SKILL_TREE) {
+    if (pillar.id === id) return pillar.name;
+    for (const skill of pillar.skills) if (skill.id === id) return skill.name;
+  }
+  return LEAF_BY_ID.get(id as LeafId)?.name ?? id;
 }

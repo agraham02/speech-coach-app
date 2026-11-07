@@ -82,6 +82,42 @@ export function pitchScore(rangeSt: number, band: PitchRangeBand = FIXED_PITCH_B
   return clamp10(((rangeSt - band.zeroSt) / (band.fullSt - band.zeroSt)) * 10);
 }
 
+// Pitch variety on the skill tree: how much pitch moves within each phrase, in
+// semitones, averaged (plan 6.2). From the iPhone's reads (D16): flat 1.56 to 1.75,
+// plain reading 2.06 to 2.68, normal 2.82, lively 3.34. So 1 st scores nothing and
+// 3 st full marks: flat about 3 to 4/10, normal 9, lively 10, in line with the
+// range bands above. One low voice on one phone; check it with others.
+export const FIXED_PHRASE_PITCH_BAND: PitchRangeBand = { zeroSt: 1, fullSt: 3, source: "fixed", takes: 0, usualSt: null };
+const PHRASE_STRETCH_ST = 0.2;
+const PHRASE_FULL_MIN_ST = 2.4;
+const PHRASE_FULL_MAX_ST = 3.4;
+
+// `prior`: earlier takes' within-phrase SDs, newest first. Personal after 5 takes.
+export function phrasePitchBand(prior: number[]): PitchRangeBand {
+  const recent = prior.filter((v) => Number.isFinite(v) && v > 0).slice(0, PERSONAL_BASELINE_MAX_TAKES);
+  if (recent.length < PERSONAL_BASELINE_MIN_TAKES) return FIXED_PHRASE_PITCH_BAND;
+  const sorted = [...recent].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  const usual = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  const full = Math.max(PHRASE_FULL_MIN_ST, Math.min(PHRASE_FULL_MAX_ST, usual + PHRASE_STRETCH_ST));
+  return { zeroSt: FIXED_PHRASE_PITCH_BAND.zeroSt, fullSt: Math.round(full * 100) / 100, source: "personal", takes: recent.length, usualSt: Math.round(usual * 100) / 100 };
+}
+
+export function phrasePitchScore(sdSt: number, band: PitchRangeBand = FIXED_PHRASE_PITCH_BAND): number {
+  return clamp10(((sdSt - band.zeroSt) / (band.fullSt - band.zeroSt)) * 10);
+}
+
+// Stand-out stress on the skill tree: how far the strongest syllables sit above
+// the rest in pitch, loudness and length together, in clear steps up (dsp/
+// stressCues.ts). From the iPhone's reads (D16): flat 1.01 to 1.21, plain reading
+// 1.52, normal and lively 2.02 to 2.14, stressed 2.88. One voice on one phone.
+export const STAND_OUT_ZERO = 0.7;
+export const STAND_OUT_FULL = 2.2;
+
+export function standOutScore(standOut: number): number {
+  return clamp10(((standOut - STAND_OUT_ZERO) / (STAND_OUT_FULL - STAND_OUT_ZERO)) * 10);
+}
+
 // Emphasis (session 06's syllable-peak spread). On a real phone, a flat read
 // measured 2.7 to 4.3 dB, a normal or lively one about 5, and a read stressing
 // key words 8.3 to 8.7. So nothing at 2.5 dB and full marks at 6: flat about 1 to

@@ -16,7 +16,8 @@ import { countPhrases } from "../services/db/phrasebookRepo";
 import { countThoughts } from "../services/db/selfTalkRepo";
 import { listRewinds } from "../services/db/rewindRepo";
 import { dayLabel } from "../domain/rewind/labels";
-import { getSkillStates, getStreakDates, getStreakState, speakerLevelOf } from "../services/db/progressRepo";
+import { getSkillStates, getStreakDates, getStreakState } from "../services/db/progressRepo";
+import { getSpeakerLevel } from "../services/db/leafRepo";
 import { STAGE_NAMES, type Stage } from "../domain/levels";
 import { SkillRings } from "../components/common/SkillRings";
 import { AppFooter } from "../components/settings/AppFooter";
@@ -61,9 +62,9 @@ export function YouScreen() {
         .then((s) => {
           setMastery(Object.fromEntries(SKILLS.map((k) => [k, s[k].rating])) as Record<SkillId, number>);
           setStages(Object.fromEntries(SKILLS.map((k) => [k, s[k].stage])) as Record<SkillId, Stage>);
-          setLevel(speakerLevelOf(s));
         })
         .catch(() => undefined);
+      getSpeakerLevel().then(setLevel).catch(() => undefined);
       countPhrases().then(setPhraseCount).catch(() => undefined);
       countThoughts().then(setThoughtCount).catch(() => undefined);
       listRewinds()

@@ -254,7 +254,7 @@ describeIfSqlite("demo takes", () => {
     expect(removed.takes).toBe(DEMO_TAKES.length);
     expect(await countDemoData()).toEqual({ takes: 0, rewinds: 0, drills: 0 });
     expect((await getAllSessionsWithScores()).map((s) => s.id)).toEqual(["real-1"]);
-    for (const table of ["session_steps", "session_artifacts", "scores", "skill_events", "review_passes"]) {
+    for (const table of ["session_steps", "session_artifacts", "scores", "leaf_events", "score_attempts", "review_passes"]) {
       const n = await mockDb.getFirstAsync<{ n: number }>(`SELECT COUNT(*) AS n FROM ${table} WHERE session_id LIKE ?`, [`${DEMO_ID_PREFIX}%`]);
       expect(n!.n).toBe(0);
     }

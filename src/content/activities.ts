@@ -226,3 +226,11 @@ export function getActivity(id: string): Activity | undefined {
 export function kindOfActivity(id: string): ActivityKind | null {
   return BY_ID.get(id)?.kind ?? null;
 }
+
+// The activity one drill attempt is. Guided exercises and warm-ups are named by
+// their content; every other drill type has its own.
+export function activityOfDrill(type: DrillType, contentId?: string): string {
+  if (type === "guided" && contentId) return guidedActivityId(contentId);
+  if (type === "warmup" && contentId) return warmupActivityId(contentId);
+  return drillActivityId(type);
+}
