@@ -28,6 +28,7 @@ import { openPaywall } from "../services/cloud/consent";
 import { alertGate, liveGateNow, readyForLiveConversation, whyNoLiveConversation } from "../services/conversation/liveGate";
 import { getDrillLevel, recordDrillOutcome } from "../services/db/progressRepo";
 import { completePracticeStep } from "../services/practice/practiceEvents";
+import { drillActivityId } from "../content/activities";
 import { getPartnerSpeed, getPartnerVoicePref, setPartnerSpeed, setPartnerVoicePref } from "../services/prefs/prefsStore";
 import { purchasesEnabled } from "../services/purchases/purchases";
 import { logger } from "../utils/logger";
@@ -164,7 +165,7 @@ export function LiveConversationScreen({ route, navigation }: Props) {
   }
 
   async function done() {
-    if (result?.outcome) await completePracticeStep(practice, result.outcome.score);
+    if (result?.outcome) await completePracticeStep(drillActivityId("conv_live"), practice, result.outcome.score);
     navigation.goBack();
   }
 

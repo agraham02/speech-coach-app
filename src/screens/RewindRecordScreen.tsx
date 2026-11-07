@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { completePracticeStep } from "../services/practice/practiceEvents";
+import { ACTIVITY_IDS } from "../content/activities";
 import { ActivityIndicator, Alert, BackHandler, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -90,6 +92,7 @@ export function RewindRecordScreen() {
     const take = await recorder.stop();
     success();
     const id = await startRewind(take);
+    completePracticeStep(ACTIVITY_IDS.rewind, undefined, null).catch(() => undefined);
     navigation.replace("RewindResult", { id });
   }
 

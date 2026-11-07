@@ -165,3 +165,21 @@ Every change to `PLAN.md` after it was agreed: what changed, why, and the owner'
 **Why:** wiping only the tables would leave orphaned video files and settings pointing at deleted data, and the plan's "clean start" reads as the whole app.
 
 **Owner's OK:** not asked; it is inside task 2.1 and the "no backwards compatibility" rule. Say so if you'd rather keep preferences (for example the onboarding profile) across the wipe.
+
+## D14. How the activity log and the check-offs work (2026-11-06)
+
+**Was:** plan 5.1 and 5.2 say there is one catalogue, one `activity_log` written by every runner through `completePracticeStep`, and that every check mark is a query over it. They don't say how an activity is identified, which entries count for which step, or what happens to the old stored flags.
+
+**Now:**
+- **Ids.** `src/content/activities.ts` gives every activity an id: `drill:twister`, `conversation:conv_reply`, `guided:<id>`, `warmup:<id>`, `lesson:<id>`, `speak:impromptu`, `reflect:rewind`, `moment:debrief`, `check:skill`. The content (which twister, which line) isn't part of the id. A rep step that names a structure (PREP) is met only by a rep in that structure; a rep step with none is met by any rep.
+- **A plan step** is done when its activity was logged that day from anywhere, or it was done from that very step, or it was skipped. An entry from a Practice screen ticks only one step, the daily plan first, then the top-ups, so two rep steps need two reps and a top-up's rep is not also the daily plan's. A skip is logged as a skip and ticks nothing else.
+- **A lesson step** is done when an entry names the lesson and the step's position. Plan steps built from the lesson carry their position. A step done from Practice counts for the first open matching step of a lesson that is current on the path at that moment, which is written down then, so it can't be claimed later. A plan step that didn't come from the lesson (the line of the day, more of the same skill) never ticks a lesson step.
+- **A lesson completes** when every step is done in the current go at it, and its score is the average of the scored steps (none scored counts as passed). A completed lesson starts over for its spaced review. The old rule, where finishing the daily plan completed its lesson with a score of 0.8, is gone.
+- **Plans bring the lesson's undone steps first,** so a 5- or 8-minute plan, which holds only some of a lesson, still finishes it over a few days instead of repeating the first step (`PLAN_VERSION` 6).
+- **Storage.** The plan tables no longer keep `completed_steps_json`; only `completed_at` is kept, because streaks read it. Schema version 38.
+- **Deleting a take** clears the session id on its log entry and keeps the entry, like the bare date: the step it ticked stays ticked, with no link to the take.
+- **Not wired yet:** Three things and Talk back (their completion needs the gates from 3b), and the catalogue's `gate` and `number` fields (3a.2 and 3b.1 fill them, keyed by these ids).
+
+**Why:** a check mark anywhere had to be the same fact everywhere, and the smallest model that gives that is rows in a log plus a few rules for who they count for.
+
+**Owner's OK:** not asked; it is inside tasks 2.2 to 2.5. The one visible change is that a lesson now needs all its steps, not the plan's subset, so it can take a few days on a short plan.

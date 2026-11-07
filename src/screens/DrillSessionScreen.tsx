@@ -26,6 +26,7 @@ import { getDrillLevel, recordDrillOutcome, type ProgressChange } from "../servi
 import { DrillProgressLine } from "../components/celebrate/DrillProgressLine";
 import { paramsFor, scoreAccuracy, type DrillOutcome } from "../domain/drills/drillSpecs";
 import { completePracticeStep } from "../services/practice/practiceEvents";
+import { drillActivityId } from "../content/activities";
 import { useLiveSpeech } from "../hooks/useLiveSpeech";
 import { useRecordingTimer } from "../hooks/useRecordingTimer";
 import { logger } from "../utils/logger";
@@ -231,7 +232,7 @@ export function DrillSessionScreen({ route, navigation }: Props) {
   }
 
   async function handleDone() {
-    await completePracticeStep(practice, lastOutcome?.score ?? null);
+    await completePracticeStep(drillActivityId("twister"), practice, lastOutcome?.score ?? null);
     navigation.goBack();
   }
 

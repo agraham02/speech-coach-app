@@ -115,6 +115,19 @@ A short fresh run of the three tests fixed after round 3. About 5 minutes. Don't
 2. Run: **Endings**, **Looking**, **Expression**. Skip the rest.
 3. **Share raw recordings** and replace `analysis_samples/tono-signal-lab-raw.tar`. That's all I need; the JSON no longer has to be pasted, because the recordings rebuild it.
 
+## Phase 2: log and sync
+
+These need the microphone or camera, which the emulator doesn't have. Update the app first (`npx eas update --channel preview`, then close and reopen it twice). The first launch of 2.0.0 wipes your old data and starts at onboarding; copy anything you want first.
+
+- [ ] **First launch.** After the update, the app opens at onboarding, with no old recordings or lessons. Settings, Reset app still works.
+- [ ] **A drill from Practice ticks Today.** Open Today and note an unticked drill step. Go to Practice (or Library) and do that same drill. Back on Today, that step is ticked.
+- [ ] **A step from Today ticks the lesson.** Do the plan's first drill from Today. Open that lesson from Learn: the same step is ticked. Close the app, reopen, and it's still ticked.
+- [ ] **A lesson finishes only when all its steps are done.** Finish every step of one lesson (from the lesson, the plan or Practice, over more than one day if you like). Only after the last step does the lesson show "Completed" and the path move on. Its score on the card is the average of the steps you actually scored.
+- [ ] **A short plan still gets there.** On a 5-minute plan, do the plan on two days in a row. Day two shows a different practice step from day one, not the same one again.
+- [ ] **Skip.** Skip a step on Today. It ticks, the lesson step does not.
+- [ ] **A rep ticks once.** Record an impromptu rep from Practice. Today's rep step ticks; a second rep step (12-minute plan) stays open until you record a second one.
+- [ ] **Delete a take.** Delete the rep you recorded. The step stays ticked, and the take is gone from the library.
+
 ## Phase 6: results flow
 
 Carried over from the hotfix round. These were fixes for gestures on the old screens, and they can come back when the screens are rebuilt.

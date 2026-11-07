@@ -303,7 +303,9 @@ export async function listPendingDeletedSessions(onlyId?: string): Promise<Pendi
   return rows.map((r) => ({ id: r.id, videoFile: r.video_file, videoPath: r.video_path, geminiFileName: r.gemini_file_name, geminiFileUri: r.gemini_file_uri }));
 }
 
-// Every table that holds something about one take, by session id.
+// Every table that holds something about one take, by session id. (The
+// activity log also has a session id, but it is unlinked rather than deleted:
+// see eraseSessionRows.)
 export const SESSION_CHILD_TABLES = ["scores", "session_steps", "session_artifacts", "review_passes", "skill_events"] as const;
 
 // Removes the take and everything about it: scores, steps, analysis and review
@@ -317,6 +319,9 @@ export async function eraseSessionRows(id: string): Promise<void> {
     const row = await db.getFirstAsync<{ recorded_at: string; status: string }>(`SELECT recorded_at, status FROM sessions WHERE id = ?`, [id]);
     if (row?.status === "done") await markPracticeDay(isoDateFromDate(new Date(row.recorded_at)));
     for (const table of SESSION_CHILD_TABLES) await db.runAsync(`DELETE FROM ${table} WHERE session_id = ?`, [id]);
+    // That the rep was done outlives the take, like the bare date above: the
+    // plan step and lesson step it ticked stay ticked, with no link to the take.
+    await db.runAsync(`UPDATE activity_log SET session_id = NULL WHERE session_id = ?`, [id]);
     // A skill check built on this take (its results are numbers from the take).
     await db.runAsync(`UPDATE skill_checks SET retake_of = NULL WHERE retake_of IN (SELECT id FROM skill_checks WHERE session_id = ?)`, [id]);
     await db.runAsync(`DELETE FROM skill_checks WHERE session_id = ?`, [id]);
@@ -333,6 +338,7 @@ export async function sweepOrphanedSessionRows(): Promise<number> {
     for (const table of SESSION_CHILD_TABLES) {
       removed += (await db.runAsync(`DELETE FROM ${table} WHERE session_id IS NOT NULL AND session_id NOT IN (SELECT id FROM sessions)`)).changes;
     }
+    removed += (await db.runAsync(`UPDATE activity_log SET session_id = NULL WHERE session_id IS NOT NULL AND session_id NOT IN (SELECT id FROM sessions)`)).changes;
   });
   return removed;
 }

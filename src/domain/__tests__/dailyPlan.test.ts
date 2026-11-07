@@ -21,6 +21,44 @@ function input(overrides: Partial<PlanInput> = {}): PlanInput {
   };
 }
 
+describe("daily plan and the lesson's own steps", () => {
+  const lesson = LESSONS.find((l) => l.skill === "articulation" && l.steps.filter((x) => x.kind !== "rep" && x.kind !== "warmup").length >= 2)!;
+  const practiceIndexes = lesson.steps.map((st, i) => (st.kind !== "rep" && st.kind !== "warmup" ? i : -1)).filter((i) => i >= 0);
+  const forLesson = (extra: Partial<PlanInput> = {}) =>
+    buildDailyPlan(input({ minutes: 5, path: [lesson.unitId], lessons: Object.fromEntries(LESSONS.filter((l) => l.unitId === lesson.unitId && l.id !== lesson.id).map((l) => [l.id, { done: true, nextReviewAt: null }])), ...extra }));
+
+  it("says where each step from the lesson sits in the lesson", () => {
+    const plan = forLesson();
+    expect(plan.lessonId).toBe(lesson.id);
+    for (const step of plan.steps) {
+      if (step.lessonStepIndex != null) expect(lesson.steps[step.lessonStepIndex]).toBe(step.lessonStep);
+    }
+    expect(plan.steps.some((st) => st.lessonStepIndex != null)).toBe(true);
+  });
+
+  it("gives no position to the line of the day or a review", () => {
+    const plan = buildDailyPlan(input({ minutes: 12 }));
+    for (const step of plan.steps.filter((st) => st.kind === "line" || st.kind === "review")) expect(step.lessonStepIndex).toBeUndefined();
+  });
+
+  it("brings the lesson's practice steps not yet done ahead of the ones done", () => {
+    const first = practiceIndexes[0];
+    const fresh = forLesson().steps.find((st) => st.lessonStepIndex != null && practiceIndexes.includes(st.lessonStepIndex));
+    expect(fresh?.lessonStepIndex).toBe(first);
+    const next = forLesson({ lessonStepsDone: { [lesson.id]: [first] } }).steps.find((st) => st.lessonStepIndex != null && practiceIndexes.includes(st.lessonStepIndex));
+    expect(next?.lessonStepIndex).toBe(practiceIndexes[1]);
+  });
+
+  it("goes through every practice step over the days a 5-minute plan takes", () => {
+    const done: number[] = [];
+    for (let day = 0; day < practiceIndexes.length; day++) {
+      const step = forLesson({ lessonStepsDone: { [lesson.id]: [...done] } }).steps.find((st) => st.lessonStepIndex != null && practiceIndexes.includes(st.lessonStepIndex))!;
+      done.push(step.lessonStepIndex!);
+    }
+    expect([...done].sort()).toEqual([...practiceIndexes].sort());
+  });
+});
+
 describe("daily plan", () => {
   it("is deterministic for the same day and inputs", () => {
     expect(buildDailyPlan(input())).toEqual(buildDailyPlan(input()));

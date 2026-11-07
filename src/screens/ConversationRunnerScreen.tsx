@@ -26,6 +26,7 @@ import type { PartnerVoice } from "../content/conversationContent";
 import { getDrillLevel, recordDrillOutcome } from "../services/db/progressRepo";
 import { deleteBlankMoment, getBlankMoment, getBlankMoments, markBlankMomentPracticed } from "../services/db/socialRepo";
 import { completePracticeStep } from "../services/practice/practiceEvents";
+import { drillActivityId } from "../content/activities";
 import { showGlobalToast } from "../components/common/ToastProvider";
 import { logger } from "../utils/logger";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
@@ -265,7 +266,7 @@ export function ConversationRunnerScreen({ route, navigation }: Props) {
   }
 
   async function done() {
-    if (result) await completePracticeStep(practice, result.outcome.score);
+    if (result) await completePracticeStep(drillActivityId(drill), practice, result.outcome.score);
     navigation.goBack();
   }
 

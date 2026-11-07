@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { completePracticeStep } from "../services/practice/practiceEvents";
+import { ACTIVITY_IDS } from "../content/activities";
 import { Pressable, ScrollView, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -137,6 +139,7 @@ export function SkillCheckScreen({ route, navigation }: Props) {
       retakeOf,
     });
     setSkillCheckPending(false);
+    completePracticeStep(ACTIVITY_IDS.skillCheck, undefined, null).catch(() => undefined);
     navigation.replace("StartingPoint", { checkId });
   }
 

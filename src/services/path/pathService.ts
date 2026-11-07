@@ -172,3 +172,11 @@ export async function getPathView(): Promise<PathView> {
 }
 
 export type { PathUnit };
+
+// The lessons you are on right now: the next lesson of each unit on the go.
+// Read from the stored path, so it is cheap enough to ask after every step.
+export async function getCurrentLessonIds(): Promise<string[]> {
+  const [units, states] = await Promise.all([readPath(), getLessonStates()]);
+  const lessons = Object.fromEntries(Object.entries(states).map(([id, l]) => [id, { done: l.done }]));
+  return units.filter((u) => u.status === "active").flatMap((u) => nextLessonInUnit(u.unitId, lessons) ?? []);
+}

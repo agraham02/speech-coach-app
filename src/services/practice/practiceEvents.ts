@@ -1,14 +1,22 @@
 import type { PracticeContext } from "../../domain/practice";
-import { completePlanStep, completeTopUpStep } from "../db/progressRepo";
+import { completeLesson, getLessonStates, refreshPlanCompletion } from "../db/progressRepo";
+import { getEntriesForLesson, logActivity } from "../db/activityLogRepo";
+import { lessonIsComplete, lessonProgress, lessonScore, openStepFor } from "../../domain/activityLog";
+import { getLesson } from "../../content/lessons";
 import { syncDailyReminder } from "../notifications/reminderScheduler";
 import { logger } from "../../utils/logger";
-import { onLessonCompleted } from "../path/pathService";
+import { getCurrentLessonIds, onLessonCompleted } from "../path/pathService";
 
 export interface PracticeStepDone {
+  // What was done: an id from the catalogue (content/activities.ts).
+  activityId: string;
+  // Where it was started from; empty when it was started from Practice.
   context: PracticeContext;
   score: number | null; // 0-1 when the step was scored
   // Set when the step was a recording that became a session.
   sessionId?: string;
+  // Set when this finished a lesson.
+  lessonCompleted?: string;
 }
 
 type Listener = (event: PracticeStepDone) => void;
@@ -21,22 +29,88 @@ export function subscribePracticeSteps(listener: Listener): () => void {
   };
 }
 
-// Called by a drill / guided / rep screen when its step is finished. Marks
-// the plan step done (persisted, so the plan resumes after a restart) and
-// tells the lesson or daily-session screen underneath.
-export async function completePracticeStep(context: PracticeContext | undefined, score: number | null, sessionId?: string): Promise<void> {
-  if (!context) return;
-  try {
-    if (context.planDate && context.planStepId) {
-      if (context.planSlot) await completeTopUpStep(context.planDate, context.planSlot, context.planStepId);
-      else await completePlanStep(context.planDate, context.planStepId);
-      // A finished session may satisfy a reminder that's still armed.
-      syncDailyReminder().catch(() => undefined);
-      // ...and may have finished a lesson, and with it a unit on your path.
-      if (!context.planSlot) onLessonCompleted();
+export interface PracticeExtra {
+  sessionId?: string;
+  // What the activity was beyond its id: the structure a rep used.
+  variant?: string | null;
+}
+
+// A lesson that passes needs an average of 70% on its scored steps.
+const LESSON_PASS = 0.7;
+
+// Called by every runner when its activity is finished, whether it was started
+// from a plan, a lesson or Practice. It writes the activity log, which is what
+// every check mark reads (docs/overhaul/PLAN.md, section 5.2), then finishes
+// the lesson if that was its last step and tells whatever screen is open.
+export async function completePracticeStep(activityId: string, context: PracticeContext | undefined, score: number | null, extra: PracticeExtra = {}): Promise<void> {
+  let lessonCompleted: string | undefined;
+  // The skill check's own samples are recorded but are not practice.
+  if (!context?.placement) {
+    try {
+      lessonCompleted = await recordActivity(activityId, context ?? {}, score, extra);
+    } catch (error) {
+      logger.error(`[practice] couldn't log ${activityId} — ${(error as Error).message}`);
     }
-  } catch (error) {
-    logger.error(`[practice] couldn't save plan progress — ${(error as Error).message}`);
   }
-  listeners.forEach((l) => l({ context, score, sessionId }));
+  listeners.forEach((l) => l({ activityId, context: context ?? {}, score, sessionId: extra.sessionId, lessonCompleted }));
+}
+
+async function recordActivity(activityId: string, context: PracticeContext, score: number | null, extra: PracticeExtra): Promise<string | undefined> {
+  const variant = extra.variant ?? null;
+  const states = await getLessonStates();
+
+  // Which lesson step this counts for. From a lesson screen it says so itself.
+  // From a plan it names the lesson (and sometimes the step). From Practice it
+  // counts for the first open step that asks for it in a lesson that is current
+  // on your path right now, so a drill done there ticks the lesson too.
+  let lessonId = context.lessonId ?? null;
+  let lessonStepIndex = context.lessonStepIndex ?? null;
+  // A plan step that came from the lesson names its step; one that didn't (the
+  // line of the day, more of the same skill) must not tick one by accident.
+  if (lessonStepIndex == null && !context.planStepId) {
+    const candidates = lessonId ? [lessonId] : await getCurrentLessonIds().catch(() => [] as string[]);
+    for (const id of candidates) {
+      const lesson = getLesson(id);
+      if (!lesson) continue;
+      const progress = lessonProgress(id, await getEntriesForLesson(id), states[id]?.completedAt ?? null);
+      const at = openStepFor(lesson.steps, progress.done, { activityId, variant });
+      if (at != null) {
+        lessonId = id;
+        lessonStepIndex = at;
+        break;
+      }
+    }
+  }
+
+  const entry = await logActivity({
+    activityId,
+    variant,
+    score,
+    sessionId: extra.sessionId,
+    planDate: context.planDate ?? null,
+    planSlot: context.planSlot ?? null,
+    planStepId: context.planStepId ?? null,
+    lessonId,
+    lessonStepIndex,
+  });
+
+  // A finished step may satisfy a reminder that's still armed.
+  syncDailyReminder().catch(() => undefined);
+  await refreshPlanCompletion(entry.localDate);
+
+  // The lesson is complete when every one of its steps is done in this go at
+  // it. Its score is the real average of the steps that were scored.
+  if (lessonId && lessonStepIndex != null) {
+    const lesson = getLesson(lessonId);
+    if (lesson) {
+      const progress = lessonProgress(lessonId, await getEntriesForLesson(lessonId), states[lessonId]?.completedAt ?? null);
+      if (lessonIsComplete(lesson.steps.length, progress)) {
+        const average = lessonScore(lesson.steps.length, progress);
+        await completeLesson(lessonId, average, average == null || average >= LESSON_PASS);
+        onLessonCompleted();
+        return lessonId;
+      }
+    }
+  }
+  return undefined;
 }
