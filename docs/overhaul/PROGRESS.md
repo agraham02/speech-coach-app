@@ -71,7 +71,7 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 |---|---|---|---|
 | 3a.1 | `skillTree.ts`, matching Appendix C, with conformance test | todo | |
 | 3a.2 | `skillGrid.ts`, with coverage test for every activity, lesson step and leaf | todo | |
-| 3a.3 | Leaf ratings and roll-up, with the worked example as a test | todo | |
+| 3a.3 | Leaf ratings and roll-up, with the worked example as a test. A leaf built from several signals combines them (plan 6.4, rule 10) | todo | |
 | 3a.4 | Final levels and stages, thresholds tested | todo | |
 | 3a.5 | Take scored on the tree, 0–100; old two-layer scores deleted | todo | |
 | 3a.6 | The trail on every result | todo | |
@@ -158,7 +158,7 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 
 ## Later
 
-Things that came up and aren't in this plan.
+Things that came up and aren't in this plan. The readings still on Beta, and what to research for each, are in plan section 6.5F.
 
 - Volume carry counts now, but no take score reads it yet (the leaf arrives in 3a). When it does, it must use the face-size correction the distance test proved.
 - Apple SpeechAnalyzer matched Whisper on one passage (no real word errors for either; Whisper's 9% was writing "9:00" for "nine"), and kept 10 of 10 fillers, about three times faster with no 574 MB download. iOS 26 only. It could be the engine there if it gives word times; better word times could also fix Word stress.
