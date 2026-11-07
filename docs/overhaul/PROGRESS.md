@@ -6,7 +6,7 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 
 ## Where we left off
 
-2026-11-07: Phase 2 is finished and merged into `staging` (PRs #51 and #53; D13 and D14). It waits only on the owner's iPhone checks in `device-checks.md`. Next is Phase 3a, starting at 3a.1: `skillTree.ts` matching Appendix C, with a conformance test. Read plan sections 6.1 to 6.3 and Appendix C first. Still open from before: Phase 0's iPhone checks, 1.5 and 1.9 (blocked), and republishing `docs/privacy.md` and `docs/terms.md`. To replay recordings against the code: unpack the tar and run `LAB_RAW_DIR=path LAB_OUT=out.json npx jest replay.local`.
+2026-11-07: Phase 3a has started. 3a.1 (the tree) and 3a.2 (the grid) are done (D15); nothing reads them to move a score yet. Next is 3a.3: leaf ratings and the roll-up, with the plan's worked example as a test, and a leaf built from several signals combining them (plan 6.3, 6.4 rule 10). Phase 2 waits only on the owner's iPhone checks in `device-checks.md`. Still open from before: Phase 0's iPhone checks, 1.5 and 1.9 (blocked), and republishing `docs/privacy.md` and `docs/terms.md`. To replay recordings against the code: unpack the tar and run `LAB_RAW_DIR=path LAB_OUT=out.json npx jest replay.local`.
 
 **Running the emulator:** another project's Metro may be on 8081, and a stale Metro of this repo can be left on 8082 or elsewhere without showing in `netstat` or `Get-NetTCPConnection`, so the emulator loads old code from it. Check with `curl 127.0.0.1:PORT/status`, find leftovers with `Get-CimInstance Win32_Process` for node processes started from this repo, kill them by id, and use a port that refuses connections (8083 worked). Check the installed app too: `adb shell dumpsys package com.ahmadgraham.tono | grep versionName` must say 2.0.0, and the dev client needs a build that has `react-native-keyboard-controller`; a stale APK fails with "doesn't seem to be linked". `adb install -r -d C:/dev/tb/android/app/build/outputs/apk/debug/app-debug.apk` fixed it without a rebuild. Otherwise use `--port 8082` and open the dev client with that port. Rebuild the dev client with `bash scripts/build-android-dev.sh [git ref]` (only when native code changes). It builds in a worktree at `C:/dev/tb`, because the repo's path is too long for the native build tools; stop leftover Gradle and Kotlin daemons first if it fails with EBUSY or out-of-memory. To see the soft keyboard, see section 2.5b of the emulator plan. If a Metro hangs, kill it by its process id: stopping the background shell doesn't always end it.
 
@@ -69,8 +69,8 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 
 | ID | Task | Status | Evidence |
 |---|---|---|---|
-| 3a.1 | `skillTree.ts`, matching Appendix C, with conformance test | todo | |
-| 3a.2 | `skillGrid.ts`, with coverage test for every activity, lesson step and leaf | todo | |
+| 3a.1 | `skillTree.ts`, matching Appendix C, with conformance test | done | `domain/scoring/skillTree.ts`; `overhaulPlan.test.ts` compares every pillar, skill, leaf, weight and trust, plus the scale, starting value, seed range and take weights, with Appendix C. Every Signal Lab reading is tied to one leaf, and `leafCounts` follows `readingTrust.ts` (D15). Deliberately wrong weights and trust values were caught |
+| 3a.2 | `skillGrid.ts`, with coverage test for every activity, lesson step and leaf | done | `content/skillGrid.ts`. Coverage: every catalogue activity, drill, guided exercise, warm-up, lesson step and leaf. Conformance: the rows' numbers and moves are compared with section 7's tables, and targets and steps with Appendix A's 71 lessons. Deliberately wrong dots, leaves, numbers and targets were caught. Nothing reads it to move a score until 3a.3 (D15) |
 | 3a.3 | Leaf ratings and roll-up, with the worked example as a test. A leaf built from several signals combines them (plan 6.4, rule 10) | todo | |
 | 3a.4 | Final levels and stages, thresholds tested | todo | |
 | 3a.5 | Take scored on the tree, 0–100; old two-layer scores deleted | todo | |
@@ -160,6 +160,7 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 
 Things that came up and aren't in this plan. The readings still on Beta, and what to research for each, are in plan section 6.5F.
 
+- Speech study, Rehearse, Plan your point, Missions, the monthly comfort check-in and the attention rating have catalogue ids and grid rows, but don't write to the activity log yet. MarkItUp has no id of its own: its reps run through Line rep, which logs. Wire these when their rows start moving scores (3a.3 onward, or 3c).
 - Volume carry counts now, but no take score reads it yet (the leaf arrives in 3a). When it does, it must use the face-size correction the distance test proved.
 - Apple SpeechAnalyzer matched Whisper on one passage (no real word errors for either; Whisper's 9% was writing "9:00" for "nine"), and kept 10 of 10 fillers, about three times faster with no 574 MB download. iOS 26 only. It could be the engine there if it gives word times; better word times could also fix Word stress.
 - Word stress (Stress on the right words) stays Beta: the stress shows clearly in the audio, but Whisper's word times are too coarse in a short sentence to say which word it landed on. No take score reads it. Better word times would be the fix (Apple's, or Whisper's DTW timestamps, a native change).

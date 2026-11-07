@@ -187,3 +187,25 @@ Every change to `PLAN.md` after it was agreed: what changed, why, and the owner'
 **Why:** a check mark anywhere had to be the same fact everywhere, and the smallest model that gives that is rows in a log plus a few rules for who they count for.
 
 **Owner's OK:** not asked; it is inside tasks 2.2 to 2.5. The one visible change is that a lesson now needs all its steps, not the plan's subset, so it can take a few days on a short plan.
+
+## D15. What the tree and grid had to decide (2026-11-07)
+
+**Was:** section 7 and Appendix C give the tree, the grid's rows and the lessons' targets, and those are copied exactly (a test compares them with the plan's own tables). A few things they leave open.
+
+**Now:**
+- **Which leaves a take moves.** The plan says "every Voice, Clarity and Presence leaf a take can measure" and "Message leaves". I read that as:
+  - Voice: Speaking rate, Rhythm, At sentence ends, Pitch variety, Endings that fall, Stand-out stress, Stress on the right words, Volume carry. Not Deliberate pauses, Pace control, Breath length or Knowing where to stress: a take has no marks, target speed or breath exercise.
+  - Clarity: Ums and uhs, Like actually, Stalls, Restarts and repeats. Not Clear words, as Appendix A says.
+  - Presence: On the lens, Long look-aways, Hedges, Clear endings, Face movement. Not Range across feelings, which needs four reads of a line.
+  - Message: Answers the question, Point first, Has a shape, Hits the beats, Ideas connect, Plain words, No detours, Specifics, and Starting fast when there was no prep. The rest need a drill or a set limit.
+- **A script take's Presence.** The plan says Presence ●●. I left out Hedges and Clear endings: they read the words, and a script's words were given, so it's the eyes and the face. This is the one place the grid says less than the plan's words.
+- **Phone estimates.** Rule 5 ("a content leaf moves ● from a phone estimate") is one rule in `effectiveWeight`, not a second weight on each row. So Point first on a Concise take or Land the plane is ●●● with a judge and ● on a phone estimate, even though section 7 lists ●●●.
+- **A unit's target leaf,** for checkpoints. The plan doesn't list them, so it's the commonest target among the unit's lessons, the earliest lesson's on a tie.
+- **Felt vs measured** is the Quick review's row, since the prediction happens there, and it's display only.
+- **Gates and numbers live in the grid,** not on the catalogue entries as 5.1 and D14 say, so there is one place for them. `getGridRow(activity.id)` finds them. The gate text is a description until 3b.1 enforces it.
+- **New catalogue ids,** because section 7 has rows for them: Speech study, Rehearse, Plan your point, Missions, Monthly comfort check-in, Attention rating, Checkpoint. They don't write to the activity log yet (see the Later list).
+- **What counts.** Appendix C's trust column is the design, so "At sentence ends" stays `probation` in the tree, as the plan has it. What counts today is `readingTrust.ts`, as D11 set it, and `leafCounts` follows that.
+
+**Nothing reads the grid to move a score yet.** Scoring doesn't change until 3a.3.
+
+**Owner's OK:** not asked; these fill gaps in tasks 3a.1 and 3a.2. The script-take reading is the one to look at.

@@ -11,8 +11,8 @@ import type { SkillId } from "../theme/tokens";
 // anywhere (the plan, a lesson, Practice) is a query over the log rather than
 // a flag each screen keeps for itself.
 //
-// Gates and the scoring grid are keyed by these ids too. Each entry's `gate`
-// and `number` stay empty until phase 3b and 3a fill them in (plan section 7).
+// An activity's gate, its number and what it moves live in the scoring grid
+// (skillGrid.ts), keyed by these ids: getGridRow(activity.id).
 
 export type ActivityKind = "lesson" | "checkpoint" | "drill" | "speak" | "conversation" | "reflect" | "moment" | "check";
 
@@ -37,9 +37,6 @@ export interface Activity {
   // The skill (old five) it trains, where it has one. The tree replaces this
   // in phase 3a.
   skill?: SkillId;
-  // Filled in by phase 3b (the gate) and 3a (the number).
-  gate?: string;
-  number?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -52,15 +49,23 @@ export const ACTIVITY_IDS = {
   concise: "speak:concise",
   freeRecord: "speak:free",
   script: "speak:script",
+  speechStudy: "speak:speech_study",
+  rehearse: "speak:rehearse",
+  planPoint: "speak:plan_point",
   // A plan's quick review of a take (three passes).
   review: "review:take",
   skillCheck: "check:skill",
+  comfort: "check:comfort",
+  // One closes each unit (task 3b.6).
+  checkpoint: "checkpoint:unit",
   // Reflect.
   rewind: "reflect:rewind",
   feeling: "reflect:feeling",
   threeThings: "reflect:three_things",
   talkBack: "reflect:talk_back",
   phrasebook: "reflect:phrasebook",
+  mission: "reflect:mission",
+  attention: "reflect:attention",
   // Moments.
   prime: "moment:prime",
   debrief: "moment:debrief",
@@ -120,6 +125,9 @@ const SPEAK: Activity[] = [
   { id: ACTIVITY_IDS.freeRecord, kind: "speak", title: "Free record", minutes: 2, repeats: "always", appears: ["practice"], skill: "impromptu" },
   { id: ACTIVITY_IDS.script, kind: "speak", title: "Script take", minutes: 3, repeats: "always", appears: ["practice"], skill: "cadence" },
   { id: ACTIVITY_IDS.review, kind: "speak", title: "Quick review", minutes: 1, repeats: "always", appears: ["plan"] },
+  { id: ACTIVITY_IDS.speechStudy, kind: "speak", title: "Speech study", minutes: 3, repeats: "always", appears: ["practice"], skill: "cadence" },
+  { id: ACTIVITY_IDS.rehearse, kind: "speak", title: "Rehearse", minutes: 3, repeats: "always", appears: ["practice"], skill: "cadence" },
+  { id: ACTIVITY_IDS.planPoint, kind: "speak", title: "Plan your point", minutes: 1, repeats: "always", appears: ["practice"], skill: "impromptu" },
 ];
 
 const REFLECT: Activity[] = [
@@ -128,6 +136,8 @@ const REFLECT: Activity[] = [
   { id: ACTIVITY_IDS.threeThings, kind: "reflect", title: "Three things", minutes: 2, repeats: "always", appears: ["plan", "practice"], skill: "confidence" },
   { id: ACTIVITY_IDS.talkBack, kind: "reflect", title: "Talk back", minutes: 3, repeats: "always", appears: ["practice"], skill: "confidence" },
   { id: ACTIVITY_IDS.phrasebook, kind: "reflect", title: "Phrasebook", minutes: 2, repeats: "always", appears: ["practice"] },
+  { id: ACTIVITY_IDS.mission, kind: "reflect", title: "Missions", minutes: 1, repeats: "always", appears: ["plan", "practice"], skill: "conversation" },
+  { id: ACTIVITY_IDS.attention, kind: "reflect", title: "Attention rating", minutes: 1, repeats: "always", appears: ["practice"], skill: "conversation" },
 ];
 
 const MOMENTS: Activity[] = [
@@ -137,7 +147,12 @@ const MOMENTS: Activity[] = [
   { id: ACTIVITY_IDS.eventAfter, kind: "moment", title: "Moment, after", minutes: 1, repeats: "once-per-event", appears: ["practice"], skill: "confidence" },
 ];
 
-const CHECKS: Activity[] = [{ id: ACTIVITY_IDS.skillCheck, kind: "check", title: "Skill check", minutes: 5, repeats: "monthly", appears: ["path"] }];
+const CHECKS: Activity[] = [
+  { id: ACTIVITY_IDS.skillCheck, kind: "check", title: "Skill check", minutes: 5, repeats: "monthly", appears: ["path"] },
+  { id: ACTIVITY_IDS.comfort, kind: "check", title: "Monthly comfort check-in", minutes: 1, repeats: "monthly", appears: ["plan"] },
+];
+
+const CHECKPOINTS: Activity[] = [{ id: ACTIVITY_IDS.checkpoint, kind: "checkpoint", title: "Checkpoint", minutes: 2, repeats: "once-per-unit", appears: ["path", "plan"] }];
 
 const DRILLS: Activity[] = INDEPENDENT_DRILLS.map((d) => ({
   id: drillActivityId(d),
@@ -199,6 +214,7 @@ export const ACTIVITIES: Activity[] = [
   ...REFLECT,
   ...MOMENTS,
   ...CHECKS,
+  ...CHECKPOINTS,
 ];
 
 const BY_ID = new Map(ACTIVITIES.map((a) => [a.id, a]));

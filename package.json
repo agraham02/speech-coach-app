@@ -84,7 +84,7 @@
     "update:production": "node scripts/eas-update.mjs production",
     "update:testflight": "node scripts/eas-update.mjs testflight",
     "postinstall": "patch-package",
-    "check:overhaul": "jest src/domain/__tests__/overhaulPlan.test.ts && node scripts/overhaul-status.mjs",
+    "check:overhaul": "jest src/domain/__tests__/overhaulPlan.test.ts src/domain/scoring/__tests__/skillTree.test.ts src/content/__tests__/skillGrid.test.ts && node scripts/overhaul-status.mjs",
     "test": "jest"
   },
   "private": true,
