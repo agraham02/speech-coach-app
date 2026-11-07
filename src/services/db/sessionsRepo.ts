@@ -79,6 +79,7 @@ export interface AudioMetricFields {
   pitchMedianHz: number | null;
   pitchRangeSt: number | null;
   pitchSdSt: number | null;
+  pitchPhraseSdSt?: number | null;
   loudnessSpreadDb: number | null;
   loudnessPeakSdDb: number | null;
   wpmCurve: WpmPoint[] | null;
@@ -92,7 +93,7 @@ export async function updateAudioMetricFields(id: string, f: AudioMetricFields):
   await db.runAsync(
     `UPDATE sessions SET
        dsp_status = ?, pitch_contour_json = ?, volume_envelope_json = ?,
-       pitch_median_hz = ?, pitch_range_st = ?, pitch_sd_st = ?, loudness_spread_db = ?, loudness_peak_sd_db = ?,
+       pitch_median_hz = ?, pitch_range_st = ?, pitch_sd_st = ?, pitch_phrase_sd_st = ?, loudness_spread_db = ?, loudness_peak_sd_db = ?,
        wpm_curve_json = ?, repeated_word_count = ?, filler_word_count = ?, filler_rate_per_minute = ?
      WHERE id = ?`,
     [
@@ -102,6 +103,7 @@ export async function updateAudioMetricFields(id: string, f: AudioMetricFields):
       f.pitchMedianHz,
       f.pitchRangeSt,
       f.pitchSdSt,
+      f.pitchPhraseSdSt ?? null,
       f.loudnessSpreadDb,
       f.loudnessPeakSdDb,
       f.wpmCurve ? JSON.stringify(f.wpmCurve) : null,
@@ -306,12 +308,12 @@ export async function listPendingDeletedSessions(onlyId?: string): Promise<Pendi
 // Every table that holds something about one take, by session id. (The
 // activity log also has a session id, but it is unlinked rather than deleted:
 // see eraseSessionRows.)
-export const SESSION_CHILD_TABLES = ["scores", "session_steps", "session_artifacts", "review_passes", "skill_events"] as const;
+export const SESSION_CHILD_TABLES = ["scores", "session_steps", "session_artifacts", "review_passes", "leaf_events", "score_attempts"] as const;
 
 // Removes the take and everything about it: scores, steps, analysis and review
-// artifacts, review passes, its rating history (skill_events), the skill
-// check that was built on it, and the row itself. Already-computed state
-// (mastery ratings, stages, the path) is left as it is; nothing computed from
+// artifacts, review passes, its rating history (leaf_events, score_attempts), the
+// skill check that was built on it, and the row itself. Already-computed state
+// (leaf ratings, stages, the level, the path) is left as it is; nothing computed from
 // here on can count the take.
 export async function eraseSessionRows(id: string): Promise<void> {
   const db = await getDatabase();

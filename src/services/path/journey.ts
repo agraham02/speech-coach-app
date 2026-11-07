@@ -3,7 +3,8 @@ import { getSkillStates, getStreakDates, getStreakState } from "../db/progressRe
 import { listSkillChecks } from "../db/skillChecksRepo";
 import { getUserProfile } from "../prefs/prefsStore";
 import { INITIAL_RATING, SKILLS } from "../../domain/mastery";
-import { placementStage, speakerLevel, type Stage } from "../../domain/levels";
+import { levelForScore, placementStage, type Stage } from "../../domain/levels";
+import { getFirstAttempt, getSpeakerLevel } from "../db/leafRepo";
 import { EMPTY_JOURNEY, takeFacts, type JourneyFacts, type JourneySkill } from "../../domain/journey";
 import { scorePointOf } from "../../domain/trends";
 import type { TakeScores } from "../../domain/scoring/takeScore";
@@ -63,16 +64,18 @@ export async function loadJourney(): Promise<JourneyFacts> {
     // Where they started: the earliest skill check's placement (checks come
     // newest first). Without one, everyone started at the first stage.
     const first = [...checks].reverse().find((c) => c.results);
-    const startStages = {} as Record<SkillId, Stage>;
     facts.skills = SKILLS.map((skill): JourneySkill => {
       const placed = first?.results?.skills[skill]?.rating ?? null;
       const startRating = placed ?? INITIAL_RATING;
       const startStage: Stage = placed != null ? placementStage(placed) : 1;
-      startStages[skill] = startStage;
       return { skill, startStage, nowStage: skills[skill].stage, startRating, nowRating: skills[skill].rating };
     });
-    facts.speakerLevelStart = speakerLevel(startStages);
-    facts.speakerLevelNow = speakerLevel(Object.fromEntries(SKILLS.map((s) => [s, skills[s].stage])) as Record<SkillId, Stage>);
+    // The first thing that moved a score: where a placement left you, or where
+    // your first attempt began.
+    const start = await getFirstAttempt();
+    const overall = start?.nodes.overall;
+    facts.speakerLevelStart = overall ? levelForScore(start.kind === "seed" ? overall[1] : overall[0]) : 1;
+    facts.speakerLevelNow = await getSpeakerLevel();
   } catch (error) {
     logger.warn(`[journey] could not gather it all — ${(error as Error).message}`);
   }

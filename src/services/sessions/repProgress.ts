@@ -1,14 +1,18 @@
 import { getArtifact } from "../db/artifactsRepo";
 import { getSessionById } from "../db/sessionsRepo";
 import { getSessionSteps } from "../db/stepsRepo";
-import { recordRepOutcome } from "../db/progressRepo";
+import { recordTakeOutcome } from "../db/progressRepo";
 import { showGlobalToast } from "../../components/common/ToastProvider";
-import { repEvidence } from "../../domain/repEvidence";
+import { takeEvidence } from "../../domain/scoring/takeEvidence";
+import { takeLeafReadings } from "../../domain/scoring/takeLeaves";
+import { loadTakeFacts } from "./takeFacts";
+import { activityOfSession } from "../../domain/takeActivity";
 import type { StepStatus } from "../../domain/sessionSteps";
 import { refreshSessionScore } from "./sessionScoreService";
 import { describeSessionSubject } from "./sessionSubject";
 import { logger } from "../../utils/logger";
 import { RESEARCH_IMPROMPTU_WEIGHT } from "../../domain/prepTimer";
+import { feelingWordsUsed } from "../../domain/feelings";
 import { saveProgress } from "../progress/progressMoments";
 import { emitProgressSettled, isWatchingProgress } from "../progress/progressEvents";
 import { stageName } from "../../domain/levels";
@@ -32,26 +36,31 @@ export async function settleRepProgress(sessionId: string, options: { abandoned?
     status === "pending" || status === "running" || (status === "interrupted" && !options.abandoned);
   try {
     const session = await getSessionById(sessionId);
-    if (!session || (session.sessionType !== "spontaneous" && session.sessionType !== "concise")) return;
+    if (!session) return;
     if (await getArtifact(sessionId, "progress")) return;
     const steps = await getSessionSteps(sessionId);
     const status = (step: string) => steps.find((s) => s.step === step)?.status;
     if (unsettled(status("coach")) || unsettled(status("cloud_review"))) return;
 
-    // The take's score sheets as they stand now that everything is in: the
-    // judged one leads when there is one (domain/repEvidence.ts).
+    // The take's score as it stands now that everything is in.
     const [scores, subject] = await Promise.all([refreshSessionScore(sessionId), describeSessionSubject(session)]);
-    if (!scores) return;
-    const { evidence, measured, judged } = repEvidence(scores);
-    // The skill check's talk places the skills (seedSkillRatings); it isn't practice.
-    const changes = session.subjectExtras?.placement ? [] : await recordRepOutcome(evidence, {
-      sessionId,
-      label: subject.title || "A recorded take",
-      local: measured,
-      cloud: judged,
+    if (!scores && session.sessionType !== "feeling") return;
+    // Each leaf the take can show moves by its own number (scoring/takeLeaves.ts).
+    const facts = await loadTakeFacts(session);
+    const evidence = takeEvidence({
+      activityId: activityOfSession(session),
+      readings: takeLeafReadings(facts),
+      lessonId: session.subjectExtras?.lessonId ?? null,
+      noPrep: !session.subjectExtras?.prepUsed?.seconds,
+      hasTopic: !!session.subjectExtras?.promptText,
       // Research makes it a prepared answer, not an impromptu one.
-      impromptuWeight: session.subjectExtras?.prepUsed?.researched ? RESEARCH_IMPROMPTU_WEIGHT : 1,
+      messageScale: session.subjectExtras?.prepUsed?.researched ? RESEARCH_IMPROMPTU_WEIGHT : 1,
+      feelingWords: session.sessionType === "feeling" && session.transcriptVerbatim ? feelingWordsUsed(session.transcriptVerbatim).length : null,
     });
+    // The skill check's talk places the skills (seedSkillRatings); it isn't practice.
+    const changes = session.subjectExtras?.placement
+      ? []
+      : await recordTakeOutcome(evidence, { sessionId, label: subject.title || "A recorded take", meanScore: evidence.score ?? null });
     // A path lesson's rep says where it leaves you in the unit.
     const position = session.subjectExtras?.lessonId ? lessonPosition(session.subjectExtras.lessonId) : null;
     const unit = position ? getUnit(position.unitId) : undefined;

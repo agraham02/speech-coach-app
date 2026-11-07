@@ -10,19 +10,15 @@ import { getNextEvent, getReminderSettings, getUserProfile } from "../prefs/pref
 import { computeStreakState, type StreakState } from "../../domain/streaks";
 import type { SkillId } from "../../theme/tokens";
 import { DRILL_SKILL, DRILL_TITLES, type DrillOutcome, type DrillType } from "../../domain/drills/drillSpecs";
-import {
-  INITIAL_RATING,
-  MIN_LEVEL,
-  SKILLS,
-  expectedScore,
-  nextDifficulty,
-  nextReviewIntervalDays,
-  updateRating,
-  type SkillRating,
-} from "../../domain/mastery";
-import type { SkillEvidence } from "../../domain/repEvidence";
-import { earnedStage, placementStage, speakerLevel, type Stage } from "../../domain/levels";
+import { MIN_LEVEL, SKILLS, nextDifficulty, nextReviewIntervalDays, type SkillRating } from "../../domain/mastery";
+import type { Stage } from "../../domain/levels";
+import { drillSource, type AttemptEvidence, type LeafEvidence } from "../../domain/scoring/leafEvidence";
+import { PILLAR_OF_SKILL, STARTING_VALUE, getLeaf, skillOfPillar, type LeafId, type PillarId } from "../../domain/scoring/skillTree";
+import type { Trail } from "../../domain/scoring/rollup";
+import { activityOfDrill } from "../../content/activities";
+import { SKILL_CHECK_LEAVES, type EvidenceSource } from "../../content/skillGrid";
 import { emitStageEarned } from "../progress/progressEvents";
+import { getAttemptsFor, getAttemptsSince, getNodeStages, getPillarProgress, getTreeScores, recordAttempt, seedLeaves, type AttemptResult } from "./leafRepo";
 import { getPathOrder } from "./pathRepo";
 import { isSessionLive } from "./sessionsRepo";
 import { getPracticeMarkerDates } from "./practiceDaysRepo";
@@ -40,69 +36,45 @@ export interface SkillState extends SkillRating {
   // The stage earned in this skill (domain/levels.ts) — it never drops.
   stage: Stage;
   stageReachedAt: string | null;
+  // Good attempts at each proof difficulty or harder.
+  goodAt: Partial<Record<number, number>>;
 }
 
+// The five skills the screens still group by. Each is its pillar's score now
+// (skillTree.ts, PILLAR_OF_SKILL): worked out, not stored.
 export async function getSkillStates(): Promise<Record<SkillId, SkillState>> {
-  const db = await getDatabase();
-  const rows = await db.getAllAsync<{
-    skill: string;
-    rating: number;
-    attempts: number;
-    last_practiced_at: string | null;
-    stage: number | null;
-    stage_reached_at: string | null;
-  }>(`SELECT * FROM skill_mastery`);
+  const [scores, progress, stages] = await Promise.all([getTreeScores(), getPillarProgress(), getNodeStages()]);
   const out = {} as Record<SkillId, SkillState>;
-  for (const skill of SKILLS) out[skill] = { rating: INITIAL_RATING, attempts: 0, lastPracticedAt: null, stage: 1, stageReachedAt: null };
-  for (const row of rows) {
-    if ((SKILLS as string[]).includes(row.skill)) {
-      out[row.skill as SkillId] = {
-        rating: row.rating,
-        attempts: row.attempts,
-        lastPracticedAt: row.last_practiced_at,
-        stage: (row.stage ?? 1) as Stage,
-        stageReachedAt: row.stage_reached_at,
-      };
-    }
+  for (const skill of SKILLS) {
+    const pillar = PILLAR_OF_SKILL[skill];
+    const p = progress.get(pillar);
+    const stage = stages.get(pillar);
+    out[skill] = {
+      rating: Math.round((scores.pillars[pillar] ?? STARTING_VALUE) * 10) / 10,
+      attempts: p?.attempts ?? 0,
+      lastPracticedAt: p?.lastAt ?? null,
+      stage: stage?.stage ?? 1,
+      stageReachedAt: stage?.reachedAt ?? null,
+      goodAt: p?.goodAt ?? {},
+    };
   }
   return out;
 }
 
-async function saveSkill(skill: SkillId, state: SkillState): Promise<void> {
-  const db = await getDatabase();
-  await db.runAsync(
-    `INSERT INTO skill_mastery (skill, rating, attempts, last_practiced_at, stage, stage_reached_at) VALUES (?, ?, ?, ?, ?, ?)
-     ON CONFLICT(skill) DO UPDATE SET rating = excluded.rating, attempts = excluded.attempts, last_practiced_at = excluded.last_practiced_at,
-       stage = excluded.stage, stage_reached_at = excluded.stage_reached_at`,
-    [skill, state.rating, state.attempts, state.lastPracticedAt, state.stage, state.stageReachedAt],
-  );
-}
-
-// A skill's state after a new rating: the stage it has now earned, and when.
-function withStage(before: SkillState, next: SkillRating & { lastPracticedAt: string | null }, now: string): SkillState {
-  const stage = earnedStage(before.stage, next.rating, next.attempts);
-  return { ...next, stage, stageReachedAt: stage > before.stage ? now : before.stageReachedAt };
-}
-
-export function speakerLevelOf(skills: Record<SkillId, SkillState>): number {
-  return speakerLevel(Object.fromEntries(SKILLS.map((s) => [s, skills[s].stage])) as Record<SkillId, Stage>);
-}
-
-// Starting ratings from the onboarding skill check. Only for skills with no
-// practice history yet — real attempts always outrank a five-minute sample.
+// Starting values from the onboarding skill check. Each old skill's rating goes
+// on the leaves of its pillar that the check touched, and only where there's no
+// practice yet: real attempts always outrank a five-minute sample.
 export async function seedSkillRatings(ratings: Partial<Record<SkillId, number | null>>, label = "Skill check"): Promise<void> {
-  const skills = await getSkillStates();
+  const seeds: Partial<Record<LeafId, number>> = {};
   for (const skill of SKILLS) {
     const rating = ratings[skill];
-    if (rating == null || skills[skill].attempts > 0) continue;
-    // The skill check places you; a placement is quiet, never a level-up.
-    const stage = Math.max(skills[skill].stage, placementStage(rating)) as Stage;
-    await saveSkill(skill, { ...skills[skill], rating, attempts: 0, stage });
-    await logSkillEvent({ skill, before: skills[skill].rating, after: rating, source: "seed", label });
+    if (rating == null) continue;
+    for (const leaf of SKILL_CHECK_LEAVES) if (getLeaf(leaf).pillarId === PILLAR_OF_SKILL[skill]) seeds[leaf] = rating;
   }
+  await seedLeaves(seeds, label);
 }
 
-// --- What moved each rating (skill_events) ---------------------------------
+// --- What moved each rating ------------------------------------------------
 
 export type SkillEventSource = "drill" | "rep" | "seed";
 
@@ -114,97 +86,31 @@ export interface SkillEvent {
   ratingAfter: number;
   source: SkillEventSource;
   label: string;
-  // 0-1 result, and what the rating predicted at that difficulty.
+  // 0-1 result, and the difficulty it was at.
   score: number | null;
-  expected: number | null;
   level: number | null;
   sessionId: string | null;
   drillType: DrillType | null;
-  // Reps: the phone's and the deep review's evidence (0-1) before blending.
-  detail: { local?: number; cloud?: number } | null;
 }
 
-async function logSkillEvent(e: {
-  skill: SkillId;
-  before: number;
-  after: number;
-  source: SkillEventSource;
-  label: string;
-  score?: number;
-  expected?: number;
-  level?: number;
-  sessionId?: string;
-  drillType?: DrillType;
-  detail?: SkillEvent["detail"];
-}): Promise<void> {
-  try {
-    const db = await getDatabase();
-    await db.runAsync(
-      `INSERT INTO skill_events (id, skill, at, rating_before, rating_after, source, label, score, expected, level, session_id, drill_type, detail_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        generateId(),
-        e.skill,
-        new Date().toISOString(),
-        e.before,
-        e.after,
-        e.source,
-        e.label,
-        e.score ?? null,
-        e.expected ?? null,
-        e.level ?? null,
-        e.sessionId ?? null,
-        e.drillType ?? null,
-        e.detail ? JSON.stringify(e.detail) : null,
-      ],
-    );
-  } catch {
-    // A missing history line must never block practice.
-  }
-}
-
-// A rating event of a take that has been deleted (inside its undo window; after
-// that the row is gone) is not part of any history.
-const LIVE_EVENT = `(session_id IS NULL OR session_id IN (SELECT id FROM sessions WHERE deleted_at IS NULL))`;
-
+// The attempts that moved a skill's pillar, newest first.
 export async function getSkillEvents(skill: SkillId, limit = 40): Promise<SkillEvent[]> {
-  const db = await getDatabase();
-  const rows = await db.getAllAsync<{
-    id: string;
-    skill: string;
-    at: string;
-    rating_before: number;
-    rating_after: number;
-    source: string;
-    label: string;
-    score: number | null;
-    expected: number | null;
-    level: number | null;
-    session_id: string | null;
-    drill_type: string | null;
-    detail_json: string | null;
-  }>(`SELECT * FROM skill_events WHERE skill = ? AND ${LIVE_EVENT} ORDER BY at DESC LIMIT ?`, [skill, limit]);
-  return rows.map((r) => {
-    let detail: SkillEvent["detail"] = null;
-    try {
-      detail = r.detail_json ? JSON.parse(r.detail_json) : null;
-    } catch {
-      detail = null;
-    }
+  const pillar = PILLAR_OF_SKILL[skill];
+  const attempts = await getAttemptsFor("pillar_id", pillar, limit);
+  return attempts.map((a) => {
+    const [before, after] = a.nodes[pillar] ?? [STARTING_VALUE, STARTING_VALUE];
     return {
-      id: r.id,
-      skill: r.skill as SkillId,
-      at: r.at,
-      ratingBefore: r.rating_before,
-      ratingAfter: r.rating_after,
-      source: r.source as SkillEventSource,
-      label: r.label,
-      score: r.score,
-      expected: r.expected,
-      level: r.level,
-      sessionId: r.session_id,
-      drillType: (r.drill_type as DrillType | null) ?? null,
-      detail,
+      id: a.id,
+      skill,
+      at: a.at,
+      ratingBefore: before,
+      ratingAfter: after,
+      source: a.kind,
+      label: a.label,
+      score: a.score,
+      level: a.difficulty,
+      sessionId: a.sessionId,
+      drillType: (a.drillType as DrillType | null) ?? null,
     };
   });
 }
@@ -212,17 +118,15 @@ export async function getSkillEvents(skill: SkillId, limit = 40): Promise<SkillE
 // How each skill's rating moved since a moment (practice only, not the
 // skill check's placement): where it started and where it is now.
 export async function getSkillMovesSince(sinceIso: string): Promise<{ skill: SkillId; from: number; to: number }[]> {
-  const db = await getDatabase();
-  const rows = await db.getAllAsync<{ skill: string; rating_before: number; rating_after: number }>(
-    `SELECT skill, rating_before, rating_after FROM skill_events WHERE at >= ? AND source != 'seed' AND ${LIVE_EVENT} ORDER BY at ASC`,
-    [sinceIso],
-  );
   const moves = new Map<SkillId, { skill: SkillId; from: number; to: number }>();
-  for (const r of rows) {
-    const skill = r.skill as SkillId;
-    const m = moves.get(skill);
-    if (m) m.to = r.rating_after;
-    else moves.set(skill, { skill, from: r.rating_before, to: r.rating_after });
+  for (const attempt of await getAttemptsSince(sinceIso)) {
+    for (const skill of SKILLS) {
+      const node = attempt.nodes[PILLAR_OF_SKILL[skill]];
+      if (!node) continue;
+      const m = moves.get(skill);
+      if (m) m.to = node[1];
+      else moves.set(skill, { skill, from: node[0], to: node[1] });
+    }
   }
   return [...moves.values()];
 }
@@ -265,6 +169,20 @@ export interface ProgressChange {
   stagedUp?: boolean;
   speakerLevelBefore?: number;
   speakerLevelAfter?: number;
+  // What the attempt did, from a leaf up to Overall (plan 6.3).
+  trail?: Trail | null;
+}
+
+// The old skill an attempt mainly belongs to: the pillar of its biggest move, or
+// the one the screen asked for when that's Composure, which has no old skill.
+function mainSkill(result: AttemptResult, fallback: SkillId): SkillId {
+  const top = result.trail?.path[0]?.id as LeafId | undefined;
+  return (top ? skillOfPillar(getLeaf(top).pillarId) : null) ?? fallback;
+}
+
+function pillarStage(result: AttemptResult, pillar: PillarId, stageOf: (id: string) => Stage): { before: Stage; after: Stage } {
+  const up = result.stageUps.find((s) => s.nodeId === pillar);
+  return up ? { before: up.stageBefore, after: up.stageAfter } : { before: stageOf(pillar), after: stageOf(pillar) };
 }
 
 // Records one scored drill attempt: logs it, moves the drill's difficulty on
@@ -280,9 +198,15 @@ export async function recordDrillOutcome(args: {
   accuracyPercent?: number | null;
   // Overrides the drill type's skill (guided exercises serve several skills).
   skill?: SkillId;
-  // A skill-check sample: the attempt is kept, but the skill's rating, attempts
-  // and stage are left for seedSkillRatings to place (domain/practice.ts).
+  // A skill-check sample: the attempt is kept, but no leaf moves and no attempt
+  // counts: seedSkillRatings places them (domain/practice.ts).
   placement?: boolean;
+  // The catalogue's id, when the drill type alone doesn't say (a guided exercise).
+  activityId?: string;
+  // Who checked it. Defaults by drill type (domain/scoring/leafEvidence.ts).
+  source?: EvidenceSource;
+  // A number per leaf, when one number doesn't fit the whole row.
+  leafScores?: Partial<Record<LeafId, LeafEvidence>>;
 }): Promise<ProgressChange> {
   const db = await getDatabase();
   const skill = args.skill ?? DRILL_SKILL[args.drillType];
@@ -308,123 +232,74 @@ export async function recordDrillOutcome(args: {
   const levelAfter = nextDifficulty(args.level, args.outcome.success);
   await saveDrillLevel(args.drillType, levelAfter, args.outcome.success);
 
-  const skills = await getSkillStates();
-  const before = skills[skill];
-  if (args.placement) {
-    const level = speakerLevelOf(skills);
-    return {
-      skill,
-      ratingBefore: before.rating,
-      ratingAfter: before.rating,
-      levelBefore: args.level,
-      levelAfter,
-      leveledUp: Math.floor(levelAfter) > Math.floor(args.level),
-      stageBefore: before.stage,
-      stageAfter: before.stage,
-      stagedUp: false,
-      speakerLevelBefore: level,
-      speakerLevelAfter: level,
-    };
-  }
-  const updated = withStage(before, { ...updateRating(before, args.outcome.score, args.level), lastPracticedAt: now }, now);
-  await saveSkill(skill, updated);
-  await logSkillEvent({
-    skill,
-    before: before.rating,
-    after: updated.rating,
-    source: "drill",
+  const stages = await getNodeStages();
+  const stageOf = (id: string): Stage => stages.get(id)?.stage ?? 1;
+  const result = await recordAttempt({
+    evidence: {
+      activityId: args.activityId ?? activityOfDrill(args.drillType, args.contentId),
+      score: args.placement ? null : args.outcome.score,
+      leafScores: args.placement ? {} : args.leafScores,
+      difficulty: args.level,
+      source: args.source ?? drillSource(args.drillType),
+    },
     label: DRILL_TITLES[args.drillType] ?? "Drill",
-    score: args.outcome.score,
-    expected: expectedScore(before.rating, args.level),
-    level: args.level,
+    kind: "drill",
     drillType: args.drillType,
   });
-  const speakerLevelBefore = speakerLevelOf(skills);
-  const speakerLevelAfter = speakerLevelOf({ ...skills, [skill]: updated });
-  if (updated.stage > before.stage) {
-    emitStageEarned({ skill, stage: updated.stage, speakerLevel: speakerLevelAfter > speakerLevelBefore ? speakerLevelAfter : null });
+  const main = mainSkill(result, skill);
+  const pillar = PILLAR_OF_SKILL[main];
+  const stage = pillarStage(result, pillar, stageOf);
+  for (const up of result.stageUps) {
+    const staged = skillOfPillar(up.nodeId as PillarId);
+    if (staged) emitStageEarned({ skill: staged, stage: up.stageAfter, speakerLevel: result.levelAfter > result.levelBefore ? result.levelAfter : null });
   }
   return {
-    skill,
-    ratingBefore: before.rating,
-    ratingAfter: updated.rating,
+    skill: main,
+    ratingBefore: result.before.pillars[pillar] ?? STARTING_VALUE,
+    ratingAfter: result.after.pillars[pillar] ?? STARTING_VALUE,
     levelBefore: args.level,
     levelAfter,
     leveledUp: Math.floor(levelAfter) > Math.floor(args.level),
-    stageBefore: before.stage,
-    stageAfter: updated.stage,
-    stagedUp: updated.stage > before.stage,
-    speakerLevelBefore,
-    speakerLevelAfter,
+    stageBefore: stage.before,
+    stageAfter: stage.after,
+    stagedUp: stage.after > stage.before,
+    speakerLevelBefore: result.levelBefore,
+    speakerLevelAfter: result.levelAfter,
+    trail: result.trail,
   };
 }
 
-// Turns one impromptu rep's evidence (domain/repEvidence.ts: the phone's
-// verdicts, led by the deep review when there is one) into skill updates —
-// this is how real speaking, not just drills, moves mastery.
-export async function recordRepOutcome(
-  evidence: SkillEvidence,
-  context: {
-    sessionId: string;
-    label: string;
-    local: SkillEvidence;
-    cloud: SkillEvidence;
-    // How much of the impromptu skill's move to keep: a take with research
-    // behind it is less of an impromptu take, so it counts for less there.
-    impromptuWeight?: number;
-  },
-): Promise<ProgressChange[]> {
-  const entries = (Object.entries(evidence) as [SkillId, number][]).filter(([, v]) => v != null && Number.isFinite(v));
-  if (entries.length === 0) return [];
+// One recorded take: a number per leaf it can show, each moving that leaf by the
+// grid (domain/scoring/takeLeaves.ts). This is how real speaking moves the tree.
+export async function recordTakeOutcome(evidence: Omit<AttemptEvidence, "difficulty">, context: { sessionId: string; label: string; meanScore: number | null }): Promise<ProgressChange[]> {
   // A take deleted while it was still being analysed moves nothing.
   if (!(await isSessionLive(context.sessionId))) return [];
   const level = await getDrillLevel("rep");
-  const skills = await getSkillStates();
-  const after = { ...skills };
-  const now = new Date().toISOString();
-  const changes: ProgressChange[] = [];
-  let total = 0;
-  let n = 0;
-  for (const [skill, score] of entries) {
-    total += score;
-    n += 1;
-    const full = updateRating(skills[skill], score, level);
-    const weight = skill === "impromptu" ? context.impromptuWeight ?? 1 : 1;
-    const scaled = weight === 1 ? full : { ...full, rating: Math.round((skills[skill].rating + weight * (full.rating - skills[skill].rating)) * 10) / 10 };
-    const updated = withStage(skills[skill], { ...scaled, lastPracticedAt: now }, now);
-    after[skill] = updated;
-    await saveSkill(skill, updated);
-    await logSkillEvent({
-      skill,
-      before: skills[skill].rating,
-      after: updated.rating,
-      source: "rep",
-      label: context.label,
-      score,
-      expected: expectedScore(skills[skill].rating, level),
-      level,
-      sessionId: context.sessionId,
-      drillType: "rep",
-      detail: { local: context.local[skill], cloud: context.cloud[skill] },
-    });
-    changes.push({
-      skill,
-      ratingBefore: skills[skill].rating,
-      ratingAfter: updated.rating,
-      levelBefore: level,
-      levelAfter: level,
-      leveledUp: false,
-      stageBefore: skills[skill].stage,
-      stageAfter: updated.stage,
-      stagedUp: updated.stage > skills[skill].stage,
-    });
-  }
-  const success = total / n >= 0.7;
+  const stages = await getNodeStages();
+  const stageOf = (id: string): Stage => stages.get(id)?.stage ?? 1;
+  const result = await recordAttempt({ evidence: { ...evidence, difficulty: level }, label: context.label, kind: "rep", sessionId: context.sessionId, drillType: "rep" });
+  if (!result.moves.length) return [];
+  const success = (context.meanScore ?? 0) >= 0.7;
   const levelAfter = nextDifficulty(level, success);
   await saveDrillLevel("rep", levelAfter, success);
-  const speakerLevelBefore = speakerLevelOf(skills);
-  const speakerLevelAfter = speakerLevelOf(after);
-  return changes.map((c) => ({ ...c, levelAfter, leveledUp: Math.floor(levelAfter) > Math.floor(level), speakerLevelBefore, speakerLevelAfter }));
+  const moved = (result.trail?.pillars ?? []).filter((p) => skillOfPillar(p.id as PillarId));
+  return moved.map((p) => {
+    const stage = pillarStage(result, p.id as PillarId, stageOf);
+    return {
+      skill: skillOfPillar(p.id as PillarId)!,
+      ratingBefore: p.before,
+      ratingAfter: p.after,
+      levelBefore: level,
+      levelAfter,
+      leveledUp: Math.floor(levelAfter) > Math.floor(level),
+      stageBefore: stage.before,
+      stageAfter: stage.after,
+      stagedUp: stage.after > stage.before,
+      speakerLevelBefore: result.levelBefore,
+      speakerLevelAfter: result.levelAfter,
+      trail: result.trail,
+    };
+  });
 }
 
 // ---------------------------------------------------------------------------

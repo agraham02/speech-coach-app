@@ -48,6 +48,7 @@ export interface SessionRow {
   volume_envelope_json: string | null;
   pitch_median_hz: number | null;
   pitch_range_st: number | null;
+  pitch_phrase_sd_st?: number | null;
   pitch_sd_st: number | null;
   loudness_spread_db: number | null;
   loudness_peak_sd_db: number | null;
@@ -106,6 +107,7 @@ export function rowToSession(row: SessionRow): Session {
     pitchMedianHz: row.pitch_median_hz ?? null,
     pitchRangeSt: row.pitch_range_st ?? null,
     pitchSdSt: row.pitch_sd_st ?? null,
+    pitchPhraseSdSt: row.pitch_phrase_sd_st ?? null,
     loudnessSpreadDb: row.loudness_spread_db ?? null,
     loudnessPeakSdDb: row.loudness_peak_sd_db ?? null,
     geminiFileName: row.gemini_file_name,

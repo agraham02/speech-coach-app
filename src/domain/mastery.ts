@@ -42,10 +42,14 @@ export function expectedScore(rating: number, level: number): number {
   return 1 / (1 + Math.exp(-(rating - difficultyToRating(level)) / SCALE));
 }
 
-export function updateRating(current: SkillRating, score: number, level: number): SkillRating {
+// How far one attempt moves a rating, before anything scales it.
+export function ratingDelta(current: SkillRating, score: number, level: number): number {
   const k = Math.max(4, 24 / Math.sqrt(1 + current.attempts / 5));
-  const expected = expectedScore(current.rating, level);
-  const rating = Math.max(0, Math.min(100, current.rating + k * (score - expected)));
+  return k * (score - expectedScore(current.rating, level));
+}
+
+export function updateRating(current: SkillRating, score: number, level: number): SkillRating {
+  const rating = Math.max(0, Math.min(100, current.rating + ratingDelta(current, score, level)));
   return { rating: Math.round(rating * 10) / 10, attempts: current.attempts + 1 };
 }
 

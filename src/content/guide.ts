@@ -49,7 +49,7 @@ export const GUIDES = {
       target: "today.plan",
     },
     { title: "This week", body: "Your path has two units on the go, from different skills, and days take turns between them. Each says why it's there for you.", target: "today.path" },
-    { title: "Your five skills", body: "Each climbs five stages, Foundations to Polished, and together they make your speaker level. Tap one to see what moved it.", target: "today.skills" },
+    { title: "Your five skills", body: "Each climbs five stages, Foundations to Polished, and together they lift your Overall score, which sets your speaker level. Tap one to see what moved it.", target: "today.skills" },
   ],
   learn: [
     { title: "Your path", body: "Every unit, in the order that fits what you told us and what the skill check heard, with the reason for each. It shifts when your goals do.", target: "learn.path" },

@@ -1,7 +1,7 @@
 import { summarizeVolume, type VolumeReading } from "../dsp/volumePauses";
 import { FIRST_RESULT_LATENCY_MS } from "../speech/liveTranscript";
 import { ramblingMetrics, type RamblingMetrics } from "../coach/ramblingMetrics";
-import { outcome, scoreSelfRating, type DrillOutcome } from "../drills/drillSpecs";
+import { outcome, type DrillOutcome } from "../drills/drillSpecs";
 import { countQuestions } from "./questions";
 import { contentWords, mentions, stem, words } from "./text";
 import type { ConversationSetup, ConversationTurn } from "./prepareConversation";
@@ -194,10 +194,9 @@ export function evaluateConversation(
 
   switch (setup.type) {
     case "conv_react": {
-      const rated = extra.selfRating != null ? scoreSelfRating(extra.selfRating) : null;
+      // Replied in time; the self-rating is kept but moves nothing (plan section 7).
       details.selfRating = extra.selfRating;
-      const score = rated ? 0.5 * rated.score + 0.5 * Number(allReplied) : Number(allReplied);
-      return { outcome: outcome(score, allReplied ? "You reacted in the moment" : "No reaction this time", allReplied && (rated?.success ?? true)), details };
+      return { outcome: outcome(Number(allReplied), allReplied ? "You reacted in the moment" : "No reaction this time", allReplied), details };
     }
     case "squeeze": {
       const first = measurements[0]?.transcript ?? "";

@@ -12,6 +12,7 @@ interface StageRowProps {
   rating: number;
   attempts: number;
   stage: Stage;
+  goodAt?: Partial<Record<number, number>>;
   // Highlights the skill the app is working on now.
   focus?: boolean;
   onPress?: () => void;
@@ -21,12 +22,12 @@ interface StageRowProps {
 // One skill's stage: its name, how far to the next one, and what's between
 // you and it. A dip below the earned stage reads "a bit rusty", never a
 // demotion.
-export function StageRow({ skill, rating, attempts, stage, focus, onPress, delay }: StageRowProps) {
+export function StageRow({ skill, rating, attempts, stage, goodAt, focus, onPress, delay }: StageRowProps) {
   const styles = useStyles();
   const { colors } = useTheme();
   const c = colors.skill[skill];
   const rusty = isRusty(rating, stage);
-  const label = `${SKILL_LABELS[skill]}: ${stageName(stage)}. ${nextStageHint(rating, attempts, stage)}.`;
+  const label = `${SKILL_LABELS[skill]}: ${stageName(stage)}. ${nextStageHint(rating, attempts, stage, goodAt)}.`;
   const body = (
     <>
       <View style={styles.top}>
@@ -48,7 +49,7 @@ export function StageRow({ skill, rating, attempts, stage, focus, onPress, delay
       <DeltaBar value={stageProgress(rating, stage)} color={c.fg} trackColor={c.bg} delay={delay} growIn />
       <View style={styles.bottom}>
         <Txt variant="footnote" tone="secondary" style={styles.flex}>
-          {rusty ? "A bit rusty. A few sessions brings it back." : nextStageHint(rating, attempts, stage)}
+          {rusty ? "A bit rusty. A few sessions brings it back." : nextStageHint(rating, attempts, stage, goodAt)}
         </Txt>
         {onPress ? <Ionicons name="chevron-forward" size={16} color={colors.textMuted} /> : null}
       </View>

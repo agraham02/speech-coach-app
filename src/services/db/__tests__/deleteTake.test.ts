@@ -140,7 +140,11 @@ async function addTake(id: string, recordedAt: string, overall: number, extra: P
   );
   await mockDb.runAsync(`INSERT INTO session_steps (session_id, step, status, attempts, updated_at) VALUES (?, 'transcribe', 'done', 1, ?)`, [id, recordedAt]);
   await mockDb.runAsync(
-    `INSERT INTO skill_events (id, skill, at, rating_before, rating_after, source, label, session_id) VALUES (?, 'pace', ?, 40, 45, 'rep', 'Rep', ?)`,
+    `INSERT INTO score_attempts (id, at, activity_id, kind, label, session_id, nodes_json) VALUES (?, ?, 'speak:impromptu', 'rep', 'Rep', ?, '{"voice":[40,45]}')`,
+    [`ev-${id}`, recordedAt, id],
+  );
+  await mockDb.runAsync(
+    `INSERT INTO leaf_events (attempt_id, leaf_id, skill_id, pillar_id, at, rating_before, rating_after, score, session_id) VALUES (?, 'speaking_rate', 'pace', 'voice', ?, 40, 45, 0.8, ?)`,
     [`ev-${id}`, recordedAt, id],
   );
 }
@@ -176,7 +180,7 @@ describeIfSqlite("deleting a take", () => {
   it("covers every table that holds a session id", async () => {
     // If this list grows, make sure eraseSessionRows removes the new table's rows.
     expect((await sessionLinkedTables()).sort()).toEqual(
-      ["activity_log", "review_passes", "scores", "session_artifacts", "session_steps", "skill_checks", "skill_events"].sort(),
+      ["activity_log", "review_passes", "scores", "session_artifacts", "session_steps", "skill_checks", "leaf_events", "score_attempts"].sort(),
     );
   });
 
@@ -196,7 +200,7 @@ describeIfSqlite("deleting a take", () => {
     expect(await getRecentlyUsedPromptIds(10)).not.toContain("prompt-gone");
     expect((await getUsageTotals()).reps).toBe(2);
     expect((await getSessionMetricSeries()).length).toBe(2);
-    expect((await getSkillEvents("pace" as never)).map((e) => e.sessionId)).not.toContain("gone");
+    expect((await getSkillEvents("cadence")).map((e) => e.sessionId)).not.toContain("gone");
     expect(await getSkillMovesSince(at(10))).toHaveLength(1);
     expect(await listArtifactsOfKind("cloud_usage")).toHaveLength(2);
     // The best previous score no longer includes the deleted 90.
@@ -227,7 +231,7 @@ describeIfSqlite("deleting a take", () => {
     expect(await getAllSessionsWithScores()).toHaveLength(0);
     expect(await restoreSession("a")).toBe(true);
     expect(await getAllSessionsWithScores()).toHaveLength(1);
-    expect(await getSkillEvents("pace" as never)).toHaveLength(1);
+    expect(await getSkillEvents("cadence")).toHaveLength(1);
   });
 
   it("erases the row and every row about it, plus its files, and keeps only a bare date", async () => {

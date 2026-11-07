@@ -118,6 +118,7 @@ export function SummaryRunnerScreen({ route, navigation }: Props) {
         contentId: current.contentId,
         lessonId: practice?.lessonId,
         metrics: { ...evaluated.details, reviewSource: review ? review.provenance.producer : null },
+        ...(review ? { source: "judge" as const } : {}),
       });
       setReviewed(review);
       setResult(evaluated);

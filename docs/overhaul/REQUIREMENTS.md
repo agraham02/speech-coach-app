@@ -15,7 +15,7 @@ From Appendix B of `PLAN.md`. A phase can't close while one of its IDs is open. 
 | R9 | Overview order: score, rewatch, coaching | 10 | Screen test | 6 | todo |  |
 | R10 | Felt vs observed as a track, not a button row | 6.5, 10 | Screen test; same track shows all three markers | 6 | todo |  |
 | R11 | Analysis in an accordion | 10 | Screen test | 6 | todo |  |
-| R12 | One scoring logic across the whole app | 6 | Grid coverage test | 3a | todo |  |
+| R12 | One scoring logic across the whole app | 6 | Grid coverage test | 3a | done | Every attempt goes through the grid onto leaves (`scoring/leafEvidence.ts`, `db/leafRepo.ts`); `skillGrid.test.ts` for coverage |
 | R13 | Everything earns a score, including Rewind | 7 | Grid coverage test | 3a | todo |  |
 | R14 | One curriculum, like Duolingo | 5 | Plan, Path and Practice read the same catalogue | 2 | todo |  |
 | R15 | Rewind, Feeling, Conversations in the daily session | 5.3 | Session builder tests | 4 | todo |  |
@@ -46,7 +46,7 @@ From Appendix B of `PLAN.md`. A phase can't close while one of its IDs is open. 
 | R40 | Testing suite in Dev | 6.5 | Signal Lab runs every test on iPhone | 1 | done | PRs #36 to #46. Signal Lab ran on the iPhone: 18 of 21 tests, the other 3 are the content tests, blocked until phase 3b. Results in D7 to D11 |
 | R41 | Research into better capture | 6.5 | Better-ways table tried and results logged | 1 | done | PRs #39 to #46. Better-ways table tried on real recordings and logged in D7 to D9. SwiftF0 tested and not needed; the audio-session experiment and Silero not needed |
 | R42 | Better face and eye math, tracking kept | 6.2, 6.5 | Presence tests in Signal Lab | 1 | done | PRs #39, #43 to #45. Eye contact and face movement reworked and passing on the iPhone, tracking untouched. Eye contact counts; face movement waits for 3a to read it |
-| R43 | Final levels and ranges | 6.3 | Tests on every threshold | 3a | todo |  |
+| R43 | Final levels and ranges | 6.3 | Tests on every threshold | 3a | done | `domain/levels.ts`; `levels.test.ts` on every threshold, `overhaulPlan.test.ts` against Appendix C |
 | R44 | Difficulty fits scoring and keeps challenging | 6.7 | Difficulty tests, simulated user | 3d | todo |  |
 | R45 | No backwards compatibility | 14 | No migration code; legacy code gone | All | todo |  |
 | R46 | First take doesn't use the on-device recognizer | 12 | iPhone walkthrough; code uses Whisper | 7 | todo |  |

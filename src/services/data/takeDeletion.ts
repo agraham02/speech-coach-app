@@ -33,7 +33,7 @@ import { logger } from "../../utils/logger";
 //
 // Where a take's data can live, and what removes it:
 //   sessions row + scores, session_steps, session_artifacts, review_passes,
-//     skill_events, skill_checks built on it ........ eraseSessionRows
+//     leaf_events, score_attempts, skill_checks built on it .. eraseSessionRows
 //   the video file (also the audio, and a keepsake) ... deleteRecording
 //   its uploaded copy at Google (Tono AI server) ...... tonoDeleteFile
 //   decoded-audio memory, exported copies in the cache,

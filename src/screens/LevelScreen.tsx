@@ -11,8 +11,9 @@ import { SkeletonRows } from "../components/common/Skeleton";
 import { ListGroup, ListRow } from "../components/common/ListRow";
 import { Txt } from "../components/common/Txt";
 import { StageRow } from "../components/levels/StageRow";
-import { getSkillStates, speakerLevelOf, type SkillState } from "../services/db/progressRepo";
-import { MAX_SPEAKER_LEVEL, MAX_STAGE, nextStageHint, pointsToNextStage, STAGE_MEANING, STAGE_NAMES, type Stage } from "../domain/levels";
+import { getSkillStates, type SkillState } from "../services/db/progressRepo";
+import { getSpeakerLevel, getTreeScores } from "../services/db/leafRepo";
+import { MAX_SPEAKER_LEVEL, MAX_STAGE, nextLevelAt, nextStageHint, pointsToNextStage, STAGE_MEANING, STAGE_NAMES, type Stage } from "../domain/levels";
 import { SKILLS } from "../domain/mastery";
 import { SKILL_LABELS, type SkillId } from "../theme/tokens";
 import { makeStyles } from "../theme/ThemeProvider";
@@ -25,14 +26,18 @@ type Props = NativeStackScreenProps<RootStackParamList, "Level">;
 export function LevelScreen({ navigation }: Props) {
   const styles = useStyles();
   const [skills, setSkills] = useState<Record<SkillId, SkillState> | null>(null);
+  const [level, setLevel] = useState<number | null>(null);
+  const [overall, setOverall] = useState<number | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       getSkillStates().then(setSkills);
+      getSpeakerLevel().then(setLevel);
+      getTreeScores().then((t) => setOverall(t.overall));
     }, []),
   );
 
-  const level = skills ? speakerLevelOf(skills) : null;
+  const next = level != null ? nextLevelAt(level) : null;
   const closest = skills ? closestStage(skills) : null;
 
   return (
@@ -50,11 +55,11 @@ export function LevelScreen({ navigation }: Props) {
           </Txt>
         </View>
         <Txt variant="callout" tone="secondary">
-          Every stage you earn in any skill raises it by one. It never goes down.
+          {overall != null ? `Overall ${overall.toFixed(1)}${next != null ? `. Level ${(level ?? 1) + 1} starts at ${next}` : ""}. It never goes down.` : "It never goes down."}
         </Txt>
         {closest ? (
           <Txt variant="footnote" tone="muted">
-            Closest to the next level: {SKILL_LABELS[closest.skill]}, {closest.hint.charAt(0).toLowerCase() + closest.hint.slice(1)}.
+            Closest to its next stage: {SKILL_LABELS[closest.skill]}, {closest.hint.charAt(0).toLowerCase() + closest.hint.slice(1)}.
           </Txt>
         ) : null}
       </HeroCard>
@@ -72,6 +77,7 @@ export function LevelScreen({ navigation }: Props) {
                 rating={skills[skill].rating}
                 attempts={skills[skill].attempts}
                 stage={skills[skill].stage}
+                goodAt={skills[skill].goodAt}
                 delay={i * 80}
                 onPress={() => navigation.navigate("SkillDetail", { skill })}
               />
@@ -125,7 +131,7 @@ function closestStage(skills: Record<SkillId, SkillState>): { skill: SkillId; hi
   }
   if (!best) return null;
   const s = skills[best.skill];
-  return { skill: best.skill, hint: nextStageHint(s.rating, s.attempts, s.stage) };
+  return { skill: best.skill, hint: nextStageHint(s.rating, s.attempts, s.stage, s.goodAt) };
 }
 
 const useStyles = makeStyles((t) => ({

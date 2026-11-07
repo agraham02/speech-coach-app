@@ -271,6 +271,8 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         accuracyPercent: evaluated.details.accuracyPercent ?? null,
         wpm: evaluated.details.wpm ?? null,
         metrics: evaluated.details,
+        // A chain Tono AI checked counts in full; without it, the phone only counts.
+        ...(check?.by ? { source: "judge" as const } : {}),
       });
       setChange(moved);
       setChainCheck(check);

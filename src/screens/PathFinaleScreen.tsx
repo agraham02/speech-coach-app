@@ -17,7 +17,7 @@ import { stageName } from "../domain/levels";
 import { SKILL_LABELS } from "../theme/tokens";
 import { loadJourney } from "../services/path/journey";
 import { getPathView } from "../services/path/pathService";
-import { getSkillStates, speakerLevelOf } from "../services/db/progressRepo";
+import { getSpeakerLevel } from "../services/db/leafRepo";
 import { getPathFinaleSeenAt, setPathFinaleSeenAt } from "../services/prefs/prefsStore";
 import { SKILLS } from "../domain/mastery";
 import { dateFromISODate } from "../utils/dateUtils";
@@ -48,14 +48,14 @@ export function PathFinaleScreen({ navigation, route }: Props) {
     // A Dev preview leaves the real moment alone.
     if (!route.params?.preview && !getPathFinaleSeenAt()) setPathFinaleSeenAt(new Date().toISOString());
     const haptic = setTimeout(success, 250);
-    Promise.all([getPathView(), getSkillStates()])
-      .then(([view, skills]) => {
+    Promise.all([getPathView(), getSpeakerLevel()])
+      .then(([view, speakerLevel]) => {
         const done = view.units.filter((u) => u.status === "done");
         setFacts({
           units: done.length,
           lessons: done.reduce((sum, u) => sum + u.total, 0),
           shown: view.units.filter((u) => u.status === "tested_out").length,
-          speakerLevel: speakerLevelOf(skills),
+          speakerLevel,
         });
       })
       .catch(() => setFacts(null));

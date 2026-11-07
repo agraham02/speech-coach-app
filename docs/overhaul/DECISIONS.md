@@ -209,3 +209,29 @@ Every change to `PLAN.md` after it was agreed: what changed, why, and the owner'
 **Nothing reads the grid to move a score yet.** Scoring doesn't change until 3a.3.
 
 **Owner's OK:** not asked; these fill gaps in tasks 3a.1 and 3a.2. The script-take reading is the one to look at.
+
+## D16. How leaf ratings, stages and the level work (2026-11-07)
+
+**Was:** plan 6.3 gives the update, the roll-up, the levels and the stages. It doesn't say how they're stored, or how the screens that still show five skills keep working until phase 5.
+
+**Now:**
+- **Stored:** a rating per leaf, every move a leaf made (with its attempt, score and difficulty), each attempt's before and after at every node that changed, the stage earned at each node, and the level. Schema version 39. Nothing above a leaf is stored; it is worked out each time.
+- **The five old skills are gone from the database.** `skill_mastery` and `skill_events` are dropped, with no dual writes. `getSkillStates` now reads each old skill as its pillar's score, by the plan's mapping (Articulation is Clarity, Cadence is Voice, Impromptu is Message, Confidence is Presence, Conversation is Connection). Screens that show skills keep working until phases 5 and 6 replace them. **So those numbers move more slowly than they did,** because a pillar is an average of many leaves. That's what the plan intends. Composure has no old skill, so it shows only on the trail until the You tab.
+- **A leaf that doesn't count doesn't move.** The plan says it has weight 0; I also don't move it, so a reading that isn't proven can't build up a number that suddenly counts when it passes.
+- **An attempt counts once** for a stage's attempts and proof at any node, however many leaves below it moved. Otherwise one take, which moves about 20 leaves, would count as 8 attempts of Voice. A leaf's own attempt count, which shrinks its update, goes up by one whatever the weight.
+- **A good attempt at a node** is any leaf below it scoring 70 or more at that difficulty.
+- **Stage celebrations are for pillars only,** the five with an old skill, since those are the ones the celebration screens can show. Leaves and secondary skills earn stages quietly. Reaching a level on its own isn't celebrated yet: it shows on Today and in Your level.
+- **Self-ratings stop moving performance leaves now, not in 3c** (rule 6). Today's guided exercises rate themselves, so until 3c.1 gives them a mic, they move only inner leaves such as Settling and Outward focus. Line reps move only Knowing where to stress, from your marks against the coach's. React drops its self-rating, as section 7 says.
+- **Who checked a drill:** Category sprint, Word chain, Bridge chain, Random-word story, Sum it up, Rolling summary, Explain it simply, Land the plane and Squeeze it are phone estimates unless Tono AI checked that attempt, so their content leaves move ● (rule 5). The gates come in 3b.1, and until then a nonsense attempt can still move those leaves that lightly.
+- **Every kind of take now moves the tree:** free record and script takes moved nothing before. Feeling of the week moves Feeling words only: different feeling words ÷ 5, a count and not a grade.
+- **The skill check** sets starting values on the leaves it touched: its read-aloud, its category sprint, its partner line and the take leaves of its talk. Other leaves stay at 25.
+- **New score bands, from the iPhone's recordings** (replayed from the Signal Lab export): Pitch variety reads the within-phrase SD, 1 semitone scores 0 and 3 full marks (flat 1.56 to 1.75, plain reading 2.06 to 2.68, normal 2.82, lively 3.34), personal after 5 takes between 2.4 and 3.4. Stand-out stress is 0.7 steps to 2.2 (flat 1.01 to 1.21, plain reading 1.52, normal and lively 2.02 to 2.14, stressed 2.88). One low voice on one phone, as before.
+- **Formulas the plan marks "Tune",** first guesses until real takes say otherwise: Rhythm (spread free to 1 syllable a second, then -40 per syllable; speed-up free to 10%, then -2 per point), Restarts (1 a minute free, -10 each), No detours (-25 each a minute), Specifics (6 a minute = 100), Starting fast (1.5 s free, -20 a second), Plain words (20 words a sentence and 15% long words free), Face movement (12 a minute = 100).
+- **Two leaves read what a take can show, not all of the plan's wording.** Volume carry reads "last word within 6 dB", since a take has no volume target. It compares you with yourself, so the face-size correction isn't needed. Clear endings has no separate signal for "neutral" in the words, so it combines them with the voice: clean words with your voice dropping away at most sentence ends is neutral, 60 (rule 10).
+- **Bouncing back ● also moves on Word chain,** as the grid says, so a real Word chain's Overall is a little above the plan's example, which follows one leaf.
+
+**Not wired yet, by plan:** the personal rows (Three things, Talk back, Prime, Debrief, Moments, Rewind, Missions, check-ins) have grid rows but move nothing until 3c.4 gives them their numbers.
+
+**Why:** the plan says no dual writes and no shims, so the old skills had to become a view of the tree rather than a second store.
+
+**Owner's OK:** not asked; these are inside tasks 3a.3 and 3a.4. The one you'd notice: guided exercises and line reps stop moving your skills until they get a mic in 3c. That's the plan's rule, sooner.

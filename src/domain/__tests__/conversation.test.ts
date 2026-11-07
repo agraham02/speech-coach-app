@@ -269,10 +269,11 @@ describe("prepare + evaluate conversation drills", () => {
     expect(r.outcome.success).toBe(true);
   });
 
-  it("uses the self-rating for reactions", () => {
+  it("ignores the self-rating for reactions", () => {
     const setup = prepareConversation("conv_react", 1, 0, "rx01");
     expect(evaluateConversation(setup, [measured("no way for three years")], { selfRating: 5 }).outcome.success).toBe(true);
-    expect(evaluateConversation(setup, [measured("no way for three years")], { selfRating: 2 }).outcome.success).toBe(false);
+    // The self-rating is dropped: replying in time is the number (plan section 7).
+    expect(evaluateConversation(setup, [measured("no way for three years")], { selfRating: 2 }).outcome.success).toBe(true);
   });
 
   it("replays a moment you blanked with its own words as threads", () => {

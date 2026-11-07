@@ -224,6 +224,8 @@ export function LineRepScreen({ route, navigation }: Props) {
     setSaving(true);
     const outcome = scoreSelfRating(rating);
     const builtIn = lines!.filter((l) => !l.mine).map((l) => l.id);
+    const coachMarks = agreement.reduce((sum, a) => sum + a.coach, 0);
+    const sharedMarks = agreement.reduce((sum, a) => sum + a.shared, 0);
     await recordDrillOutcome({
       drillType: "marked_reading",
       outcome,
@@ -231,6 +233,11 @@ export function LineRepScreen({ route, navigation }: Props) {
       contentId: builtIn.length ? builtIn.join(",") : undefined,
       lessonId: practice?.lessonId,
       metrics: { mode: config.mode, lines: lines!.map((l) => l.id), agreement },
+      activityId: repActivity,
+      source: "self",
+      // The self-rating moves nothing here (plan 6.4, rule 6). Only your marks
+      // against the coach's are measured, until the mic comes in 3c.3.
+      leafScores: coachMarks > 0 ? { where_to_stress: { score: sharedMarks / coachMarks, source: "measured" } } : {},
     });
     await markTextsPracticed(lines!.filter((l) => l.mine && !l.phrase).map((l) => l.id));
     await markPhrasesPracticed(lines!.filter((l) => l.phrase).map((l) => l.id));

@@ -446,6 +446,65 @@ const STEPS: SchemaStep[] = [
       ALTER TABLE daily_topups DROP COLUMN completed_steps_json;
     `,
   },
+  {
+    version: 39,
+    description: "the skill tree's stored numbers (tasks 3a.3, 3a.4): leaf ratings, what moved them, stages and the level replace the five skill ratings",
+    sql: `
+      CREATE TABLE leaf_ratings (
+        leaf_id TEXT PRIMARY KEY NOT NULL,
+        rating REAL NOT NULL,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        last_moved_at TEXT
+      );
+      CREATE TABLE score_attempts (
+        id TEXT PRIMARY KEY NOT NULL,
+        at TEXT NOT NULL,
+        activity_id TEXT,
+        kind TEXT NOT NULL,
+        label TEXT NOT NULL,
+        score REAL,
+        difficulty REAL,
+        source TEXT,
+        session_id TEXT,
+        drill_type TEXT,
+        nodes_json TEXT NOT NULL
+      );
+      CREATE TABLE leaf_events (
+        attempt_id TEXT NOT NULL,
+        leaf_id TEXT NOT NULL,
+        skill_id TEXT NOT NULL,
+        pillar_id TEXT NOT NULL,
+        at TEXT NOT NULL,
+        rating_before REAL NOT NULL,
+        rating_after REAL NOT NULL,
+        score REAL,
+        weight REAL,
+        difficulty REAL,
+        source TEXT,
+        session_id TEXT,
+        PRIMARY KEY (attempt_id, leaf_id)
+      );
+      CREATE TABLE node_stages (
+        node_id TEXT PRIMARY KEY NOT NULL,
+        stage INTEGER NOT NULL,
+        reached_at TEXT
+      );
+      CREATE TABLE speaker_level (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        level INTEGER NOT NULL,
+        reached_at TEXT
+      );
+      CREATE INDEX idx_score_attempts_at ON score_attempts(at);
+      CREATE INDEX idx_score_attempts_session ON score_attempts(session_id) WHERE session_id IS NOT NULL;
+      CREATE INDEX idx_leaf_events_leaf ON leaf_events(leaf_id);
+      CREATE INDEX idx_leaf_events_skill ON leaf_events(skill_id);
+      CREATE INDEX idx_leaf_events_pillar ON leaf_events(pillar_id);
+      CREATE INDEX idx_leaf_events_session ON leaf_events(session_id) WHERE session_id IS NOT NULL;
+      DROP TABLE skill_events;
+      DROP TABLE skill_mastery;
+      ALTER TABLE sessions ADD COLUMN pitch_phrase_sd_st REAL;
+    `,
+  },
 ];
 
 export const SCHEMA_VERSION = STEPS[STEPS.length - 1].version;
