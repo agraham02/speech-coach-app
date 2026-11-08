@@ -174,6 +174,13 @@ function DevHome() {
           chevron
           onPress={() => navigation.navigate("PartnerVoicesLab")}
         />
+        <ListRow
+          icon="hardware-chip-outline"
+          title="Native check"
+          subtitle="Does this build have every native piece the plan needs?"
+          chevron
+          onPress={() => navigation.navigate("DevNativeCheck")}
+        />
       </ListGroup>
 
       <ListGroup title="Tools">

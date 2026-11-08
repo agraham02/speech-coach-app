@@ -4,6 +4,15 @@ Only the owner can run these. A phase stays open until its checks here have resu
 
 The first three sections are carried over from the hotfix round (the old `hotfix-round-1.md`). They cover things the overhaul doesn't change, so they stay valid. The hotfix checks for screens the overhaul replaces (the Scores tab charts, Play from here, the Overview settling, the Path finale) were dropped, and their lasting parts are in the Phase 6 section.
 
+## The one build (do this first, once)
+
+This is the only build the rest of the overhaul needs (`DECISIONS.md`, D20). After it, every phase comes as an update.
+
+- [ ] **Make the build.** On this branch (`staging`, version 2.1.0), make the same kind of iPhone build you made last time. It has to be one that carries the Dev tab, so the `testflight` profile: `eas build --platform ios --profile testflight`, then submit it to TestFlight the way you did before. The first build after a native change is also the first time the new Swift file is compiled. If it fails, send me the error: it will be in `TonoLanguageModule.swift`.
+- [ ] **Install it and open Dev, then Native check.** It should say "This build has everything", with a tick on every row, including "Meaning check gives sensible answers" (dog closer to puppy than to thunder). Send me a screenshot or tell me which rows are red.
+- [ ] **Then send the code.** From now on: `npm run update:testflight -- --message "..."`. I'll tell you when there's something to send. Open the app twice to get it (it applies on the next cold start).
+- [ ] **If I ever say a change needs another build,** that's the `npm run check:native` guard firing. I'll say so before writing it.
+
 ## Before any phone testing: server setup (once)
 
 - [x] Run `supabase/migrations/20261025000000_dev_override.sql` in the SQL editor.
@@ -143,7 +152,7 @@ A new JS bundle is enough; no new build. Do a few real takes first, since the nu
 
 ## Phase 3b: gates and the judge
 
-**Do this first:** run `npx supabase functions deploy --use-api`. Until you do, Tono AI reviews of takes fail on this code, because the answer format changed.
+**Server deploy:** done by the owner on 2026-11-08 (`npx supabase functions deploy --use-api`). Redo it after any change under `supabase/functions`.
 
 - [ ] **A judged take.** Ask Tono AI to review a take. It comes back with Answers the question, Point first, Has a shape, Hits the beats, Ideas connect and Specifics, each with a level of 0 to 5 and a note. Nothing about pace, pitch or eye contact says Tono AI.
 - [ ] **Do the levels ring true?** Compare them with how you'd rate the take. The wording of each level is mine (`supabase/functions/_shared/prompts/takeReview.ts`). Tell me where it's off.

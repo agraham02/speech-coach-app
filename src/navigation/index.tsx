@@ -17,6 +17,7 @@ import { GuidedScreen } from "../screens/GuidedScreen";
 import { ConversationRunnerScreen } from "../screens/ConversationRunnerScreen";
 import { LiveConversationScreen } from "../screens/LiveConversationScreen";
 import { PartnerVoicesLabScreen } from "../screens/dev/PartnerVoicesLabScreen";
+import { NativeCheckScreen } from "../screens/dev/NativeCheckScreen";
 import type { LiveFocus } from "../domain/conversation/live/prepareLive";
 import { SummaryRunnerScreen } from "../screens/SummaryRunnerScreen";
 import { FaceCheckScreen } from "../screens/FaceCheckScreen";
@@ -189,6 +190,7 @@ export type RootStackParamList = {
   Result: { sessionId: string; practice?: PracticeContext };
   AsrLab: undefined;
   PartnerVoicesLab: undefined;
+  DevNativeCheck: undefined;
   DevLogs: { tag?: string; level?: LogLevelFilter } | undefined;
   DevPipeline: { problemsOnly?: boolean } | undefined;
   DevSession: { sessionId: string };
@@ -455,6 +457,7 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
             <Stack.Screen name="DevTools" component={ToolsScreen} />
             <Stack.Screen name="AsrLab" component={AsrLabScreen} />
             <Stack.Screen name="PartnerVoicesLab" component={PartnerVoicesLabScreen} />
+            <Stack.Screen name="DevNativeCheck" component={NativeCheckScreen} />
             <Stack.Screen name="DevMetrics" component={MetricsScreen} />
             <Stack.Screen name="DevDemoTakes" component={DemoTakesScreen} />
             <Stack.Screen name="DevMockAccount" component={MockAccountScreen} />

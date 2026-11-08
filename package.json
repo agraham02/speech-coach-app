@@ -1,6 +1,6 @@
 {
   "name": "speech-coach-app",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "main": "index.ts",
   "dependencies": {
     "@bottom-tabs/react-navigation": "^1.4.0",
@@ -85,6 +85,8 @@
     "update:testflight": "node scripts/eas-update.mjs testflight",
     "postinstall": "patch-package",
     "check:overhaul": "jest src/domain/__tests__/overhaulPlan.test.ts src/domain/__tests__/levels.test.ts src/domain/scoring/__tests__/skillTree.test.ts src/domain/scoring/__tests__/rollup.test.ts src/content/__tests__/skillGrid.test.ts && node scripts/overhaul-status.mjs",
+    "check:native": "jest src/domain/__tests__/nativeFingerprint.test.ts",
+    "native:accept": "node scripts/accept-native.cjs",
     "test": "jest"
   },
   "private": true,
