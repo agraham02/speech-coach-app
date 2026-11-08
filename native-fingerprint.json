@@ -1,6 +1,6 @@
 {
   "version": "2.1.0",
-  "hash": "734ee31423535cfd",
+  "hash": "737608b2bfb63043",
   "parts": {
     "packages": {
       "@expo/ui": "57.0.26",
@@ -22,6 +22,7 @@
       "expo-font": "57.0.4",
       "expo-haptics": "57.0.3",
       "expo-linear-gradient": "57.0.2",
+      "expo-network": "57.0.3",
       "expo-notifications": "57.0.24",
       "expo-secure-store": "57.0.4",
       "expo-speech": "57.0.3",

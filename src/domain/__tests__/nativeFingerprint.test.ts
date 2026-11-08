@@ -25,10 +25,12 @@ interface Stored {
 
 const current = computeNativeFingerprint(config, ROOT);
 
-if (process.env.NATIVE_ACCEPT === "1") {
+// NATIVE_ACCEPT=force is for a version that has not been built yet: its fingerprint can
+// still change, since no build exists that it could disagree with.
+if (process.env.NATIVE_ACCEPT === "1" || process.env.NATIVE_ACCEPT === "force") {
   const old: Stored | null = existsSync(FILE) ? JSON.parse(readFileSync(FILE, "utf8")) : null;
   if (current.missingPackages.length) throw new Error(`Run npm install first: ${current.missingPackages.join(", ")} aren't installed.`);
-  if (old && old.hash !== current.hash && old.version === config.version) {
+  if (old && old.hash !== current.hash && old.version === config.version && process.env.NATIVE_ACCEPT !== "force") {
     throw new Error(`Native code changed (${describeChange(old.parts, current.parts).join("; ")}) but the version is still ${config.version}. Bump version in app.config.ts and package.json first.`);
   }
   writeFileSync(FILE, `${JSON.stringify({ version: config.version, hash: current.hash, parts: current.parts }, null, 2)}\n`);

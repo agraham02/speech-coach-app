@@ -80,7 +80,7 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 
 | ID | Task | Status | Evidence |
 |---|---|---|---|
-| N.1 | Every native piece the rest of the plan needs, a Native check screen, and a guard against needing another build | done | `modules/tono-language` (Swift, autolinking finds it); version 2.1.0; Dev, Native check; `npm run check:native` fails on a native change without a version bump and was shown to. Not compiled: Swift can't be built on this machine |
+| N.1 | Every native piece (including `expo-network`, found by the fresh review) the rest of the plan needs, a Native check screen, and a guard against needing another build | done | `modules/tono-language` (Swift, autolinking finds it); version 2.1.0; Dev, Native check; `npm run check:native` fails on a native change without a version bump and was shown to. Not compiled: Swift can't be built on this machine |
 | N.2 | Owner makes the one build and opens Dev, Native check | iphone | Needs `eas build`, then "This build has everything" on the Native check screen. Steps in `device-checks.md` |
 
 ## Phase 3b: gates and content checks
@@ -170,6 +170,7 @@ Things that came up and aren't in this plan. The readings still on Beta, and wha
 - Speech study, Rehearse, Plan your point, Missions, the monthly comfort check-in and the attention rating have catalogue ids and grid rows, but don't write to the activity log yet. MarkItUp has no id of its own: its reps run through Line rep, which logs. Wire these when their rows start moving scores (3c).
 - Reaching a new level on its own has no celebration yet, only a stage does (D16). Section 15 covers it in phase 8.
 - **Check in 3d: takes at the rep's low difficulty.** A take's difficulty starts at 1 and rises at most 0.18 per good take. A leaf settles where the formula expects your score, 10 × difficulty + 15 × ln(score ÷ (1 − score)), so at difficulty 1 a steady 60 settles near 16, 80 near 31 and 95 near 54. That's the plan's formula, but it means an honest 60 lowers a leaf from its starting 25, and takes can't count as proof for Steady (difficulty 3) until about a dozen good ones in. 3d.1 and 3d.2 should fix this by working out a take's difficulty from its prompt, prep and length. Run a simulated user and check the plan's half a point to a point a day before trusting that pace.
+- 3c.2: record warm-ups with `react-native-audio-api`'s `AudioRecorder`, not the speech recognizer (D20): a hiss has no words, so the recognizer restarts and leaves gaps.
 - Face movement's bar of 12 brow lifts and smiles a minute is a first guess, and Rhythm, Restarts, No detours, Specifics and Starting fast are the plan's "Tune" numbers (D16, D17). Set them from real takes.
 - The coach (`ruleCoach.ts`) and its observations still read the old 0-10 bands. It doesn't affect scores, but what it calls good may not match a leaf's number. Worth lining up when the coach moves onto the tree.
 - Volume carry on a take reads the last word against the rest of the sentence, which doesn't depend on distance (D16). A level target for takes would need the face-size correction the distance test proved.

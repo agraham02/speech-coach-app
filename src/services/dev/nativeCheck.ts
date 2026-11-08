@@ -64,6 +64,7 @@ export async function checkNativeModules(): Promise<NativeCheckRow[]> {
     { id: "whisper", label: "Whisper", usedFor: "Scoring drills and takes from the saved clip (3b.3)", present: turbo("RNWhisper") },
     { id: "speech", label: "Live speech recognition and clip saving", usedFor: "Drills, warm-ups and guided exercises with a mic (3b.3, 3c)", present: expoModule("ExpoSpeechRecognition") },
     { id: "audio_api", label: "Audio decoding", usedFor: "Pitch, volume and pauses from a saved clip (3c)", present: turbo("AudioAPIModule") },
+    { id: "network", label: "Network type (Wi-Fi or cellular)", usedFor: "Onboarding's model download asks first on cellular (phase 7)", present: expoModule("ExpoNetwork") },
     { id: "backup", label: "Backup exclusion", usedFor: "Keeping media out of iCloud", present: expoModule("BackupExclusion") },
     { id: "metrics", label: "Device metrics", usedFor: "Dev, Metrics", present: expoModule("DeviceMetrics") },
   );
