@@ -34,7 +34,11 @@ export default (): ExpoConfig => ({
     // Plus purchases (react-native-purchases) are native code too.
     // 1.6.0: the first real build of everything since: signal capture, hosted
     // Tono AI with the trial, live conversation, and SDK 57 patch updates.
-    version: "2.0.0",
+    // 2.1.0: the one build for the rest of the overhaul. It adds the Apple
+    // language module (modules/tono-language) and carries the keyboard library
+    // from phase 0. Every later phase is meant to ship as an update; `npm run
+    // check:native` says when a change isn't (docs/overhaul/DECISIONS.md, D20).
+    version: "2.1.0",
     scheme: "tono",
     orientation: "portrait",
     // Follows the system light/dark setting (needs expo-system-ui on

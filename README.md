@@ -56,6 +56,8 @@ If a future need arises to move to the v5 Nitro pair, re-check `visioncamera.mar
 
 ## Native dependencies requiring an EAS rebuild
 
+`npm run check:native` fingerprints everything compiled into the iPhone build and fails when any of it changes without a version bump, saying what changed. After you bump the version, `npm run native:accept` records the new fingerprint. Dev, Native check, shows what a given build actually contains.
+
 Beyond the original camera/face-detection stack: `expo-video` (Result screen video playback), `react-native-gifted-charts` + `react-native-svg` (Trends chart, Phase 6), `expo-notifications` (daily reminder, Phase 7), `expo-secure-store` (the key to the encrypted sign-in session), `react-native-purchases` (Tono Plus), `expo-apple-authentication` and `expo-web-browser` (optional sign-in). None of these need extra config beyond what's already in `app.config.ts`'s `plugins` array. As always on this Windows-only dev setup, a JS-only change just needs a dev-client reload; anything that adds/updates a native module needs `eas build --profile development --platform ios` first.
 
 

@@ -298,3 +298,30 @@ Section 16's validity tests for "table" and for pauses away from marks go in wit
 **Needs a deploy, which I did not do:** the answer format went from 3 to 4, and the server refuses a version it doesn't know. **Until you run `npx supabase functions deploy --use-api`, Tono AI reviews of takes fail on this code.** Everything else works. There's one format on purpose, as the plan has no backwards compatibility.
 
 **Owner's OK:** not asked for the wording; it's inside task 3b.2. Please read the levels in `supabase/functions/_shared/prompts/takeReview.ts`, since you know how you'd rate a take.
+
+## D20. One native build, then updates only (2026-11-08)
+
+**Was:** the plan marks some tasks "new build" (the keyboard in phase 0, the phone meaning check in 3b.4) and puts them wherever they fall in the order. The owner has a limited number of iPhone builds.
+
+**Now:** every native piece the rest of the plan needs goes into one build, made once, and every later phase ships as an over-the-air update. The task order changes so the work that uses the new native code comes first.
+
+**What the rest of the plan needs, and where it comes from:**
+- **Already in the build, or already installed:** the keyboard library (phase 0), Whisper with word times, live speech recognition that saves its audio (so drills can be scored from the clip, and warm-ups, hisses and sirens can be measured), audio decoding, Apple's contextual embeddings, Apple speech transcription, notifications, video, haptics, Skia, Reanimated, Gesture Handler, the native tabs and `@expo/ui`.
+- **Added now:** `expo-network` (autolinks, no plugin, no permission), because phase 7 downloads the Whisper model on Wi-Fi and asks first on cellular, and nothing installed could tell the two apart. A fresh review found this gap.
+- **Also added now:** `modules/tono-language`, about 20 lines of Swift around Apple's `NLEmbedding`: a vector for a word or a sentence, offline, with no download. The plan's phone meaning check (6.6) names exactly this. Apple's contextual embeddings were already in the build, but they need a download and are weaker on single words, so the "table isn't an animal" check wants this one. Both are in the build now, so 3b.4 can test both on the iPhone and keep whichever holds up, with no further build.
+- **Version 2.1.0.** An update only reaches builds with the same version, and the iPhone's last build is older than the keyboard library, so publishing an update under 2.0.0 could have reached a build that lacks it. 2.1.0 closes that gap.
+- **Not needed, and why:** FlashList and the confetti library contain no native code (checked from the published packages), so they arrive by update when phases 5 and 8 need them. Lottie and Rive are not used. SwiftF0 and Silero (Core ML) are in the plan only "if the tests fail": pitch variety and pauses passed, and the one leaf they might help, Endings that fall, stays Beta and moves no score. Whisper's DTW word times aren't exposed by the Whisper library. Apple's transcription is in the build but its wrapper returns phrase-level times only, dropping the per-word ones, so better word times would need a Swift change and so a build. That only feeds "Stress on the right words", which is Beta and moves no score, so I haven't added it. (An earlier draft of this record said Apple's transcription was the way to test better word times; that was wrong.) The audio-session experiment was only for volume, which passed. If one of these is ever wanted, that is a build.
+
+**New safety checks:**
+- **Dev, Native check** lists every native piece and whether this build has it, and asks the meaning check for a real answer ("dog" closer to "puppy" than to "thunder"). After the build, it should say "This build has everything".
+- **`npm run check:native`** (also part of the tests) fingerprints everything compiled in: native dependencies, local modules, config plugins, patches, the native parts of the app config, and the icon and splash images. It fails if any of it changes without a version bump, and says what changed. `npm run native:accept` records a new fingerprint after the bump. It ignores line endings, so Windows and Mac agree.
+
+**For 3c.2, in JS:** warm-ups with no words (a hiss, a hum, a siren) should record with `react-native-audio-api`'s `AudioRecorder` (file output, start and stop, already in the build with the microphone permission), not the speech recognizer, which restarts on silence and could leave gaps in the saved audio.
+
+**Risk, plainly:** I can't compile Swift on this Windows machine. The module is deliberately tiny and copies the structure of the working BackupExclusion module, and the build tooling's autolinking finds it, but a typo would only show when the build runs. If the build fails, it will fail in `TonoLanguageModule.swift`, and the fix is a few characters.
+
+**Order, now:** the native build, then 3b.4 (phone content checks, which uses the new module and unblocks the gates left waiting in D18), then 3b.3 (Whisper scoring drills), then 3b.5, 3b.6, and the rest as before. Nothing after the build should need another one. If something does, I'll say so before writing it.
+
+**What an update can't change:** the version, the icon, the permission texts, the entitlements and any native module. Those need a build.
+
+**Owner's OK:** asked for by the owner, 2026-11-08.
