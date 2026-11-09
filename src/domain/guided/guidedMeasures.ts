@@ -206,7 +206,7 @@ const holdsAndPauses: GuidedTry["check"] = (clip, _earlier, knobs) => {
   const holdMs = (knobs ?? guidedKnobs(DEFAULT_GUIDED_LEVEL)).holdMs;
   let holds = clip.startDelayMs != null && clip.startDelayMs >= holdMs ? 1 : 0;
   for (let i = 1; i < clip.words.length; i++) if (clip.words[i].startMs - clip.words[i - 1].endMs >= holdMs) holds += 1;
-  return { ok: clamp01(holds / 6), note: `${Math.min(holds, 6)} of 6 long silences held` };
+  return { ok: clamp01(holds / 6), note: `${Math.min(holds, 6)} of 6 silences of ${holdSecondsLabel(holdMs)} seconds held` };
 };
 
 // A quick telling against a slow one: the faster over the slower. Full marks
@@ -350,7 +350,7 @@ export const GUIDED_MEASURES: Record<string, GuidedMeasure> = {
     explain: "The last word held up (70%) and the third read louder (30%).",
   },
   gd_power_pause: {
-    tries: [t(3, "Hold two seconds, say your point, pause, give a reason. Three times.", holdsAndPauses)],
+    tries: [t(3, "Hold {hold} seconds, say your point, pause, give a reason. Three times.", holdsAndPauses)],
     selfShare: 0,
     explain: "Two-second holds and pauses after the point, out of six.",
   },
@@ -475,6 +475,17 @@ export interface GuidedScore {
 const ratingShare = (rating: number | null) => (rating == null ? 0 : clamp01((rating - 1) / 4));
 
 // Gate: something was said in at least one try, or the number is a rating and a promise.
+// A try's prompt for this level: "{hold}" becomes the hold the level asks for.
+export function tryPrompt(prompt: string, level: number): string {
+  return prompt.replace("{hold}", holdSecondsLabel(guidedKnobs(level).holdMs));
+}
+
+// The asked-for hold (holdMs is 90% of it), to the half second: "1.5", "2", "3".
+function holdSecondsLabel(holdMs: number): string {
+  const s = Math.round((holdMs / 0.9 / 1000) * 2) / 2;
+  return Number.isInteger(s) ? String(s) : s.toFixed(1);
+}
+
 // The level that matches the bars before 3d.5 (1.55 times, a 1.8 s hold).
 export const DEFAULT_GUIDED_LEVEL = 5;
 

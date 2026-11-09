@@ -27,5 +27,7 @@ describe("choosing an attempt's difficulty", () => {
   it("follows the activity's main leaf", () => {
     expect(mainLeafOf(drillActivityId("category_fluency"))).toBe("word_retrieval");
     expect(mainLeafOf("no:such")).toBeNull();
+    // A leaf that can't move isn't followed.
+    expect(mainLeafOf(drillActivityId("category_fluency"), (l) => l !== "word_retrieval")).toBeNull();
   });
 });

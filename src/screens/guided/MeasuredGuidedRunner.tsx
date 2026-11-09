@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { ScreenContainer } from "../../components/common/ScreenContainer";
 import { Header } from "../../components/common/Header";
@@ -10,7 +10,7 @@ import { DrillProgressLine } from "../../components/celebrate/DrillProgressLine"
 import { showGlobalToast } from "../../components/common/ToastProvider";
 import { useLiveSpeech } from "../../hooks/useLiveSpeech";
 import type { getGuided } from "../../content/lessons";
-import { GUIDED_MEASURES, scoreGuided, type Clip, type GuidedScore } from "../../domain/guided/guidedMeasures";
+import { DEFAULT_GUIDED_LEVEL, GUIDED_MEASURES, scoreGuided, tryPrompt, type Clip, type GuidedScore } from "../../domain/guided/guidedMeasures";
 import { FIRST_RESULT_LATENCY_MS, fullText } from "../../domain/speech/liveTranscript";
 import type { VolumeReading } from "../../domain/dsp/volumePauses";
 import { outcome } from "../../domain/drills/drillSpecs";
@@ -52,6 +52,11 @@ export function MeasuredGuidedRunner({ exercise, onDone, onBack }: { exercise: E
   const [result, setResult] = useState<{ scored: GuidedScore; quick: boolean; change: ProgressChange | null } | null>(null);
   const startedAtRef = useRef(0);
   const busy = useRef(false);
+  // This exercise's own difficulty (task 3d.5): its bars, and what its prompts ask.
+  const [level, setLevel] = useState(DEFAULT_GUIDED_LEVEL);
+  useEffect(() => {
+    getDrillLevel("guided", exercise.id).then(setLevel).catch(() => undefined);
+  }, [exercise.id]);
 
   const tryIndex = measure.tries.findIndex((t) => t.step === stepIndex);
   const thisTry = tryIndex >= 0 ? measure.tries[tryIndex] : null;
@@ -124,7 +129,6 @@ export function MeasuredGuidedRunner({ exercise, onDone, onBack }: { exercise: E
       if (!whisper) quick = true;
       clips.push({ text: whisper?.text ?? rec.text, words: whisper?.words ?? null, volume: rec.volume, startDelayMs: whisper?.words.length ? Math.max(0, whisper.words[0].startMs) : rec.startDelayMs, spokenMs: rec.spokenMs });
     }
-    const level = await getDrillLevel("guided", exercise.id);
     const scored = scoreGuided(exercise.id, clips, finalRating, level);
     let change: ProgressChange | null = null;
     try {
@@ -169,7 +173,7 @@ export function MeasuredGuidedRunner({ exercise, onDone, onBack }: { exercise: E
             </Card>
             {thisTry ? (
               <Card style={styles.card}>
-                <Txt variant="headline">{thisTry.prompt}</Txt>
+                <Txt variant="headline">{tryPrompt(thisTry.prompt, level)}</Txt>
                 {recording === thisTry.step ? (
                   <PrimaryButton label="Stop" variant="danger" onPress={() => stopRecording(thisTry.step)} />
                 ) : (

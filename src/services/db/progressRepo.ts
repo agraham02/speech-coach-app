@@ -21,6 +21,7 @@ import { SKILL_CHECK_LEAVES, type EvidenceSource } from "../../content/skillGrid
 import type { GateVerdict } from "../../domain/gates";
 import { emitStageEarned } from "../progress/progressEvents";
 import { chooseLevel, mainLeafOf } from "../../domain/difficulty/choose";
+import { leafIsCounted } from "../../domain/scoring/rollup";
 import { getAttemptsFor, getAttemptsSince, getLeafRatings, getNodeStages, getPillarProgress, getTreeScores, recordAttempt, seedLeaves, type AttemptResult } from "./leafRepo";
 import { getPathOrder } from "./pathRepo";
 import { isSessionLive } from "./sessionsRepo";
@@ -159,8 +160,9 @@ export function levelKey(type: DrillType, contentId?: string): string {
 
 export async function getDrillLevel(type: DrillType, contentId?: string): Promise<number> {
   const db = await getDatabase();
-  const row = await db.getFirstAsync<{ level: number }>(`SELECT level FROM drill_difficulty WHERE drill_type = ?`, [levelKey(type, contentId)]);
-  const leaf = mainLeafOf(activityOfDrill(type, contentId));
+  const row = await db.getFirstAsync<{ level: number; attempts: number }>(`SELECT level, attempts FROM drill_difficulty WHERE drill_type = ?`, [levelKey(type, contentId)]);
+  // A leaf that doesn't count yet (on probation) can't move, so it can't guide the level.
+  const leaf = mainLeafOf(activityOfDrill(type, contentId), (l) => leafIsCounted(l));
   let leafRating: number | null = null;
   let leafStage: Stage | null = null;
   if (leaf) {
@@ -171,7 +173,12 @@ export async function getDrillLevel(type: DrillType, contentId?: string): Promis
     // A take moves many leaves: it follows Overall.
     leafRating = (await getTreeScores()).overall;
   }
-  return chooseLevel({ stored: row?.level ?? null, leafRating, leafStage, missesInARow: missesInARow.get(levelKey(type, contentId)) ?? 0 });
+  // A row with no attempts yet (the schema's starting rep row) hasn't been tried: it starts from your skill.
+  const stored = row && row.attempts > 0 ? row.level : null;
+  const chosen = chooseLevel({ stored, leafRating, leafStage, missesInARow: missesInARow.get(levelKey(type, contentId)) ?? 0 });
+  // Home and the record screen read the take level without a database trip.
+  if (type === "rep") setTakeLevel(chosen);
+  return chosen;
 }
 
 export async function getAllDrillLevels(): Promise<Partial<Record<DrillType, { level: number; attempts: number; successes: number }>>> {
@@ -286,7 +293,6 @@ export async function recordDrillOutcome(args: {
       : nextDifficulty(args.level, args.outcome.success, target);
   const key = levelKey(args.drillType, args.contentId);
   if (!gated && !args.placement && !args.stretch) missesInARow.set(key, args.outcome.success ? 0 : (missesInARow.get(key) ?? 0) + 1);
-  if (!gated && args.stretch) setLastStretchWeek(stretchWeekOf(now.slice(0, 10)));
   if (!gated) await saveDrillLevel(key, levelAfter, args.outcome.success);
 
   const stages = await getNodeStages();
@@ -306,6 +312,8 @@ export async function recordDrillOutcome(args: {
     drillType: args.drillType,
     noLoss: !!args.stretch,
   });
+  if (!gated && args.stretch) setLastStretchWeek(stretchWeekOf(now.slice(0, 10)));
+  const levelBefore = args.stretch ? args.stretch.baseLevel : args.level;
   const main = mainSkill(result, skill);
   const pillar = PILLAR_OF_SKILL[main];
   const stage = pillarStage(result, pillar, stageOf);
@@ -317,9 +325,9 @@ export async function recordDrillOutcome(args: {
     skill: main,
     ratingBefore: result.before.pillars[pillar] ?? STARTING_VALUE,
     ratingAfter: result.after.pillars[pillar] ?? STARTING_VALUE,
-    levelBefore: args.level,
+    levelBefore,
     levelAfter,
-    leveledUp: Math.floor(levelAfter) > Math.floor(args.level),
+    leveledUp: Math.floor(levelAfter) > Math.floor(levelBefore),
     stageBefore: stage.before,
     stageAfter: stage.after,
     stagedUp: stage.after > stage.before,

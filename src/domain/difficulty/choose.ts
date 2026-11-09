@@ -45,10 +45,12 @@ export function chooseLevel(input: {
   return round2(clamp(level));
 }
 
-// The leaf an activity's difficulty follows: the first main move in its grid row,
-// else its first move.
-export function mainLeafOf(activityId: string): LeafId | null {
+// The leaf an activity's difficulty follows: the first main move in its grid row
+// that can move, else its first such move. None (every leaf on probation): the
+// staircase runs on its own.
+export function mainLeafOf(activityId: string, canMove: (leaf: LeafId) => boolean = () => true): LeafId | null {
   const row = getGridRow(activityId);
-  if (!row || !row.moves.length) return null;
-  return (row.moves.find((m) => m.weight === "main") ?? row.moves[0]).leaf;
+  const moves = (row?.moves ?? []).filter((m) => !m.displayOnly && canMove(m.leaf));
+  if (!moves.length) return null;
+  return (moves.find((m) => m.weight === "main") ?? moves[0]).leaf;
 }

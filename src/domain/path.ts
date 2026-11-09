@@ -57,7 +57,8 @@ const EVENT_WINDOW_DAYS = 30;
 // It only orders the path: any lesson can still be opened.
 export const UNLOCK_STAGE: Record<1 | 2 | 3, Stage> = { 1: 1, 2: 2, 3: 3 };
 
-const W = { obstacle: 1.0, event: 0.8, context: 0.4, check: 0.6, weakness: 0.5, tier: 0.35, sameSkill: 0.6, sameSkillTwoBack: 0.25, pull: 0.9 };
+const W = {
+  notReady: 1.2, obstacle: 1.0, event: 0.8, context: 0.4, check: 0.6, weakness: 0.5, tier: 0.35, sameSkill: 0.6, sameSkillTwoBack: 0.25, pull: 0.9 };
 
 export function unitDone(unit: Unit, lessons: PathInput["lessons"]): boolean {
   const all = lessonsInUnit(unit.id);
@@ -157,13 +158,13 @@ export function buildPath(input: PathInput): PathUnit[] {
     const prev = ordered[ordered.length - 1]?.skill;
     const prev2 = ordered[ordered.length - 2]?.skill;
     let best: { unit: Unit; value: number } | null = null;
-    // Units your stage is ready for come first; the rest wait their turn.
-    const open = remaining().filter(eligible);
-    const ready = open.filter(stageReady);
-    for (const u of ready.length ? ready : open) {
+    // Units your stage isn't ready for wait their turn, unless something you
+    // need (an event, an obstacle) outweighs it.
+    for (const u of remaining()) {
+      if (!eligible(u)) continue;
       const leadsTo = pull(u);
       const base = Math.max(own.get(u.id)!, leadsTo ? W.pull * own.get(leadsTo.id)! : -Infinity);
-      const value = base - (u.skill === prev ? W.sameSkill : 0) - (u.skill === prev2 ? W.sameSkillTwoBack : 0);
+      const value = base - (u.skill === prev ? W.sameSkill : 0) - (u.skill === prev2 ? W.sameSkillTwoBack : 0) - (stageReady(u) ? 0 : W.notReady);
       if (!best || value > best.value + 1e-9) best = { unit: u, value };
     }
     // Eligibility always leaves one unit open; this is only a safety net.

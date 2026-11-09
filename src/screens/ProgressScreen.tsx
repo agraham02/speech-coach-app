@@ -80,7 +80,8 @@ export function ProgressScreen() {
         setLevels(
           Object.entries(all)
             .map(([type, v]) => ({ type: type as DrillType, level: v!.level }))
-            .filter((l) => DRILL_TITLES[l.type]),
+            // Guided exercises and warm-ups each have their own level now (guided:<id>), not one shared one.
+            .filter((l) => DRILL_TITLES[l.type] && l.type !== "guided" && l.type !== "warmup"),
         ),
       );
       getSessionMetricSeries(30).then(setSeries);
