@@ -1,7 +1,6 @@
 import { GuideTip } from "../components/common/GuideTip";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
-import Animated, { FadeIn } from "react-native-reanimated";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { ScreenContainer } from "../components/common/ScreenContainer";
@@ -9,25 +8,20 @@ import { Header } from "../components/common/Header";
 import { Card } from "../components/common/Card";
 import { Txt } from "../components/common/Txt";
 import { PrimaryButton } from "../components/common/PrimaryButton";
-import { BreathAura } from "../components/common/BreathAura";
-import { CountdownRing } from "../components/common/CountdownRing";
 import { WARM_UPS } from "../content/drillContent";
 import { getGuided } from "../content/lessons";
 import { scoreSelfRating } from "../domain/drills/drillSpecs";
 import { isMeasured, SELF_RATED_ONLY } from "../domain/guided/guidedMeasures";
 import { MeasuredGuidedRunner } from "./guided/MeasuredGuidedRunner";
+import { WarmUpRunner } from "./guided/WarmUpRunner";
 import { getDrillLevel, recordDrillOutcome } from "../services/db/progressRepo";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { announceTrail } from "../components/celebrate/trailToast";
 import { guidedActivityId, warmupActivityId } from "../content/activities";
 import { tick as hapticTick } from "../utils/haptics";
-import { duration } from "../theme/motion";
-import { makeStyles, useTheme } from "../theme/ThemeProvider";
+import { makeStyles } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Guided">;
-
-// The box the countdown ring and the breathing aura behind it share.
-const RING_WRAP = 300;
 
 // Warm-ups (timed steps) and guided exercises. Most guided exercises have a
 // microphone and a number (screens/guided/MeasuredGuidedRunner.tsx); the three
@@ -38,7 +32,7 @@ export function GuidedScreen({ route, navigation }: Props) {
   const warmUp = warmupId ? WARM_UPS.find((w) => w.id === warmupId) : undefined;
   const guided = guidedId ? getGuided(guidedId) : undefined;
 
-  if (warmUp) return <WarmUpRunner warmUp={warmUp} onDone={() => finish(null)} onBack={() => navigation.goBack()} />;
+  if (warmUp) return <WarmUpRunner warmUp={warmUp} onDone={(score) => finish(score)} onBack={() => navigation.goBack()} />;
   if (guided && isMeasured(guided.id)) return <MeasuredGuidedRunner exercise={guided} onDone={(score) => finish(score)} onBack={() => navigation.goBack()} />;
   if (guided) return <GuidedRunner exercise={guided} onDone={(score) => finish(score)} onBack={() => navigation.goBack()} />;
   return null;
@@ -47,120 +41,6 @@ export function GuidedScreen({ route, navigation }: Props) {
     await completePracticeStep(warmupId ? warmupActivityId(warmupId) : guidedActivityId(guidedId!), practice, score);
     navigation.goBack();
   }
-}
-
-function WarmUpRunner({
-  warmUp,
-  onDone,
-  onBack,
-}: {
-  warmUp: (typeof WARM_UPS)[number];
-  onDone: () => void;
-  onBack: () => void;
-}) {
-  const styles = useStyles();
-  const { colors } = useTheme();
-  const rounds = warmUp.rounds ?? 1;
-  const sequence = useMemo(
-    () => Array.from({ length: rounds }, (_, round) => warmUp.steps.map((step) => ({ step, round }))).flat(),
-    [warmUp, rounds],
-  );
-  const totalSeconds = sequence.reduce((sum, s) => sum + s.step.seconds, 0);
-  const [index, setIndex] = useState(-1); // -1 = not started
-  const [tick, setTick] = useState<{ index: number; left: number } | null>(null);
-  const current = sequence[index];
-  const finished = index >= sequence.length;
-
-  // Counts down against a deadline rather than by ticks, so it stays right
-  // if the app is briefly backgrounded or the JS thread stalls.
-  useEffect(() => {
-    if (index < 0 || index >= sequence.length) return;
-    const { step } = sequence[index];
-    const deadline = Date.now() + step.seconds * 1000;
-    hapticTick();
-    const timer = setInterval(() => {
-      const left = Math.ceil((deadline - Date.now()) / 1000);
-      if (left <= 0) {
-        clearInterval(timer);
-        setIndex((i) => i + 1);
-      } else {
-        setTick({ index, left });
-      }
-    }, 250);
-    return () => clearInterval(timer);
-  }, [index, sequence]);
-
-  const breathing = current?.step.phase != null;
-  // Until the first tick of a step lands, show its full duration (not a stale 0).
-  const remaining = current ? (tick?.index === index ? tick.left : current.step.seconds) : 0;
-
-  return (
-    <ScreenContainer style={styles.container}>
-      <Header eyebrow="Warm-up" title={warmUp.title} onBack={onBack} backIcon="close" />
-      <View style={styles.center}>
-        {index < 0 ? (
-          <Card style={styles.list}>
-            {warmUp.steps.map((s, i) => (
-              <View key={i} style={styles.listRow}>
-                <Txt variant="headline">{s.label}</Txt>
-                <Txt variant="subhead" tone="secondary">
-                  {s.detail}
-                </Txt>
-              </View>
-            ))}
-            <Txt variant="footnote" tone="muted">
-              {rounds > 1 ? `${rounds} rounds · ` : ""}about {totalSeconds >= 90 ? `${Math.round(totalSeconds / 60)} min` : `${totalSeconds} seconds`}
-            </Txt>
-          </Card>
-        ) : finished ? (
-          <Txt variant="title2" align="center">
-            Warmed up. Nice.
-          </Txt>
-        ) : (
-          <View style={styles.activeStep}>
-            <View style={styles.ringWrap}>
-              {breathing ? (
-                <BreathAura
-                  size={RING_WRAP}
-                  color={colors.skill.confidence.fg}
-                  phase={current.step.phase}
-                  fill={current.step.fill}
-                  seconds={current.step.seconds}
-                  runKey={index}
-                />
-              ) : null}
-              <CountdownRing size={160} strokeWidth={10} durationMs={current.step.seconds * 1000} runKey={index} color={colors.accent}>
-                <Txt variant="largeTitle">{remaining}</Txt>
-              </CountdownRing>
-            </View>
-            {/* Keyed by step, so the words cross-fade as the breath changes. */}
-            <Animated.View key={index} entering={FadeIn.duration(duration.base)} style={styles.stepText}>
-              <Txt variant="title2" align="center">
-                {current.step.label}
-              </Txt>
-              <Txt variant="callout" tone="secondary" align="center">
-                {current.step.detail}
-              </Txt>
-            </Animated.View>
-            {rounds > 1 ? (
-              <View style={styles.roundDots} accessibilityLabel={`Round ${current.round + 1} of ${rounds}`}>
-                {Array.from({ length: rounds }, (_, i) => (
-                  <View key={i} style={[styles.roundDot, i <= current.round && styles.roundDotOn]} />
-                ))}
-              </View>
-            ) : (
-              <Txt variant="footnote" tone="muted">
-                {`Step ${index + 1} of ${sequence.length}`}
-              </Txt>
-            )}
-          </View>
-        )}
-      </View>
-      {index < 0 ? <PrimaryButton label="Start" onPress={() => setIndex(0)} /> : null}
-      {index >= 0 && !finished ? <PrimaryButton label="Skip" variant="secondary" onPress={() => setIndex((i) => i + 1)} /> : null}
-      {finished ? <PrimaryButton label="Done" onPress={onDone} /> : null}
-    </ScreenContainer>
-  );
 }
 
 function GuidedRunner({
@@ -268,15 +148,6 @@ function GuidedRunner({
 
 const useStyles = makeStyles((t) => ({
   container: { gap: t.space.md },
-  center: { flex: 1, justifyContent: "center" },
-  list: { gap: t.space.md },
-  listRow: { gap: 2 },
-  activeStep: { alignItems: "center", gap: t.space.md },
-  ringWrap: { width: RING_WRAP, height: RING_WRAP, alignItems: "center", justifyContent: "center" },
-  stepText: { alignItems: "center", gap: t.space.xs },
-  roundDots: { flexDirection: "row", gap: t.space.sm },
-  roundDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: t.colors.surfaceRaised },
-  roundDotOn: { backgroundColor: t.colors.accent },
   dots: { flexDirection: "row", gap: t.space.xs },
   dot: { height: 6, flex: 1, borderRadius: 3, backgroundColor: t.colors.surfaceRaised },
   dotOn: { backgroundColor: t.colors.accent },

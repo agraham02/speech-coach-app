@@ -173,6 +173,13 @@ A new JS bundle is enough; no new build. Do a few real takes first, since the nu
 - [ ] **Transcription and Tono AI steps** read short; "See exactly what's sent" opens the full list.
 - [ ] **Reminders:** "Yes, remind me", a time, Continue: iOS asks for notifications before the next step. (If you said no to notifications before, iOS won't ask again; it's in iPhone Settings.)
 
+### Warm-ups (3c.2)
+
+- [ ] **Steady hiss:** do it well once, then badly (short, or loud-soft-loud). The first should score high, the second low. The microphone asks for permission the first time.
+- [ ] **Wake up the articulators:** fast, crisp pa-ta-ka scores near 100; slow scores about half.
+- [ ] **Hum and siren:** a wide siren reads 12 semitones or more; a flat hum reads near 0.
+- [ ] **Low breath:** skip a step in one round and it says 3 of 4 rounds.
+
 ### Guided exercises with a mic (3c.1)
 
 - [ ] **Do two or three**, for example Practice the blank, Catch the um and Rate contrast (Learn, a lesson, or Practice). Each speaking step has a Record button; at the end there is a short "Checking…" and a percentage with a line for each try ("Said it", "3 of 3 things named").
