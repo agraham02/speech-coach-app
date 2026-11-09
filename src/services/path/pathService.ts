@@ -11,6 +11,7 @@ import { emitPathCompleted, emitUnitCompleted } from "../progress/progressEvents
 import { todayISODate } from "../../utils/dateUtils";
 import { logger } from "../../utils/logger";
 import type { SkillId } from "../../theme/tokens";
+import type { Stage } from "../../domain/levels";
 import { checkpointStatus, type CheckpointStatus } from "../../domain/checkpoint";
 import { getCheckpointRecords } from "../prefs/prefsStore";
 
@@ -37,6 +38,7 @@ async function gatherInput(): Promise<PathInput> {
     checkRatings: check?.results ? (Object.fromEntries(SKILLS.map((s) => [s, check.results!.skills[s].rating])) as Record<SkillId, number | null>) : {},
     ratings: Object.fromEntries(SKILLS.map((s) => [s, skills[s].rating])) as Record<SkillId, number>,
     lessons: Object.fromEntries(Object.entries(lessons).map(([id, l]) => [id, { done: l.done }])),
+    stages: Object.fromEntries(SKILLS.map((s) => [s, skills[s].stage])) as Record<SkillId, Stage>,
   };
 }
 

@@ -15,6 +15,19 @@ describe("path", () => {
     expect(path.map((p) => p.unitId).sort()).toEqual(UNITS.map((u) => u.id).sort());
   });
 
+  it("recommends tier 2 from Building and tier 3 from Steady in the unit's skill", () => {
+    const allFoundations = doneLessons(...UNITS.filter((u) => u.tier === 1).map((u) => u.id));
+    const atStart = order(buildPath({ ...base, lessons: allFoundations, stages: { articulation: 1, cadence: 1, impromptu: 1, confidence: 1, conversation: 1 } }));
+    // Nothing is ready: the path still goes on, in its usual order.
+    expect(atStart.length).toBeGreaterThan(0);
+    const cadenceBuilding = order(buildPath({ ...base, lessons: allFoundations, stages: { articulation: 1, cadence: 2, impromptu: 1, confidence: 1, conversation: 1 } }));
+    // With only Cadence at Building, a tier-2 Cadence unit leads.
+    expect(unit(cadenceBuilding[0]).skill).toBe("cadence");
+    expect(unit(cadenceBuilding[0]).tier).toBe(2);
+    // Every unit is still placed.
+    expect(buildPath({ ...base, stages: { articulation: 1, cadence: 1, impromptu: 1, confidence: 1, conversation: 1 } })).toHaveLength(UNITS.length);
+  });
+
   it("gives different people different paths", () => {
     const rambler = buildPath({
       ...base,

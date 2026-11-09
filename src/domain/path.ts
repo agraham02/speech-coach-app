@@ -4,6 +4,7 @@ import { CHECK_SIGNALS, CONTEXT_REASONS, CONTEXT_UNITS, EVENT_UNITS, OBSTACLE_RE
 import { EVENT_NOUNS, type UpcomingEvent } from "./events";
 import type { Obstacle, SpeakingContext } from "./profile";
 import type { SkillCheckInput } from "./skillCheck";
+import type { Stage } from "./levels";
 import { daysBetween, dateFromISODate } from "../utils/dateUtils";
 
 // Your path: every unit in one order, built for you. What you said gets in
@@ -40,6 +41,9 @@ export interface PathInput {
   // Current 0-100 rating per skill.
   ratings: Record<SkillId, number>;
   lessons: Record<string, { done: boolean }>;
+  // The stage earned in each skill's pillar (domain/levels.ts). Tier 2 units are
+  // recommended from Building and tier 3 from Steady (plan 6.7, rule 9).
+  stages?: Partial<Record<SkillId, Stage>>;
 }
 
 // How many units are "now" at once — two, from different skills.
@@ -48,6 +52,10 @@ export const ACTIVE_COUNT = 2;
 export const TESTED_OUT_RATING = 38;
 // An event this close starts pulling its units forward.
 const EVENT_WINDOW_DAYS = 30;
+
+// The stage a unit's tier is recommended from, in its own pillar (6.7, rule 9).
+// It only orders the path: any lesson can still be opened.
+export const UNLOCK_STAGE: Record<1 | 2 | 3, Stage> = { 1: 1, 2: 2, 3: 3 };
 
 const W = { obstacle: 1.0, event: 0.8, context: 0.4, check: 0.6, weakness: 0.5, tier: 0.35, sameSkill: 0.6, sameSkillTwoBack: 0.25, pull: 0.9 };
 
@@ -143,12 +151,16 @@ export function buildPath(input: PathInput): PathUnit[] {
     return true;
   };
 
+  const stageReady = (u: Unit) => !input.stages || (input.stages[u.skill] ?? 1) >= UNLOCK_STAGE[u.tier as 1 | 2 | 3];
+
   while (remaining().length) {
     const prev = ordered[ordered.length - 1]?.skill;
     const prev2 = ordered[ordered.length - 2]?.skill;
     let best: { unit: Unit; value: number } | null = null;
-    for (const u of remaining()) {
-      if (!eligible(u)) continue;
+    // Units your stage is ready for come first; the rest wait their turn.
+    const open = remaining().filter(eligible);
+    const ready = open.filter(stageReady);
+    for (const u of ready.length ? ready : open) {
       const leadsTo = pull(u);
       const base = Math.max(own.get(u.id)!, leadsTo ? W.pull * own.get(leadsTo.id)! : -Infinity);
       const value = base - (u.skill === prev ? W.sameSkill : 0) - (u.skill === prev2 ? W.sameSkillTwoBack : 0);
