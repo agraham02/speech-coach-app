@@ -24,7 +24,7 @@ jest.mock("../../progress/progressEvents", () => ({ emitStageEarned: (e: unknown
 
 import { ensureSchema } from "../schema";
 import { getLeafRatings, getNodeStages, getSpeakerLevel, getTreeScores, recordAttempt } from "../leafRepo";
-import { getSkillEvents, getSkillMovesSince, getSkillStates, recordDrillOutcome, recordTakeOutcome } from "../progressRepo";
+import { getDrillLevel, getSkillEvents, getSkillMovesSince, getSkillStates, recordDrillOutcome, recordTakeOutcome } from "../progressRepo";
 import { ACTIVITY_IDS, drillActivityId, guidedActivityId } from "../../../content/activities";
 import { trailLine } from "../../../domain/scoring/rollup";
 
@@ -41,6 +41,14 @@ describeIfSqlite("the skill tree's numbers", () => {
     await ensureSchema(mockDb as never);
     mockProfile = null;
     mockStageEvents.length = 0;
+  });
+
+  it("a new drill starts at your skill, and a stage keeps a floor under it", async () => {
+    await setLeaf("word_retrieval", 60, 10);
+    expect(await getDrillLevel("category_fluency")).toBe(4);
+    await mockDb.runAsync(`INSERT INTO node_stages (node_id, stage) VALUES (?, ?)`, ["word_retrieval", 4]);
+    await mockDb.runAsync(`INSERT INTO drill_difficulty (drill_type, level, attempts, successes, updated_at) VALUES (?, ?, 1, 0, ?)`, ["category_fluency", 2.5, "2026-11-09"]);
+    expect(await getDrillLevel("category_fluency")).toBe(4);
   });
 
   it("a personal attempt with a ref counts once; a self-report moves inner leaves only", async () => {

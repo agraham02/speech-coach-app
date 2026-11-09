@@ -540,3 +540,15 @@ A Sonnet reviewer who hadn't seen the work read the 3c changes. It found no cras
 - A Moment check-in counts its first save; editing it later doesn't change its number.
 
 **Owner's OK:** not asked; these are fixes to 3c.
+
+## D33. Difficulty starts at your skill, stays near it, and has floors (2026-11-09)
+
+**Now** (`domain/difficulty/choose.ts`, used by `getDrillLevel`, which every drill reads):
+- **The first time**, a drill starts at (its main leaf − 20) ÷ 10. With Word retrieval at 60, Category sprint starts at 4. A take follows Overall.
+- **Drift:** if the staircase is more than 2 levels from what the leaf implies, it's pulled back to within 2.
+- **Floors:** once a stage is earned on that leaf, the drill won't go below Steady 2, Strong 4 or Polished 5. Three misses in a row ease the floor by 1 until the app restarts. That restart is the plan's "for that session only".
+- Guided exercises and warm-ups share one staircase each until 3d.5 gives each its own, so their leaf isn't used yet.
+
+**Worth knowing (the plan's formula, unchanged):** an easy take (easy prompt, full prep, short) is about difficulty 1.3, and a steady 60% there settles a leaf near 19, under the starting 25. That's the rating saying 60% on the easiest setting is below average, not a bug. A harder take (D31) now earns more for the same result. If it feels harsh on real use, the knob is the starting value or the scale, not the drills.
+
+**Owner's OK:** not asked; this is task 3d.2.
