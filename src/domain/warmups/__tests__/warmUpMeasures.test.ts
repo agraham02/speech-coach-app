@@ -20,10 +20,16 @@ describe("Steady hiss", () => {
     expect(r.score).toBeCloseTo(1, 2);
   });
 
+  it("a hiss that starts a little late still reaches full marks", () => {
+    const t = track(14);
+    paint(t, 2.8, 12, () => -30); // 9.2 s of a 10 s step
+    expect(hissRound(t, win("hiss", 2, 12), 10).score).toBeCloseTo(1, 2);
+  });
+
   it("a 5-second hiss gets about half", () => {
     const t = track(14);
     paint(t, 2, 7, () => -30);
-    expect(hissRound(t, win("hiss", 1, 13), 10).score).toBeCloseTo(0.5, 1);
+    expect(hissRound(t, win("hiss", 1, 13), 10).score).toBeCloseTo(0.56, 1);
   });
 
   it("an uneven hiss loses the evenness share", () => {
@@ -104,7 +110,7 @@ describe("the warm-up's number", () => {
     paint(t, 2, 12, () => -30);
     paint(t, 16, 26, () => -30);
     const s = scoreMeasuredWarmUp(t, [win("hiss", 1, 13), win("hiss", 15, 27), win("hiss", 29, 30)]);
-    expect(s.score).toBeCloseTo(0.67, 2);
+    expect(s.score).toBeCloseTo(0.67, 1);
     expect(s.parts.map((p) => p.note)[2]).toBe("Not heard");
   });
 

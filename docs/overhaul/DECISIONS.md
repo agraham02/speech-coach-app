@@ -523,3 +523,20 @@ The owner stopped the session at Phase 3 (3c.2 to 3d not started) and went throu
 - Removed: `curriculum.ts`, `curriculumRepo.ts`, the Practice difficulty screen and its rows (Settings, Level, Trends' card), the manual pin, and `curriculum_state` (schema 41). The challenge setting (3d.4) is what you'll change instead.
 
 **Owner's OK:** not asked; this is task 3d.1.
+
+## D32. A fresh review of 3c, and what it fixed (2026-11-09)
+
+A Sonnet reviewer who hadn't seen the work read the 3c changes. It found no crash or lost data. Fixed:
+- **Marks with no recorded reads** said "only your marks count" but counted nothing. Now they count alone (Knowing where to stress).
+- **Warm-ups:** a double tap on Start, or closing the screen while the microphone started, could leave the microphone on. A measuring error could leave it on "Checking…" for ever. Both are guarded now, and the recorder lets the audio session go when it stops.
+- **The hiss** couldn't reach full marks, since nobody starts at the step's first instant. A second is now allowed for getting going.
+- **Rewind:** an error in its number could mark a finished Rewind as failed. It's kept apart now.
+- **Three things** was counted on the first time you left the screen, so saying them later never counted. It's now counted when the day's set is said, or on your next visit for an earlier day, with what it had.
+- **Rehearse** counted a low reading when follow-along was on but you tapped through. Under half heard is now practice, not a reading.
+- **Line reps:** Whisper now has a 40-second overall limit, after which the rest use what the phone heard live as a Quick check. The step is logged with the score as it's worked out, so closing the result screen any way still ticks it.
+
+**Known, not fixed:**
+- A deleted Rewind keeps the moves its number made, unlike a take, because personal attempts have no session to hide them by. The `ref` would allow it later.
+- A Moment check-in counts its first save; editing it later doesn't change its number.
+
+**Owner's OK:** not asked; these are fixes to 3c.

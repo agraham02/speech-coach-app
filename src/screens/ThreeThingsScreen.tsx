@@ -45,22 +45,19 @@ export function ThreeThingsScreen() {
   const name = getUserProfile()?.name?.trim();
   const today = todayISODate();
 
-  // The day's number, when you leave: different things written and said aloud,
-  // once a day (a later visit doesn't count it again).
+  // A day's number: different things written and said aloud, counted once a day
+  // (domain/personal/personalScores.ts). It's counted as soon as the day's set is
+  // written and said; otherwise the next visit counts an earlier day as it was.
   const latest = useRef<SelfLike[] | null>(null);
   latest.current = entries;
   useFocusEffect(
     useCallback(() => {
-      listSelfLikes().then(setEntries);
+      listSelfLikes().then((all) => {
+        setEntries(all);
+        const today = todayISODate();
+        for (const date of new Set(all.filter((e) => e.date < today).map((e) => e.date))) scoreDay(all, date, false);
+      });
       setRun(getSelfLikesRun());
-      return () => {
-        const day = (latest.current ?? []).filter((e) => e.date === todayISODate());
-        const aim = getSelfLikesRun().mode === "light" ? 1 : 3;
-        if (day.length < aim) return;
-        const distinct = new Set(day.map((e) => e.text.trim().toLowerCase())).size;
-        const scored = threeThingsScore({ distinctItems: distinct, said: day.filter((e) => e.saidAt).length, aim });
-        recordPersonalOutcome({ activityId: ACTIVITY_IDS.threeThings, label: "Three things", scored, ref: `three_things:${todayISODate()}` }).catch(() => undefined);
-      };
     }, []),
   );
 
@@ -96,8 +93,23 @@ export function ThreeThingsScreen() {
 
   function said(like: SelfLike) {
     markSelfLikeSaid(like.id).catch(() => undefined);
-    setEntries((current) => (current ?? []).map((e) => (e.id === like.id ? { ...e, saidAt: new Date().toISOString() } : e)));
+    const updated = (latest.current ?? []).map((e) => (e.id === like.id ? { ...e, saidAt: new Date().toISOString() } : e));
+    setEntries(updated);
     setSaying(null);
+    scoreDay(updated, todayISODate(), true);
+  }
+
+  // Counts a day once (its ref). Today only when every one is said; an earlier
+  // day with whatever it had, so nothing is lost by not saying them.
+  function scoreDay(all: SelfLike[], date: string, onlyIfAllSaid: boolean) {
+    const day = all.filter((e) => e.date === date);
+    const aim = getSelfLikesRun().mode === "light" ? 1 : 3;
+    if (day.length < aim) return;
+    const saidCount = day.filter((e) => e.saidAt).length;
+    if (onlyIfAllSaid && saidCount < aim) return;
+    const distinct = new Set(day.map((e) => e.text.trim().toLowerCase())).size;
+    const scored = threeThingsScore({ distinctItems: distinct, said: saidCount, aim });
+    recordPersonalOutcome({ activityId: ACTIVITY_IDS.threeThings, label: "Three things", scored, ref: `three_things:${date}` }).catch(() => undefined);
   }
 
   function startAgain() {

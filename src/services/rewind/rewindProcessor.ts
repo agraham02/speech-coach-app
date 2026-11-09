@@ -146,7 +146,8 @@ async function processTake(id: string, take: RewindTake): Promise<void> {
     const stats = rewindStats({ transcript, seconds, volume: take.volume });
     await updateRewind(id, { transcript, transcriptSource: source, words, stats, status: "done" });
     // 4. Its number moves the tree once (task 3c.4); not for a take deleted meanwhile.
-    if (await getRewind(id)) {
+    try {
+      if (await getRewind(id)) {
       // Required here, not at the top: the prefs store and the tree are only
       // needed once a take is done, and the tests that load this file need neither.
       /* eslint-disable @typescript-eslint/no-require-imports */
@@ -160,6 +161,9 @@ async function processTake(id: string, take: RewindTake): Promise<void> {
         ref: `rewind:${id}`,
         quick: source === "live",
       });
+      }
+    } catch (error) {
+      logger.warn(`[rewind] its number didn't move the tree — ${(error as Error).message}`);
     }
   } catch (error) {
     logger.error(`[rewind] processing failed — ${(error as Error).message}`);

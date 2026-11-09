@@ -49,6 +49,9 @@ export const HISS_GAP_MS = 150;
 // How even: a spread of loudness at or under GOOD is full marks, at or over BAD none.
 export const EVEN_GOOD_DB = 2;
 export const EVEN_BAD_DB = 8;
+// The hiss can't start the instant its step does: this much of the step is
+// allowed for getting going.
+export const HISS_START_ALLOWANCE_S = 1;
 // A hiss's number: its length counts 70, its evenness 30.
 const HISS_LENGTH_SHARE = 0.7;
 // Less sound than this in a window is "not heard".
@@ -98,7 +101,7 @@ export function hissRound(track: Track, window: MeasuredWindow, targetSeconds: n
   for (let i = best[0]; i <= best[1]; i++) if (track.levelDb[i] >= bar) levels.push(track.levelDb[i]);
   const seconds = ((best[1] - best[0] + 1) * track.hopMs) / 1000;
   const spreadDb = std(levels);
-  const length = clamp01(seconds / targetSeconds);
+  const length = clamp01(seconds / Math.max(1, targetSeconds - HISS_START_ALLOWANCE_S));
   const even = clamp01((EVEN_BAD_DB - spreadDb) / (EVEN_BAD_DB - EVEN_GOOD_DB));
   // A blip can't be "even": evenness counts only as far as the length does.
   return { seconds, spreadDb, score: HISS_LENGTH_SHARE * length + (1 - HISS_LENGTH_SHARE) * even * length };

@@ -47,10 +47,14 @@ describe("line reads", () => {
     expect(s.leafScores).toEqual({});
   });
 
-  it("no recording is not checked, never a self-rating", () => {
-    const s = scoreLineReads([{ line, reads: [] }], { shared: 1, coach: 2 });
+  it("no recording is not checked, never a self-rating; marks alone still count", () => {
+    const s = scoreLineReads([{ line, reads: [] }], null);
     expect(s.score).toBeNull();
     expect(s.gate).toMatchObject({ passed: false, kind: "not_checked" });
+    const marksOnly = scoreLineReads([{ line, reads: [] }], { shared: 1, coach: 2 });
+    expect(marksOnly.score).toBe(0.5);
+    expect(marksOnly.gate.passed).toBe(true);
+    expect(Object.keys(marksOnly.leafScores)).toEqual(["where_to_stress"]);
   });
 
   it("a pause held at the mark is found from Whisper's times, and kept apart from the headline", () => {

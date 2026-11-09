@@ -69,7 +69,9 @@ export function RehearseScreen({ route, navigation }: Props) {
   useEffect(() => {
     if (!finished || counted.current) return;
     counted.current = true;
-    const scored = listening ? followedScore(followLive(target, heard).cursor, target.length) : { score: null, leafScores: {}, parts: [] };
+    const followed = listening ? followLive(target, heard).cursor : 0;
+    // Under half heard means you tapped through: practice, not a reading.
+    const scored = target.length && followed / target.length >= 0.5 ? followedScore(followed, target.length) : { score: null, leafScores: {}, parts: [] };
     completePracticeStep(ACTIVITY_IDS.rehearse, undefined, scored.score).catch(() => undefined);
     recordPersonalOutcome({ activityId: ACTIVITY_IDS.rehearse, label: "Rehearse", scored, quick: true }).catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
