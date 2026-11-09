@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -9,7 +9,8 @@ import { Card } from "../components/common/Card";
 import { HeroCard } from "../components/common/HeroCard";
 import { Txt } from "../components/common/Txt";
 import { PrimaryButton } from "../components/common/PrimaryButton";
-import { RatingScale } from "../components/common/RatingScale";
+import { GateNote } from "../components/celebrate/GateNote";
+import { DrillProgressLine } from "../components/celebrate/DrillProgressLine";
 import { MarkedTextView } from "../components/cadence/MarkedTextView";
 import { MarkLegend } from "../components/cadence/MarkLegend";
 import { GuideTip, TourScrollContext, TourTarget, useTourScroll } from "../components/common/GuideTip";
@@ -19,15 +20,17 @@ import { getLines, LINE_CATEGORIES } from "../content/lines";
 import { lineRepConfig, pickLines, kindsYouMark, type LineRepConfig } from "../domain/cadence/lineRep";
 import { compareMarks, keepKinds, type Mark, type MarkKind, type MarkedText } from "../domain/cadence/marks";
 import { autoMark, remixEmphasis } from "../domain/cadence/autoMark";
-import { scoreSelfRating } from "../domain/drills/drillSpecs";
-import { getDrillLevel, recordDrillOutcome } from "../services/db/progressRepo";
+import { outcome } from "../domain/drills/drillSpecs";
+import { scoreLineReads, type LineReadsInput, type LineScore } from "../domain/cadence/lineReads";
+import { defaultsFromProfile } from "../domain/profile";
+import { transcribeDrillClips } from "../services/speech/clipTranscript";
+import { getDrillLevel, recordDrillOutcome, type ProgressChange } from "../services/db/progressRepo";
 import { getMarkedText, getRecentLineIds, markTextsPracticed } from "../services/db/markedTextsRepo";
 import { getPhrasesByIds, markPhrasesPracticed } from "../services/db/phrasebookRepo";
 import { listSelfLikes } from "../services/db/selfLikesRepo";
 import { toSecondPerson } from "../domain/innerVoice/secondPerson";
 import { getUserProfile } from "../services/prefs/prefsStore";
 import { completePracticeStep } from "../services/practice/practiceEvents";
-import { announceTrail } from "../components/celebrate/trailToast";
 import { ACTIVITY_IDS, drillActivityId } from "../content/activities";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
@@ -42,7 +45,7 @@ interface RepLine extends MarkedText {
   phrase?: boolean;
 }
 
-type Stage = "mark" | "compare" | "read" | "remix" | "rate";
+type Stage = "mark" | "compare" | "read" | "remix" | "checking" | "result";
 
 const READS = [
   { level: "full" as const, title: "Slow and exaggerated", detail: "Hit every mark — bigger than feels natural." },
@@ -52,7 +55,8 @@ const READS = [
 
 // Mark It Up's main loop: a few lines of
 // one or two sentences, each marked (or checked), read twice with the marks
-// and once without. Line of the day is a one-line version with no rating.
+// and once without. Line of the day is a one-line version. Your recorded reads
+// are the number (domain/cadence/lineReads.ts), never a self-rating (task 3c.3).
 export function LineRepScreen({ route, navigation }: Props) {
   const { lineIds, mineIds, phraseIds, aboutYou, category, mode = "rep", practice } = route.params ?? {};
   const styles = useStyles();
@@ -67,9 +71,15 @@ export function LineRepScreen({ route, navigation }: Props) {
   const [mine, setMine] = useState<Mark[]>([]);
   const [chosen, setChosen] = useState<Mark[] | null>(null);
   const [hidden, setHidden] = useState<Set<MarkKind>>(new Set());
-  const [takes, setTakes] = useState<Record<string, string>>({});
+  // Each recorded read, by "line:read": its clip and what the phone heard live.
+  const [takes, setTakes] = useState<Record<string, { uri: string; text: string }>>({});
+  const takesRef = useRef<Record<string, { uri: string; text: string }>>({});
+  function keep(key: string, entry: { uri: string; text: string }) {
+    takesRef.current = { ...takesRef.current, [key]: entry };
+    setTakes(takesRef.current);
+  }
   const [agreement, setAgreement] = useState<{ id: string; shared: number; coach: number }[]>([]);
-  const [rating, setRating] = useState<number | null>(null);
+  const [result, setResult] = useState<{ scored: LineScore; quick: boolean; change: ProgressChange | null } | null>(null);
   const [saving, setSaving] = useState(false);
   const lineOfDay = mode === "lineOfDay";
   // Reading saved phrases is the Phrasebook; anything else is a line rep.
@@ -158,7 +168,7 @@ export function LineRepScreen({ route, navigation }: Props) {
   const readMarks = chosen ?? line.marks;
   const readText: MarkedText = { text: line.text, marks: readMarks };
   const takeKey = `${index}:${stage === "remix" ? "remix" : read}`;
-  const take: string | undefined = takes[takeKey];
+  const take: string | undefined = takes[takeKey]?.uri;
   const recording = recorder.state === "recording";
   const remix = remixEmphasis({ text: line.text, marks: readMarks }, index * 3 + line.text.length);
 
@@ -180,7 +190,7 @@ export function LineRepScreen({ route, navigation }: Props) {
   async function toggleRecording() {
     if (recorder.state === "recording") {
       const take = await recorder.stop();
-      if (take.uri) setTakes((t) => ({ ...t, [takeKey]: take.uri! }));
+      if (take.uri) keep(takeKey, { uri: take.uri, text: take.transcript });
       return;
     }
     await recorder.start();
@@ -189,7 +199,7 @@ export function LineRepScreen({ route, navigation }: Props) {
   async function stopIfRecording() {
     if (recorder.state === "recording") {
       const take = await recorder.stop();
-      if (take.uri) setTakes((t) => ({ ...t, [takeKey]: take.uri! }));
+      if (take.uri) keep(takeKey, { uri: take.uri, text: take.transcript });
     }
   }
 
@@ -212,38 +222,60 @@ export function LineRepScreen({ route, navigation }: Props) {
       setIndex((i) => i + 1);
       return;
     }
-    if (lineOfDay) {
-      await completePracticeStep(repActivity, practice, null);
-      navigation.goBack();
-      return;
-    }
-    setStage("rate");
+    await finish();
   }
 
-  async function save() {
-    if (rating == null || saving) return;
-    setSaving(true);
-    const outcome = scoreSelfRating(rating);
+  // Whisper reads every recorded read; the reads are the number.
+  async function finish() {
+    setStage("checking");
+    // From the ref: the last read was saved in this same tap, after this render.
+    const all = takesRef.current;
+    let quick = false;
+    const inputs: LineReadsInput[] = [];
+    for (let i = 0; i < lines!.length; i++) {
+      const reads = [];
+      for (const [key, rec] of Object.entries(all)) {
+        if (!key.startsWith(`${i}:`)) continue;
+        const whisper = await transcribeDrillClips([rec.uri]);
+        if (!whisper) quick = true;
+        reads.push({ text: whisper?.text ?? rec.text, words: whisper?.words ?? null });
+      }
+      inputs.push({ line: lines![i], reads });
+    }
+    const coach = agreement.reduce((sum, a) => sum + a.coach, 0);
+    const shared = agreement.reduce((sum, a) => sum + a.shared, 0);
+    const scored = scoreLineReads(inputs, coach > 0 ? { shared, coach } : null, { relaxed: defaultsFromProfile(getUserProfile()).relaxAccuracy });
     const builtIn = lines!.filter((l) => !l.mine).map((l) => l.id);
-    const coachMarks = agreement.reduce((sum, a) => sum + a.coach, 0);
-    const sharedMarks = agreement.reduce((sum, a) => sum + a.shared, 0);
-    const change = await recordDrillOutcome({
-      drillType: "marked_reading",
-      outcome,
-      level,
-      contentId: builtIn.length ? builtIn.join(",") : undefined,
-      lessonId: practice?.lessonId,
-      metrics: { mode: config.mode, lines: lines!.map((l) => l.id), agreement },
-      activityId: repActivity,
-      source: "self",
-      // The self-rating moves nothing here (plan 6.4, rule 6). Only your marks
-      // against the coach's are measured, until the mic comes in 3c.3.
-      leafScores: coachMarks > 0 ? { where_to_stress: { score: sharedMarks / coachMarks, source: "measured" } } : {},
-    });
+    let change: ProgressChange | null = null;
+    try {
+      const score = scored.score ?? 0;
+      change = await recordDrillOutcome({
+        drillType: "marked_reading",
+        outcome: outcome(score, `${Math.round(score * 100)}% · words read${coach > 0 ? " and marks matched" : ""}`),
+        level,
+        contentId: builtIn.length ? builtIn.join(",") : undefined,
+        lessonId: practice?.lessonId,
+        metrics: { mode: config.mode, lines: lines!.map((l) => l.id), agreement, accuracyPercent: scored.accuracyPercent },
+        accuracyPercent: scored.accuracyPercent,
+        activityId: repActivity,
+        source: "measured",
+        leafScores: scored.leafScores,
+        gate: scored.gate,
+        quick,
+      });
+    } catch {
+      // The reads are still shown; the toast below says it didn't count.
+    }
     await markTextsPracticed(lines!.filter((l) => l.mine && !l.phrase).map((l) => l.id));
     await markPhrasesPracticed(lines!.filter((l) => l.phrase).map((l) => l.id));
-    await completePracticeStep(repActivity, practice, outcome.score);
-    announceTrail(change);
+    setResult({ scored, quick, change });
+    setStage("result");
+  }
+
+  async function done() {
+    if (saving) return;
+    setSaving(true);
+    await completePracticeStep(repActivity, practice, result?.scored.gate.passed ? result.scored.score : null, { quick: result?.quick });
     navigation.goBack();
   }
 
@@ -307,17 +339,40 @@ export function LineRepScreen({ route, navigation }: Props) {
           </Card>
         ) : null}
 
-        {stage === "rate" ? (
+        {stage === "checking" ? (
           <Card style={styles.card}>
-            <Txt variant="headline">How close did your reads sound to the marks?</Txt>
-            <RatingScale value={rating} onChange={setRating} />
-            {agreement.length ? (
-              <Txt variant="footnote" tone="secondary">
-                You placed {agreement.reduce((s, a) => s + a.shared, 0)} of the coach's {agreement.reduce((s, a) => s + a.coach, 0)} marks the same way.
-                Different isn't wrong — it's a different reading.
+            <Txt variant="headline">Checking your reads…</Txt>
+          </Card>
+        ) : null}
+
+        {stage === "result" && result ? (
+          <>
+            {result.scored.score != null ? (
+              <Card style={styles.card}>
+                <Txt variant="largeTitle">{Math.round(result.scored.score * 100)}%</Txt>
+                {result.scored.parts.map((p, i) => (
+                  <View key={i}>
+                    <Txt variant="subhead">{p.note}</Txt>
+                    <Txt variant="caption1" tone="muted">
+                      {p.label}
+                    </Txt>
+                  </View>
+                ))}
+                {agreement.length ? (
+                  <Txt variant="footnote" tone="secondary">
+                    Different marks aren't wrong. They're a different reading.
+                  </Txt>
+                ) : null}
+              </Card>
+            ) : null}
+            {!result.scored.gate.passed ? <GateNote gate={result.scored.gate} /> : null}
+            {result.change ? <DrillProgressLine change={result.change} drillTitle={lineOfDay ? "Line of the day" : "Mark it up"} /> : null}
+            {result.quick ? (
+              <Txt variant="footnote" tone="muted">
+                Quick check: scored from what your phone heard live, so it counts a little less. Download the transcription model (Settings, Coaching & AI) for the full check.
               </Txt>
             ) : null}
-          </Card>
+          </>
         ) : null}
       </KeyboardAwareScrollView>
       </TourScrollContext.Provider>
@@ -361,7 +416,7 @@ export function LineRepScreen({ route, navigation }: Props) {
       ) : null}
 
       {stage === "mark" ? <PrimaryButton label="Compare with the coach" onPress={compare} disabled={!mine.length} /> : null}
-      {stage === "rate" ? <PrimaryButton label="Done" onPress={save} disabled={rating == null} loading={saving} /> : null}
+      {stage === "result" ? <PrimaryButton label="Done" onPress={done} loading={saving} /> : null}
       {/* Once there are marks to read (Mark it up starts with marking). */}
       {stage === "read" ? <GuideTip id="lineRep" /> : null}
     </ScreenContainer>
@@ -372,7 +427,7 @@ function stageTitle(stage: Stage, read: number, mode: string): string {
   if (stage === "mark") return mode === "add_pauses" ? "Add the pauses" : "Mark it";
   if (stage === "compare") return "Compare";
   if (stage === "remix") return "Remix";
-  if (stage === "rate") return "How did it go?";
+  if (stage === "checking" || stage === "result") return "Your reads";
   return read === 2 ? "Without the marks" : "Read it aloud";
 }
 
