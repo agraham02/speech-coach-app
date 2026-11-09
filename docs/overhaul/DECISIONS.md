@@ -454,3 +454,21 @@ The owner stopped the session at Phase 3 (3c.2 to 3d not started) and went throu
 **Already in the plan, confirmed:** one "minutes a day" setting with 5, 10, 15, 20 and 30 (task 4.1, and onboarding asks it in Phase 7); the Today redesign (4.5, then Phase 8); Overall on Today and on You, and the tree as a screen where each pillar opens to its skills and leaves (5.4). The reminder step already asks for notification permission when you tap Continue after "Yes".
 
 **Owner's OK:** asked for by the owner on 2026-11-09.
+
+## D28. Warm-ups get a number (2026-11-09)
+
+**Was:** warm-ups recorded nothing (plan 3c.2; section 7's table gives each one's number).
+
+**Now:**
+- **Steady hiss, Wake up the articulators, and Hum and siren** record the whole warm-up in one piece with `react-native-audio-api`'s AudioRecorder (D20), straight into memory, then read each measured step's window with the same audio analysis a take uses (`domain/warmups/warmUpMeasures.ts`).
+  - Hiss: the longest stretch of sound 12 dB over the room's quiet (gaps under 150 ms bridged) ÷ the target seconds, 70%, and how even its loudness was (a spread of 2 dB or less is full marks, 8 dB or more none), 30%. The three rounds average; a skipped round is 0.
+  - Pa-ta-ka: syllable peaks a second between the first and last heard; 5 a second is full marks. Less than 2.5 seconds of it can't be timed and scores 0.
+  - Siren: the 5th to 95th percentile pitch in semitones, so a stray octave error doesn't count; 12 is full marks. It moves Pitch variety, which is on probation, so nothing moves yet.
+- **Low breath and Calming sigh** count rounds finished without skipping a step. A breath can't be heard, so it's your own count and moves Settling as a self-report.
+- Nothing heard is "Not scored", and the attempt is kept. Without the microphone the warm-up still runs and isn't scored.
+
+**Differs from the plan:** only the pa-ta-ka step of "Wake up the articulators" and the siren step of "Hum and siren" are measured. The lip trill, jaw stretch, hum and "Speak it" lines have no number of their own, because the table's numbers are about those two steps.
+
+**Every threshold is a first guess** to tune from real warm-ups.
+
+**Owner's OK:** not asked; this is task 3c.2.

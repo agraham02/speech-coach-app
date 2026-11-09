@@ -1,3 +1,4 @@
+import type { WarmUpMeasure } from "../domain/warmups/warmUpMeasures";
 // Practice material for the curriculum's drills. Original passages written
 // for this app; minimal pairs and fluency categories are standard
 // speech-practice material.
@@ -133,6 +134,8 @@ export interface WarmUpStepSpec {
   // How full an "in" fills the ring (default 1) — a second, topping-up
   // breath needs the first to stop short of full.
   fill?: number;
+  // The step the microphone measures (domain/warmups/warmUpMeasures.ts).
+  measure?: WarmUpMeasure;
 }
 
 export interface WarmUp {
@@ -170,7 +173,7 @@ export const WARM_UPS: WarmUp[] = [
     rounds: 3,
     steps: [
       { label: "Breathe in", detail: "Low and quiet, through your nose.", seconds: 3, phase: "in" },
-      { label: "Hiss it out", detail: "A soft, even “sss” — the same strength the whole way. Don't push.", seconds: 10, phase: "out" },
+      { label: "Hiss it out", detail: "A soft, even “sss” — the same strength the whole way. Don't push.", seconds: 10, phase: "out", measure: "hiss" },
       { label: "Rest", detail: "Let the next breath come on its own.", seconds: 3, phase: "hold" },
     ],
   },
@@ -179,7 +182,7 @@ export const WARM_UPS: WarmUp[] = [
     title: "Wake up the articulators",
     steps: [
       { label: "Lip trill", detail: "Blow through loose lips — brrrr — sliding your pitch up and down.", seconds: 15 },
-      { label: "Pa-ta-ka", detail: "Repeat 'pa-ta-ka' as fast as you can while staying crisp.", seconds: 15 },
+      { label: "Pa-ta-ka", detail: "Repeat 'pa-ta-ka' as fast as you can while staying crisp.", seconds: 15, measure: "pataka" },
       { label: "Jaw and tongue", detail: "Big chewing motions, then stretch your tongue out and side to side.", seconds: 15 },
     ],
   },
@@ -188,7 +191,7 @@ export const WARM_UPS: WarmUp[] = [
     title: "Hum and siren",
     steps: [
       { label: "Hum", detail: "Lips closed, hum until you feel buzzing in your face.", seconds: 15 },
-      { label: "Siren", detail: "Slide on 'ng' from your lowest note to your highest and back.", seconds: 15 },
+      { label: "Siren", detail: "Slide on 'ng' from your lowest note to your highest and back.", seconds: 15, measure: "siren" },
       { label: "Speak it", detail: "Say 'my mother made marmalade' with that buzzing forward placement.", seconds: 15 },
     ],
   },

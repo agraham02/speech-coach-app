@@ -99,7 +99,7 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 | ID | Task | Status | Evidence |
 |---|---|---|---|
 | 3c.1 | Mic and a number on all 26 guided exercises | iphone | D25. 23 record and score from Whisper's reading; 3 pitch/stress ones stay self-rated (still on probation). `domain/guided/guidedMeasures.ts` with 25 tests (lines, questions, pace, pauses, volume, ums, rating shares, gates, quick check); `MeasuredGuidedRunner`. Thresholds are first guesses. Not run on a phone |
-| 3c.2 | Warm-ups measured and recorded | todo | |
+| 3c.2 | Warm-ups measured and recorded | iphone | D28. Hiss, pa-ta-ka and siren recorded in one piece with AudioRecorder and read per step; breathing warm-ups count rounds. `domain/warmups/warmUpMeasures.ts` with 14 tests (length, evenness, gaps, windows, rates, stray pitch, rounds, not heard); `screens/guided/WarmUpRunner.tsx`. Not run on a phone |
 | 3c.3 | Line of the day records; self-ratings stop moving performance leaves | todo | |
 | 3c.4 | Voice analysis on Rewind; inner-voice numbers | todo | |
 
