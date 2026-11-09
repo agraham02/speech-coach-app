@@ -1,11 +1,17 @@
 import { breathRounds, guidedKnobs, rewindTargets, warmUpTargets } from "../knobs";
-import { scoreGuided } from "../../guided/guidedMeasures";
+import { scoreGuided, tryPrompt } from "../../guided/guidedMeasures";
 import { rewindScore } from "../../personal/personalScores";
 
 describe("what gets harder", () => {
   it("guided bars run from the plan's easy end to its hard end", () => {
     expect(guidedKnobs(1)).toEqual({ rateRatioFull: 1.3, holdMs: 900 });
     expect(guidedKnobs(10)).toEqual({ rateRatioFull: 1.8, holdMs: 2700 });
+  });
+
+  it("Power pause asks for the hold its level needs", () => {
+    expect(tryPrompt("Hold {hold} seconds, then speak.", 1)).toBe("Hold 1 seconds, then speak.");
+    expect(tryPrompt("Hold {hold} seconds, then speak.", 10)).toBe("Hold 3 seconds, then speak.");
+    expect(tryPrompt("Hold {hold} seconds, then speak.", 5)).toBe("Hold 2 seconds, then speak.");
   });
 
   it("the same Rate contrast scores less at a higher level", () => {

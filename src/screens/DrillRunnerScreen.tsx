@@ -352,7 +352,10 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
 
   function tryAgain() {
     seedRef.current += 1;
-    getDrillLevel(drill).then((level) => setSetup(prepareDrill(drill, level, seedRef.current, contentId)));
+    getDrillLevel(drill).then((level) => {
+      baseLevelRef.current = level;
+      setSetup(prepareDrill(drill, stretch ? Math.min(MAX_LEVEL, level + STRETCH_LEVELS) : level, seedRef.current, contentId));
+    });
     setStage("intro");
     setResult(null);
   }

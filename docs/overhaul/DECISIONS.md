@@ -586,3 +586,17 @@ A Sonnet reviewer who hadn't seen the work read the 3c changes. It found no cras
 **Not built, and why:** Catch the um's 30 to 60 seconds, harder questions in Say it back, tougher thoughts first in Talk back, and mission tiers are all new content. They wait for the content overhaul. Three things already can't repeat a recent item.
 
 **Owner's OK:** not asked; this is task 3d.5.
+
+## D37. A fresh review of 3d, and what it fixed (2026-11-09)
+
+A Sonnet reviewer read the 3d changes. It found no crash and no broken staircase. Fixed:
+- **The record screen's take level could disagree with Home's.** Home used the chosen level (seeded and floored) while recording used the raw staircase. `getDrillLevel("rep")` now writes the chosen level to the cache both read.
+- **The schema's starting rep row counted as "already tried"**, so a take never started from your Overall. A row with no attempts now starts from your skill, for every drill.
+- **A leaf on probation pinned its drill at level 3 for ever** (Emphasis shift, Statement or question?, Same line, different feeling): the leaf can't move, so it implied level 1. Only a leaf that counts is followed now. With none, the staircase runs on its own.
+- **Stretch:** a retry after a gated Stretch kept the bonus but ran at the normal level. It now runs at the stretched level. The week is stamped only once the attempt is saved, and the result reports from your own level, so it doesn't look like a drop.
+- **Power pause** always said "two seconds" while its bar rose with the level. Its prompt now says the hold your level asks for.
+- **The guided runner** reads its level up front, so a database error can't leave it stuck.
+- **Progress** no longer lists the frozen shared "Guided" and "Warm-up" levels.
+- **The path:** stage readiness is now a weight in the choice, not a filter, so an urgent unit (an event, an obstacle) can still come first.
+
+**Owner's OK:** not asked; these are fixes to 3d.
