@@ -552,3 +552,11 @@ A Sonnet reviewer who hadn't seen the work read the 3c changes. It found no cras
 **Worth knowing (the plan's formula, unchanged):** an easy take (easy prompt, full prep, short) is about difficulty 1.3, and a steady 60% there settles a leaf near 19, under the starting 25. That's the rating saying 60% on the easiest setting is below average, not a bug. A harder take (D31) now earns more for the same result. If it feels harsh on real use, the knob is the starting value or the scale, not the drills.
 
 **Owner's OK:** not asked; this is task 3d.2.
+
+## D34. Stage proof, unlocks by stage, reviews at today's difficulty (2026-11-09)
+
+- **Stage proof at difficulty** was built in 3a.4 (`levels.ts`: Steady needs 3 good attempts at 3+, Strong 5 at 5+, Polished 8 at 6+). With D31 a take now counts at its own difficulty, so a hard take can be proof and an easy one can't.
+- **Unlocks by stage** (`domain/path.ts`): a tier 2 unit is recommended once its skill is at Building, and tier 3 from Steady. It only orders the path: units your stage is ready for come first, the path still goes on when none is, and any lesson can still be opened. The old rules stay as they were: foundations first, and lower tiers of a skill before higher ones.
+- **Reviews at today's difficulty:** already true. Every drill and rep reads its difficulty when it starts (`getDrillLevel`, D33), so a review runs at your current level, not the one you first did it at. No change was needed.
+
+**Owner's OK:** not asked; this is task 3d.3.
