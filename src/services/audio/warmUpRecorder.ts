@@ -47,6 +47,7 @@ export function createWarmUpCapture(): WarmUpCapture {
         return "ready";
       } catch (error) {
         logger.warn(`[warm-up] couldn't start recording — ${(error as Error).message}`);
+        recorder?.clearOnAudioReady();
         recorder = null;
         return "failed";
       }
@@ -64,6 +65,8 @@ export function createWarmUpCapture(): WarmUpCapture {
         logger.warn(`[warm-up] stop failed — ${(error as Error).message}`);
       }
       r.clearOnAudioReady();
+      // The next surface sets its own session; this one's done with the microphone.
+      AudioManager.setAudioSessionActivity(false).catch(() => undefined);
       if (!frames) return null;
       const waveform = new Float32Array(frames);
       let at = 0;

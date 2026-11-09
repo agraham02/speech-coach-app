@@ -23,7 +23,7 @@ import { autoMark, remixEmphasis } from "../domain/cadence/autoMark";
 import { outcome } from "../domain/drills/drillSpecs";
 import { scoreLineReads, type LineReadsInput, type LineScore } from "../domain/cadence/lineReads";
 import { defaultsFromProfile } from "../domain/profile";
-import { transcribeDrillClips } from "../services/speech/clipTranscript";
+import { discardClips, transcribeDrillClips } from "../services/speech/clipTranscript";
 import { getDrillLevel, recordDrillOutcome, type ProgressChange } from "../services/db/progressRepo";
 import { getMarkedText, getRecentLineIds, markTextsPracticed } from "../services/db/markedTextsRepo";
 import { getPhrasesByIds, markPhrasesPracticed } from "../services/db/phrasebookRepo";
@@ -232,11 +232,13 @@ export function LineRepScreen({ route, navigation }: Props) {
     const all = takesRef.current;
     let quick = false;
     const inputs: LineReadsInput[] = [];
+    // Whisper reads one clip after another; past this, the rest use what the phone heard live.
+    const deadline = Date.now() + 40_000;
     for (let i = 0; i < lines!.length; i++) {
       const reads = [];
       for (const [key, rec] of Object.entries(all)) {
         if (!key.startsWith(`${i}:`)) continue;
-        const whisper = await transcribeDrillClips([rec.uri]);
+        const whisper = Date.now() < deadline ? await transcribeDrillClips([rec.uri]) : (discardClips([rec.uri]), null);
         if (!whisper) quick = true;
         reads.push({ text: whisper?.text ?? rec.text, words: whisper?.words ?? null });
       }
@@ -268,14 +270,15 @@ export function LineRepScreen({ route, navigation }: Props) {
     }
     await markTextsPracticed(lines!.filter((l) => l.mine && !l.phrase).map((l) => l.id));
     await markPhrasesPracticed(lines!.filter((l) => l.phrase).map((l) => l.id));
+    // Logged now, so closing the result screen any way still ticks the step.
+    await completePracticeStep(repActivity, practice, scored.gate.passed ? scored.score : null, { quick });
     setResult({ scored, quick, change });
     setStage("result");
   }
 
-  async function done() {
+  function done() {
     if (saving) return;
     setSaving(true);
-    await completePracticeStep(repActivity, practice, result?.scored.gate.passed ? result.scored.score : null, { quick: result?.quick });
     navigation.goBack();
   }
 

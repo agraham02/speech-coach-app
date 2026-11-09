@@ -97,9 +97,14 @@ export function scoreLineReads(
     parts.push({ label: "Marks matched", note: `${marks!.shared} of the coach's ${marks!.coach} marks placed the same way` });
   }
   if (!accuracies.length) {
+    // No reads to check: your marks are still measured, so they count alone.
+    if (marked != null) {
+      parts.push({ label: "Reads", note: "Not recorded, so only your marks count" });
+      return { score: Math.round(marked * 100) / 100, gate: PASSED, parts, leafScores, accuracyPercent: null };
+    }
     return {
       score: null,
-      gate: { passed: false, kind: "not_checked", reason: "Record your reads to get a number. Without a recording only your marks count." },
+      gate: { passed: false, kind: "not_checked", reason: "Record your reads to get a number." },
       parts,
       leafScores,
       accuracyPercent: null,

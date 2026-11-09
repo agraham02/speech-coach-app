@@ -58,10 +58,19 @@ export function WarmUpRunner({
   const capture = useRef<WarmUpCapture | null>(null);
   const windows = useRef<Map<number, { startMs: number; endMs: number }>>(new Map());
   const skipped = useRef<Set<number>>(new Set());
+  const starting = useRef(false);
+  const mounted = useRef(true);
   const current = sequence[index];
 
   // Stop the microphone if the screen closes mid-warm-up.
-  useEffect(() => () => void capture.current?.stop(), []);
+  useEffect(
+    () => () => {
+      mounted.current = false;
+      void capture.current?.stop();
+      capture.current = null;
+    },
+    [],
+  );
 
   // Counts down against a deadline rather than by ticks, so it stays right if
   // the app is briefly backgrounded or the JS thread stalls.
@@ -100,9 +109,16 @@ export function WarmUpRunner({
   }
 
   async function start() {
+    if (starting.current) return;
+    starting.current = true;
     if (measured) {
       const c = createWarmUpCapture();
       const ready = await c.start();
+      // Closed while the microphone was starting: stop it, and go no further.
+      if (!mounted.current) {
+        void c.stop();
+        return;
+      }
       if (ready === "ready") capture.current = c;
       else showGlobalToast(ready === "denied" ? "Without the microphone this warm-up runs, but it can't be scored." : "The microphone didn't start, so this warm-up won't be scored.", "info");
     }
@@ -113,18 +129,23 @@ export function WarmUpRunner({
     setStage("checking");
     let scored: WarmUpScore;
     if (measured) {
-      const audio = capture.current ? await capture.current.stop() : null;
+      const audio = capture.current ? await capture.current.stop().catch(() => null) : null;
       capture.current = null;
       if (!audio) {
         scored = { score: null, gate: { passed: false, kind: "not_checked", reason: "The microphone wasn't on, so this warm-up wasn't scored." }, parts: [] };
       } else {
-        const { features } = await extractOffThread(audio.waveform, audio.sampleRate);
-        const measuredWindows: MeasuredWindow[] = [];
-        sequence.forEach((s, i) => {
-          const w = windows.current.get(i);
-          if (s.step.measure && w) measuredWindows.push({ measure: s.step.measure, startMs: w.startMs, endMs: Number.isFinite(w.endMs) ? w.endMs : features.durationMs });
-        });
-        scored = scoreMeasuredWarmUp(features, measuredWindows, targets);
+        try {
+          const { features } = await extractOffThread(audio.waveform, audio.sampleRate);
+          const measuredWindows: MeasuredWindow[] = [];
+          sequence.forEach((s, i) => {
+            const w = windows.current.get(i);
+            if (s.step.measure && w) measuredWindows.push({ measure: s.step.measure, startMs: w.startMs, endMs: Number.isFinite(w.endMs) ? w.endMs : features.durationMs });
+          });
+          scored = scoreMeasuredWarmUp(features, measuredWindows, targets);
+        } catch (error) {
+          logger.warn(`[warm-up] couldn't measure ${warmUp.id} — ${(error as Error).message}`);
+          scored = { score: null, gate: { passed: false, kind: "not_checked", reason: "The recording couldn't be measured, so this warm-up wasn't scored." }, parts: [] };
+        }
       }
     } else {
       let finished = 0;
