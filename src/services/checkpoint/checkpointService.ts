@@ -51,10 +51,15 @@ export function skipCheckpoint(unitId: string, now = new Date()): CheckpointReco
 // A checkpoint rep has been scored. `score` is the target leaf's number from the
 // take (0 to 100), or null when the take wasn't scored; an unscored rep isn't a
 // try. Tells the person how it went.
-export function settleCheckpoint(unitId: string, score: number | null, now = new Date()): { passed: boolean | null } {
-  const result = afterTry(getCheckpointRecords(), unitId, score, now.toISOString());
+export function settleCheckpoint(unitId: string, score: number | null, options: { quick?: boolean; now?: Date } = {}): { passed: boolean | null } {
+  const result = afterTry(getCheckpointRecords(), unitId, score, (options.now ?? new Date()).toISOString());
   if (result.passed == null) {
-    showGlobalToast("That checkpoint rep couldn't be scored, so it doesn't count. Try again from Learn.", "info");
+    showGlobalToast(
+      options.quick
+        ? "That was a quick check, which can't pass a checkpoint. Download the transcription model (Settings, Coaching & AI) and try again from Learn."
+        : "That checkpoint rep couldn't be scored, so it doesn't count. Try again from Learn.",
+      "info",
+    );
     return { passed: null };
   }
   setCheckpointRecords(result.records);

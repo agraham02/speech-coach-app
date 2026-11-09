@@ -16,15 +16,17 @@ import { logger } from "../../utils/logger";
 
 interface StoredTopic {
   verdict: TopicVerdict;
+  // How long the transcript was when it was checked: a retried transcription is checked again.
+  words?: number;
   by: "phone" | "tono_ai";
   // The small check's level and note, when it was the one that answered.
   level?: number;
   note?: string;
 }
 
-// Takes where the server was already asked this launch and couldn't answer: not
-// asked again until the app restarts, so a rescore doesn't repeat a failed call.
-const askedServer = new Set<string>();
+// A check under way for a take, shared by everyone who asks while it runs: a score
+// is never worked out before the verdict is in, and the server is asked once.
+const inFlight = new Map<string, Promise<TopicVerdict | null>>();
 
 export async function topicVerdictFor(session: Session, hasJudgedReview: boolean): Promise<TopicVerdict | null> {
   const text = session.transcriptVerbatim ?? "";
@@ -35,8 +37,20 @@ export async function topicVerdictFor(session: Session, hasJudgedReview: boolean
   if (session.sessionType === "free_record" && !session.subjectExtras?.promptText) return null;
   if (text.trim().split(/\s+/).length < TAKE_MIN_WORDS) return null;
 
+  const running = inFlight.get(session.id);
+  if (running) return running;
+  const job = check(session, text).finally(() => inFlight.delete(session.id));
+  inFlight.set(session.id, job);
+  return job;
+}
+
+// Taken once a launch for a take the server couldn't answer, so a rescore doesn't repeat it.
+const serverFailed = new Set<string>();
+
+async function check(session: Session, text: string): Promise<TopicVerdict | null> {
+  const wordCount = text.trim().split(/\s+/).length;
   const stored = await getArtifact<StoredTopic>(session.id, "topic_check");
-  if (stored) return stored.verdict;
+  if (stored && (stored.words == null || stored.words === wordCount)) return stored.verdict;
 
   // The prompt's words: a library prompt is looked up, a made-up one is on the take.
   const context = await gradingContextFromSession(session);
@@ -45,19 +59,22 @@ export async function topicVerdictFor(session: Session, hasJudgedReview: boolean
 
   const phone = await checkTopic(prompt, text);
   if (phone) {
-    await putArtifact(session.id, "topic_check", { verdict: phone, by: "phone" } satisfies StoredTopic);
+    await putArtifact(session.id, "topic_check", { verdict: phone, by: "phone", words: wordCount } satisfies StoredTopic);
     return phone;
   }
 
-  if (askedServer.has(session.id)) return null;
-  askedServer.add(session.id);
+  if (serverFailed.has(session.id)) return null;
   try {
     const result = await requestAnalysis("check_on_topic", { prompt, answer: text }, { hasVideo: false, hasTranscript: true });
-    if (result.status !== "done") return null;
+    if (result.status !== "done") {
+      serverFailed.add(session.id);
+      return null;
+    }
     const verdict = topicFromLevel(result.value.level);
-    await putArtifact(session.id, "topic_check", { verdict, by: "tono_ai", level: result.value.level, note: result.value.note } satisfies StoredTopic);
+    await putArtifact(session.id, "topic_check", { verdict, by: "tono_ai", level: result.value.level, note: result.value.note, words: wordCount } satisfies StoredTopic);
     return verdict;
   } catch (error) {
+    serverFailed.add(session.id);
     logger.warn(`[topic] small check failed — ${(error as Error).message}`);
     return null;
   }

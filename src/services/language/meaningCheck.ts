@@ -171,7 +171,9 @@ export async function phoneJudgeChain(pairs: ChainPair[]): Promise<WordChainJudg
 // left out of both lists. The whole check is null when this phone can't do it.
 export async function checkCategoryWords(words: string[], categoryId: string): Promise<{ fits: string[]; misfits: string[] } | null> {
   const anchor = CATEGORY_ANCHORS[categoryId];
-  if (!anchor || !words.length) return null;
+  // Only the categories the self-test covered: a word's closeness to a weak anchor
+  // ("rain" to "weather") says little, and a right word must never be dropped on it.
+  if (!anchor || !words.length || !CATEGORY_GOLD.some((c) => c.category === categoryId)) return null;
   const check = await meaningCheck();
   if (!check.category.ready) return null;
   const sims = await Promise.all(words.map((w) => similarity("word", w, anchor)));

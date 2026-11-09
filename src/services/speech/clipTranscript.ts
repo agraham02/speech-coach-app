@@ -5,6 +5,7 @@ import type { TimedWordInput } from "../../domain/drills/timedHeard";
 import { DEFAULT_ASR_MODEL, isModelDownloaded } from "../asr/whisperModels";
 import { transcribeOnDevice } from "../onDeviceAsr/onDeviceAsrClient";
 import { runHeavy } from "../pipeline/jobQueue";
+import { withTimeout } from "../../utils/withTimeout";
 import { logger } from "../../utils/logger";
 
 // Whisper's reading of the clips the live recognizer saved during a drill (plan
@@ -19,9 +20,35 @@ export interface DrillTranscript {
   durationMs: number;
 }
 
-export async function transcribeDrillClips(uris: string[]): Promise<DrillTranscript | null> {
+// Gives up after this long (a take's own transcription may be using the model), and
+// the drill is scored as a Quick check instead.
+const MIN_WAIT_MS = 12_000;
+
+export function discardClips(uris: string[]): void {
+  for (const uri of uris) {
+    try {
+      new File(uri).delete();
+    } catch {
+      // A leftover clip in the cache is harmless.
+    }
+  }
+}
+
+export async function transcribeDrillClips(uris: string[], options: { clipSeconds?: number } = {}): Promise<DrillTranscript | null> {
   try {
     if (!uris.length || !isModelDownloaded(DEFAULT_ASR_MODEL)) return null;
+    const waitMs = Math.max(MIN_WAIT_MS, (options.clipSeconds ?? 0) * 700);
+    return await withTimeout(read(uris), waitMs, null);
+  } catch (error) {
+    logger.warn(`[drill] Whisper didn't finish, scoring a quick check — ${(error as Error).message}`);
+    return null;
+  } finally {
+    discardClips(uris);
+  }
+}
+
+async function read(uris: string[]): Promise<DrillTranscript | null> {
+  {
     const parts: Float32Array[] = [];
     for (const uri of uris) {
       const decoded = await runHeavy(() => decodeVideoAudio(uri));
@@ -36,16 +63,5 @@ export async function transcribeDrillClips(uris: string[]): Promise<DrillTranscr
       words: result.words.map((w) => ({ text: w.text, startMs: Math.round(w.startSeconds * 1000), endMs: Math.round(w.endSeconds * 1000) })),
       durationMs: Math.round(result.durationSeconds * 1000),
     };
-  } catch (error) {
-    logger.warn(`[drill] Whisper didn't finish, scoring a quick check — ${(error as Error).message}`);
-    return null;
-  } finally {
-    for (const uri of uris) {
-      try {
-        new File(uri).delete();
-      } catch {
-        // A leftover clip in the cache is harmless.
-      }
-    }
   }
 }
