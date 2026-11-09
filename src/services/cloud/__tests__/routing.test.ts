@@ -73,9 +73,11 @@ describe("the route, from the live facts", () => {
   });
 
   it("keeps the exercise judges for Plus and the trial", async () => {
-    for (const kind of ["rewind_notes", "word_chain", "bridge_chain", "summary_notes"] as const) {
+    // Word chain's links are a small check, free for a signed-in account (D23); the rest are Plus.
+    for (const kind of ["rewind_notes", "bridge_chain", "summary_notes"] as const) {
       expect((await route(kind)).blocked).toBe("not_entitled");
     }
+    expect((await route("word_chain")).blocked).toBeNull();
     mockAccount = account({ allowance: { ...freeTake, plan: "trial", tier: "trial", takesTotal: 20, takesLeft: 20 } });
     expect((await route("word_chain")).producers).toEqual(["tono_ai"]);
   });

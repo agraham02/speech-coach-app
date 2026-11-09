@@ -42,6 +42,13 @@ const limits = z.object({
   betaMonthlyJudgedTakes: z.number().int().nonnegative(),
   betaMonthlyTextCalls: z.number().int().nonnegative(),
   betaMonthlyInsights: z.number().int().nonnegative(),
+  // Small content checks (docs/overhaul/PLAN.md, 6.6): a month for everyone who is
+  // not paying, even without a trial; the trial's over the trial; Plus's a month.
+  // Defaults, so a config row from before they existed still parses.
+  freeMonthlyChecks: z.number().int().nonnegative().default(60),
+  betaMonthlyChecks: z.number().int().nonnegative().default(100),
+  trialChecks: z.number().int().nonnegative().default(60),
+  plusMonthlyChecks: z.number().int().nonnegative().default(200),
   // The 14-day trial, counted over the trial.
   trialJudgedTakes: z.number().int().nonnegative(),
   trialTextCalls: z.number().int().nonnegative(),
@@ -104,6 +111,10 @@ export const DEFAULT_CONFIG: ServerConfig = {
   minorsMayUseAi: false,
   freeBudgetUsd: 50,
   limits: {
+    freeMonthlyChecks: 60,
+    betaMonthlyChecks: 100,
+    trialChecks: 60,
+    plusMonthlyChecks: 200,
     freeMonthlyJudgedTakes: 1,
     betaMonthlyJudgedTakes: 15,
     betaMonthlyTextCalls: 100,

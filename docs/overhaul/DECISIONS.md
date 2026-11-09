@@ -370,3 +370,19 @@ When a check is off, it says "not checked", never a guess, and nothing is punish
 **Why:** the plan's rule that nothing that depends on words reads the weaker recognizer; the Quick check keeps a drill usable before the model download (phase 7 puts the download in onboarding).
 
 **Owner's OK:** not asked; this is task 3b.3. One thing to look at: the extra few seconds after each drill.
+
+## D23. The small content check (2026-11-08)
+
+**Was:** free accounts had no Tono AI beyond one judged take a month (`not_entitled`), so when the phone's own meaning check couldn't run (an Android, an older iPhone, a check that failed its self-test, D21) there was nothing to fall back to. Plan 6.6, level 2.
+
+**Now:**
+- **A new count, `check`, with its own pool.** Free accounts get 60 a month, beta 100, the trial 60, Plus 200 (`freeMonthlyChecks` and the others in the server config; a config row from before they existed still parses, with these defaults). It comes out of the same shared free budget as the free judged take (`freeBudgetUsd`), so it cannot run past the ceiling. Exercise notes, mark-ups and bridge chains stay Plus.
+- **Two server tasks.** `check_word_links` is the Word Chain judge under the check count, so a free account's chain is checked by Tono AI (Plus and the trial still use the exercise count). `check_on_topic` is new: prompt and answer in, a level 0 to 5 with a quote and a one-line note out, about whether it is on the subject and nothing else. The phone verifies the quote before it uses the level, asks once more with the problem if it fails, and on the last try caps a high level it can't back up at 3.
+- **Where it acts.** A take is first checked by this phone (D21); if the phone can't tell, by the small check; either way once per take, kept with it (`topic_check`). A take is only called off-topic at level 0 or 1, and never when a judge read it. If nothing can check it, it scores as usual. Word chain asks Tono AI (a small check for a free account), then this phone.
+- **Needs sign-in, 18+ and consent**, like all Tono AI, and respects the user's default for sending takes. The consent text, `docs/privacy.md` and `docs/terms.md` now say it.
+
+**You must deploy this one** (it changes the server): apply `supabase/migrations/20261109000000_small_checks.sql` in the SQL editor (it adds the new kind to the ledger's check and the count to `usage_snapshot`), then `npx supabase functions deploy --use-api`. Until you do, the app works as before: a small check just comes back unavailable. Then republish the privacy policy and terms.
+
+**Cost, as an estimate:** about 0.08 cents a call by the plan's figure, so 60 checks is about 5 cents a free user a month; watch the real number in the ledger.
+
+**Owner's OK:** not asked; this is task 3b.5. Two things to look at: 60 a month for free accounts, and that Word chain now works for a signed-in free account.

@@ -49,6 +49,7 @@ interface SnapshotRow {
   takes: number;
   text_calls: number;
   insights: number;
+  check_calls: number;
   conversation_seconds: string | number;
   cost_usd: string | number;
   day_takes: number;
@@ -68,6 +69,7 @@ function toSnapshot(row: SnapshotRow): SnapshotWithTrial {
       takes: row.takes,
       text: row.text_calls,
       insights: row.insights,
+      checks: row.check_calls ?? 0,
       conversationSeconds: Number(row.conversation_seconds),
       costUsd: Number(row.cost_usd),
       dayTakes: row.day_takes,

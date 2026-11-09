@@ -26,6 +26,8 @@ export interface UsageSnapshot {
   takes: number;
   text: number;
   insights: number;
+  // Small content checks (CountKind "check").
+  checks: number;
   // Seconds of live conversation charged so far.
   conversationSeconds: number;
   costUsd: number;
@@ -55,13 +57,13 @@ export function tierFor(config: ServerConfig, plan: Plan): Tier {
 export function limitsFor(l: Limits, tier: Tier): Record<CountKind, number> {
   switch (tier) {
     case "plus":
-      return { take: l.plusMonthlyJudgedTakes, text: l.plusMonthlyTextCalls, insight: l.plusMonthlyInsights, conversation: l.plusMonthlyConversationMinutes * 60 };
+      return { take: l.plusMonthlyJudgedTakes, text: l.plusMonthlyTextCalls, insight: l.plusMonthlyInsights, conversation: l.plusMonthlyConversationMinutes * 60, check: l.plusMonthlyChecks };
     case "trial":
-      return { take: l.trialJudgedTakes, text: l.trialTextCalls, insight: l.trialInsights, conversation: l.trialConversationMinutes * 60 };
+      return { take: l.trialJudgedTakes, text: l.trialTextCalls, insight: l.trialInsights, conversation: l.trialConversationMinutes * 60, check: l.trialChecks };
     case "beta":
-      return { take: l.betaMonthlyJudgedTakes, text: l.betaMonthlyTextCalls, insight: l.betaMonthlyInsights, conversation: l.betaMonthlyConversationMinutes * 60 };
+      return { take: l.betaMonthlyJudgedTakes, text: l.betaMonthlyTextCalls, insight: l.betaMonthlyInsights, conversation: l.betaMonthlyConversationMinutes * 60, check: l.betaMonthlyChecks };
     case "free":
-      return { take: l.freeMonthlyJudgedTakes, text: 0, insight: 0, conversation: l.freeMonthlyConversationMinutes * 60 };
+      return { take: l.freeMonthlyJudgedTakes, text: 0, insight: 0, conversation: l.freeMonthlyConversationMinutes * 60, check: l.freeMonthlyChecks };
   }
 }
 
@@ -75,6 +77,8 @@ function used(s: UsageSnapshot, kind: CountKind): number {
       return s.insights;
     case "conversation":
       return s.conversationSeconds;
+    case "check":
+      return s.checks;
   }
 }
 

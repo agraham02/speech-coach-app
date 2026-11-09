@@ -21,12 +21,13 @@ const ARGS = { hasVideo: false, hasTranscript: true, takeOptIn: true } as const;
 export function whyNotChecked(reason: Unavailable, message?: string): string {
   switch (reason) {
     case "signed_out":
+      return "Sign in (Settings → Account) and Tono AI checks that each link makes sense, free. For now your words were counted.";
     case "not_entitled":
       return "With Tono Plus, Tono AI checks that each link makes sense. For now your words were counted.";
     case "quota":
     case "cost_cap":
     case "budget_paused":
-      return "You've used your Tono AI checks for now, so your words were just counted.";
+      return "You've used this month's Tono AI checks, so your words were just counted.";
     case "no_consent":
       return "Allow Tono AI in Settings → Tono AI to have your links checked. For now your words were just counted.";
     case "offline":

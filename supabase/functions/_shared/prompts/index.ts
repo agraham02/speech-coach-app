@@ -17,6 +17,7 @@ import {
   WORD_CHAIN_SCHEMA_VERSION,
   wordChainInputsSchema,
 } from "./exercises.ts";
+import { buildOnTopicCheck, ON_TOPIC_CHECK_SCHEMA_VERSION, onTopicCheckInputsSchema } from "./contentCheck.ts";
 import { buildTakeReview, TAKE_REVIEW_SCHEMA_VERSION, takeReviewInputsSchema, type BuiltRequest, type JudgeInput } from "./takeReview.ts";
 import {
   buildConversationDebrief,
@@ -39,6 +40,8 @@ export type Task =
   | "bridge_chain"
   | "summary_notes"
   | "mark_up"
+  | "check_on_topic"
+  | "check_word_links"
   | "conversation_turn"
   | "conversation_debrief";
 
@@ -110,6 +113,24 @@ export const TASKS: Record<Task, TaskDef> = {
     role: () => "text",
     allowsMedia: false,
     build: buildMarkUp as TaskDef["build"],
+  },
+  // The small content checks: their own count, so a free account gets them too.
+  // Word links is the Word Chain judge under a different count.
+  check_on_topic: {
+    inputs: onTopicCheckInputsSchema,
+    schemaVersion: ON_TOPIC_CHECK_SCHEMA_VERSION,
+    count: "check",
+    role: () => "text",
+    allowsMedia: false,
+    build: buildOnTopicCheck as TaskDef["build"],
+  },
+  check_word_links: {
+    inputs: wordChainInputsSchema,
+    schemaVersion: WORD_CHAIN_SCHEMA_VERSION,
+    count: "check",
+    role: () => "text",
+    allowsMedia: false,
+    build: buildWordChain as TaskDef["build"],
   },
   conversation_turn: {
     inputs: conversationTurnInputsSchema,

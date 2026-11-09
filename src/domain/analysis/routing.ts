@@ -30,6 +30,7 @@ export const SUPPORTED: Record<AnalysisKind, Producer[]> = {
   bridge_chain: ["tono_ai"],
   summary_notes: ["tono_ai"],
   mark_up: ["tono_ai", "rules"],
+  check_on_topic: ["tono_ai"],
   conversation_debrief: ["tono_ai", "rules"],
 };
 
@@ -49,20 +50,28 @@ export function ageGated(ctx: Pick<AnalysisContext, "isAdult" | "minorsMayUseAi"
   return ctx.isAdult === false && !ctx.minorsMayUseAi;
 }
 
+// What a free account may ask for besides its monthly judged take: the small
+// content checks (docs/overhaul/PLAN.md, 6.6), on their own count. Word chain's
+// link check is one for a free account; for Plus and the trial it is the usual
+// exercise note.
+export function isSmallCheck(kind: AnalysisKind, tier: AnalysisContext["tier"]): boolean {
+  return kind === "check_on_topic" || (kind === "word_chain" && tier === "free");
+}
+
 function tonoBlock(kind: AnalysisKind, ctx: AnalysisContext): Unavailable | null {
   if (ctx.tono.killSwitch) return "kill_switch";
   if (ageGated(ctx)) return "age_gate";
   // Tono AI is for people with an account (Apple or Google sign-in).
   if (ctx.tono.signedIn === false) return "signed_out";
   // Exercise notes and mark-ups are Plus (and trial, and beta) features.
-  if (kind !== "take_review" && ctx.tier === "free") return "not_entitled";
+  if (kind !== "take_review" && ctx.tier === "free" && !isSmallCheck(kind, ctx.tier)) return "not_entitled";
   if (!ctx.tono.consent) return "no_consent";
   // The debrief belongs to the conversation it follows, so it never needs
   // minutes left (the server lets it finish too).
   if (kind === "conversation_debrief") return null;
   // One take, one count, whatever the judge is sent.
-  const count = kind === "take_review" ? "take" : "text";
-  if (!ctx.tono.allowed[count]) return "quota";
+  const count = kind === "take_review" ? "take" : isSmallCheck(kind, ctx.tier) ? "check" : "text";
+  if (ctx.tono.allowed[count] === false) return "quota";
   return null;
 }
 

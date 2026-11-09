@@ -1,4 +1,4 @@
-import { ageGated, routeAnalysis, SUPPORTED, tonoInputFor, whatCanShow } from "../analysis/routing";
+import { ageGated, isSmallCheck, routeAnalysis, SUPPORTED, tonoInputFor, whatCanShow } from "../analysis/routing";
 import { producerName, provenanceLabel, rulesProvenance } from "../analysis/provenance";
 import type { AnalysisContext, AnalysisKind } from "../analysis/types";
 
@@ -82,9 +82,9 @@ describe("the tiers", () => {
     expect(routeAnalysis("take_review", ctx({ tier: "free" })).producers).toEqual(["tono_ai"]);
   });
 
-  it("keeps exercise judging and mark-ups for Plus, the trial and testers", () => {
+  it("keeps exercise judging and mark-ups for Plus, the trial and testers (Word chain links are a small check, free)", () => {
     for (const kind of [...EXERCISES, "mark_up"] as AnalysisKind[]) {
-      expect(routeAnalysis(kind, ctx({ tier: "free" })).blocked).toBe("not_entitled");
+      expect(routeAnalysis(kind, ctx({ tier: "free" })).blocked).toBe(kind === "word_chain" ? null : "not_entitled");
       for (const tier of ["trial", "plus", "beta"] as const) expect(routeAnalysis(kind, ctx({ tier })).producers[0]).toBe("tono_ai");
     }
     // Mark it up still works for free users: the rules mark the text.
@@ -111,7 +111,7 @@ describe("whatCanShow", () => {
     expect(whatCanShow("coaching", ctx())).toBe("judged");
     // A free user who used the month's free judged take.
     expect(whatCanShow("take_review", ctx({ tier: "free", tono: tono({ allowed: { take: false, text: false, insight: false } }) }))).toBe("locked");
-    for (const kind of EXERCISES) expect(whatCanShow(kind, ctx({ tier: "free" }))).toBe("locked");
+    for (const kind of EXERCISES) expect(whatCanShow(kind, ctx({ tier: "free" }))).toBe(kind === "word_chain" ? "judged" : "locked");
     // A choice, a subscriber who used their count, or an under-18: nothing to sell.
     expect(whatCanShow("take_review", ctx({ takeOptIn: false }))).toBe("facts");
     expect(whatCanShow("take_review", ctx({ tier: "plus", tono: tono({ allowed: { take: false, text: true, insight: true } }) }))).toBe("facts");
@@ -127,5 +127,51 @@ describe("provenance labels", () => {
     );
     expect(provenanceLabel({ producer: "tono_ai", provider: "Tono AI", promptVersion: "p", judged: true, input: "video", at: "" })).toMatch(/after watching your take/);
     expect(producerName(null)).toBe("This phone");
+  });
+});
+
+describe("the small content checks (3b.5)", () => {
+  const free = (patch: Partial<AnalysisContext> = {}) => ctx({ tier: "free", ...patch });
+  const allowed = (check: boolean | undefined) => ({ take: true, text: false, insight: false, ...(check === undefined ? {} : { check }) });
+
+  it("are open to a signed-in free account, which exercise notes are not", () => {
+    expect(routeAnalysis("check_on_topic", free())).toMatchObject({ producers: ["tono_ai"], blocked: null });
+    expect(routeAnalysis("word_chain", free())).toMatchObject({ producers: ["tono_ai"], blocked: null });
+    expect(routeAnalysis("bridge_chain", free())).toMatchObject({ blocked: "not_entitled" });
+    expect(routeAnalysis("rewind_notes", free())).toMatchObject({ blocked: "not_entitled" });
+    expect(routeAnalysis("mark_up", free())).toMatchObject({ blocked: "not_entitled" });
+  });
+
+  it("use their own count, so exercise notes running out doesn't stop them and the reverse", () => {
+    const noText = free({ tono: { consent: true, allowed: allowed(true), killSwitch: false } });
+    expect(routeAnalysis("check_on_topic", noText).blocked).toBeNull();
+    const noChecks = free({ tono: { consent: true, allowed: allowed(false), killSwitch: false } });
+    expect(routeAnalysis("check_on_topic", noChecks).blocked).toBe("quota");
+    expect(routeAnalysis("word_chain", noChecks).blocked).toBe("quota");
+    // Plus pays for Word chain out of its text count, not the checks.
+    const plus = ctx({ tier: "plus", tono: { consent: true, allowed: { take: true, text: true, insight: true, check: false }, killSwitch: false } });
+    expect(routeAnalysis("word_chain", plus).blocked).toBeNull();
+  });
+
+  it("assume the server will allow one until it says otherwise", () => {
+    expect(routeAnalysis("check_on_topic", free({ tono: { consent: true, allowed: allowed(undefined), killSwitch: false } })).blocked).toBeNull();
+  });
+
+  it("need an account, consent, an adult and a server that is on", () => {
+    expect(routeAnalysis("check_on_topic", free({ tono: { consent: true, allowed: allowed(true), killSwitch: false, signedIn: false } })).blocked).toBe("signed_out");
+    expect(routeAnalysis("check_on_topic", free({ tono: { consent: false, allowed: allowed(true), killSwitch: false } })).blocked).toBe("no_consent");
+    expect(routeAnalysis("check_on_topic", free({ isAdult: false })).blocked).toBe("age_gate");
+    expect(routeAnalysis("check_on_topic", free({ tono: { consent: true, allowed: allowed(true), killSwitch: true } })).blocked).toBe("kill_switch");
+  });
+
+  it("have no rules fallback: unreachable means not checked", () => {
+    expect(routeAnalysis("check_on_topic", free({ tono: { consent: true, allowed: allowed(true), killSwitch: true } })).producers).toEqual([]);
+  });
+
+  it("knows which kinds are small checks, by tier", () => {
+    expect(isSmallCheck("check_on_topic", "plus")).toBe(true);
+    expect(isSmallCheck("word_chain", "free")).toBe(true);
+    expect(isSmallCheck("word_chain", "plus")).toBe(false);
+    expect(isSmallCheck("take_review", "free")).toBe(false);
   });
 });

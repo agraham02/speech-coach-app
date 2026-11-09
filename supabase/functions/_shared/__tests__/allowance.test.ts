@@ -7,6 +7,7 @@ const empty: UsageSnapshot = {
   takes: 0,
   text: 0,
   insights: 0,
+  checks: 0,
   costUsd: 0,
   dayTakes: 0,
   freeSpendMonthUsd: 0,
@@ -37,8 +38,36 @@ describe("tiers", () => {
     expect(tierFor(launch, "plus")).toBe("plus");
   });
 
-  it("gives free accounts judged takes only", () => {
-    expect(limitsFor(launch.limits, "free")).toEqual({ take: 1, text: 0, insight: 0, conversation: 0 });
+  it("gives free accounts judged takes and small checks only", () => {
+    expect(limitsFor(launch.limits, "free")).toEqual({ take: 1, text: 0, insight: 0, conversation: 0, check: 60 });
+  });
+});
+
+describe("small content checks", () => {
+  it("are free for a signed-in free account, 60 a month", () => {
+    expect(decide(launch, "check", {})).toMatchObject({ ok: true, tier: "free" });
+    expect(decide(launch, "check", { checks: 59 }).ok).toBe(true);
+    expect(decide(launch, "check", { checks: 60 })).toEqual({ ok: false, reason: "quota_exhausted" });
+  });
+
+  it("have their own count: using them leaves judged takes and text alone", () => {
+    expect(decide(launch, "take", { checks: 60 }).ok).toBe(true);
+    expect(decide(launch, "check", { takes: 1, text: 999, insights: 999 }).ok).toBe(true);
+  });
+
+  it("still never reach exercise judging for free: text stays Plus", () => {
+    expect(decide(launch, "text", {})).toEqual({ ok: false, reason: "plus_required" });
+  });
+
+  it("come out of the shared free budget, so they cannot run it past the ceiling", () => {
+    expect(decide(launch, "check", { freeSpendMonthUsd: launch.freeBudgetUsd })).toEqual({ ok: false, reason: "budget_paused" });
+  });
+
+  it("have a count for every tier, and stop at the kill switch", () => {
+    expect(limitsFor(launch.limits, "trial").check).toBe(60);
+    expect(limitsFor(launch.limits, "plus").check).toBe(200);
+    expect(limitsFor(beta.limits, "beta").check).toBe(100);
+    expect(decide({ ...launch, killSwitch: true }, "check", {})).toEqual({ ok: false, reason: "disabled" });
   });
 });
 

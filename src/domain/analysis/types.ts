@@ -19,6 +19,7 @@ export type AnalysisKind =
   | "bridge_chain" // each step of a Bridge Chain attempt: was the link explained
   | "summary_notes" // Say it short
   | "mark_up" // delivery marks for a text to read aloud
+  | "check_on_topic" // the small content check: is what was said about what was asked
   | "conversation_debrief"; // the moves in a live conversation, after it
 
 // Who produced a result. Room for "on_device_llm" or "apple_pcc" later
@@ -78,7 +79,7 @@ export interface AnalysisContext {
     // Last known: which kinds the server would accept. The server has the
     // final say.
     // `conversation` absent: assumed allowed (the server has the final say).
-    allowed: { take: boolean; text: boolean; insight: boolean; conversation?: boolean };
+    allowed: { take: boolean; text: boolean; insight: boolean; conversation?: boolean; check?: boolean };
     killSwitch: boolean;
     // Signed in with Apple or Google. Absent: assumed (callers that don't
     // know never block on it; the server has the final say).

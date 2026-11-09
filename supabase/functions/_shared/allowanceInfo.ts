@@ -13,6 +13,9 @@ export interface AllowanceView {
   // Judged takes: one take, one count, whatever the judge was sent.
   takesLeft: number;
   takesTotal: number;
+  // Small content checks: how many this period has, and how many are left.
+  checksLeft: number;
+  checksTotal: number;
   // Live conversation, in whole minutes (rounded down while left).
   conversationMinutesLeft: number;
   conversationMinutesTotal: number;
@@ -37,6 +40,8 @@ export function describeAllowance(
       tier: "plus",
       takesTotal: DEV_OVERRIDE_COUNT,
       takesLeft: DEV_OVERRIDE_COUNT,
+      checksTotal: DEV_OVERRIDE_COUNT,
+      checksLeft: DEV_OVERRIDE_COUNT,
       conversationMinutesTotal: DEV_OVERRIDE_COUNT,
       conversationMinutesLeft: DEV_OVERRIDE_COUNT,
       resetsAt: utcNextMonthStart(now).toISOString(),
@@ -53,6 +58,8 @@ export function describeAllowance(
     tier,
     takesTotal: total,
     takesLeft: Math.max(0, total - snapshot.takes),
+    checksTotal: limits.check,
+    checksLeft: Math.max(0, limits.check - snapshot.checks),
     conversationMinutesTotal: Math.round(limits.conversation / 60),
     conversationMinutesLeft: Math.max(0, Math.floor((limits.conversation - snapshot.conversationSeconds) / 60)),
     resetsAt: trialEnd ?? utcNextMonthStart(now).toISOString(),

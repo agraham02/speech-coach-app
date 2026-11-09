@@ -14,6 +14,7 @@ import type { GradingContext } from "../sessions/sessionSubject";
 import type { LiveDebrief } from "../../domain/conversation/live/debrief";
 import type { LiveDetails } from "../../domain/conversation/live/evaluateLive";
 import type { LiveFocus } from "../../domain/conversation/live/prepareLive";
+import type { OnTopicCheck } from "../../domain/analysis/onTopicCheck";
 
 // One typed input and one typed result shape per kind. A screen or step only
 // ever sees these; how a provider gets there (which model, which prompt,
@@ -63,6 +64,12 @@ export interface MarkUpInput {
   text: string;
 }
 
+// The small content check: what they were asked and what they said.
+export interface OnTopicCheckInput {
+  prompt: string;
+  answer: string;
+}
+
 // A live conversation, after it: what each side said, and the phone's own
 // process measurements (the rules' version reads those).
 export interface ConversationDebriefInput {
@@ -81,6 +88,7 @@ export interface InputMap {
   bridge_chain: BridgeChainInput;
   summary_notes: SummaryNotesInput;
   mark_up: MarkUpInput;
+  check_on_topic: OnTopicCheckInput;
   conversation_debrief: ConversationDebriefInput;
 }
 
@@ -92,6 +100,7 @@ export interface OutputMap {
   bridge_chain: BridgeChainJudgement;
   summary_notes: SummaryReview;
   mark_up: MarkedText;
+  check_on_topic: OnTopicCheck;
   conversation_debrief: LiveDebrief;
 }
 

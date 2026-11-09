@@ -17,6 +17,10 @@ export interface TonoAllowance {
   tier: AllowanceTier;
   takesLeft: number;
   takesTotal: number;
+  // Small content checks (a free account gets 60 a month). Absent from a server
+  // that predates them.
+  checksLeft?: number;
+  checksTotal?: number;
   // Live conversation minutes (Plus 120 a month, the trial 30, free none).
   // Absent from a server that predates them.
   conversationMinutesLeft?: number;
