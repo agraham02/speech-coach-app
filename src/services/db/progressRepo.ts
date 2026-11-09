@@ -6,7 +6,7 @@ import { generateId } from "../../utils/generateId";
 import { isoDateFromDate, todayISODate } from "../../utils/dateUtils";
 import { buildTopUpPlan } from "../../domain/dailyGoal";
 import { priorityFor } from "../../domain/profile";
-import { getNextEvent, getReminderSettings, getUserProfile } from "../prefs/prefsStore";
+import { getNextEvent, getReminderSettings, getUserProfile, setTakeLevel } from "../prefs/prefsStore";
 import { computeStreakState, type StreakState } from "../../domain/streaks";
 import type { SkillId } from "../../theme/tokens";
 import { DRILL_SKILL, DRILL_TITLES, type DrillOutcome, type DrillType } from "../../domain/drills/drillSpecs";
@@ -152,6 +152,7 @@ async function saveDrillLevel(type: DrillType, level: number, success: boolean):
        successes = drill_difficulty.successes + ?, updated_at = excluded.updated_at`,
     [type, level, success ? 1 : 0, new Date().toISOString(), success ? 1 : 0],
   );
+  if (type === "rep") setTakeLevel(level);
 }
 
 export interface ProgressChange {
@@ -279,19 +280,25 @@ export async function recordDrillOutcome(args: {
 
 // One recorded take: a number per leaf it can show, each moving that leaf by the
 // grid (domain/scoring/takeLeaves.ts). This is how real speaking moves the tree.
-export async function recordTakeOutcome(evidence: Omit<AttemptEvidence, "difficulty">, context: { sessionId: string; label: string; meanScore: number | null }): Promise<ProgressChange[]> {
+export async function recordTakeOutcome(
+  evidence: Omit<AttemptEvidence, "difficulty">,
+  // difficulty: what this take was (its prompt, prep and length; difficulty/scale.ts).
+  context: { sessionId: string; label: string; meanScore: number | null; difficulty?: number },
+): Promise<ProgressChange[]> {
   // A take deleted while it was still being analysed moves nothing.
   if (!(await isSessionLive(context.sessionId))) return [];
   // One take moves the tree once, even if it's settled twice.
   const db = await getDatabase();
   if (await db.getFirstAsync(`SELECT 1 FROM score_attempts WHERE session_id = ? LIMIT 1`, [context.sessionId])) return [];
-  const level = await getDrillLevel("rep");
+  const repLevel = await getDrillLevel("rep");
+  const level = context.difficulty ?? repLevel;
   const stages = await getNodeStages();
   const stageOf = (id: string): Stage => stages.get(id)?.stage ?? 1;
   const result = await recordAttempt({ evidence: { ...evidence, difficulty: level }, label: context.label, kind: "rep", sessionId: context.sessionId, drillType: "rep" });
   if (!result.moves.length) return [];
   const success = (context.meanScore ?? 0) >= 0.7;
-  const levelAfter = nextDifficulty(level, success);
+  // The staircase that sets up your next take steps from where it was.
+  const levelAfter = nextDifficulty(repLevel, success);
   await saveDrillLevel("rep", levelAfter, success);
   const moved = (result.trail?.pillars ?? []).filter((p) => skillOfPillar(p.id as PillarId));
   return moved.map((p) => {

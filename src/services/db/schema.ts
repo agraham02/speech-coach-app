@@ -513,6 +513,13 @@ const STEPS: SchemaStep[] = [
       CREATE UNIQUE INDEX idx_score_attempts_ref ON score_attempts(ref) WHERE ref IS NOT NULL;
     `,
   },
+  {
+    version: 41,
+    description: "one difficulty scale (task 3d.1): the 1-5 practice step and its history are gone",
+    sql: `
+      DROP TABLE IF EXISTS curriculum_state;
+    `,
+  },
 ];
 
 export const SCHEMA_VERSION = STEPS[STEPS.length - 1].version;

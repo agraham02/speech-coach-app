@@ -99,7 +99,6 @@ import { AddPromptScreen } from "../screens/AddPromptScreen";
 import { PlanYourPointScreen } from "../screens/PlanYourPointScreen";
 import { DrillsScreen } from "../screens/DrillsScreen";
 import { DrillSessionScreen } from "../screens/DrillSessionScreen";
-import { CurriculumScreen } from "../screens/CurriculumScreen";
 import { navigationRef } from "./navigationRef";
 import { syncDailyReminder } from "../services/notifications/reminderScheduler";
 import { logger } from "../utils/logger";
@@ -182,7 +181,6 @@ export type RootStackParamList = {
   Frameworks: undefined;
   Sources: undefined;
   Trends: undefined;
-  Curriculum: undefined;
   Recording: RecordingSubject;
   Preview: RecordingSubject & { videoUri: string; durationSecondsLocal: number };
   // Kept only as a redirect to Result, so older notification/deep links
@@ -497,7 +495,6 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
         <Stack.Screen name="PlanYourPoint" component={PlanYourPointScreen} />
         <Stack.Screen name="Drills" component={DrillsScreen} />
         <Stack.Screen name="DrillSession" component={DrillSessionScreen} />
-        <Stack.Screen name="Curriculum" component={CurriculumScreen} />
         <Stack.Screen name="Recording" component={RecordingScreen} />
         <Stack.Screen name="Preview" component={PreviewScreen} />
         <Stack.Screen name="Result" component={ResultScreen} />

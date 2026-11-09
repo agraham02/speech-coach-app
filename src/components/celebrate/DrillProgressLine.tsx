@@ -7,6 +7,7 @@ import { NOT_COUNTED } from "./trailToast";
 import type { ProgressChange } from "../../services/db/progressRepo";
 import { formatDelta, trailLine } from "../../domain/scoring/rollup";
 import { nextStageHint, stageName, stageProgress, type Stage } from "../../domain/levels";
+import { difficultyLabel } from "../../domain/difficulty/scale";
 import { SKILL_LABELS } from "../../theme/tokens";
 import { enter } from "../../theme/motion";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
@@ -43,7 +44,7 @@ export function DrillProgressLine({ change, attempts, drillTitle }: { change: Pr
               {SKILL_LABELS[change.skill]}
             </Txt>
             <Txt variant="caption1" tone="muted">
-              {stageName(stage)}
+              {`${stageName(stage)} · ${difficultyLabel(change.levelBefore)}`}
             </Txt>
           </View>
           <Txt variant="subhead" weight="600" tabular color={up ? colors.success : colors.textMuted}>

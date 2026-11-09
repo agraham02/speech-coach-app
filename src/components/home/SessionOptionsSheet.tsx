@@ -31,12 +31,12 @@ interface SessionOptionsSheetProps {
   onResetPrepToAuto: () => void;
   durationSettings: RecordingDurationSettings;
   onDurationSettingsChange: (value: RecordingDurationSettings) => void;
-  // Whether the length below is the curriculum's auto-computed value or a
-  // choice the user explicitly made — see curriculum.ts's plan notes on
+  // Whether the length below is the take difficulty's own value or a
+  // choice the user explicitly made — see domain/difficulty/scale.ts on
   // "auto duration" vs. "I picked my own" being mutually exclusive.
   durationManuallySet: boolean;
   onResetDurationToAuto: () => void;
-  curriculumLevel: number;
+  takeLevel: number;
   conciseModeSeconds: number;
   onConciseModeSecondsChange: (value: number) => void;
 }
@@ -69,7 +69,7 @@ export function SessionOptionsSheet({
   onDurationSettingsChange,
   durationManuallySet,
   onResetDurationToAuto,
-  curriculumLevel,
+  takeLevel,
   conciseModeSeconds,
   onConciseModeSecondsChange,
 }: SessionOptionsSheetProps) {
@@ -140,7 +140,7 @@ export function SessionOptionsSheet({
                 <Text style={styles.rowTitle}>Prep time</Text>
                 {!prepManuallySet ? (
                   <View style={styles.autoBadge}>
-                    <Text style={styles.autoBadgeText}>Auto · Level {curriculumLevel}</Text>
+                    <Text style={styles.autoBadgeText}>Auto · Difficulty {Math.floor(takeLevel)}</Text>
                   </View>
                 ) : null}
               </View>
@@ -167,11 +167,11 @@ export function SessionOptionsSheet({
               </View>
               {prepManuallySet ? (
                 <Pressable onPress={onResetPrepToAuto} hitSlop={8}>
-                  <Text style={styles.linkText}>Reset to auto (matches your curriculum level)</Text>
+                  <Text style={styles.linkText}>Reset to auto (matches your take difficulty)</Text>
                 </Pressable>
               ) : (
                 <Text style={styles.rowSubtitle}>
-                  Matches your current curriculum level — shrinks and randomizes as you level up. Adjusting below
+                  Matches your take difficulty: it shrinks as takes get harder. Adjusting below
                   sets your own prep time instead.
                 </Text>
               )}
@@ -183,7 +183,7 @@ export function SessionOptionsSheet({
               <Text style={styles.rowTitle}>Recording length</Text>
               {!durationManuallySet ? (
                 <View style={styles.autoBadge}>
-                  <Text style={styles.autoBadgeText}>Auto · Level {curriculumLevel}</Text>
+                  <Text style={styles.autoBadgeText}>Auto · Difficulty {Math.floor(takeLevel)}</Text>
                 </View>
               ) : null}
             </View>
@@ -210,11 +210,11 @@ export function SessionOptionsSheet({
             </View>
             {durationManuallySet ? (
               <Pressable onPress={onResetDurationToAuto} hitSlop={8}>
-                <Text style={styles.linkText}>Reset to auto (matches your curriculum level)</Text>
+                <Text style={styles.linkText}>Reset to auto (matches your take difficulty)</Text>
               </Pressable>
             ) : (
               <Text style={styles.rowSubtitle}>
-                Matches your current curriculum level — adjusting below sets your own length instead.
+                Matches your take difficulty: it grows as takes get harder. Adjusting below sets your own length instead.
               </Text>
             )}
           </View>

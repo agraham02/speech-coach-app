@@ -39,12 +39,8 @@ import {
 } from "../services/prefs/prefsStore";
 import { resolvePrepDurationSeconds, resolveRecordingDurationSeconds } from "../domain/recordingSettings";
 import { getWarmUpSteps } from "../domain/warmUpRoutine";
-import {
-  curriculumLevelToDurationSeconds,
-  curriculumLevelToPrepSeconds,
-  curriculumLevelToWarmUpIntensity,
-} from "../domain/curriculum";
-import { getEffectiveCurriculumLevel } from "../services/db/curriculumRepo";
+import { takeDurationSeconds, takePrepSeconds, warmUpIntensityFor } from "../domain/difficulty/scale";
+import { getTakeLevel } from "../services/prefs/prefsStore";
 import { persistRecording } from "../services/storage/videoStorage";
 import { freeDiskBytes } from "../services/storage/diskSpace";
 import { lowForRecording, recordingSpaceMessage } from "../domain/storage";
@@ -102,10 +98,8 @@ export function RecordingScreen({ route, navigation }: Props) {
   });
   const isFeeling = subject.kind === "prompt" && !!subject.feeling;
   const [warmUpEnabled] = useState(() => !fromPractice && !isScript && !isFeeling && getWarmUpEnabled());
-  // Warm-up length scales with curriculum level — harder levels get a
-  // longer, more thorough warm-up (see curriculum.ts's LEVEL_WARM_UP_INTENSITY
-  // table and its judgment-call note).
-  const [warmUpSteps] = useState(() => getWarmUpSteps(curriculumLevelToWarmUpIntensity(getEffectiveCurriculumLevel().level)));
+  // The warm-up grows with the take difficulty (domain/difficulty/scale.ts).
+  const [warmUpSteps] = useState(() => getWarmUpSteps(warmUpIntensityFor(getTakeLevel())));
   // Concise Mode's duration is already resolved (from prefs) by the time it
   // reaches here as subject.conciseSeconds — it bypasses the general
   // recording-duration setting entirely, same as Script Practice bypassing
@@ -115,21 +109,16 @@ export function RecordingScreen({ route, navigation }: Props) {
     if (isScript) return subject.script.targetDurationSeconds;
     if (subject.kind === "prompt" && subject.conciseSeconds) return subject.conciseSeconds;
     if (subject.kind === "prompt" && subject.targetSeconds) return subject.targetSeconds;
-    // The curriculum's level-driven duration applies unless the user has
-    // explicitly set their own recording length in the Session Options
-    // sheet — an explicit manual choice always wins over the auto
-    // suggestion (see curriculum.ts's plan notes; matches how a manual
-    // curriculum-level override also always wins over the auto level).
-    if (!getRecordingDurationManuallySet()) {
-      return curriculumLevelToDurationSeconds(getEffectiveCurriculumLevel().level);
-    }
+    // The take difficulty's length applies unless you set your own in the
+    // Session Options sheet: an explicit choice always wins.
+    if (!getRecordingDurationManuallySet()) return takeDurationSeconds(getTakeLevel());
     return resolveRecordingDurationSeconds(getRecordingDurationSettings());
   });
   const [prepDurationSeconds] = useState(() => {
     if (!prepEnabled) return 0;
     if (lessonPrep != null) return lessonPrep;
     if (getPrepSettingsManuallySet()) return resolvePrepDurationSeconds(getPrepPhaseSettings());
-    return curriculumLevelToPrepSeconds(getEffectiveCurriculumLevel().level);
+    return takePrepSeconds(getTakeLevel());
   });
   const initialStage: Stage = warmUpEnabled ? "warmup" : prepEnabled ? "prep" : "idle";
   const [stage, setStage] = useState<Stage>(initialStage);

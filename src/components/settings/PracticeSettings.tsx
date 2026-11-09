@@ -27,7 +27,6 @@ export function PracticeSettings() {
         chevron
         onPress={() => navigation.navigate("Events")}
       />
-      <ListRow icon="speedometer-outline" title="Practice difficulty" subtitle="See it, or pin the level free practice and drills start at" chevron onPress={() => navigation.navigate("Curriculum")} />
       <SwitchRow
         icon="git-branch-outline"
         title="Plan your point"

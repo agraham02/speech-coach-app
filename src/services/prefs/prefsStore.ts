@@ -8,7 +8,6 @@ import {
   type RecordingDurationSettings,
 } from "../../domain/recordingSettings";
 import { DEFAULT_REMINDER_SETTINGS, type ReminderSettings } from "../../domain/reminderSettings";
-import { DEFAULT_CURRICULUM_LEVEL } from "../../domain/curriculum";
 import type { CheckpointRecords } from "../../domain/checkpoint";
 import type { DailyGoal } from "../../domain/dailyGoal";
 import { EMPTY_PROFILE, type UserProfile } from "../../domain/profile";
@@ -31,8 +30,7 @@ const KEYS = {
   nervesStart: "nervesStart",
   conciseModeSeconds: "conciseModeSeconds",
   warmUpEnabled: "warmUpEnabled",
-  curriculumOverride: "curriculumOverride",
-  curriculumAutoLevel: "curriculumAutoLevel",
+  takeLevel: "takeLevel",
   recordingDurationManuallySet: "recordingDurationManuallySet",
   prepSettingsManuallySet: "prepSettingsManuallySet",
   dailySessionGoal: "dailySessionGoal",
@@ -190,35 +188,16 @@ export function setWarmUpEnabled(value: boolean): void {
   storage.set(KEYS.warmUpEnabled, value);
 }
 
-// The manual curriculum pin — `null` means "Auto" (the computed level
-// applies). Distinct from curriculumAutoLevel below: this is a user choice,
-// that's a read-through cache of the engine's own computation. See
-// curriculum.ts / curriculumRepo.ts's getEffectiveCurriculumLevel().
-export function getCurriculumOverride(): number | null {
-  return storage.contains(KEYS.curriculumOverride) ? (storage.getNumber(KEYS.curriculumOverride) ?? null) : null;
+// The difficulty, 1 to 10, that a take you start yourself is set up at (its
+// prompt tier, prep and length: domain/difficulty/scale.ts). A cache of the rep
+// staircase in drill_difficulty, written whenever it moves, so a screen can read
+// it without a database round-trip.
+export function getTakeLevel(): number {
+  return storage.getNumber(KEYS.takeLevel) ?? 1;
 }
 
-export function setCurriculumOverride(level: number | null): void {
-  if (level === null) {
-    storage.remove(KEYS.curriculumOverride);
-  } else {
-    storage.set(KEYS.curriculumOverride, level);
-  }
-}
-
-// Cache of the last computed auto (non-override) curriculum level — written
-// only by curriculumRepo.ts's recomputeCurriculumLevel() after it reads the
-// DB, read synchronously everywhere else (RecordingScreen's mount,
-// DrillsScreen's default tier, HomeScreen's prompt filter) that needs
-// "today's level" without a DB round-trip on every read. curriculum_state
-// in SQLite stays the source of truth for history; this is purely a
-// read-through cache of its latest value.
-export function getCurriculumAutoLevel(): number {
-  return storage.getNumber(KEYS.curriculumAutoLevel) ?? DEFAULT_CURRICULUM_LEVEL;
-}
-
-export function setCurriculumAutoLevel(level: number): void {
-  storage.set(KEYS.curriculumAutoLevel, level);
+export function setTakeLevel(level: number): void {
+  storage.set(KEYS.takeLevel, level);
 }
 
 // Whether the user has ever explicitly touched the recording-length control

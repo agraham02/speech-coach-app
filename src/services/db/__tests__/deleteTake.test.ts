@@ -18,10 +18,7 @@ jest.mock("../../prefs/prefsStore", () => ({
   getNextEvent: () => null,
   getReminderSettings: () => ({ practiceDays: [] }),
   getUserProfile: () => ({}),
-  getCurriculumAutoLevel: () => null,
-  getCurriculumOverride: () => null,
-  setCurriculumAutoLevel: () => undefined,
-  setCurriculumOverride: () => undefined,
+  setTakeLevel: () => undefined,
 }));
 jest.mock("../../storage/videoStorage", () => ({
   deleteRecording: (uri: string) => mockDeletedFiles.push(uri),
@@ -40,7 +37,6 @@ import { insertSession, getAllSessionsWithScores, getRecentlyUsedPromptIds, getT
 import { upsertScores, getPreviousOverallScore, getScoreHistoryBefore } from "../scoresRepo";
 import { putArtifact, listArtifactsOfKind } from "../artifactsRepo";
 import { markReviewPass, getSkillEvents, getSkillMovesSince, getPracticeDates, getStreakState, getDailySessionCounts, getReviewPasses } from "../progressRepo";
-import { countImpromptuTakes } from "../curriculumRepo";
 import { getCompletedSessionDates, getScoreSeries, getSessionMetricSeries, getUsageTotals, getWeeklySummaries, getPromptComparison } from "../statsRepo";
 import { saveSkillCheck, listSkillChecks } from "../skillChecksRepo";
 import { createRewind, updateRewind, listRewinds, getRewindDates } from "../rewindRepo";
@@ -195,7 +191,6 @@ describeIfSqlite("deleting a take", () => {
 
     expect((await getAllSessionsWithScores()).map((s) => s.id)).toEqual(["later", "keep"]);
     expect((await getScoreSeries()).map((s) => s.message)).toEqual([60, 70]);
-    expect(await countImpromptuTakes()).toBe(2);
     expect(await getCompletedSessionDates()).toHaveLength(2);
     expect(await getRecentlyUsedPromptIds(10)).not.toContain("prompt-gone");
     expect((await getUsageTotals()).reps).toBe(2);

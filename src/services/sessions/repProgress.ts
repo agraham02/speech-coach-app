@@ -7,6 +7,7 @@ import { takeEvidence } from "../../domain/scoring/takeEvidence";
 import { takeLeafReadings } from "../../domain/scoring/takeLeaves";
 import { loadTakeFacts } from "./takeFacts";
 import { activityOfSession } from "../../domain/takeActivity";
+import { takeDifficultyOf } from "../../domain/difficulty/scale";
 import type { StepStatus } from "../../domain/sessionSteps";
 import { refreshSessionScore } from "./sessionScoreService";
 import { describeSessionSubject } from "./sessionSubject";
@@ -63,7 +64,12 @@ export async function settleRepProgress(sessionId: string, options: { abandoned?
     // The skill check's talk places the skills (seedSkillRatings); it isn't practice.
     const changes = session.subjectExtras?.placement
       ? []
-      : await recordTakeOutcome(evidence, { sessionId, label: subject.title || "A recorded take", meanScore: evidence.score ?? null });
+      : await recordTakeOutcome(evidence, {
+          sessionId,
+          label: subject.title || "A recorded take",
+          meanScore: evidence.score ?? null,
+          difficulty: takeDifficultyOf({ tier: subject.tier, prepSeconds: session.subjectExtras?.prepUsed?.seconds ?? null, durationSeconds: session.durationSeconds }),
+        });
     // A checkpoint: the take's number on the unit's target leaf is the try's score.
     const checkpointUnit = session.subjectExtras?.checkpointUnitId;
     if (checkpointUnit) {
