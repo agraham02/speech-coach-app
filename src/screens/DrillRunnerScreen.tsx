@@ -22,7 +22,7 @@ import { prepareDrill, type DrillSetup } from "../domain/drills/prepareDrill";
 import { categoryWordsToCheck, chainJudgeRequest, evaluateDrill, type DrillEvaluation, type DrillDetails } from "../domain/drills/evaluateDrill";
 import { judgeChain, type ChainJudged } from "../services/drills/chainJudge";
 import { checkCategoryWords, checkCoherence, phoneJudgeChain } from "../services/language/meaningCheck";
-import { transcribeDrillClips } from "../services/speech/clipTranscript";
+import { discardClips, transcribeDrillClips } from "../services/speech/clipTranscript";
 import { chainStartsFromTimes, timedTokens } from "../domain/drills/timedHeard";
 import { useElapsed } from "../hooks/useElapsed";
 import { ChainVerdicts } from "../components/drills/ChainVerdicts";
@@ -235,9 +235,11 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
           : Date.now() - startedAtRef.current;
       const text = fullText(transcript);
       const volume = speech.session.getVolumeSamples();
+      const clipUris = speech.session.getRecordings();
       // Nothing recognized (and, for the volume drill, nothing audible):
       // that's a mic problem, not a 0% attempt — don't record it.
       if (!text.trim() && (setup.live !== "volume" || !volume.some((v) => v.value > 0))) {
+        discardClips(clipUris);
         setResult(null);
         setStage("result");
         return;
@@ -245,17 +247,30 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
       // The score reads Whisper's transcript of the saved clip, with word times.
       // Without the model (or if it doesn't finish) it is a "Quick check" from the
       // live words, and counts light.
-      const whisper = await transcribeDrillClips(speech.session.getRecordings());
+      // Projection scores loudness and needs no words, so it never waits for Whisper
+      // and is never a Quick check.
+      const needsWords = setup.live !== "volume";
+      const whisper = needsWords ? await transcribeDrillClips(clipUris, { clipSeconds: speakingMs / 1000 }) : (discardClips(clipUris), null);
       const timed = whisper ? timedTokens(whisper.words) : null;
       const spokenMs = whisper && whisper.words.length > 1 ? whisper.words[whisper.words.length - 1].endMs - whisper.words[0].startMs : null;
-      setQuickCheck(!whisper);
+      const quick = needsWords && !whisper;
+      setQuickCheck(quick);
+      // A chain is cut into runs by token index, so its transcript is exactly the
+      // words the times belong to. Everything else keeps Whisper's punctuation.
+      const said = whisper ? (setup.live === "chain" ? whisper.words.map((w) => w.text).join(" ") : whisper.text) : text;
+      // The recognizer cuts its audio at silences, so the clip is shorter than the
+      // attempt and wall-clock times don't line up with it: with more than one piece,
+      // the runs are the live ones, scaled to the words Whisper heard.
+      const liveCount = tokenizeHeard(text).tokens.length;
+      const scale = liveCount > 0 && timed ? timed.length / liveCount : 1;
+      const chainStarts = timed && clipUris.length <= 1 ? chainStartsFromTimes(timed, seedTimesRef.current) : startsRef.current.map((s) => Math.round(s * scale));
       const measured = {
-        transcript: whisper?.text ?? text,
+        transcript: said,
         words: whisper?.words,
         speakingMs: spokenMs ?? speakingMs,
         volume,
         seedWords: setup.live === "chain" ? seedsRef.current : undefined,
-        chainStarts: timed ? chainStartsFromTimes(timed, seedTimesRef.current) : startsRef.current,
+        chainStarts,
         penalizeResets: !profileDefaults.stutterMode,
         ignoreSlips: profileDefaults.stutterMode,
         relaxedAccuracy: profileDefaults.relaxAccuracy,
@@ -290,9 +305,9 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         }
       }
       // Category sprint: words outside the category don't count.
-      const toCheck = categoryWordsToCheck(setup, text);
+      const toCheck = categoryWordsToCheck(setup, said);
       const categoryResult = toCheck ? await checkCategoryWords(toCheck, setup.contentId) : null;
-      const coherence = setup.live === "free" || setup.live === "story" ? await checkCoherence(text) : null;
+      const coherence = setup.live === "free" || setup.live === "story" ? await checkCoherence(said) : null;
       const evaluated = evaluateDrill(setup, { ...measured, ...judgement, coherence, ...(categoryResult ? { categoryCheck: { misfits: categoryResult.misfits } } : {}) });
       const moved = await recordDrillOutcome({
         drillType: setup.type,
@@ -307,12 +322,13 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         // A chain Tono AI checked counts in full; without it, the phone only counts.
         ...(check?.by ? { source: "judge" as const } : {}),
         gate: evaluated.gate,
-        quick: !whisper,
+        quick,
       });
       setChange(moved);
       setChainCheck(check);
       setResult(evaluated);
     } catch (error) {
+      discardClips(speech.session.getRecordings());
       logger.error(`[drill] ${setup.type} failed to score — ${(error as Error).message}`);
       showGlobalToast("Couldn't score that attempt.", "error");
     }
@@ -320,7 +336,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
   }
 
   async function done() {
-    if (result) await completePracticeStep(drillActivityId(drill), practice, result.gate.passed ? result.outcome.score : null);
+    if (result) await completePracticeStep(drillActivityId(drill), practice, result.gate.passed ? result.outcome.score : null, { quick: quickCheck });
     navigation.goBack();
   }
 

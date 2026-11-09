@@ -33,6 +33,8 @@ export interface PracticeExtra {
   sessionId?: string;
   // What the activity was beyond its id: the structure a rep used.
   variant?: string | null;
+  // Scored from the live words, not Whisper's reading (a Quick check): it can't pass a checkpoint.
+  quick?: boolean;
 }
 
 let queue: Promise<unknown> = Promise.resolve();
@@ -65,8 +67,9 @@ const LESSON_PASS = 0.7;
 // the lesson if that was its last step and tells whatever screen is open.
 export async function completePracticeStep(activityId: string, context: PracticeContext | undefined, score: number | null, extra: PracticeExtra = {}): Promise<void> {
   let lessonCompleted: string | undefined;
+  const duplicate = isRecentDuplicate(activityId, context, extra);
   // The skill check's own samples are recorded but are not practice.
-  if (!context?.placement && !isRecentDuplicate(activityId, context, extra)) {
+  if (!context?.placement && !duplicate) {
     // One at a time: two taps on Done can't both see a lesson as one step
     // short, or finish it twice.
     const run = queue.then(() => recordActivity(activityId, context ?? {}, score, extra));
@@ -81,12 +84,12 @@ export async function completePracticeStep(activityId: string, context: Practice
     }
   }
   // A unit's checkpoint rep: the drill's own number (0 to 1) is the try.
-  if (context?.checkpointUnitId) {
+  if (context?.checkpointUnitId && !duplicate) {
     // Lazy: the checkpoint service reaches for screens and toasts, which a plain
     // practice log shouldn't pull in.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { settleCheckpoint } = require("../checkpoint/checkpointService") as typeof import("../checkpoint/checkpointService");
-    settleCheckpoint(context.checkpointUnitId, score == null ? null : Math.round(score * 100));
+    settleCheckpoint(context.checkpointUnitId, score == null || extra.quick ? null : Math.round(score * 100), { quick: extra.quick });
   }
   listeners.forEach((l) => l({ activityId, context: context ?? {}, score, sessionId: extra.sessionId, lessonCompleted }));
 }

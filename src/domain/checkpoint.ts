@@ -1,5 +1,6 @@
 import { ACTIVITY_IDS, activityIdOfStep } from "../content/activities";
 import { lessonsInUnit, type LessonStep } from "../content/lessons";
+import { drillSource } from "./scoring/leafEvidence";
 import { getGridRow, unitTargetLeaf } from "../content/skillGrid";
 import { leafIsCounted, type CountOptions } from "./scoring/rollup";
 import type { LeafId } from "./scoring/skillTree";
@@ -54,6 +55,9 @@ export function checkpointRep(unitId: string, options: CountOptions = {}): Check
   for (const lesson of [...lessons].reverse()) {
     for (const step of [...lesson.steps].reverse()) {
       if (step.kind !== "drill") continue;
+      // A rep that can be passed on a fair number: measured by the phone, and one a free
+      // account can run (the live conversation is Plus).
+      if (drillSource(step.drill) !== "measured" || step.drill === "conv_live") continue;
       const row = getGridRow(activityIdOfStep(step));
       if (row?.moves.some((m) => m.leaf === leaf && m.weight !== "light" && !m.displayOnly)) return { kind: "step", step };
     }

@@ -417,3 +417,24 @@ When a check is off, it says "not checked", never a guess, and nothing is punish
 **Not built:** Predict, then check only hears the prediction; its other half, comparing it with what happened, waits for Debrief to be linked to it. Listen for the spark asks for a question about the clip you chose; the app plays no clip yet. Warm-ups are 3c.2. The checkpoint's choice of rep doesn't use guided exercises yet.
 
 **Owner's OK:** not asked; this is task 3c.1.
+
+## D26. A fresh review of 3b.3 to 3b.6, and what it fixed (2026-11-08)
+
+A reviewer who hadn't seen the work read the whole change. Fixed:
+- **Category sprint and the coherence check read the live words while the score read Whisper's.** Both now read the same transcript the score does.
+- **Word chain's runs could be cut in the wrong place** when the recognizer had restarted (its audio is joined from pieces, so wall-clock times no longer match the clip). With one piece the runs are cut by time; with more, they use the live cut points scaled to the words Whisper heard. A chain's transcript is now exactly the words the times belong to.
+- **Whisper could keep a drill waiting for ever** (behind a take's own transcription). It now gives up after 12 seconds or 0.7 of the attempt's length and scores a Quick check.
+- **Recordings leaked** on the "nothing heard" and error paths; they are deleted now.
+- **Projection waited for Whisper and could be marked a Quick check** though it scores loudness. It skips Whisper.
+- **The take's topic check could race** (a second scorer ran before the verdict and let a take score that was then un-scored) and **kept its verdict for ever** even if the transcript was redone. One check is now shared per take, and a verdict is kept with the transcript's length and redone if it changes.
+- **A double tap on Done counted a checkpoint twice.** It settles once.
+- **A checkpoint could be passed on a weak number.** It no longer picks a drill the phone only estimates, or the Plus-only live conversation, and a Quick check can't pass one.
+- **The meaning self-test was thin.** The topic line now needs a gap of 0.12, not 0.08, and Category sprint's check only runs for the five categories the self-test covered.
+
+**Known, not fixed:**
+- The topic check can hold scoring for up to about 50 seconds if the server is slow, and a judged take spends a check before its review (it costs a free account one of its 60). The honest fix is to run it in the background and rescore, which I'd do with the next scoring change.
+- The word-links self-test is tuned and tested on the same 65 links, so a pass proves less than it looks. The pass bar for Signal Lab on your phone is the same weakness. Real chains from your drills would be the better test.
+- Whisper's word times may absorb short silences, so Pause reading could under-score careful readers. It needs real clips; Signal Lab's pause test passed on Whisper gaps, which is the evidence for now.
+- The last piece of a recording may not be saved when Stop is pressed, so Whisper could read a clip missing its tail.
+
+**Owner's OK:** not asked; these are fixes to the tasks above.

@@ -181,7 +181,7 @@ export interface TopicFit {
   note: string;
 }
 
-const MIN_GAP = 0.08;
+const MIN_GAP = 0.12;
 // Nearer the off-topic side: wrongly failing a real answer costs more than letting
 // a weak one through ("never flags a real answer", plan 6.5).
 const CAUTION = 0.3;

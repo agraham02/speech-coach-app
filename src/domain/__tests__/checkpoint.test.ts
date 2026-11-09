@@ -122,3 +122,14 @@ describe("what the path says", () => {
     expect(checkpointLine("not_ready")).toBeNull();
   });
 });
+
+describe("a rep that can be passed fairly", () => {
+  it("never picks a drill the phone only estimates, or one a free account can't run", () => {
+    for (const u of UNITS) {
+      const rep = checkpointRep(u.id);
+      if (rep?.kind !== "step") continue;
+      expect(rep.step.drill).not.toBe("conv_live");
+      expect(["word_chain", "chain_bridge", "category_fluency", "random_word_story", "sum_up", "relay", "explain_simple", "land_plane", "squeeze"]).not.toContain(rep.step.drill);
+    }
+  });
+});

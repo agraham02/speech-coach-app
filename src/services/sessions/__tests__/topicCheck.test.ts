@@ -38,7 +38,7 @@ describe("topicVerdictFor", () => {
     const s = take();
     expect(await topicVerdictFor(s, false)).toBe("off_topic");
     expect(mockServer).not.toHaveBeenCalled();
-    expect(mockArtifacts.get(`${s.id}:topic_check`)).toEqual({ verdict: "off_topic", by: "phone" });
+    expect(mockArtifacts.get(`${s.id}:topic_check`)).toEqual({ verdict: "off_topic", by: "phone", words: 40 });
   });
 
   it("asks the small check when the phone can't tell, and keeps its answer", async () => {
@@ -86,5 +86,29 @@ describe("topicVerdictFor", () => {
     expect(await topicVerdictFor(take({ transcriptVerbatim: "too short to say" }), false)).toBeNull();
     expect(mockPhone).not.toHaveBeenCalled();
     expect(mockServer).not.toHaveBeenCalled();
+  });
+});
+
+describe("two scorers at once, and a retried transcript", () => {
+  it("shares one check between callers that ask while it runs, so a score never beats the verdict", async () => {
+    mockPhone.mockResolvedValue(null);
+    let release: (v: unknown) => void = () => undefined;
+    mockServer.mockImplementation(() => new Promise((resolve) => (release = resolve)));
+    const s = take();
+    const a = topicVerdictFor(s, false);
+    const b = topicVerdictFor(s, false);
+    await new Promise((r) => setTimeout(r, 0));
+    release({ status: "done", value: { level: 0, quote: "x", note: "" } });
+    expect(await a).toBe("off_topic");
+    expect(await b).toBe("off_topic");
+    expect(mockServer).toHaveBeenCalledTimes(1);
+  });
+
+  it("checks again when the transcript changed since the verdict was kept", async () => {
+    mockPhone.mockResolvedValueOnce("off_topic").mockResolvedValueOnce("ok");
+    const s = take();
+    expect(await topicVerdictFor(s, false)).toBe("off_topic");
+    const retried = { ...s, transcriptVerbatim: `${text} and then some more words to say here` } as Session;
+    expect(await topicVerdictFor(retried, false)).toBe("ok");
   });
 });

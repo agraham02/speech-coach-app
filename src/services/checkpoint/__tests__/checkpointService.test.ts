@@ -57,3 +57,11 @@ describe("skipCheckpoint", () => {
     expect(skipCheckpoint("art_sounds")).toMatchObject({ art_sounds: { status: "skipped", best: 40, attempts: 1 } });
   });
 });
+
+describe("a quick check", () => {
+  it("cannot pass a checkpoint, and says why", () => {
+    expect(settleCheckpoint("art_sounds", null, { quick: true })).toEqual({ passed: null });
+    expect(mockStored).toEqual({});
+    expect(mockToast.mock.calls[0][0]).toContain("quick check");
+  });
+});
