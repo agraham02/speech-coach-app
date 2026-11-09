@@ -49,6 +49,8 @@ export interface LabStep {
   // Run the clip through every available transcription engine, for the
   // recognizer vs Whisper test.
   engines?: boolean;
+  // Run the phone's meaning check on its stored cases (capture "none").
+  meaning?: "word_links" | "on_topic";
 }
 
 export interface LabTestDef {
@@ -93,6 +95,15 @@ export interface StepMeasure {
   engines?: Record<string, { text: string; words: TranscriptWord[] | null; ms: number }>;
   // The cues that were on screen and when, in step time.
   cues?: { tMs: number; label: string }[];
+  // The meaning check's readings of its stored cases (domain/meaning/gold.ts).
+  meaning?: {
+    // Word links: the similarity of each gold link, null where a word had no vector.
+    linkSims?: (number | null)[];
+    // On topic: how each topic case read, null where it couldn't be read.
+    topicReadings?: ({ onTopic: number; coherence: number | null } | null)[];
+    // Words in a category: how the phone's own test of it went.
+    category?: { ready: boolean; note: string };
+  };
 }
 
 export type StepMeasures = Record<string, StepMeasure | undefined>;

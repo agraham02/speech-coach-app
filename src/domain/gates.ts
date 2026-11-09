@@ -3,6 +3,8 @@
 // check-off, moves no score, and says why, kindly. "not_checked" is rule 8: nothing
 // could check this one, which isn't a failure on your part. Pure.
 
+import type { TopicVerdict } from "./meaning/meaning";
+
 export type GateVerdict = { passed: true } | { passed: false; kind: "failed" | "not_checked"; reason: string };
 
 export const PASSED: GateVerdict = { passed: true };
@@ -74,11 +76,24 @@ export function explainGate(keyTermSaid: boolean, judgedInaccurate: boolean, jud
 export const TAKE_MIN_WORDS = 20;
 export const SCRIPT_READ_BAR = 80;
 
-export function takeGate(input: { kind: "impromptu" | "script"; wordCount: number; readAccuracyPercent: number | null; relaxed?: boolean; judgeSays?: string | null }): GateVerdict {
+// The phone's meaning check on what was said (3b.4). Null or "ok": nothing to say,
+// which includes every phone that can't check. Takes use both verdicts; drills only
+// the second, since a topic of a few words is not what the check was tuned on.
+export function topicGate(verdict: TopicVerdict | null | undefined, about: "prompt" | "sentences" = "prompt"): GateVerdict {
+  if (verdict === "incoherent") return failed("The sentences didn't seem to connect to each other, so this one isn't scored.");
+  if (verdict === "off_topic" && about === "prompt") return failed("That didn't seem to be about the prompt, so this one isn't scored.");
+  return PASSED;
+}
+
+export function takeGate(input: { kind: "impromptu" | "script"; wordCount: number; readAccuracyPercent: number | null; relaxed?: boolean; judgeSays?: string | null; topic?: TopicVerdict | null }): GateVerdict {
   if (input.judgeSays) return failed(`We couldn't score this one. ${input.judgeSays} You keep your minutes.`);
   if (input.wordCount < TAKE_MIN_WORDS) return failed("We couldn't score this one: there weren't enough words to go on. You keep your minutes.");
   if (input.kind === "script" && input.readAccuracyPercent != null && input.readAccuracyPercent < bar(SCRIPT_READ_BAR, input.relaxed)) {
     return failed(`We couldn't score this one: we heard ${Math.round(input.readAccuracyPercent)}% of the script, and it needs ${bar(SCRIPT_READ_BAR, input.relaxed)}%. You keep your minutes.`);
+  }
+  if (input.kind === "impromptu") {
+    const topic = topicGate(input.topic);
+    if (!topic.passed) return { ...topic, reason: `We couldn't score this one. ${topic.reason.replace(", so this one isn't scored.", ".")} You keep your minutes.` };
   }
   return PASSED;
 }

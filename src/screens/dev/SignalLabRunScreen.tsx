@@ -23,6 +23,7 @@ import { getFaceCalibration } from "../../services/prefs/prefsStore";
 import { useLabCapture } from "../../services/dev/signalLab/useLabCapture";
 import { appVersion } from "../../services/dev/devInfo";
 import { annotateLatestResult, saveLabResult } from "../../services/dev/signalLabStore";
+import { measureMeaning } from "../../services/dev/signalLab/meaningLab";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "DevSignalLabRun">;
@@ -108,6 +109,7 @@ export function SignalLabRunScreen({ route }: Props) {
       if (cap.faceWidth != null) measure.faceWidth = cap.faceWidth;
       if (step.stopwatch && stopwatch.current.ms != null) measure.stopwatchMs = stopwatch.current.ms;
       if (step.cues) measure.cues = cueSchedule(step);
+      if (step.meaning) measure.meaning = await measureMeaning(step.meaning);
       let wav: Uint8Array | undefined;
       if (cap.uri) {
         const analysis = await analyzeLabClip(cap.uri, { words: step.words, engines: step.engines });

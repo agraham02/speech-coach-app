@@ -8,10 +8,10 @@ The first three sections are carried over from the hotfix round (the old `hotfix
 
 This is the only build the rest of the overhaul needs (`DECISIONS.md`, D20). After it, every phase comes as an update.
 
-- [ ] **Make the build.** On this branch (`staging`, version 2.1.0), make the same kind of iPhone build you made last time. It has to be one that carries the Dev tab, so the `testflight` profile: `eas build --platform ios --profile testflight`, then submit it to TestFlight the way you did before. The first build after a native change is also the first time the new Swift file is compiled. If it fails, send me the error: it will be in `TonoLanguageModule.swift`.
-- [ ] **Install it and open Dev, then Native check.** It should say "This build has everything", with a tick on every row, including "Meaning check gives sensible answers" (dog closer to puppy than to thunder). Send me a screenshot or tell me which rows are red.
-- [ ] **Then send the code.** From now on: `npm run update:testflight -- --message "..."`. I'll tell you when there's something to send. Open the app twice to get it (it applies on the next cold start).
-- [ ] **If I ever say a change needs another build,** that's the `npm run check:native` guard firing. I'll say so before writing it.
+- [x] **Make the build.** On this branch (`staging`, version 2.1.0), make the same kind of iPhone build you made last time. It has to be one that carries the Dev tab, so the `testflight` profile: `eas build --platform ios --profile testflight`, then submit it to TestFlight the way you did before. The first build after a native change is also the first time the new Swift file is compiled. If it fails, send me the error: it will be in `TonoLanguageModule.swift`.
+- [x] **Install it and open Dev, then Native check.** It should say "This build has everything", with a tick on every row, including "Meaning check gives sensible answers" (dog closer to puppy than to thunder). Send me a screenshot or tell me which rows are red.
+- [x] **Then send the code.** From now on: `npm run update:testflight -- --message "..."`. I'll tell you when there's something to send. Open the app twice to get it (it applies on the next cold start).
+- [x] **If I ever say a change needs another build,** that's the `npm run check:native` guard firing. I'll say so before writing it.
 
 ## Before any phone testing: server setup (once)
 
@@ -26,7 +26,7 @@ This is the only build the rest of the overhaul needs (`DECISIONS.md`, D20). Aft
 
 - [ ] **Signed out, ask for Tono AI.** On a take's save screen turn on "Have Tono AI judge this take" (or tap "Get notes" on a Result): the sign-in sheet opens. With no birthday it asks for one first, then shows Apple/Google. After both, the sheet closes and the consent alert follows.
 - [ ] **Under 18.** Enter a birthday under 18: the sheet says Tono AI is for 18 and over, shows no sign-in buttons, and Settings → Tono AI shows the under-18 note. Changing the birthday in Settings → Account & Plus re-opens it.
-- [ ] **No "anonymous" error any more.** Signed out, nothing tries to make an anonymous account. An old anonymous session on the phone is dropped at launch (you see "Not signed in").
+- [x] **No "anonymous" error any more.** Signed out, nothing tries to make an anonymous account. An old anonymous session on the phone is dropped at launch (you see "Not signed in").
 - [ ] **A previous video.** Signed in, open an older take and run "Tono AI review" from its steps. It either completes or shows a specific reason. If it fails, copy the line from Dev → Logs (tag `[result]`/`[analysis]`) and send it: the error now carries Google's own message.
 - [ ] **Plus.** Tap "See Tono Plus" → subscribe while signed out: the sign-in sheet opens first; closing it cancels quietly with no charge.
 - [ ] **Live conversation** signed out: Start opens the sign-in sheet; after signing in the conversation starts (or says why not).
@@ -34,11 +34,11 @@ This is the only build the rest of the overhaul needs (`DECISIONS.md`, D20). Aft
 
 ## Developer password and the limits override
 
-- [ ] In a preview/TestFlight build, the Dev tab shows only a password box. A wrong password says "That's not the password." (after a 1.5 s wait).
-- [ ] The right password (signed in) opens the Dev tab. The "Tono AI limits" card says "Override on". Judged takes, text calls and conversation minutes now ignore their counts; Settings shows 999.
-- [ ] "Back to normal limits" returns the real counts and locks the Dev tab again. It also switches itself off after 6 hours.
+- [x] In a preview/TestFlight build, the Dev tab shows only a password box. A wrong password says "That's not the password." (after a 1.5 s wait). [I saw the that's not the password, but it still took me to the dev page]
+- [x] The right password (signed in) opens the Dev tab. The "Tono AI limits" card says "Override on". Judged takes, text calls and conversation minutes now ignore their counts; Settings shows 999.
+- [x] "Back to normal limits" returns the real counts and locks the Dev tab again. It also switches itself off after 6 hours.
 - [ ] A phone with another account never sees the override.
-- [ ] Signed out, the Dev tab's Unlock opens the sign-in sheet first.
+- [x] Signed out, the Dev tab's Unlock opens the sign-in sheet first.
 
 ## Partner voices lab
 
@@ -63,7 +63,7 @@ Needs a new iPhone build (the keyboard library is native). Use a fresh install, 
   Notes:
 - [ ] **After-event check-in (R3).** After an event's date, the check-in asks "How did it go?" (five stops, Rough to Great) and, if you saved a focus, "Did you do your focus?". Save it; the Events list then shows a line like "Good · Did your focus".
   Notes:
-- [ ] **Filler words are yellow (R7).** Open a take's Transcript, in light and in dark appearance. Um and uh read as a highlighter yellow and the text on top is easy to read.
+- [x] **Filler words are yellow (R7).** Open a take's Transcript, in light and in dark appearance. Um and uh read as a highlighter yellow and the text on top is easy to read.
   Notes:
 - [ ] **The skill check places your levels (0.5).** On a fresh install, do the whole skill check. On the Starting point screen, and then in You, Skill detail, all five skills show a starting level from the check (not the same default for each).
   Notes:
@@ -128,9 +128,9 @@ A short fresh run of the three tests fixed after round 3. About 5 minutes. Don't
 
 These need the microphone or camera, which the emulator doesn't have. Update the app first (`npx eas update --channel preview`, then close and reopen it twice). The first launch of 2.0.0 wipes your old data and starts at onboarding; copy anything you want first.
 
-- [ ] **First launch.** After the update, the app opens at onboarding, with no old recordings or lessons. Settings, Reset app still works.
-- [ ] **A drill from Practice ticks Today.** Open Today and note an unticked drill step. Go to Practice (or Library) and do that same drill. Back on Today, that step is ticked.
-- [ ] **A step from Today ticks the lesson.** Do the plan's first drill from Today. Open that lesson from Learn: the same step is ticked. Close the app, reopen, and it's still ticked.
+- [x] **First launch.** After the update, the app opens at onboarding, with no old recordings or lessons. Settings, Reset app still works.
+- [x] **A drill from Practice ticks Today.** Open Today and note an unticked drill step. Go to Practice (or Library) and do that same drill. Back on Today, that step is ticked.
+- [x] **A step from Today ticks the lesson.** Do the plan's first drill from Today. Open that lesson from Learn: the same step is ticked. Close the app, reopen, and it's still ticked.
 - [ ] **A lesson finishes only when all its steps are done.** Finish every step of one lesson (from the lesson, the plan or Practice, over more than one day if you like). Only after the last step does the lesson show "Completed" and the path move on. Its score on the card is the average of the steps you actually scored.
 - [ ] **A short plan still gets there.** On a 5-minute plan, do the plan on two days in a row. Day two shows a different practice step from day one, not the same one again.
 - [ ] **Skip.** Skip a step on Today. It ticks, the lesson step does not.
@@ -160,16 +160,15 @@ A new JS bundle is enough; no new build. Do a few real takes first, since the nu
 - [ ] **A script take with a review.** You get coaching, and no Message score.
 - [ ] **Wrong words.** On Pace reading, read something else: it says "Not scored" and why, the drill's difficulty stays put, and the step still ticks.
 - [ ] **Babble.** On Sixty seconds, say "blah" for a while: "Not scored".
-- [ ] **Chains.** With Tono AI off or signed out, a Word chain says "Not checked". With it on, it scores as usual.
+- [ ] **Chains.** With Tono AI on, a Word chain scores as usual. With it off or signed out, your phone checks each link ("Your phone checked each link") if Dev, Signal Lab, Content, Word links passed; if it didn't pass, the chain says "Not checked".
 - [ ] **A very short take.** Record a few words and stop: "We couldn't score this one", no number, and the take is still in your Library.
 - [ ] **A wrong script.** On a script take, read something else: the same message. Read the script: it scores.
 - [ ] **Fair enough?** Tell me if a real attempt ever gets rejected. The 40% floor on Twister, Minimal pairs and Shadowing is my number, and the live recognizer is rough until 3b.3.
 
-## Phase 6: results flow
+### Meaning checks on the phone (3b.4)
 
-Carried over from the hotfix round. These were fixes for gestures on the old screens, and they can come back when the screens are rebuilt.
-
-- [ ] **Back button.** The new Review and Result screens have a chevron at the top left that goes back to where you came from. On the save screen ("Review your take") it asks "Discard this take?" first.
-- [ ] **Scrubbing never goes back (iPhone).** Drag the playback bar all the way to the left end and back, on each pass. The page must not slide away.
-- [ ] **Charts and the by-phrase strip (iPhone).** A drag that starts inside the strip selects and scrubs without half-moving the screen. The edge swipe from the very edge still goes back.
-- [ ] **Android.** Same checks with the back gesture from either edge.
+- [ ] **Signal Lab, Content, Word links.** Run it (it takes a second). Tell me the result: how many broken links it caught, how many real ones it failed, and the cut it used. This decides whether Word chain can be checked without Tono AI.
+- [ ] **Signal Lab, Content, On topic.** Same: send the result.
+- [ ] **Category sprint.** On "animals", say a few animals and "table", "chair". The result should say "2 didn't fit" and not count them. Say real animals only: nothing is dropped.
+- [ ] **Off-topic take.** Record a take whose prompt asks one thing and talk about something else for 30 seconds, with no Tono AI review. It should say "We couldn't score this one" and why. A real answer should always score.
+- [ ] **Fair enough?** Tell me if a real answer is ever rejected as off-topic or a real link shown as "no clear connection".

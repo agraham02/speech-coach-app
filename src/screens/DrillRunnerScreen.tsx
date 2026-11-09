@@ -19,8 +19,9 @@ import { FIRST_RESULT_LATENCY_MS, fullText } from "../domain/speech/liveTranscri
 import { tokenizeHeard } from "../domain/speech/normalize";
 import { buildTarget, followLive, type WordStatus } from "../domain/speech/speechAlignment";
 import { prepareDrill, type DrillSetup } from "../domain/drills/prepareDrill";
-import { chainJudgeRequest, evaluateDrill, type DrillEvaluation, type DrillDetails } from "../domain/drills/evaluateDrill";
+import { categoryWordsToCheck, chainJudgeRequest, evaluateDrill, type DrillEvaluation, type DrillDetails } from "../domain/drills/evaluateDrill";
 import { judgeChain, type ChainJudged } from "../services/drills/chainJudge";
+import { checkCategoryWords, checkCoherence, phoneJudgeChain } from "../services/language/meaningCheck";
 import { useElapsed } from "../hooks/useElapsed";
 import { ChainVerdicts } from "../components/drills/ChainVerdicts";
 import type { Provenance } from "../domain/analysis/types";
@@ -258,10 +259,22 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
           judgement = judged.request === "word_chain" ? { wordChainJudgement: judged.judgement } : { bridgeChainJudgement: judged.judgement };
           check = { by: judged.provenance, note: null };
         } else {
-          check = { by: null, note: judged.message };
+          // No Tono AI: this phone's own meaning check, when it has shown it can
+          // tell a link from a random word. Otherwise the links aren't checked.
+          const phone = chainRequest.kind === "word_chain" ? await phoneJudgeChain(chainRequest.pairs) : null;
+          if (phone) {
+            judgement = { wordChainJudgement: phone };
+            check = { by: null, note: "Your phone checked each link. With Tono AI the checks are fuller." };
+          } else {
+            check = { by: null, note: judged.message };
+          }
         }
       }
-      const evaluated = evaluateDrill(setup, { ...measured, ...judgement });
+      // Category sprint: words outside the category don't count.
+      const toCheck = categoryWordsToCheck(setup, text);
+      const categoryResult = toCheck ? await checkCategoryWords(toCheck, setup.contentId) : null;
+      const coherence = setup.live === "free" || setup.live === "story" ? await checkCoherence(text) : null;
+      const evaluated = evaluateDrill(setup, { ...measured, ...judgement, coherence, ...(categoryResult ? { categoryCheck: { misfits: categoryResult.misfits } } : {}) });
       const moved = await recordDrillOutcome({
         drillType: setup.type,
         outcome: evaluated.outcome,
