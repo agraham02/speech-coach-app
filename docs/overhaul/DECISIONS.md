@@ -560,3 +560,16 @@ A Sonnet reviewer who hadn't seen the work read the 3c changes. It found no cras
 - **Reviews at today's difficulty:** already true. Every drill and rep reads its difficulty when it starts (`getDrillLevel`, D33), so a review runs at your current level, not the one you first did it at. No change was needed.
 
 **Owner's OK:** not asked; this is task 3d.3.
+
+## D35. The challenge setting and the weekly Stretch rep (2026-11-09)
+
+- **Challenge** (Settings, Practice): Gentle aims for 90% success, Standard for 82% (the default, the same staircase as before) and Push me for 70%. It changes the staircase's step sizes: up by 1 − target, down by target (`nextDifficulty`), for drills and takes. It replaces the Practice difficulty pin that D31 removed.
+- **Stretch rep** (`domain/difficulty/challenge.ts`): once a week (weeks start on Monday), the first plan drill you open in the drill runner runs 2 levels above you, and says so.
+  - A good result counts 1.5 times.
+  - A miss can't lower any leaf: a move that would lower one is dropped. It doesn't count as a miss toward easing the floor either.
+  - The staircase steps from your normal level (up on a good result, unchanged on a miss).
+  - A retry is a normal attempt.
+
+**Differs from the plan:** the Stretch is the week's first plan drill in the drill runner, not a step the session adds. Phase 4 rebuilds the session (5.3), and it can add a Stretch slot then. Conversation, summary and line drills don't stretch yet.
+
+**Owner's OK:** not asked; this is task 3d.4.

@@ -1,3 +1,4 @@
+import type { Challenge } from "../../domain/difficulty/challenge";
 import { EMPTY_FEEDBACK_STATE, type FeedbackPromptState } from "../../domain/feedbackPrompt";
 import { createMMKV } from "react-native-mmkv";
 import {
@@ -31,6 +32,8 @@ const KEYS = {
   conciseModeSeconds: "conciseModeSeconds",
   warmUpEnabled: "warmUpEnabled",
   takeLevel: "takeLevel",
+  challenge: "challenge",
+  lastStretchWeek: "lastStretchWeek",
   recordingDurationManuallySet: "recordingDurationManuallySet",
   prepSettingsManuallySet: "prepSettingsManuallySet",
   dailySessionGoal: "dailySessionGoal",
@@ -192,6 +195,25 @@ export function setWarmUpEnabled(value: boolean): void {
 // prompt tier, prep and length: domain/difficulty/scale.ts). A cache of the rep
 // staircase in drill_difficulty, written whenever it moves, so a screen can read
 // it without a database round-trip.
+// Settings, Practice: Gentle, Standard or Push me (domain/difficulty/challenge.ts).
+export function getChallenge(): Challenge {
+  const v = storage.getString(KEYS.challenge);
+  return v === "gentle" || v === "push" ? v : "standard";
+}
+
+export function setChallenge(value: Challenge): void {
+  storage.set(KEYS.challenge, value);
+}
+
+// The Monday of the week the last Stretch rep was done.
+export function getLastStretchWeek(): string | null {
+  return storage.getString(KEYS.lastStretchWeek) ?? null;
+}
+
+export function setLastStretchWeek(week: string): void {
+  storage.set(KEYS.lastStretchWeek, week);
+}
+
 export function getTakeLevel(): number {
   return storage.getNumber(KEYS.takeLevel) ?? 1;
 }

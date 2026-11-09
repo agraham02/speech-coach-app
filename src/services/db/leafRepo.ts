@@ -155,6 +155,8 @@ export interface AttemptRecord {
   // What this attempt was ("rewind:<id>", "three_things:<date>"): an attempt with
   // a ref already recorded moves nothing, so it counts once.
   ref?: string;
+  // A Stretch rep: a move that would lower a leaf is dropped (plan 6.7, rule 7).
+  noLoss?: boolean;
 }
 
 // One scored attempt: moves its leaves by the grid, and works out what that did
@@ -162,12 +164,15 @@ export interface AttemptRecord {
 // leaf, a leaf that doesn't count yet) leaves everything as it was.
 export async function recordAttempt(record: AttemptRecord): Promise<AttemptResult> {
   const options = scoringOptions();
-  const moves = movesForAttempt(record.evidence, options);
+  let moves = movesForAttempt(record.evidence, options);
   const db = await getDatabase();
   const at = new Date().toISOString();
   let result!: AttemptResult;
   await inTransaction(db, async () => {
     const ratings = await readLeafRatings(db);
+    if (record.noLoss) {
+      moves = moves.filter((m) => moveLeaf(m.leaf, ratingOf(ratings, m.leaf), m.score, record.evidence.difficulty, m.weight).rating >= ratingOf(ratings, m.leaf).rating);
+    }
     const before = rollUp(ratings, options);
     const levelBefore = await readLevel(db);
     const repeat = record.ref ? await db.getFirstAsync(`SELECT 1 FROM score_attempts WHERE ref = ?`, [record.ref]) : null;
