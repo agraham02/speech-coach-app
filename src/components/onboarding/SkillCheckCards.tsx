@@ -8,6 +8,10 @@ import { Txt } from "../common/Txt";
 import { PrimaryButton } from "../common/PrimaryButton";
 import { ScaleSlider } from "../common/ScaleSlider";
 import { listConfidenceCheckins, listSkillChecks, saveConfidenceCheckin } from "../../services/db/skillChecksRepo";
+import { comfortScore } from "../../domain/personal/personalScores";
+import { recordPersonalOutcome } from "../../services/practice/personalOutcome";
+import { completePracticeStep } from "../../services/practice/practiceEvents";
+import { ACTIVITY_IDS } from "../../content/activities";
 import { getSkillCheckPending, getUserProfile, setUserProfile } from "../../services/prefs/prefsStore";
 import { dateFromISODate, daysBetween, todayISODate } from "../../utils/dateUtils";
 import { makeStyles } from "../../theme/ThemeProvider";
@@ -80,7 +84,11 @@ export function ProgressProfileCards() {
 
   async function saveCheckin() {
     if (rating == null) return;
+    const earlier = await listConfidenceCheckins();
     await saveConfidenceCheckin(todayISODate(), rating);
+    const scored = comfortScore(rating, earlier[0]?.rating ?? null);
+    completePracticeStep(ACTIVITY_IDS.comfort, undefined, scored.score).catch(() => undefined);
+    recordPersonalOutcome({ activityId: ACTIVITY_IDS.comfort, label: "Comfort check-in", scored, ref: `comfort:${todayISODate()}` }).catch(() => undefined);
     const profile = getUserProfile();
     if (profile) setUserProfile({ ...profile, speakingComfort: rating });
     setCheckinDue(null);

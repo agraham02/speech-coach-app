@@ -27,6 +27,8 @@ const KEYS = {
   prepPhaseSettings: "prepPhaseSettings",
   reminderSettings: "reminderSettings",
   planYourPointEnabled: "planYourPointEnabled",
+  rewindDelivery: "rewindDelivery",
+  nervesStart: "nervesStart",
   conciseModeSeconds: "conciseModeSeconds",
   warmUpEnabled: "warmUpEnabled",
   curriculumOverride: "curriculumOverride",
@@ -139,6 +141,27 @@ export function getReminderSettings(): ReminderSettings {
 
 export function setReminderSettings(settings: ReminderSettings): void {
   storage.set(KEYS.reminderSettings, JSON.stringify(settings));
+}
+
+// Whether a Rewind's ums, "like"s and stalls move those leaves (plan section 7).
+export function getRewindDeliveryEnabled(): boolean {
+  return storage.getBoolean(KEYS.rewindDelivery) ?? true;
+}
+
+export function setRewindDeliveryEnabled(value: boolean): void {
+  storage.set(KEYS.rewindDelivery, value);
+}
+
+// Your first nerves rating at a Moment, 0-10: Nerves trend is compared with it.
+export function getNervesStart(): number | null {
+  return storage.getNumber(KEYS.nervesStart) ?? null;
+}
+
+export function noteNervesStart(nerves: number): number {
+  const start = getNervesStart();
+  if (start != null) return start;
+  storage.set(KEYS.nervesStart, nerves);
+  return nerves;
 }
 
 export function getPlanYourPointEnabled(): boolean {

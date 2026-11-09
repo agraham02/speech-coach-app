@@ -1,4 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { followedScore } from "../domain/personal/personalScores";
+import { recordPersonalOutcome } from "../services/practice/personalOutcome";
+import { completePracticeStep } from "../services/practice/practiceEvents";
+import { ACTIVITY_IDS } from "../content/activities";
 import { Pressable, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -57,6 +61,19 @@ export function RehearseScreen({ route, navigation }: Props) {
   }, [cursorWord, groups, phrase]);
 
   useEffect(() => () => live.session.abort(), [live.session]);
+
+  // Once through: with follow-along on, the share of words it heard is the
+  // number (live recognition, so it counts light). Tapped through, it's practice.
+  const counted = useRef(false);
+  const finished = phrase >= groups.length && groups.length > 0;
+  useEffect(() => {
+    if (!finished || counted.current) return;
+    counted.current = true;
+    const scored = listening ? followedScore(followLive(target, heard).cursor, target.length) : { score: null, leafScores: {}, parts: [] };
+    completePracticeStep(ACTIVITY_IDS.rehearse, undefined, scored.score).catch(() => undefined);
+    recordPersonalOutcome({ activityId: ACTIVITY_IDS.rehearse, label: "Rehearse", scored, quick: true }).catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finished]);
 
   if (!speech) return <ScreenContainer />;
   const done = phrase >= groups.length;

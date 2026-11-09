@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { ACTIVITY_IDS } from "../content/activities";
+import { MOMENT_DIFFICULTY, primeScore } from "../domain/personal/personalScores";
+import { recordPersonalOutcome } from "../services/practice/personalOutcome";
 import { View } from "react-native";
 import { KeyboardForm } from "../components/common/KeyboardForm";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -49,7 +51,9 @@ export function PrimeScreen({ navigation }: Props) {
     setSaving(true);
     try {
       await createPrimedEvent({ label, topics, questions, outwardGoal: goal, predictedAwkward: predicted });
-      completePracticeStep(ACTIVITY_IDS.prime, undefined, null).catch(() => undefined);
+      const scored = primeScore({ topics, questions, goal });
+      completePracticeStep(ACTIVITY_IDS.prime, undefined, scored.score).catch(() => undefined);
+      recordPersonalOutcome({ activityId: ACTIVITY_IDS.prime, label: "Prime", scored, difficulty: MOMENT_DIFFICULTY.small_talk }).catch(() => undefined);
       showGlobalToast("Primed. Afterwards, debrief it from Today.", "success");
       navigation.goBack();
     } catch (error) {

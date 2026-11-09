@@ -173,6 +173,13 @@ A new JS bundle is enough; no new build. Do a few real takes first, since the nu
 - [ ] **Transcription and Tono AI steps** read short; "See exactly what's sent" opens the full list.
 - [ ] **Reminders:** "Yes, remind me", a time, Continue: iOS asks for notifications before the next step. (If you said no to notifications before, iOS won't ask again; it's in iPhone Settings.)
 
+### Rewind, inner voice and moments (3c.4)
+
+- [ ] **Rewind:** tell your day for a minute or more. Afterwards Overall or Specifics should move (the trail shows in You, Speaker level). Settings, Practice has "Rewinds count toward delivery".
+- [ ] **Three things:** write the day's set, say them, leave the screen. Self-kindness moves once; coming back the same day doesn't move it again.
+- [ ] **Talk back:** do all six steps with a drop in how true it feels. Reframing moves.
+- [ ] **A Moment:** check in before and after an event. Real-world reps and Nerves trend move.
+
 ### Line of the day and Mark it up (3c.3)
 
 - [ ] **Line of the day:** record the three reads, tap Done: "Checking your reads…", then a percentage with "Words read". Read something else and it says it isn't scored.

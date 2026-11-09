@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { ACTIVITY_IDS } from "../content/activities";
+import { debriefScore, MOMENT_DIFFICULTY } from "../domain/personal/personalScores";
+import { recordPersonalOutcome } from "../services/practice/personalOutcome";
 import { Pressable, View } from "react-native";
 import { KeyboardForm } from "../components/common/KeyboardForm";
 import { Ionicons } from "@expo/vector-icons";
@@ -69,7 +71,9 @@ export function DebriefScreen({ route, navigation }: Props) {
         actualAwkward: actual,
         blankMoments,
       });
-      completePracticeStep(ACTIVITY_IDS.debrief, undefined, null).catch(() => undefined);
+      const scored = debriefScore({ predicted: primed?.predictedAwkward ?? null, actual, wentOkay, tryNext, positiveSign, blanksNamed: blankMoments.length });
+      completePracticeStep(ACTIVITY_IDS.debrief, undefined, scored.score).catch(() => undefined);
+      recordPersonalOutcome({ activityId: ACTIVITY_IDS.debrief, label: "Debrief", scored, difficulty: MOMENT_DIFFICULTY.small_talk }).catch(() => undefined);
       let message = "Debrief saved.";
       if (primed?.predictedAwkward != null && actual != null) {
         const gap = primed.predictedAwkward - actual;

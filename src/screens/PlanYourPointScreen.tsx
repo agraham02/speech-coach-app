@@ -1,4 +1,8 @@
 import { useState } from "react";
+import { planPointScore } from "../domain/personal/personalScores";
+import { recordPersonalOutcome } from "../services/practice/personalOutcome";
+import { completePracticeStep } from "../services/practice/practiceEvents";
+import { ACTIVITY_IDS } from "../content/activities";
 import { Text, TextInput, View } from "react-native";
 import { KeyboardForm } from "../components/common/KeyboardForm";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -23,6 +27,9 @@ export function PlanYourPointScreen({ route, navigation }: Props) {
   const [example, setExample] = useState("");
 
   function handleStart() {
+    const scored = planPointScore({ point, reason, example });
+    completePracticeStep(ACTIVITY_IDS.planPoint, undefined, scored.score).catch(() => undefined);
+    recordPersonalOutcome({ activityId: ACTIVITY_IDS.planPoint, label: "Plan your point", scored }).catch(() => undefined);
     navigation.navigate("Recording", {
       kind: "prompt",
       prompt,

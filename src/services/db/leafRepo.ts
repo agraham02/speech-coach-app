@@ -149,9 +149,12 @@ export interface AttemptResult {
 export interface AttemptRecord {
   evidence: AttemptEvidence;
   label: string;
-  kind: "drill" | "rep";
+  kind: "drill" | "rep" | "personal";
   sessionId?: string;
   drillType?: string;
+  // What this attempt was ("rewind:<id>", "three_things:<date>"): an attempt with
+  // a ref already recorded moves nothing, so it counts once.
+  ref?: string;
 }
 
 // One scored attempt: moves its leaves by the grid, and works out what that did
@@ -167,8 +170,9 @@ export async function recordAttempt(record: AttemptRecord): Promise<AttemptResul
     const ratings = await readLeafRatings(db);
     const before = rollUp(ratings, options);
     const levelBefore = await readLevel(db);
-    if (!moves.length) {
-      result = { moves, before, after: before, trail: null, stageUps: [], levelBefore, levelAfter: levelBefore };
+    const repeat = record.ref ? await db.getFirstAsync(`SELECT 1 FROM score_attempts WHERE ref = ?`, [record.ref]) : null;
+    if (!moves.length || repeat) {
+      result = { moves: repeat ? [] : moves, before, after: before, trail: null, stageUps: [], levelBefore, levelAfter: levelBefore };
       return;
     }
     const nextRatings: LeafRatings = { ...ratings };
@@ -176,8 +180,8 @@ export async function recordAttempt(record: AttemptRecord): Promise<AttemptResul
     const after = rollUp(nextRatings, options);
     const attemptId = generateId();
     await db.runAsync(
-      `INSERT INTO score_attempts (id, at, activity_id, kind, label, score, difficulty, source, session_id, drill_type, nodes_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [attemptId, at, record.evidence.activityId, record.kind, record.label, record.evidence.score ?? null, record.evidence.difficulty, record.evidence.source, record.sessionId ?? null, record.drillType ?? null, JSON.stringify(changedNodes(before, after))],
+      `INSERT INTO score_attempts (id, at, activity_id, kind, label, score, difficulty, source, session_id, drill_type, nodes_json, ref) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [attemptId, at, record.evidence.activityId, record.kind, record.label, record.evidence.score ?? null, record.evidence.difficulty, record.evidence.source, record.sessionId ?? null, record.drillType ?? null, JSON.stringify(changedNodes(before, after)), record.ref ?? null],
     );
     for (const move of moves) {
       const was = ratingOf(ratings, move.leaf);

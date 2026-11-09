@@ -505,6 +505,14 @@ const STEPS: SchemaStep[] = [
       ALTER TABLE sessions ADD COLUMN pitch_phrase_sd_st REAL;
     `,
   },
+  {
+    version: 40,
+    description: "personal activities move the tree (task 3c.4): an attempt can name what it was (a Rewind, a day of Three things), so it counts once",
+    sql: `
+      ALTER TABLE score_attempts ADD COLUMN ref TEXT;
+      CREATE UNIQUE INDEX idx_score_attempts_ref ON score_attempts(ref) WHERE ref IS NOT NULL;
+    `,
+  },
 ];
 
 export const SCHEMA_VERSION = STEPS[STEPS.length - 1].version;

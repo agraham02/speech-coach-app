@@ -101,7 +101,7 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 | 3c.1 | Mic and a number on all 26 guided exercises | iphone | D25. 23 record and score from Whisper's reading; 3 pitch/stress ones stay self-rated (still on probation). `domain/guided/guidedMeasures.ts` with 25 tests (lines, questions, pace, pauses, volume, ums, rating shares, gates, quick check); `MeasuredGuidedRunner`. Thresholds are first guesses. Not run on a phone |
 | 3c.2 | Warm-ups measured and recorded | iphone | D28. Hiss, pa-ta-ka and siren recorded in one piece with AudioRecorder and read per step; breathing warm-ups count rounds. `domain/warmups/warmUpMeasures.ts` with 14 tests (length, evenness, gaps, windows, rates, stray pitch, rounds, not heard); `screens/guided/WarmUpRunner.tsx`. Not run on a phone |
 | 3c.3 | Line of the day records; self-ratings stop moving performance leaves | iphone | D29. Recorded reads scored by Whisper: words read (the gate), marks matched, pauses at marks (probation, shown only); the rating step is gone. `domain/cadence/lineReads.ts` with 7 tests (mark positions with hyphens, averaging, gate, relaxed bar, no recording, pauses). Self-reports already move only inner leaves (`effectiveWeight`). Not run on a phone |
-| 3c.4 | Voice analysis on Rewind; inner-voice numbers | todo | |
+| 3c.4 | Voice analysis on Rewind; inner-voice numbers | iphone | D30. Rewind (coverage, details, talk time; fillers and stalls behind a Settings switch), Three things, Talk back, Prime, Debrief, Moments, comfort, attention, missions, Plan your point and Rehearse move the tree; a ref makes each count once (schema 40). 15 pure tests and a real-SQLite test (a ref counts once; a self-report of a performance leaf moves nothing). Not run on a phone |
 
 ## Phase 3d: difficulty
 
@@ -168,7 +168,7 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 
 Things that came up and aren't in this plan. The readings still on Beta, and what to research for each, are in plan section 6.5F.
 
-- Speech study, Rehearse, Plan your point, Missions, the monthly comfort check-in and the attention rating have catalogue ids and grid rows, but don't write to the activity log yet. MarkItUp has no id of its own: its reps run through Line rep, which logs. Wire these when their rows start moving scores (3c).
+- Speech study measures nothing and moves nothing (D30). MarkItUp has no id of its own: its reps run through Line rep, which logs.
 - Reaching a new level on its own has no celebration yet, only a stage does (D16). Section 15 covers it in phase 8.
 - **Check in 3d: takes at the rep's low difficulty.** A take's difficulty starts at 1 and rises at most 0.18 per good take. A leaf settles where the formula expects your score, 10 × difficulty + 15 × ln(score ÷ (1 − score)), so at difficulty 1 a steady 60 settles near 16, 80 near 31 and 95 near 54. That's the plan's formula, but it means an honest 60 lowers a leaf from its starting 25, and takes can't count as proof for Steady (difficulty 3) until about a dozen good ones in. 3d.1 and 3d.2 should fix this by working out a take's difficulty from its prompt, prep and length. Run a simulated user and check the plan's half a point to a point a day before trusting that pace.
 - 3c.2: record warm-ups with `react-native-audio-api`'s `AudioRecorder`, not the speech recognizer (D20): a hiss has no words, so the recognizer restarts and leaves gaps.
