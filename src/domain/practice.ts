@@ -7,6 +7,9 @@ export interface PracticeContext {
   planSlot?: number;
   lessonId?: string;
   lessonStepIndex?: number;
+  // This rep is a unit's checkpoint: its number decides the checkpoint, and it
+  // doesn't tick a lesson step (domain/checkpoint.ts).
+  checkpointUnitId?: string;
   // A sample for the skill check's starting levels: it is recorded, but it
   // isn't practice, so it doesn't move a rating or count an attempt. That
   // keeps seedSkillRatings (which skips any skill with attempts) free to place

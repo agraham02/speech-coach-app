@@ -1,4 +1,4 @@
-import { LESSON_TARGETS } from "../../content/skillGrid";
+import { LESSON_TARGETS, unitTargetLeaf } from "../../content/skillGrid";
 import type { AttemptEvidence, LeafEvidence } from "./leafEvidence";
 import { getLeaf, type LeafId } from "./skillTree";
 import type { TakeLeafReadings } from "./takeLeaves";
@@ -10,6 +10,8 @@ export interface TakeEvidenceInput {
   activityId: string;
   readings: TakeLeafReadings;
   lessonId: string | null;
+  // The unit this rep is the checkpoint of: it moves that unit's target leaf only.
+  checkpointUnitId?: string | null;
   noPrep: boolean;
   hasTopic: boolean;
   // Scales the Message leaves: research makes it a prepared answer.
@@ -33,7 +35,7 @@ export function takeEvidence(input: TakeEvidenceInput): Omit<AttemptEvidence, "d
     score: scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null,
     leafScores,
     source: "measured",
-    targetLeaf: input.lessonId ? LESSON_TARGETS[input.lessonId] ?? null : null,
+    targetLeaf: input.checkpointUnitId ? unitTargetLeaf(input.checkpointUnitId) : input.lessonId ? LESSON_TARGETS[input.lessonId] ?? null : null,
     conditions: { no_prep: input.noPrep, has_topic: input.hasTopic },
     scale: input.messageScale === 1 ? undefined : (leaf) => (getLeaf(leaf).pillarId === "message" ? input.messageScale : 1),
   };

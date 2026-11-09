@@ -65,6 +65,7 @@ function promptExtras(subject: Extract<RecordingSubject, { kind: "prompt" }>): S
   const extras: SessionSubjectExtras = {
     conciseSeconds: subject.conciseSeconds,
     lessonId: subject.lessonId,
+    checkpointUnitId: subject.checkpointUnitId,
     targetFramework: subject.targetFramework,
     promptText: adhoc ? subject.prompt.text : undefined,
     promptCategory: adhoc ? subject.prompt.category : undefined,

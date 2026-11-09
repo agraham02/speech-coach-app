@@ -9,6 +9,7 @@ import {
 } from "../../domain/recordingSettings";
 import { DEFAULT_REMINDER_SETTINGS, type ReminderSettings } from "../../domain/reminderSettings";
 import { DEFAULT_CURRICULUM_LEVEL } from "../../domain/curriculum";
+import type { CheckpointRecords } from "../../domain/checkpoint";
 import type { DailyGoal } from "../../domain/dailyGoal";
 import { EMPTY_PROFILE, type UserProfile } from "../../domain/profile";
 import { todayISODate } from "../../utils/dateUtils";
@@ -56,6 +57,7 @@ const KEYS = {
   nextEvent: "nextEvent",
   mediaBackup: "mediaBackup",
   pathPlan: "pathPlan",
+  checkpoints: "checkpoints",
   feedbackPrompt: "feedbackPrompt",
   pathFinaleSeenAt: "pathFinaleSeenAt",
 } as const;
@@ -537,6 +539,15 @@ export function getPathPlanState(): PathPlanState | null {
 export function setPathPlanState(state: PathPlanState | null): void {
   if (state) storage.set(KEYS.pathPlan, JSON.stringify(state));
   else storage.remove(KEYS.pathPlan);
+}
+
+// Where each unit's checkpoint stands (domain/checkpoint.ts).
+export function getCheckpointRecords(): CheckpointRecords {
+  return readJson<CheckpointRecords>(KEYS.checkpoints, {});
+}
+
+export function setCheckpointRecords(records: CheckpointRecords): void {
+  storage.set(KEYS.checkpoints, JSON.stringify(records));
 }
 
 export function getNextEvent(): UpcomingEvent | null {

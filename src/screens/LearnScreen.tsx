@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { GuideTip, TourTarget } from "../components/common/GuideTip";
 import { ScrollView, View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { NavigationProp } from "@react-navigation/native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import type { RootStackParamList } from "../navigation";
 import { Screen } from "../components/common/Screen";
@@ -16,6 +16,7 @@ import { StepTimeline } from "../components/common/StepTimeline";
 import { SegmentedControl } from "../components/common/SegmentedControl";
 import { PathList } from "../components/path/PathList";
 import { getPathView, type PathView } from "../services/path/pathService";
+import { skipCheckpoint, startCheckpoint } from "../services/checkpoint/checkpointService";
 import { LESSONS, UNITS } from "../content/lessons";
 import { getLessonStates, getSkillStates, type LessonState, type SkillState } from "../services/db/progressRepo";
 import { SKILL_LABELS, type SkillId } from "../theme/tokens";
@@ -40,19 +41,23 @@ const SKILL_BLURB: Record<SkillId, string> = {
 export function LearnScreen() {
   const styles = useStyles();
   const { colors } = useTheme();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [skill, setSkill] = useState<SkillId>("articulation");
   const [lessons, setLessons] = useState<Record<string, LessonState>>({});
   const [skills, setSkills] = useState<Record<SkillId, SkillState> | null>(null);
   const [mode, setMode] = useState<"path" | "skills">("path");
   const [pathView, setPathView] = useState<PathView | null>(null);
 
+  const refreshPath = useCallback(() => {
+    getPathView().then(setPathView).catch(() => undefined);
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       getLessonStates().then(setLessons);
       getSkillStates().then(setSkills);
-      getPathView().then(setPathView).catch(() => undefined);
-    }, []),
+      refreshPath();
+    }, [refreshPath]),
   );
 
   const today = todayISODate();
@@ -84,6 +89,11 @@ export function LearnScreen() {
               if (lessonId) navigation.navigate("Lesson", { lessonId });
             }}
             onOpenFinale={() => navigation.navigate("PathFinale")}
+            onCheckpoint={(u) => startCheckpoint(navigation, u.unitId)}
+            onSkipCheckpoint={(u) => {
+              skipCheckpoint(u.unitId);
+              refreshPath();
+            }}
           />
           <ListGroup>
             <ListRow icon="book-outline" title="Frameworks" subtitle="The models behind the lessons, and where they come from" chevron onPress={() => navigation.navigate("Frameworks")} />

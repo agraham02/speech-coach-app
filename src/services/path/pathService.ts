@@ -11,6 +11,8 @@ import { emitPathCompleted, emitUnitCompleted } from "../progress/progressEvents
 import { todayISODate } from "../../utils/dateUtils";
 import { logger } from "../../utils/logger";
 import type { SkillId } from "../../theme/tokens";
+import { checkpointStatus, type CheckpointStatus } from "../../domain/checkpoint";
+import { getCheckpointRecords } from "../prefs/prefsStore";
 
 // Keeps your path (domain/path.ts) built and current. It's built once —
 // after the skill check, or on first launch for someone who started before
@@ -139,7 +141,7 @@ export async function replanPath(): Promise<StoredPathUnit[]> {
 }
 
 export interface PathView {
-  units: (StoredPathUnit & { title: string; skill: SkillId; done: number; total: number; nextLessonId: string | null })[];
+  units: (StoredPathUnit & { title: string; skill: SkillId; done: number; total: number; nextLessonId: string | null; checkpoint: CheckpointStatus; checkpointBest: number | null })[];
 }
 
 // The stored path with what each unit's screen needs. The order is the
@@ -149,6 +151,7 @@ export async function getPathView(): Promise<PathView> {
   const units = await syncPath();
   const input = await gatherInput();
   const states = input.lessons;
+  const checkpoints = getCheckpointRecords();
   return {
     units: units
       .map((u) => {
@@ -165,6 +168,8 @@ export async function getPathView(): Promise<PathView> {
           done: all.filter((l) => states[l.id]?.done).length,
           total: all.length,
           nextLessonId: nextLessonInUnit(def.id, states),
+          checkpoint: checkpointStatus(def.id, all.length > 0 && all.every((l) => states[l.id]?.done), checkpoints),
+          checkpointBest: checkpoints[def.id]?.best ?? null,
         };
       })
       .filter((u): u is NonNullable<typeof u> => !!u),

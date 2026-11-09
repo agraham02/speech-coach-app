@@ -12,18 +12,24 @@ jest.mock("../../db/artifactsRepo", () => ({
   putArtifact: async (id: string, kind: string, value: unknown) => void mockArtifacts.set(`${id}:${kind}`, value),
 }));
 
+const mockContext = jest.fn();
+jest.mock("../sessionSubject", () => ({ gradingContextFromSession: (...args: unknown[]) => mockContext(...args) }));
+
 import { topicVerdictFor } from "../topicCheck";
 import type { Session } from "../../../domain/sessionTypes";
 
 const text = Array.from({ length: 40 }, (_, i) => `word${i}`).join(" ");
 let n = 0;
 const take = (patch: Record<string, unknown> = {}): Session =>
-  ({ id: `s${++n}`, sessionType: "prompt", transcriptVerbatim: text, subjectExtras: { promptText: "What makes a good teacher?" }, ...patch }) as unknown as Session;
+  ({ id: `s${++n}`, sessionType: "spontaneous", transcriptVerbatim: text, subjectExtras: {}, ...patch }) as unknown as Session;
 
 beforeEach(() => {
   mockArtifacts.clear();
   mockPhone.mockReset();
   mockServer.mockReset();
+  mockContext.mockReset();
+  // A library prompt: its words come from the prompt table, not the take.
+  mockContext.mockResolvedValue({ kind: "prompt", promptText: "What makes a good teacher?" });
 });
 
 describe("topicVerdictFor", () => {
@@ -73,7 +79,10 @@ describe("topicVerdictFor", () => {
     mockPhone.mockResolvedValue("off_topic");
     expect(await topicVerdictFor(take(), true)).toBeNull();
     expect(await topicVerdictFor(take({ sessionType: "script_practice" }), false)).toBeNull();
-    expect(await topicVerdictFor(take({ subjectExtras: {} }), false)).toBeNull();
+    expect(await topicVerdictFor(take({ sessionType: "feeling" }), false)).toBeNull();
+    expect(await topicVerdictFor(take({ sessionType: "free_record" }), false)).toBeNull();
+    mockContext.mockResolvedValue(null);
+    expect(await topicVerdictFor(take(), false)).toBeNull();
     expect(await topicVerdictFor(take({ transcriptVerbatim: "too short to say" }), false)).toBeNull();
     expect(mockPhone).not.toHaveBeenCalled();
     expect(mockServer).not.toHaveBeenCalled();
