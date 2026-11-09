@@ -1,7 +1,7 @@
 import { deleteArtifact, getArtifact, putArtifact } from "../db/artifactsRepo";
 import { defaultsFromProfile } from "../../domain/profile";
-import { TAKE_MIN_WORDS, takeGate } from "../../domain/gates";
-import { checkTopic } from "../language/meaningCheck";
+import { takeGate } from "../../domain/gates";
+import { topicVerdictFor } from "./topicCheck";
 import { getScoreVersion, getUserProfile, setScoreVersion } from "../prefs/prefsStore";
 import { getDatabase } from "../db/database";
 import { getSessionById, isSessionLive } from "../db/sessionsRepo";
@@ -76,10 +76,9 @@ export async function refreshSessionScore(sessionId: string, preview: ReadingPre
       getArtifact<TakeAnalyses>(sessionId, "analysis"),
     ]);
     // No score without proof the task was done (plan 6.4, rule 2).
-    // The phone's own meaning check, only when no judge has read the take: a judge
-    // that scored it already knows whether it answered the prompt.
-    const promptText = session.subjectExtras?.promptText;
-    const topic = !review && facts.kind === "impromptu" && promptText && facts.wordCount >= TAKE_MIN_WORDS ? await checkTopic(promptText, session.transcriptVerbatim ?? "") : null;
+    // Is it about the prompt? This phone's meaning check, else the small check on
+    // the server. Not asked once a judge has read the take: it already knows.
+    const topic = facts.kind === "impromptu" ? await topicVerdictFor(session, !!review) : null;
     const gate = takeGate({ kind: facts.kind, wordCount: facts.wordCount, readAccuracyPercent: facts.readAccuracyPercent, relaxed: defaultsFromProfile(getUserProfile()).relaxAccuracy, judgeSays: facts.notScorable, topic });
     const db = await getDatabase();
     if (!gate.passed) {

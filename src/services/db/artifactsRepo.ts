@@ -22,6 +22,7 @@ export type ArtifactKind =
   | "session_score"
   // Why a take has no score: its gate failed (domain/gates.ts).
   | "take_gate"
+  | "topic_check"
   | "cloud_usage"
   // What each kind of analysis did on this take, with its provenance
   // (services/analysis/store.ts).

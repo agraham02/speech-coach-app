@@ -1,7 +1,8 @@
 import { File } from "expo-file-system";
 import { randomUUID } from "expo-crypto";
 import type { AnalysisContext, AnalysisKind } from "../../../domain/analysis/types";
-import type { Route } from "../../../domain/analysis/routing";
+import { isSmallCheck, type Route } from "../../../domain/analysis/routing";
+import { acceptOnTopic } from "../../../domain/analysis/onTopicCheck";
 import { acceptJudgedReview, TAKE_REVIEW_SCHEMA_VERSION } from "../../../domain/analysis/judgedReview";
 import { acceptModelMarks } from "../../../domain/cadence/autoMarkPrompt";
 import { acceptBridgeChain, acceptWordChain, chainPairs } from "../../../domain/drills/chainJudging";
@@ -17,7 +18,7 @@ import { resolveVideoUri, videoExists } from "../../storage/videoStorage";
 import { tonoGenerate, type GenerateResponse, type TonoTask } from "../../tono/tonoApi";
 import { resolveUploadForGrading } from "../../tono/upload";
 import type { InputFor, OutputFor, TakeReviewInput, TakeReviewOutput } from "../kinds";
-import { bridgeChainInputs, conversationDebriefInputs, markUpInputs, rewindNotesInputs, summaryNotesInputs, takeReviewInputs, wordChainInputs } from "../inputs";
+import { bridgeChainInputs, conversationDebriefInputs, markUpInputs, onTopicInputs, rewindNotesInputs, summaryNotesInputs, takeReviewInputs, wordChainInputs } from "../inputs";
 import { provenance, type AnalysisProvider, type ProviderOutcome } from "../provider";
 
 // Tono AI: the judge of record, through Tono's server, which holds the key,
@@ -42,6 +43,8 @@ const SCHEMA_VERSIONS: Record<TonoTask, number> = {
   summary_notes: 1,
   mark_up: 1,
   conversation_debrief: 1,
+  check_on_topic: 1,
+  check_word_links: 1,
 };
 
 async function call(task: TonoTask, inputs: object, extra: { media?: { fileName: string; videoSeconds: number }; timeoutMs?: number } = {}): Promise<GenerateResponse> {
@@ -137,8 +140,9 @@ export const tonoAiProvider: AnalysisProvider = {
     kind === "bridge_chain" ||
     kind === "summary_notes" ||
     kind === "mark_up" ||
+    kind === "check_on_topic" ||
     kind === "conversation_debrief",
-  async run<K extends AnalysisKind>(kind: K, input: InputFor<K>, _ctx: AnalysisContext, route: Route): Promise<ProviderOutcome<OutputFor<K>>> {
+  async run<K extends AnalysisKind>(kind: K, input: InputFor<K>, ctx: AnalysisContext, route: Route): Promise<ProviderOutcome<OutputFor<K>>> {
     type Out = ProviderOutcome<OutputFor<K>>;
     switch (kind) {
       case "take_review":
@@ -163,8 +167,24 @@ export const tonoAiProvider: AnalysisProvider = {
         const chain = input as InputFor<"word_chain">;
         const pairs = chainPairs(chain.segments);
         if (!pairs.length) return { ok: false, reason: "no_input", message: "There were no words to check." };
-        const answer = await askChecked("word_chain", (problems) => wordChainInputs(chain, problems), (raw) => acceptWordChain(raw, pairs), CHAIN_TIMEOUT_MS);
+        // A free account's link check is a small content check, on its own count.
+        const task = isSmallCheck("word_chain", ctx.tier) ? "check_word_links" : "word_chain";
+        const answer = await askChecked(task, (problems) => wordChainInputs(chain, problems), (raw) => acceptWordChain(raw, pairs), CHAIN_TIMEOUT_MS);
         if (!answer) return { ok: false, reason: "error", message: "Tono AI's check of your links wasn't usable." };
+        return { ok: true, value: answer.value as OutputFor<K>, provenance: meta(answer.response, "text") };
+      }
+
+      case "check_on_topic": {
+        const { prompt, answer: said } = input as InputFor<"check_on_topic">;
+        if (!prompt.trim() || wordCount(said) < 5) return { ok: false, reason: "no_input", message: "There was too little to check." };
+        if (wordCount(said) > MAX_REVIEW_WORDS) return { ok: false, reason: "too_long", message: "That is too long to check." };
+        const answer = await askChecked(
+          "check_on_topic",
+          (problems) => onTopicInputs({ prompt, answer: said }, problems),
+          (raw, final) => acceptOnTopic(raw, said, { final }),
+          QUICK_TIMEOUT_MS,
+        );
+        if (!answer) return { ok: false, reason: "error", message: "Tono AI's check wasn't usable." };
         return { ok: true, value: answer.value as OutputFor<K>, provenance: meta(answer.response, "text") };
       }
 

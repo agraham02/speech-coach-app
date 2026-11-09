@@ -165,6 +165,13 @@ A new JS bundle is enough; no new build. Do a few real takes first, since the nu
 - [ ] **A wrong script.** On a script take, read something else: the same message. Read the script: it scores.
 - [ ] **Fair enough?** Tell me if a real attempt ever gets rejected. The 40% floor on Twister, Minimal pairs and Shadowing is my number, and the live recognizer is rough until 3b.3.
 
+### The small content check (3b.5)
+
+- [ ] **Deploy it first.** Apply `supabase/migrations/20261109000000_small_checks.sql` in the Supabase SQL editor, then `npx supabase functions deploy --use-api`. Republish `docs/privacy.md` and `docs/terms.md` where they are hosted.
+- [ ] **Word chain, signed in with no Plus.** Do a Word chain with Tono AI allowed. It says "Link by link" and Tono AI checked it (not "Your phone checked each link"). Settings, Account should show a check count if the screen has one; tell me if it doesn't.
+- [ ] **Off-topic take on a phone that can't check.** If Signal Lab, Content, On topic did not pass on your phone, record an off-topic take: it should be called off-topic by the small check ("We couldn't score this one"). If it passed, the phone does it and the server is never asked.
+- [ ] **Out of checks.** (Optional.) In Dev, set the limits override off and use the checks up: the next says you've used this month's checks and the drill still scores by counting.
+
 ### Drills read by Whisper (3b.3)
 
 - [ ] **A drill, with the model on the phone.** Do Pace reading, Twister or Category sprint. After you finish there is a short "Checking…" (a few seconds), then the result. Tell me how long it felt.

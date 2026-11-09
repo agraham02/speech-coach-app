@@ -9,7 +9,7 @@ import { todayISODate } from "../../utils/dateUtils";
 import { getNextEvent, getShareProfileWithReviews, getUserProfile } from "../prefs/prefsStore";
 import { measuredVoice } from "../sessions/sessionScoreService";
 import { chainPairs } from "../../domain/drills/chainJudging";
-import type { BridgeChainInput, ConversationDebriefInput, MarkUpInput, RewindNotesInput, SummaryNotesInput, TakeReviewInput, WordChainInput } from "./kinds";
+import type { BridgeChainInput, ConversationDebriefInput, MarkUpInput, OnTopicCheckInput, RewindNotesInput, SummaryNotesInput, TakeReviewInput, WordChainInput } from "./kinds";
 
 // What the phone sends Tono AI for each task: structured facts, never a
 // prompt. The server writes the prompt from these
@@ -120,6 +120,11 @@ export function rewindNotesInputs(input: RewindNotesInput, problems: string[] = 
 // The pairs to judge, numbered by the phone so it can check the answer.
 export function wordChainInputs(input: WordChainInput, problems: string[] = []) {
   return { pairs: chainPairs(input.segments), ...withProblems(problems) };
+}
+
+// What they were asked and what they said, cut to what the server accepts.
+export function onTopicInputs(input: OnTopicCheckInput, problems: string[] = []) {
+  return { prompt: input.prompt.trim().slice(0, 600), answer: input.answer.trim().slice(0, 12_000), ...withProblems(problems) };
 }
 
 export function bridgeChainInputs(input: BridgeChainInput, problems: string[] = []) {

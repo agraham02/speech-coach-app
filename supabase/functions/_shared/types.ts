@@ -6,7 +6,9 @@
 // count. Exercise notes and mark-ups are "text" calls, pooled behind fair use.
 // A live conversation counts "conversation" calls, metered in seconds of
 // conversation the server measures (_shared/conversation.ts), not in calls.
-export type CountKind = "take" | "text" | "insight" | "conversation";
+// A "check" is a small content check (is this about the prompt, do these words
+// link): its own pool, which free accounts get too (docs/overhaul/PLAN.md, 6.6).
+export type CountKind = "take" | "text" | "insight" | "conversation" | "check";
 
 // Which model runs it. A take judged from its words uses the text model; the
 // video setting uses the video model. The count stays "take" either way.
