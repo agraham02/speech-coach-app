@@ -13,7 +13,8 @@ import { DrillProgressLine } from "../../components/celebrate/DrillProgressLine"
 import { showGlobalToast } from "../../components/common/ToastProvider";
 import type { WarmUp } from "../../content/drillContent";
 import { outcome } from "../../domain/drills/drillSpecs";
-import { DEFAULT_WARM_UP_TARGETS, scoreBreathWarmUp, scoreMeasuredWarmUp, type MeasuredWindow, type WarmUpScore, type WarmUpTargets } from "../../domain/warmups/warmUpMeasures";
+import { breathRounds, warmUpTargets } from "../../domain/difficulty/knobs";
+import { scoreBreathWarmUp, scoreMeasuredWarmUp, type MeasuredWindow, type WarmUpScore, type WarmUpTargets } from "../../domain/warmups/warmUpMeasures";
 import { getDrillLevel, recordDrillOutcome, type ProgressChange } from "../../services/db/progressRepo";
 import { createWarmUpCapture, type WarmUpCapture } from "../../services/audio/warmUpRecorder";
 import { extractOffThread } from "../../services/audio/dspRuntime";
@@ -31,21 +32,18 @@ const RING_WRAP = 300;
 
 type Stage = "intro" | "running" | "checking" | "result";
 
-export function WarmUpRunner({
-  warmUp,
-  targets = DEFAULT_WARM_UP_TARGETS,
-  onDone,
-  onBack,
-}: {
-  warmUp: WarmUp;
-  targets?: WarmUpTargets;
-  onDone: (score: number | null) => void;
-  onBack: () => void;
-}) {
+export function WarmUpRunner({ warmUp, onDone, onBack }: { warmUp: WarmUp; onDone: (score: number | null) => void; onBack: () => void }) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const rounds = warmUp.rounds ?? 1;
+  // Its own difficulty (task 3d.5): a longer hiss, a faster pa-ta-ka, a wider
+  // siren, more breathing rounds as it rises.
+  const [level, setLevel] = useState<number | null>(null);
+  useEffect(() => {
+    getDrillLevel("warmup", warmUp.id).then(setLevel).catch(() => setLevel(1));
+  }, [warmUp.id]);
+  const targets: WarmUpTargets = warmUpTargets(level ?? 1);
   const measured = warmUp.steps.some((s) => s.measure);
+  const rounds = measured ? (warmUp.rounds ?? 1) : breathRounds(warmUp.rounds ?? 1, level ?? 1);
   const sequence = useMemo(
     () => Array.from({ length: rounds }, (_, round) => warmUp.steps.map((step) => ({ step: step.measure === "hiss" ? { ...step, seconds: targets.hissSeconds } : step, round }))).flat(),
     [warmUp, rounds, targets.hissSeconds],
@@ -157,12 +155,11 @@ export function WarmUpRunner({
     }
     let change: ProgressChange | null = null;
     try {
-      const level = await getDrillLevel("warmup");
       const score = scored.score ?? 0;
       change = await recordDrillOutcome({
         drillType: "warmup",
         outcome: outcome(score, `${Math.round(score * 100)}% · ${warmUp.title}`),
-        level,
+        level: level ?? 1,
         contentId: warmUp.id,
         // A breath you can't hear is your own count.
         source: measured ? "measured" : "self",
@@ -251,7 +248,7 @@ export function WarmUpRunner({
           </View>
         ) : null}
       </View>
-      {stage === "intro" ? <PrimaryButton label="Start" onPress={start} /> : null}
+      {stage === "intro" ? <PrimaryButton label="Start" onPress={start} disabled={level == null} /> : null}
       {stage === "running" ? <PrimaryButton label="Skip" variant="secondary" onPress={skip} /> : null}
       {stage === "result" ? <PrimaryButton label="Done" onPress={() => onDone(result?.scored.score ?? null)} /> : null}
     </ScreenContainer>

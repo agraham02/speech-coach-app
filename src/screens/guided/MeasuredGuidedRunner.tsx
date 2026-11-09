@@ -124,10 +124,10 @@ export function MeasuredGuidedRunner({ exercise, onDone, onBack }: { exercise: E
       if (!whisper) quick = true;
       clips.push({ text: whisper?.text ?? rec.text, words: whisper?.words ?? null, volume: rec.volume, startDelayMs: whisper?.words.length ? Math.max(0, whisper.words[0].startMs) : rec.startDelayMs, spokenMs: rec.spokenMs });
     }
-    const scored = scoreGuided(exercise.id, clips, finalRating);
+    const level = await getDrillLevel("guided", exercise.id);
+    const scored = scoreGuided(exercise.id, clips, finalRating, level);
     let change: ProgressChange | null = null;
     try {
-      const level = await getDrillLevel("guided");
       const score = scored.score ?? 0;
       change = await recordDrillOutcome({
         drillType: "guided",

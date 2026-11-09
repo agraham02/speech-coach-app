@@ -45,6 +45,14 @@ describeIfSqlite("the skill tree's numbers", () => {
     mockStageEvents.length = 0;
   });
 
+  it("each guided exercise keeps its own staircase", async () => {
+    await recordDrillOutcome({ drillType: "guided", outcome: ok(0.95), level: 3, contentId: "gd_rate_contrast", source: "measured" });
+    const rows = await mockDb.getAllAsync<{ drill_type: string }>(`SELECT drill_type FROM drill_difficulty`);
+    const types = rows.map((r) => r.drill_type);
+    expect(types).toContain("guided:gd_rate_contrast");
+    expect(types).not.toContain("guided");
+  });
+
   it("a Stretch miss lowers nothing, and a good Stretch counts more", async () => {
     await setLeaf("word_retrieval", 40, 10);
     await recordDrillOutcome({ drillType: "category_fluency", outcome: ok(0.2), level: 4, stretch: { baseLevel: 2 } });

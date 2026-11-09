@@ -573,3 +573,16 @@ A Sonnet reviewer who hadn't seen the work read the 3c changes. It found no cras
 **Differs from the plan:** the Stretch is the week's first plan drill in the drill runner, not a step the session adds. Phase 4 rebuilds the session (5.3), and it can add a Stretch slot then. Conversation, summary and line drills don't stretch yet.
 
 **Owner's OK:** not asked; this is task 3d.4.
+
+## D36. Guided exercises, warm-ups and Rewind get their own difficulty (2026-11-09)
+
+**Now** (`domain/difficulty/knobs.ts`):
+- **Each guided exercise and each warm-up has its own staircase** (`guided:<id>`, `warmup:<id>` in `drill_difficulty`), started from its main leaf like any drill (D33). They used to share one between them.
+- **Guided:** Rate contrast needs 1.3 times at level 1, rising to 1.8 at 10. Power pause holds rise from 1 to 3 seconds (90% of the hold counts, for timing slop). The other exercises keep their bars.
+- **Warm-ups:** the hiss runs from 10 to 25 seconds, pa-ta-ka from 5 to 7 a second, the siren from 12 to 18 semitones. Breathing warm-ups add a round every three levels.
+- **Rewind:** its own staircase (`personal:rewind`). The talk-time target runs from 60 to 120 seconds and the details bar from 4 to 6 a minute. Its moves count at that difficulty, and a Rewind of 70% or more steps it up.
+- **Moments** already carry a difficulty by kind (D30): interview 8, talk and pitch 7, toast 6, date 5, other 3, a primed conversation 2.
+
+**Not built, and why:** Catch the um's 30 to 60 seconds, harder questions in Say it back, tougher thoughts first in Talk back, and mission tiers are all new content. They wait for the content overhaul. Three things already can't repeat a recent item.
+
+**Owner's OK:** not asked; this is task 3d.5.
