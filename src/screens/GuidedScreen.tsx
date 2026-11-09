@@ -70,7 +70,7 @@ function GuidedRunner({
     if (rating == null || saving) return;
     setSaving(true);
     const outcome = scoreSelfRating(rating);
-    const level = await getDrillLevel("guided");
+    const level = await getDrillLevel("guided", exercise.id);
     // A self-rating moves inner leaves only (plan 6.4, rule 6); the mic comes in 3c.1.
     announceTrail(await recordDrillOutcome({ drillType: "guided", outcome, level, contentId: exercise.id, skill: exercise.skill, source: "self" }));
     onDone(outcome.score);

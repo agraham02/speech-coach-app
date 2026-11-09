@@ -55,6 +55,8 @@ export function rewindScore(input: {
   transcript: string;
   words: TimedWordInput[] | null;
   targetSeconds: number;
+  // Details a minute for full marks on that part; rises with the Rewind's level.
+  detailsFull?: number;
   delivery: boolean;
   stutterMode: boolean;
 }): PersonalScore {
@@ -63,7 +65,7 @@ export function rewindScore(input: {
   const minutes = Math.max(stats.seconds / 60, 0.5);
   const parts = partsCovered(stats.coverage);
   const detailsPerMinute = stats.details.total / minutes;
-  const score = r2(0.4 * (parts / 3) + 0.4 * clamp01(detailsPerMinute / REWIND_DETAILS_FULL) + 0.2 * clamp01(stats.seconds / input.targetSeconds));
+  const score = r2(0.4 * (parts / 3) + 0.4 * clamp01(detailsPerMinute / (input.detailsFull ?? REWIND_DETAILS_FULL)) + 0.2 * clamp01(stats.seconds / input.targetSeconds));
   const leafScores: LeafScores = { specifics: { score, source: "phone_estimate" } };
   const lines = [`${parts} of 3 parts of the day`, `${Math.round(detailsPerMinute * 10) / 10} details a minute`, `${stats.seconds} of ${input.targetSeconds} seconds`];
   if (input.delivery && !input.stutterMode) {

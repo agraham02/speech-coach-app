@@ -134,15 +134,32 @@ export async function getSkillMovesSince(sinceIso: string): Promise<{ skill: Ski
   return [...moves.values()];
 }
 
+// A personal activity's staircase (Rewind), on the same table as the drills'.
+export async function getActivityLevel(key: string): Promise<number> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ level: number }>(`SELECT level FROM drill_difficulty WHERE drill_type = ?`, [key]);
+  return row?.level ?? 1;
+}
+
+export async function stepActivityLevel(key: string, level: number, success: boolean): Promise<void> {
+  await saveDrillLevel(key, nextDifficulty(level, success, CHALLENGE_TARGET[getChallenge()]), success);
+}
+
 // Misses in a row per drill this launch: three ease the stage floor by 1 (6.7, rule 6).
 const missesInARow = new Map<string, number>();
 
 // The difficulty this drill runs at now: its staircase, started from your skill
 // the first time, pulled back if it drifts from it, and never under the floor
 // your stage on its leaf has earned (domain/difficulty/choose.ts).
+// Guided exercises and warm-ups each keep their own staircase (task 3d.5); every
+// other drill has one per type.
+export function levelKey(type: DrillType, contentId?: string): string {
+  return (type === "guided" || type === "warmup") && contentId ? `${type}:${contentId}` : type;
+}
+
 export async function getDrillLevel(type: DrillType, contentId?: string): Promise<number> {
   const db = await getDatabase();
-  const row = await db.getFirstAsync<{ level: number }>(`SELECT level FROM drill_difficulty WHERE drill_type = ?`, [type]);
+  const row = await db.getFirstAsync<{ level: number }>(`SELECT level FROM drill_difficulty WHERE drill_type = ?`, [levelKey(type, contentId)]);
   const leaf = mainLeafOf(activityOfDrill(type, contentId));
   let leafRating: number | null = null;
   let leafStage: Stage | null = null;
@@ -154,7 +171,7 @@ export async function getDrillLevel(type: DrillType, contentId?: string): Promis
     // A take moves many leaves: it follows Overall.
     leafRating = (await getTreeScores()).overall;
   }
-  return chooseLevel({ stored: row?.level ?? null, leafRating, leafStage, missesInARow: missesInARow.get(type) ?? 0 });
+  return chooseLevel({ stored: row?.level ?? null, leafRating, leafStage, missesInARow: missesInARow.get(levelKey(type, contentId)) ?? 0 });
 }
 
 export async function getAllDrillLevels(): Promise<Partial<Record<DrillType, { level: number; attempts: number; successes: number }>>> {
@@ -163,7 +180,7 @@ export async function getAllDrillLevels(): Promise<Partial<Record<DrillType, { l
   return Object.fromEntries(rows.map((r) => [r.drill_type, { level: r.level, attempts: r.attempts, successes: r.successes }]));
 }
 
-async function saveDrillLevel(type: DrillType, level: number, success: boolean): Promise<void> {
+async function saveDrillLevel(type: DrillType | string, level: number, success: boolean): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
     `INSERT INTO drill_difficulty (drill_type, level, attempts, successes, updated_at) VALUES (?, ?, 1, ?, ?)
@@ -267,9 +284,10 @@ export async function recordDrillOutcome(args: {
         ? nextDifficulty(args.stretch.baseLevel, true, target)
         : args.stretch.baseLevel
       : nextDifficulty(args.level, args.outcome.success, target);
-  if (!gated && !args.placement && !args.stretch) missesInARow.set(args.drillType, args.outcome.success ? 0 : (missesInARow.get(args.drillType) ?? 0) + 1);
+  const key = levelKey(args.drillType, args.contentId);
+  if (!gated && !args.placement && !args.stretch) missesInARow.set(key, args.outcome.success ? 0 : (missesInARow.get(key) ?? 0) + 1);
   if (!gated && args.stretch) setLastStretchWeek(stretchWeekOf(now.slice(0, 10)));
-  if (!gated) await saveDrillLevel(args.drillType, levelAfter, args.outcome.success);
+  if (!gated) await saveDrillLevel(key, levelAfter, args.outcome.success);
 
   const stages = await getNodeStages();
   const stageOf = (id: string): Stage => stages.get(id)?.stage ?? 1;

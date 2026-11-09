@@ -2,7 +2,8 @@ import { File } from "expo-file-system";
 import { decodeVideoAudio } from "../../domain/audioAnalysis";
 import { encodeWavPcm16 } from "../../domain/eval/wer";
 import { concatWaveforms, WAV_SAMPLE_RATE } from "../../domain/rewind/wav";
-import { MIN_REWIND_SECONDS, rewindStats } from "../../domain/rewind/stats";
+import { rewindStats } from "../../domain/rewind/stats";
+import { rewindTargets } from "../../domain/difficulty/knobs";
 import { rewindScore } from "../../domain/personal/personalScores";
 import { defaultsFromProfile } from "../../domain/profile";
 import { ACTIVITY_IDS } from "../../content/activities";
@@ -153,14 +154,14 @@ async function processTake(id: string, take: RewindTake): Promise<void> {
       /* eslint-disable @typescript-eslint/no-require-imports */
       const { recordPersonalOutcome } = require("../practice/personalOutcome") as typeof import("../practice/personalOutcome");
       const { getRewindDeliveryEnabled, getUserProfile } = require("../prefs/prefsStore") as typeof import("../prefs/prefsStore");
+      const { getActivityLevel, stepActivityLevel } = require("../db/progressRepo") as typeof import("../db/progressRepo");
       /* eslint-enable @typescript-eslint/no-require-imports */
-      await recordPersonalOutcome({
-        activityId: ACTIVITY_IDS.rewind,
-        label: "Rewind",
-        scored: rewindScore({ stats, transcript, words, targetSeconds: MIN_REWIND_SECONDS, delivery: getRewindDeliveryEnabled(), stutterMode: defaultsFromProfile(getUserProfile()).stutterMode }),
-        ref: `rewind:${id}`,
-        quick: source === "live",
-      });
+      // Its own staircase (task 3d.5): 60 to 120 seconds, and more details a minute.
+      const level = await getActivityLevel("personal:rewind");
+      const targets = rewindTargets(level);
+      const scored = rewindScore({ stats, transcript, words, ...targets, delivery: getRewindDeliveryEnabled(), stutterMode: defaultsFromProfile(getUserProfile()).stutterMode });
+      const moved = await recordPersonalOutcome({ activityId: ACTIVITY_IDS.rewind, label: "Rewind", scored, difficulty: level, ref: `rewind:${id}`, quick: source === "live" });
+      if (moved && scored.score != null) await stepActivityLevel("personal:rewind", level, scored.score >= 0.7);
       }
     } catch (error) {
       logger.warn(`[rewind] its number didn't move the tree — ${(error as Error).message}`);

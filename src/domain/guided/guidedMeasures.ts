@@ -1,3 +1,4 @@
+import { guidedKnobs, type GuidedKnobs } from "../difficulty/knobs";
 import { saidRatio, SAID_AT } from "../innerVoice/said";
 import { countQuestions } from "../conversation/questions";
 import { detectFillerWords } from "../transcriptAnnotations";
@@ -40,7 +41,8 @@ export interface GuidedTry {
   step: number;
   // What to say, shown on the Record button.
   prompt: string;
-  check: (clip: Clip, earlier: (Clip | null)[]) => TryResult;
+  // knobs: the bar for this exercise's level (difficulty/knobs.ts).
+  check: (clip: Clip, earlier: (Clip | null)[], knobs?: GuidedKnobs) => TryResult;
 }
 
 export interface GuidedMeasure {
@@ -197,18 +199,20 @@ function pausesAtBars(passage: string): GuidedTry["check"] {
   };
 }
 
-// Two-second holds and pauses after the point, over a run of three tries: six chances.
-const HOLD_MS = 1800;
-const holdsAndPauses: GuidedTry["check"] = (clip) => {
+// Long holds and pauses after the point, over a run of three tries: six chances.
+// How long a hold must be rises with the level, from 1 to 3 seconds.
+const holdsAndPauses: GuidedTry["check"] = (clip, _earlier, knobs) => {
   if (!clip.words || clip.words.length < 2) return { ok: 0.5, note: "Needs the transcription model to time the silences" };
-  let holds = clip.startDelayMs != null && clip.startDelayMs >= HOLD_MS ? 1 : 0;
-  for (let i = 1; i < clip.words.length; i++) if (clip.words[i].startMs - clip.words[i - 1].endMs >= HOLD_MS) holds += 1;
+  const holdMs = (knobs ?? guidedKnobs(DEFAULT_GUIDED_LEVEL)).holdMs;
+  let holds = clip.startDelayMs != null && clip.startDelayMs >= holdMs ? 1 : 0;
+  for (let i = 1; i < clip.words.length; i++) if (clip.words[i].startMs - clip.words[i - 1].endMs >= holdMs) holds += 1;
   return { ok: clamp01(holds / 6), note: `${Math.min(holds, 6)} of 6 long silences held` };
 };
 
-// A quick telling against a slow one: the faster over the slower; 1.5 or more is full marks.
-const RATE_FULL = 1.5;
-const slowerThanFirst: GuidedTry["check"] = (clip, earlier) => {
+// A quick telling against a slow one: the faster over the slower. Full marks
+// rise with the level, from 1.3 to 1.8 times.
+const slowerThanFirst: GuidedTry["check"] = (clip, earlier, knobs) => {
+  const RATE_FULL = (knobs ?? guidedKnobs(DEFAULT_GUIDED_LEVEL)).rateRatioFull;
   const first = earlier.find(Boolean);
   const fast = first ? clipWpm(first) : null;
   const slow = clipWpm(clip);
@@ -353,7 +357,7 @@ export const GUIDED_MEASURES: Record<string, GuidedMeasure> = {
   gd_rate_contrast: {
     tries: [t(0, "Tell the 3-sentence story, quickly.", saidSomething(8, "Told it")), t(1, "Say the last sentence again, slowly.", slowerThanFirst)],
     selfShare: 0,
-    explain: "How much faster the first telling was than the slow one. 1.5 times or more is full marks.",
+    explain: "How much faster the first telling was than the slow one. Full marks start at 1.3 times and rise with your level.",
   },
   gd_catch_um: {
     tries: [t(0, "Talk for 30 seconds about your morning.", saidSomething(15, "Talked")), t(1, "30 seconds on your weekend. Pause instead of um.", fewerUmsThanFirst)],
@@ -471,7 +475,11 @@ export interface GuidedScore {
 const ratingShare = (rating: number | null) => (rating == null ? 0 : clamp01((rating - 1) / 4));
 
 // Gate: something was said in at least one try, or the number is a rating and a promise.
-export function scoreGuided(guidedId: string, clips: (Clip | null)[], rating: number | null): GuidedScore {
+// The level that matches the bars before 3d.5 (1.55 times, a 1.8 s hold).
+export const DEFAULT_GUIDED_LEVEL = 5;
+
+export function scoreGuided(guidedId: string, clips: (Clip | null)[], rating: number | null, level = DEFAULT_GUIDED_LEVEL): GuidedScore {
+  const knobs = guidedKnobs(level);
   const measure = GUIDED_MEASURES[guidedId];
   if (!measure) return { score: null, gate: PASSED, parts: [] };
   const heard = clips.filter((c): c is Clip => !!c && wordCountOf(c) >= 2);
@@ -481,7 +489,7 @@ export function scoreGuided(guidedId: string, clips: (Clip | null)[], rating: nu
   const results = measure.tries.map((spec, i) => {
     const clip = clips[i];
     if (!clip || wordCountOf(clip) < 2) return { label: spec.prompt, note: "Not said", ok: 0 };
-    const r = spec.check(clip, clips.slice(0, i));
+    const r = spec.check(clip, clips.slice(0, i), knobs);
     return { label: spec.prompt, note: r.note, ok: r.ok };
   });
   const triesMean = results.reduce((a, r) => a + r.ok, 0) / results.length;
