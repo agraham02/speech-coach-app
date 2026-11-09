@@ -17,10 +17,7 @@ jest.mock("../../prefs/prefsStore", () => ({
   getNextEvent: () => null,
   getReminderSettings: () => ({ practiceDays: [] }),
   getUserProfile: () => mockProfile,
-  getCurriculumAutoLevel: () => null,
-  getCurriculumOverride: () => null,
-  setCurriculumAutoLevel: () => undefined,
-  setCurriculumOverride: () => undefined,
+  setTakeLevel: () => undefined,
 }));
 jest.mock("../../dev/signalLabStore", () => ({ activeReadingPreview: () => ({}) }));
 jest.mock("../../progress/progressEvents", () => ({ emitStageEarned: (e: unknown) => mockStageEvents.push(e) }));

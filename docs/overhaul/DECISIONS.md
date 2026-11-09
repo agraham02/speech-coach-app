@@ -511,3 +511,15 @@ The owner stopped the session at Phase 3 (3c.2 to 3d not started) and went throu
 - Reflections are scored at difficulty 3 until 3d.5 gives them their own.
 
 **Owner's OK:** not asked; this is task 3c.4.
+
+## D31. One difficulty scale; the practice step is gone (2026-11-09)
+
+**Was:** takes you start yourself followed a 1 to 5 "practice step" (`curriculum.ts`, the `curriculum_state` table, a "Practice difficulty" screen with a manual pin), mapped from the take staircase. A take's leaves moved at the staircase's level, whatever the take actually was, which is why an honest 60 lowered a leaf (PROGRESS, Later).
+
+**Now** (`domain/difficulty/scale.ts`):
+- Every attempt has a difficulty 1 to 10: Easy 1 to 3, Medium 4 to 6, Hard 7 to 10. A drill's result shows it next to the stage ("Building · Difficulty 4 · Medium").
+- A take you start yourself is set up from the take staircase: its prompt tier, prep from 28 s down to 5 s, length from 55 s up to 145 s, and at 10 a surprise with no prep (plan 6.7). The warm-up before it grows with the band.
+- **A take moves leaves at its own difficulty**, worked out from what it was: the average of what its prompt tier (easy 2, medium 5, hard 8), its prep and its length say. A part that isn't known is left out. So a hard prompt with no prep counts for more than an easy one with prep, however it was set up. The staircase still steps from your result, so your next take's settings keep adapting.
+- Removed: `curriculum.ts`, `curriculumRepo.ts`, the Practice difficulty screen and its rows (Settings, Level, Trends' card), the manual pin, and `curriculum_state` (schema 41). The challenge setting (3d.4) is what you'll change instead.
+
+**Owner's OK:** not asked; this is task 3d.1.

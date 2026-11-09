@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -9,33 +9,18 @@ import { Header } from "../components/common/Header";
 import { Card } from "../components/common/Card";
 import { Badge } from "../components/common/Badge";
 import { HeroCard } from "../components/common/HeroCard";
-import { ScoreTrendChart, type TrendPoint } from "../components/trends/ScoreTrendChart";
 import { ScoreLinesChart } from "../components/trends/ScoreLinesChart";
 import { highestStreakMilestone } from "../domain/streaks";
 import { getStreakState } from "../services/db/progressRepo";
 import { computeThisWeekVsLastWeek, hasLine, TREND_PILLARS, type ScorePoint, type TrendLine } from "../domain/trends";
 import { nodeName } from "../domain/scoring/skillTree";
-import {
-  DEFAULT_CURRICULUM_LEVEL,
-  difficultyTierLabel,
-  explainCurriculumChange,
-  levelToDifficultyTier,
-  type CurriculumLevel,
-} from "../domain/curriculum";
 import { getCompletedSessionDates, getScoreSeries } from "../services/db/statsRepo";
-import { getCurriculumHistory, recomputeCurriculumLevel } from "../services/db/curriculumRepo";
-import { getCurriculumOverride } from "../services/prefs/prefsStore";
 import { subscribeToAllSessions } from "../services/pipeline/processingEvents";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
 import { fontDisplay, spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
-const RECENT_COUNT = 10;
 const CHART_TAKES = 20;
-
-function shortDate(isoDatetime: string): string {
-  return new Date(isoDatetime).toLocaleDateString(undefined, { month: "numeric", day: "numeric" });
-}
 
 // invert flips "up is good" to "down is good" — for metrics where less is
 // the improvement (e.g. restated-point rate), a decrease should read as
@@ -111,9 +96,6 @@ export function TrendsScreen() {
   const [streaks, setStreaks] = useState({ currentStreak: 0, longestStreak: 0 });
   const [points, setPoints] = useState<ScorePoint[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [curriculumLevel, setCurriculumLevel] = useState<CurriculumLevel>(DEFAULT_CURRICULUM_LEVEL);
-  const [curriculumExplanation, setCurriculumExplanation] = useState("");
-  const [curriculumPoints, setCurriculumPoints] = useState<TrendPoint[]>([]);
 
   const refresh = useCallback(async () => {
     const dates = await getCompletedSessionDates();
@@ -122,24 +104,6 @@ export function TrendsScreen() {
 
     setPoints(await getScoreSeries());
 
-    // Folds into this screen's existing refresh() (already wired to both
-    // focus and the pipeline event bus below) rather than a separate
-    // subscription — matches Phase 5's "pull-based on focus" plan note.
-    const [decision, history] = await Promise.all([recomputeCurriculumLevel(), getCurriculumHistory(RECENT_COUNT)]);
-    const override = getCurriculumOverride();
-    const effectiveLevel = (override ?? decision.level) as CurriculumLevel;
-    setCurriculumLevel(effectiveLevel);
-    setCurriculumExplanation(
-      explainCurriculumChange({
-        direction: decision.direction,
-        component: decision.component,
-        componentScore: decision.componentScore,
-        reason: decision.reason,
-        level: effectiveLevel,
-        overrideActive: override !== null,
-      }),
-    );
-    setCurriculumPoints([...history].reverse().map((entry) => ({ value: entry.level, label: shortDate(entry.changedAt) })));
   }, []);
 
   useFocusEffect(
@@ -186,28 +150,6 @@ export function TrendsScreen() {
           ) : null}
         </HeroCard>
 
-        <Card style={styles.curriculumCard}>
-          <View style={styles.curriculumHeaderRow}>
-            <View>
-              <Text style={styles.sectionLabel}>Practice difficulty</Text>
-              <Text style={styles.curriculumLevelText}>
-                Step {curriculumLevel} · {difficultyTierLabel(levelToDifficultyTier(curriculumLevel))}
-              </Text>
-            </View>
-            <Pressable
-              onPress={() => navigation.navigate("Curriculum")}
-              style={styles.curriculumLink}
-              accessibilityRole="button"
-              accessibilityLabel="View practice difficulty"
-            >
-              <Text style={styles.curriculumLinkText}>Details</Text>
-              <Ionicons name="chevron-forward" size={14} color={colors.accent} />
-            </Pressable>
-          </View>
-          <Text style={styles.curriculumExplanation}>{curriculumExplanation}</Text>
-          {curriculumPoints.length > 1 ? <ScoreTrendChart data={curriculumPoints} maxValue={5} noOfSections={4} height={100} /> : null}
-        </Card>
-
         {!hasScoredSessions ? (
           <View style={styles.empty}>
             <Ionicons name="trending-up-outline" size={40} color={colors.textMuted} />
@@ -245,12 +187,6 @@ const useStyles = makeStyles(({ colors }) => ({
   streakLabel: { ...font("400"), color: colors.textSecondary, fontSize: typography.body },
   streakMeta: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
   sectionLabel: { color: colors.accent, fontSize: 13, ...font("600") },
-  curriculumCard: { gap: spacing.xs },
-  curriculumHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  curriculumLevelText: { color: colors.textPrimary, fontSize: typography.bodyLarge, ...font("700"), marginTop: 2 },
-  curriculumLink: { flexDirection: "row", alignItems: "center", gap: 2 },
-  curriculumLinkText: { color: colors.accent, fontSize: typography.caption, ...font("600") },
-  curriculumExplanation: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18 },
   weekCard: { gap: spacing.sm },
   weekHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   weekSessionCount: { color: colors.textPrimary, fontSize: typography.body, ...font("600") },

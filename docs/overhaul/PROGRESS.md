@@ -107,7 +107,7 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 
 | ID | Task | Status | Evidence |
 |---|---|---|---|
-| 3d.1 | One 1–10 scale; the practice step and `curriculum.ts` removed | todo | |
+| 3d.1 | One 1–10 scale; the practice step and `curriculum.ts` removed | iphone | D31. `domain/difficulty/scale.ts` with 4 tests (bands, take settings both ways, unknown parts, pool widening); a take moves leaves at its own difficulty; curriculum code, screen, pin and table (schema 41) removed; drill results show the difficulty. Not run on a phone |
 | 3d.2 | Seed from skill, pull back on drift, rising floors | todo | |
 | 3d.3 | Stage proof at difficulty, unlocks by stage, reviews at current difficulty | todo | |
 | 3d.4 | Stretch rep and the challenge setting | todo | |
@@ -170,7 +170,7 @@ Things that came up and aren't in this plan. The readings still on Beta, and wha
 
 - Speech study measures nothing and moves nothing (D30). MarkItUp has no id of its own: its reps run through Line rep, which logs.
 - Reaching a new level on its own has no celebration yet, only a stage does (D16). Section 15 covers it in phase 8.
-- **Check in 3d: takes at the rep's low difficulty.** A take's difficulty starts at 1 and rises at most 0.18 per good take. A leaf settles where the formula expects your score, 10 × difficulty + 15 × ln(score ÷ (1 − score)), so at difficulty 1 a steady 60 settles near 16, 80 near 31 and 95 near 54. That's the plan's formula, but it means an honest 60 lowers a leaf from its starting 25, and takes can't count as proof for Steady (difficulty 3) until about a dozen good ones in. 3d.1 and 3d.2 should fix this by working out a take's difficulty from its prompt, prep and length. Run a simulated user and check the plan's half a point to a point a day before trusting that pace.
+- **Partly fixed by D31 (a take now counts at its own difficulty); still check in 3d.2: takes at a low difficulty.** A take's difficulty starts at 1 and rises at most 0.18 per good take. A leaf settles where the formula expects your score, 10 × difficulty + 15 × ln(score ÷ (1 − score)), so at difficulty 1 a steady 60 settles near 16, 80 near 31 and 95 near 54. That's the plan's formula, but it means an honest 60 lowers a leaf from its starting 25, and takes can't count as proof for Steady (difficulty 3) until about a dozen good ones in. 3d.1 and 3d.2 should fix this by working out a take's difficulty from its prompt, prep and length. Run a simulated user and check the plan's half a point to a point a day before trusting that pace.
 - 3c.2: record warm-ups with `react-native-audio-api`'s `AudioRecorder`, not the speech recognizer (D20): a hiss has no words, so the recognizer restarts and leaves gaps.
 - Face movement's bar of 12 brow lifts and smiles a minute is a first guess, and Rhythm, Restarts, No detours, Specifics and Starting fast are the plan's "Tune" numbers (D16, D17). Set them from real takes.
 - The coach (`ruleCoach.ts`) and its observations still read the old 0-10 bands. It doesn't affect scores, but what it calls good may not match a leaf's number. Worth lining up when the coach moves onto the tree.

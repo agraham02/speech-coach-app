@@ -4,7 +4,7 @@ import type { PlanText } from "../../domain/planYourPoint";
 import type { MarkLevel, Script } from "../../domain/scriptTypes";
 import { taskOf, type PromptTask, type PromptTaskContext } from "../../domain/promptTask";
 import { FRAMEWORK_LABELS, type FrameworkId } from "../../domain/coach/structureHeuristics";
-import { ADHOC_PROMPT_PREFIX, type Prompt, type RecordingSubject, type Session } from "../../domain/sessionTypes";
+import { ADHOC_PROMPT_PREFIX, type DifficultyTier, type Prompt, type RecordingSubject, type Session } from "../../domain/sessionTypes";
 
 // What a take was answering, for the judge: a prompt (with what it asked them
 // to do and their plan) or a script (with the marks they were shown).
@@ -91,6 +91,8 @@ export interface SessionSubjectSummary {
   typeLabel: string;
   // What the prompt asked for, when it asked for something particular.
   task: PromptTask | null;
+  // The prompt's tier, for the take's difficulty (domain/difficulty/scale.ts).
+  tier: DifficultyTier | null;
 }
 
 const TYPE_LABELS: Record<Session["sessionType"], string> = {
@@ -106,8 +108,8 @@ export async function describeSessionSubject(session: Session): Promise<SessionS
   const typeLabel = TYPE_LABELS[session.sessionType] ?? "Session";
   if (session.sessionType === "script_practice") {
     const script = session.scriptId ? getScriptById(session.scriptId) : undefined;
-    return { title: script?.title ?? "Script practice", category: script?.category ?? null, typeLabel, task: null };
+    return { title: script?.title ?? "Script practice", category: script?.category ?? null, typeLabel, task: null, tier: null };
   }
   const prompt = await resolvePrompt(session);
-  return { title: prompt?.text ?? "Practice session", category: prompt?.category ?? null, typeLabel, task: prompt ? taskOf(prompt) : null };
+  return { title: prompt?.text ?? "Practice session", category: prompt?.category ?? null, typeLabel, task: prompt ? taskOf(prompt) : null, tier: prompt?.difficultyTier ?? null };
 }

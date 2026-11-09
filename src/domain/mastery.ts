@@ -64,7 +64,3 @@ export function nextReviewIntervalDays(previousDays: number | null, success: boo
 
 export const SKILLS: SkillId[] = ["articulation", "cadence", "impromptu", "confidence", "conversation"];
 
-// 1-5 level for the legacy curriculum shim (prompt tier, durations).
-export function legacyLevelFromDifficulty(level: number): 1 | 2 | 3 | 4 | 5 {
-  return Math.max(1, Math.min(5, Math.ceil(level / 2))) as 1 | 2 | 3 | 4 | 5;
-}

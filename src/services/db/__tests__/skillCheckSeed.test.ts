@@ -16,10 +16,7 @@ jest.mock("../../prefs/prefsStore", () => ({
   getNextEvent: () => null,
   getReminderSettings: () => ({ practiceDays: [] }),
   getUserProfile: () => null,
-  getCurriculumAutoLevel: () => null,
-  getCurriculumOverride: () => null,
-  setCurriculumAutoLevel: () => undefined,
-  setCurriculumOverride: () => undefined,
+  setTakeLevel: () => undefined,
 }));
 jest.mock("../../progress/progressEvents", () => ({ emitStageEarned: () => undefined }));
 

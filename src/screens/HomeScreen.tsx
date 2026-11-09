@@ -17,25 +17,15 @@ import { SessionOptionsSheet } from "../components/home/SessionOptionsSheet";
 import { AVOID_REPEAT_LAST_N, pickRandomPrompt, pickTodaysPrompt } from "../domain/pickTodaysPrompt";
 import { FREE_RECORD_PROMPT } from "../data/topics";
 import type { StreakResult } from "../domain/streaks";
-import { getStreakState } from "../services/db/progressRepo";
+import { getDrillLevel, getStreakState } from "../services/db/progressRepo";
 import { colorForCategory } from "../domain/categoryColor";
 import type { PrepPhaseSettings, RecordingDurationSettings } from "../domain/recordingSettings";
 import { DEFAULT_PREP_PHASE_SETTINGS, DEFAULT_RECORDING_DURATION_SETTINGS } from "../domain/recordingSettings";
-import {
-  curriculumLevelToDurationSeconds,
-  curriculumLevelToPrepMode,
-  curriculumLevelToPrepSeconds,
-  DEFAULT_CURRICULUM_LEVEL,
-  difficultyTierLabel,
-  filterPromptsByTier,
-  levelToDifficultyTier,
-  type CurriculumLevel,
-} from "../domain/curriculum";
+import { filterPromptsByTier, takeDurationSeconds, takePrepSeconds, takeTier, tierLabel } from "../domain/difficulty/scale";
 import { getAllPrompts } from "../services/db/promptsRepo";
 import { getRecentlyUsedPromptIds, getTodaysSession } from "../services/db/sessionsRepo";
 import { hasPracticeMarker } from "../services/db/practiceDaysRepo";
 import { todayISODate } from "../utils/dateUtils";
-import { getEffectiveCurriculumLevel, recomputeCurriculumLevel } from "../services/db/curriculumRepo";
 import {
   getConciseModeSeconds,
   getPlanYourPointEnabled,
@@ -104,11 +94,9 @@ export function HomeScreen() {
   const [prepManuallySet, setPrepManuallySet] = useState(false);
   const [warmUpEnabled, setWarmUpEnabledState] = useState(false);
   const [conciseModeSeconds, setConciseModeSecondsState] = useState(45);
-  // Adaptive Curriculum Engine (Phase 5) — the level driving today's prompt
-  // pool/recording length; refreshed on every focus by recomputeCurriculumLevel()
-  // below. Badge near the prompt card links to CurriculumScreen for the
-  // full "why" + manual override.
-  const [curriculumLevel, setCurriculumLevel] = useState<CurriculumLevel>(DEFAULT_CURRICULUM_LEVEL);
+  // The take difficulty, 1 to 10 (domain/difficulty/scale.ts): today's prompt
+  // tier, prep and length. Refreshed on every focus.
+  const [takeLevel, setTakeLevelState] = useState(1);
   // Ephemeral, per-visit — unlike the settings above this isn't a standing
   // preference, it's "make my next recording concise", so it isn't persisted
   // and resets whenever Home regains focus.
@@ -116,39 +104,21 @@ export function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      // Kicked off once per focus, shared by both the prompt-pool filter
-      // below and the curriculum-driven duration default — avoids running
-      // the (small but non-free) recompute query twice per focus.
-      const curriculumPromise = recomputeCurriculumLevel();
-
       (async () => {
         try {
-          const [prompts, excludeIds] = await Promise.all([
-            getAllPrompts(),
-            getRecentlyUsedPromptIds(AVOID_REPEAT_LAST_N),
-            curriculumPromise, // awaited for its cache-refresh side effect — see getEffectiveCurriculumLevel() below
-          ]);
-          // Reads through the single accessor (not curriculumResult.level
-          // directly) so a manual override is respected here exactly like
-          // every other consumer — recomputeCurriculumLevel() only keeps
-          // the *auto* value fresh, it never decides what's effective.
-          const level = getEffectiveCurriculumLevel().level;
-          setCurriculumLevel(level);
+          const [prompts, excludeIds, level] = await Promise.all([getAllPrompts(), getRecentlyUsedPromptIds(AVOID_REPEAT_LAST_N), getDrillLevel("rep")]);
+          setTakeLevelState(level);
 
-          const tierPool = filterPromptsByTier(prompts, levelToDifficultyTier(level));
+          const tierPool = filterPromptsByTier(prompts, takeTier(level));
           setAllPrompts(tierPool);
           setRecentPromptIds(excludeIds);
           setPrompt(pickTodaysPrompt(tierPool, excludeIds));
 
           if (!getRecordingDurationManuallySet()) {
-            setDurationSettings({ mode: "fixed", fixedSeconds: curriculumLevelToDurationSeconds(level) });
+            setDurationSettings({ mode: "fixed", fixedSeconds: takeDurationSeconds(level) });
           }
           if (!getPrepSettingsManuallySet()) {
-            setPrepSettings({
-              enabled: true,
-              mode: curriculumLevelToPrepMode(level),
-              fixedSeconds: curriculumLevelToPrepSeconds(level),
-            });
+            setPrepSettings({ enabled: takePrepSeconds(level) > 0, mode: "fixed", fixedSeconds: Math.max(takePrepSeconds(level), 5) });
           }
         } catch {
           const prompts = await getAllPrompts();
@@ -210,7 +180,7 @@ export function HomeScreen() {
   function resetDurationToAuto() {
     setRecordingDurationManuallySet(false);
     setDurationManuallySet(false);
-    setDurationSettings({ mode: "fixed", fixedSeconds: curriculumLevelToDurationSeconds(curriculumLevel) });
+    setDurationSettings({ mode: "fixed", fixedSeconds: takeDurationSeconds(takeLevel) });
   }
 
   function updatePrepSettings(next: PrepPhaseSettings) {
@@ -226,11 +196,7 @@ export function HomeScreen() {
   function resetPrepToAuto() {
     setPrepSettingsManuallySet(false);
     setPrepManuallySet(false);
-    setPrepSettings({
-      enabled: true,
-      mode: curriculumLevelToPrepMode(curriculumLevel),
-      fixedSeconds: curriculumLevelToPrepSeconds(curriculumLevel),
-    });
+    setPrepSettings({ enabled: takePrepSeconds(takeLevel) > 0, mode: "fixed", fixedSeconds: Math.max(takePrepSeconds(takeLevel), 5) });
   }
 
   function updateWarmUpEnabled(next: boolean) {
@@ -310,21 +276,12 @@ export function HomeScreen() {
               {taskLabel(taskOf(prompt)) ? <Badge label={taskLabel(taskOf(prompt))!} /> : null}
             </View>
             <View style={styles.promptCardHeaderRight}>
-              {/* Small tappable chip — opens the practice difficulty
-                  and its manual pin. Reflects the tier that's already
-                  filtering the prompt pool above, not just a decoration.
-                  Says "prompts", not "level": your level is the speaker
-                  level (LevelScreen). */}
-              <Pressable
-                onPress={() => navigation.navigate("Curriculum")}
-                style={styles.levelChip}
-                accessibilityRole="button"
-                accessibilityLabel={`${difficultyTierLabel(levelToDifficultyTier(curriculumLevel))} prompts. Practice difficulty`}
-              >
-                <Text style={styles.levelChipText}>
-                  {difficultyTierLabel(levelToDifficultyTier(curriculumLevel))} prompts
-                </Text>
-              </Pressable>
+              {/* The tier that's filtering the prompt pool above, from the take
+                  difficulty. Says "prompts", not "level": your level is the
+                  speaker level (LevelScreen). */}
+              <View style={styles.levelChip} accessible accessibilityLabel={`${tierLabel(takeTier(takeLevel))} prompts, difficulty ${Math.floor(takeLevel)}`}>
+                <Text style={styles.levelChipText}>{tierLabel(takeTier(takeLevel))} prompts</Text>
+              </View>
               <Pressable
                 onPress={rerollPrompt}
                 hitSlop={12}
@@ -401,7 +358,7 @@ export function HomeScreen() {
         onDurationSettingsChange={updateDurationSettings}
         durationManuallySet={durationManuallySet}
         onResetDurationToAuto={resetDurationToAuto}
-        curriculumLevel={curriculumLevel}
+        takeLevel={takeLevel}
         conciseModeSeconds={conciseModeSeconds}
         onConciseModeSecondsChange={updateConciseModeSeconds}
       />

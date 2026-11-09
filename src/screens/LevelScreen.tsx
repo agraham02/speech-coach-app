@@ -8,7 +8,6 @@ import { Card } from "../components/common/Card";
 import { HeroCard } from "../components/common/HeroCard";
 import { SectionHeader } from "../components/common/SectionHeader";
 import { SkeletonRows } from "../components/common/Skeleton";
-import { ListGroup, ListRow } from "../components/common/ListRow";
 import { Txt } from "../components/common/Txt";
 import { StageRow } from "../components/levels/StageRow";
 import { getSkillStates, type SkillState } from "../services/db/progressRepo";
@@ -107,15 +106,6 @@ export function LevelScreen({ navigation }: Props) {
         </Card>
       </View>
 
-      <ListGroup>
-        <ListRow
-          icon="speedometer-outline"
-          title="Practice difficulty"
-          subtitle="Pin the level free practice and drills start at"
-          chevron
-          onPress={() => navigation.navigate("Curriculum")}
-        />
-      </ListGroup>
     </Screen>
   );
 }

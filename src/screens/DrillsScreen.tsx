@@ -12,8 +12,8 @@ import { SegmentedControl } from "../components/common/SegmentedControl";
 import { TONGUE_TWISTERS } from "../data/tongueTwisters";
 import type { StreakResult } from "../domain/streaks";
 import { getStreakState } from "../services/db/progressRepo";
-import { getEffectiveCurriculumLevel } from "../services/db/curriculumRepo";
-import { levelToDifficultyTier } from "../domain/curriculum";
+import { getTakeLevel } from "../services/prefs/prefsStore";
+import { takeTier } from "../domain/difficulty/scale";
 import type { DifficultyTier } from "../domain/sessionTypes";
 import { spacing, typography, font } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
@@ -44,7 +44,7 @@ export function DrillsScreen({ navigation }: Props) {
   // Soft default, not a hard gate — pre-selects the curriculum-implied tier
   // (with a "Recommended for you" hint) but the user can freely browse
   // other tiers ad hoc, same as any other SegmentedControl choice.
-  const [recommendedTier] = useState<DifficultyTier>(() => levelToDifficultyTier(getEffectiveCurriculumLevel().level));
+  const [recommendedTier] = useState<DifficultyTier>(() => takeTier(getTakeLevel()));
   const [difficultyFilter, setDifficultyFilter] = useState<DifficultyFilter>(recommendedTier);
   const [streak, setStreak] = useState<StreakResult>(EMPTY_STREAK);
 
@@ -78,7 +78,7 @@ export function DrillsScreen({ navigation }: Props) {
 
       <SegmentedControl options={DIFFICULTY_FILTERS} value={difficultyFilter} onChange={setDifficultyFilter} />
       {difficultyFilter === recommendedTier ? (
-        <Text style={styles.recommendedHint}>★ Recommended for you, based on your curriculum level</Text>
+        <Text style={styles.recommendedHint}>★ Recommended for you, from your take difficulty</Text>
       ) : null}
 
       <FlatList
