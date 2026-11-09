@@ -33,7 +33,8 @@ import {
   type WordChainJudgement,
 } from "./chainJudging";
 import { countRate, countReached } from "./breathCount";
-import { accuracyGate, chainGate, PASSED, readingGate, repetitionGate, storyGate, wordsHeardGate, type GateVerdict } from "../gates";
+import type { TopicVerdict } from "../meaning/meaning";
+import { accuracyGate, chainGate, PASSED, readingGate, repetitionGate, storyGate, topicGate, wordsHeardGate, type GateVerdict } from "../gates";
 
 // Scores one live drill attempt from what the screen measured. Pure.
 
@@ -50,6 +51,11 @@ export interface DrillMeasurements {
   // when it was available. Without it the phone only counts.
   wordChainJudgement?: WordChainJudgement;
   bridgeChainJudgement?: BridgeChainJudgement;
+  // Category sprint: which of the counted words the phone found outside the
+  // category ("table" isn't an animal). Absent when it couldn't check.
+  categoryCheck?: { misfits: string[] };
+  // Sixty seconds and Random-word story: whether the sentences hang together.
+  coherence?: TopicVerdict | null;
   // Word chain: off for people who stutter, so blocks never cost points.
   penalizeResets?: boolean;
   // Stuttering: hesitations and fillers never count as slips (Just a Minute).
@@ -74,6 +80,8 @@ export interface DrillDetails {
   // Judged by Tono AI: each link, or each explained step.
   links?: JudgedLink[];
   steps?: BridgeStep[];
+  // Category sprint: words that didn't fit the category, left out of the count.
+  misfits?: string[];
   // One-breath count: how far, and how fast.
   count?: number;
   perSecond?: number | null;
@@ -94,11 +102,15 @@ function drillGate(setup: DrillSetup, m: DrillMeasurements, details: DrillDetail
     case "follow":
       if (setup.type === "pace_reading" || setup.type === "pause_reading") return readingGate(details.accuracyPercent ?? 0, m.relaxedAccuracy);
       return accuracyGate(details.accuracyPercent ?? 0, m.relaxedAccuracy);
-    case "story":
-      return storyGate(details.usedWords?.length ?? 0);
-    case "free":
+    case "story": {
+      const used = storyGate(details.usedWords?.length ?? 0);
+      return used.passed ? topicGate(m.coherence, "sentences") : used;
+    }
+    case "free": {
       // Repeating isn't a fault for someone who stutters.
-      return m.ignoreSlips ? PASSED : repetitionGate(tokens);
+      const repeated = m.ignoreSlips ? PASSED : repetitionGate(tokens);
+      return repeated.passed ? topicGate(m.coherence, "sentences") : repeated;
+    }
     case "chain":
       return chainGate(!!(m.wordChainJudgement || m.bridgeChainJudgement));
     case "volume":
@@ -132,9 +144,12 @@ function scoreDrill(setup: DrillSetup, m: DrillMeasurements): { outcome: DrillOu
       return { outcome: scoreAccuracy(score.accuracyPercent, undefined, undefined, m.relaxedAccuracy ? 0.7 : undefined), details };
     }
     case "count": {
-      const counted = uniqueContentWords(rawTokens, setup.letter);
+      const said = uniqueContentWords(rawTokens, setup.letter);
+      const misfits = said.filter((w) => m.categoryCheck?.misfits.includes(w));
+      const counted = said.filter((w) => !misfits.includes(w));
       const unit = setup.letter ? `“${setup.letter.toUpperCase()}” words` : setup.category ?? "words";
-      return { outcome: scoreCount(counted.length, setup.params.target ?? 8, unit), details: { counted } };
+      const note = misfits.length ? ` · ${misfits.length} didn't fit` : "";
+      return { outcome: scoreCount(counted.length, setup.params.target ?? 8, unit + note), details: misfits.length ? { counted, misfits } : { counted } };
     }
     case "story": {
       const words = setup.words ?? [];
@@ -188,6 +203,14 @@ function scoreDrill(setup: DrillSetup, m: DrillMeasurements): { outcome: DrillOu
       return { outcome: scoreProjection(fraction), details: { fractionAtTarget: Math.round(fraction * 100) / 100 } };
     }
   }
+}
+
+// The words a category sprint counted, for the phone to check against the category
+// (null for other drills, and for a letter sprint, which has nothing to check).
+export function categoryWordsToCheck(setup: DrillSetup, transcript: string): string[] | null {
+  if (setup.type !== "category_fluency" || !setup.contentId) return null;
+  const words = uniqueContentWords(tokenizeHeard(transcript).tokens.map((t) => t.raw));
+  return words.length ? words : null;
 }
 
 // What a judge is asked about after a chain attempt: the words split into the

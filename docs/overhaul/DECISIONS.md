@@ -325,3 +325,28 @@ Section 16's validity tests for "table" and for pauses away from marks go in wit
 **What an update can't change:** the version, the icon, the permission texts, the entitlements and any native module. Those need a build.
 
 **Owner's OK:** asked for by the owner, 2026-11-08.
+
+## D21. The phone's meaning check tests itself first (2026-11-08)
+
+**Was:** the plan (6.6) puts meaning checks on the phone with Apple's embeddings, and says it found no accuracy data for them, so they "must pass a test first". D18 left five checks waiting: Word chain's links, Category sprint's checked words, on-topic and coherence on takes, Sixty seconds and Random-word story.
+
+**Now:** `services/language/meaningCheck.ts` runs a gold set on the phone itself, once per launch (under a second), and each check turns on only if it passes there:
+- **Word links:** the 4 Word Chain cases in `spikes/inference-eval` plus 3 I wrote, 65 links. Bars from plan 6.5: catches 80% of broken links, wrongly fails under 10%. If Apple's numbers don't pass at the default cut, the phone sweeps for a better cut; if none passes, the check stays off.
+- **Words in a category:** 5 categories, 5 right words and 5 wrong ones each ("table" is not an animal). Each word is compared with one anchor word for the category ("animal"). Needs 80% of wrong words caught and under 10% of right ones lost. Five categories have no single word that stands for them (red things, round things, things you can't touch, words to describe a person, ways to say "said"), so they aren't checked, which counts as "not checked", never a failure.
+- **On topic and coherence:** 4 prompts, each with a real answer, an off-topic answer and word salad. The line sits nearer the off-topic side (30% into the gap), so a real answer is never wrongly failed at the price of letting a weak one through. If the groups don't separate by 0.08, it stays off.
+
+When a check is off, it says "not checked", never a guess, and nothing is punished. That includes Android, builds without the module and words Apple has no vector for.
+
+**Where it acts:**
+- **Word chain:** when Tono AI isn't available, the phone judges each link itself (strong, stretch, none), says "Your phone checked each link", and the attempt counts as a phone estimate (not a judge). When the phone check is off too, it's "Not checked" as before (D18). Bridge chain needs a reason to be said and quoted, which embeddings can't judge, so it still needs Tono AI.
+- **Category sprint:** a word outside the category isn't counted ("N didn't fit" on the result). Letter sprint has nothing to check.
+- **Takes:** an answer that isn't about its prompt, or whose sentences don't connect, isn't scored ("We couldn't score this one"). Only when no judge has read the take (a judge that scored it already knows), only impromptu takes with a prompt, and never script takes.
+- **Sixty seconds and Random-word story:** sentences that don't connect aren't scored. I left off-topic out of these two on purpose: their topic is a few words ("mornings"), not the full-sentence prompts the line was tuned on, so it would be guessing.
+
+**Signal Lab:** Content, Word links and Content, On topic now run the same cases and show the numbers, the cut used and whether it passes. A pass there is what the phone's own test reports. These two tests aren't tied to a reading in `readingTrust.ts`, since the phone's self-test decides, per phone, whether a check acts.
+
+**Not tested on Apple's real vectors yet.** I can't run the embeddings on this machine; the tests use a pretend phone to prove the plumbing and the safety. The first real numbers come from Signal Lab on the iPhone. If the cuts need changing, that's an update, not a build.
+
+**Why:** a check that can wrongly fail people's real answers is worse than none, and the plan says a failed phone check falls back to level 2 or "not checked". Self-testing on the phone gets that without waiting for the owner to run anything.
+
+**Owner's OK:** not asked; this is task 3b.4. Two things to look at: Sixty seconds and Random-word story use coherence only, and a take can now fail for being off-topic.

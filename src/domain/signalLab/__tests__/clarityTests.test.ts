@@ -76,12 +76,10 @@ describe("the Whisper speed test", () => {
 });
 
 describe("the content tests and the whole lab", () => {
-  it("are listed, blocked, and say what they wait for", () => {
+  it("are listed; only the judge still waits, and an empty run says nothing", () => {
     expect(CONTENT_TESTS.map((t) => t.def.id)).toEqual(["content.word_links", "content.on_topic", "content.judge"]);
-    for (const t of CONTENT_TESTS) {
-      expect(t.def.blockedBy).toBeTruthy();
-      expect(t.evaluate({}).pass).toBeNull();
-    }
+    expect(CONTENT_TESTS.filter((t) => t.def.blockedBy).map((t) => t.def.id)).toEqual(["content.judge"]);
+    for (const t of CONTENT_TESTS) expect(t.evaluate({}).pass).toBeNull();
   });
 
   it("has every test that gates a reading, with unique ids", () => {

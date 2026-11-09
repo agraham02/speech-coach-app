@@ -1,6 +1,6 @@
 import { accuracyGate, chainGate, explainGate, keyWordsGate, readingGate, repetitionGate, replyGate, storyGate, takeGate, wordsHeardGate } from "../gates";
 import { prepareDrill } from "../drills/prepareDrill";
-import { evaluateDrill, type DrillMeasurements } from "../drills/evaluateDrill";
+import { categoryWordsToCheck, evaluateDrill, type DrillMeasurements } from "../drills/evaluateDrill";
 import { scorePace } from "../drills/drillSpecs";
 import { prepareConversation } from "../conversation/prepareConversation";
 import { evaluateConversation } from "../conversation/evaluateConversation";
@@ -136,5 +136,63 @@ describe("a take", () => {
   it("says you keep your minutes", () => {
     const verdict = takeGate({ kind: "impromptu", wordCount: 1, readAccuracyPercent: null });
     expect(!verdict.passed && verdict.reason).toContain("You keep your minutes");
+  });
+});
+
+describe("the phone's meaning check (3b.4)", () => {
+  it("a take that isn't about its prompt is kept, with no score, and says why", () => {
+    const verdict = takeGate({ kind: "impromptu", wordCount: 80, readAccuracyPercent: null, topic: "off_topic" });
+    expect(verdict).toMatchObject({ passed: false, kind: "failed" });
+    expect(!verdict.passed && verdict.reason).toContain("about the prompt");
+    expect(!verdict.passed && verdict.reason).toContain("You keep your minutes");
+  });
+
+  it("a take of sentences that don't connect isn't scored either", () => {
+    expect(takeGate({ kind: "impromptu", wordCount: 80, readAccuracyPercent: null, topic: "incoherent" }).passed).toBe(false);
+  });
+
+  it("no verdict, or ok, never fails a take: a phone that can't check doesn't punish", () => {
+    expect(takeGate({ kind: "impromptu", wordCount: 80, readAccuracyPercent: null, topic: null }).passed).toBe(true);
+    expect(takeGate({ kind: "impromptu", wordCount: 80, readAccuracyPercent: null }).passed).toBe(true);
+    expect(takeGate({ kind: "impromptu", wordCount: 80, readAccuracyPercent: null, topic: "ok" }).passed).toBe(true);
+  });
+
+  it("a script take is about its script, not a prompt", () => {
+    expect(takeGate({ kind: "script", wordCount: 100, readAccuracyPercent: 95, topic: "off_topic" }).passed).toBe(true);
+  });
+
+  it("Sixty seconds and Random-word story only fail on sentences that don't connect", () => {
+    const minute = prepareDrill("just_a_minute", 3, 1);
+    const said = "I like mornings because the light is soft and the house is quiet and I can think before everyone wakes up";
+    expect(evaluateDrill(minute, measured(said, { coherence: "incoherent" })).gate.passed).toBe(false);
+    expect(evaluateDrill(minute, measured(said, { coherence: "off_topic" })).gate.passed).toBe(true);
+    expect(evaluateDrill(minute, measured(said, { coherence: null })).gate.passed).toBe(true);
+    const story = prepareDrill("random_word_story", 3, 1);
+    const used = `${story.words![0]} then ${story.words!.slice(1).join(" and ")} and more`;
+    expect(evaluateDrill(story, measured(used, { coherence: "incoherent" })).gate.passed).toBe(false);
+    expect(evaluateDrill(story, measured(used, { coherence: "ok" })).gate.passed).toBe(true);
+  });
+
+  it("a story that fails for missing words says that, not that it was incoherent", () => {
+    const story = prepareDrill("random_word_story", 3, 1);
+    const verdict = evaluateDrill(story, measured("nothing relevant at all", { coherence: "incoherent" })).gate;
+    expect(!verdict.passed && verdict.reason).toContain("None of the words");
+  });
+
+  it("Category sprint leaves out words the phone found outside the category", () => {
+    const setup = prepareDrill("category_fluency", 1, 0, "animals");
+    const said = "dog cat table horse";
+    expect(evaluateDrill(setup, measured(said)).details.counted).toEqual(["dog", "cat", "table", "horse"]);
+    const checked = evaluateDrill(setup, measured(said, { categoryCheck: { misfits: ["table"] } }));
+    expect(checked.details.counted).toEqual(["dog", "cat", "horse"]);
+    expect(checked.details.misfits).toEqual(["table"]);
+    expect(checked.outcome.summary).toContain("1 didn't fit");
+  });
+
+  it("names the words it will check: a category sprint's, never a letter sprint's", () => {
+    const category = prepareDrill("category_fluency", 1, 0, "animals");
+    expect(categoryWordsToCheck(category, "dog cat um dog table")).toEqual(["dog", "cat", "table"]);
+    expect(categoryWordsToCheck(prepareDrill("letter_fluency", 1, 0, "s"), "sun star")).toBeNull();
+    expect(categoryWordsToCheck(category, "")).toBeNull();
   });
 });
