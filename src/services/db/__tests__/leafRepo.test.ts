@@ -46,6 +46,18 @@ describeIfSqlite("the skill tree's numbers", () => {
     mockStageEvents.length = 0;
   });
 
+  it("a personal attempt with a ref counts once; a self-report moves inner leaves only", async () => {
+    const evidence = { activityId: ACTIVITY_IDS.talkBack, score: 0.9, leafScores: { reframing: { score: 0.9, source: "self" as const } }, difficulty: 3, source: "self" as const };
+    const first = await recordAttempt({ evidence, label: "Talk back", kind: "personal", ref: "talk_back:1" });
+    expect(first.moves.map((m) => m.leaf)).toEqual(["reframing"]);
+    const again = await recordAttempt({ evidence, label: "Talk back", kind: "personal", ref: "talk_back:1" });
+    expect(again.moves).toHaveLength(0);
+    expect((await getLeafRatings()).reframing?.attempts).toBe(1);
+    // A self-report of a performance leaf moves nothing.
+    const outward = await recordAttempt({ evidence: { activityId: ACTIVITY_IDS.prime, score: 1, leafScores: { open_questions: { score: 1, source: "self" as const } }, difficulty: 3, source: "self" as const }, label: "Prime", kind: "personal" });
+    expect(outward.moves).toHaveLength(0);
+  });
+
   it("plays out the plan's worked example", async () => {
     await setLeaf("word_links", 40, 5);
     const change = await recordDrillOutcome({ drillType: "word_chain", outcome: ok(0.8), level: 3, source: "judge" });

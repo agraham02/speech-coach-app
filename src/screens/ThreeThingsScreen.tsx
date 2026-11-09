@@ -1,6 +1,8 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { ACTIVITY_IDS } from "../content/activities";
+import { threeThingsScore } from "../domain/personal/personalScores";
+import { recordPersonalOutcome } from "../services/practice/personalOutcome";
 import { View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -43,10 +45,22 @@ export function ThreeThingsScreen() {
   const name = getUserProfile()?.name?.trim();
   const today = todayISODate();
 
+  // The day's number, when you leave: different things written and said aloud,
+  // once a day (a later visit doesn't count it again).
+  const latest = useRef<SelfLike[] | null>(null);
+  latest.current = entries;
   useFocusEffect(
     useCallback(() => {
       listSelfLikes().then(setEntries);
       setRun(getSelfLikesRun());
+      return () => {
+        const day = (latest.current ?? []).filter((e) => e.date === todayISODate());
+        const aim = getSelfLikesRun().mode === "light" ? 1 : 3;
+        if (day.length < aim) return;
+        const distinct = new Set(day.map((e) => e.text.trim().toLowerCase())).size;
+        const scored = threeThingsScore({ distinctItems: distinct, said: day.filter((e) => e.saidAt).length, aim });
+        recordPersonalOutcome({ activityId: ACTIVITY_IDS.threeThings, label: "Three things", scored, ref: `three_things:${todayISODate()}` }).catch(() => undefined);
+      };
     }, []),
   );
 

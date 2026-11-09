@@ -2,7 +2,10 @@ import { File } from "expo-file-system";
 import { decodeVideoAudio } from "../../domain/audioAnalysis";
 import { encodeWavPcm16 } from "../../domain/eval/wer";
 import { concatWaveforms, WAV_SAMPLE_RATE } from "../../domain/rewind/wav";
-import { rewindStats } from "../../domain/rewind/stats";
+import { MIN_REWIND_SECONDS, rewindStats } from "../../domain/rewind/stats";
+import { rewindScore } from "../../domain/personal/personalScores";
+import { defaultsFromProfile } from "../../domain/profile";
+import { ACTIVITY_IDS } from "../../content/activities";
 import { cleanTranscript } from "../../domain/cleanTranscript";
 import { transcribeOnDevice, type OnDeviceTranscriptWord } from "../onDeviceAsr/onDeviceAsrClient";
 import type { TranscriptWord } from "../../domain/sessionTypes";
@@ -140,13 +143,24 @@ async function processTake(id: string, take: RewindTake): Promise<void> {
     stages.set(id, "counting");
     // 3. The counts. Notes on the words are asked for from the result
     // screen (services/rewind/rewindReview.ts).
-    await updateRewind(id, {
-      transcript,
-      transcriptSource: source,
-      words,
-      stats: rewindStats({ transcript, seconds, volume: take.volume }),
-      status: "done",
-    });
+    const stats = rewindStats({ transcript, seconds, volume: take.volume });
+    await updateRewind(id, { transcript, transcriptSource: source, words, stats, status: "done" });
+    // 4. Its number moves the tree once (task 3c.4); not for a take deleted meanwhile.
+    if (await getRewind(id)) {
+      // Required here, not at the top: the prefs store and the tree are only
+      // needed once a take is done, and the tests that load this file need neither.
+      /* eslint-disable @typescript-eslint/no-require-imports */
+      const { recordPersonalOutcome } = require("../practice/personalOutcome") as typeof import("../practice/personalOutcome");
+      const { getRewindDeliveryEnabled, getUserProfile } = require("../prefs/prefsStore") as typeof import("../prefs/prefsStore");
+      /* eslint-enable @typescript-eslint/no-require-imports */
+      await recordPersonalOutcome({
+        activityId: ACTIVITY_IDS.rewind,
+        label: "Rewind",
+        scored: rewindScore({ stats, transcript, words, targetSeconds: MIN_REWIND_SECONDS, delivery: getRewindDeliveryEnabled(), stutterMode: defaultsFromProfile(getUserProfile()).stutterMode }),
+        ref: `rewind:${id}`,
+        quick: source === "live",
+      });
+    }
   } catch (error) {
     logger.error(`[rewind] processing failed — ${(error as Error).message}`);
     await updateRewind(id, { transcript, transcriptSource: source, words, stats: rewindStats({ transcript, seconds, volume: take.volume }), status: "failed" }).catch(() => undefined);

@@ -13,6 +13,10 @@ import { getMissionProgress, logMission, resetMission, type MissionProgress } fr
 import { getBlankMoments, getOpenEvents, type SocialEvent } from "../../services/db/socialRepo";
 import { todayISODate } from "../../utils/dateUtils";
 import { logger } from "../../utils/logger";
+import { missionScore } from "../../domain/personal/personalScores";
+import { recordPersonalOutcome } from "../../services/practice/personalOutcome";
+import { completePracticeStep } from "../../services/practice/practiceEvents";
+import { ACTIVITY_IDS } from "../../content/activities";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 import { tick } from "../../utils/haptics";
 import Animated, { ZoomIn } from "react-native-reanimated";
@@ -49,6 +53,11 @@ export function ConversationTodayCard() {
     try {
       const saved = await logMission(date, missionId, target);
       setProgress((prev) => ({ ...prev, [missionId]: saved }));
+      if (saved.count >= target && !before?.completedAt) {
+        const scored = missionScore(saved.count, target);
+        completePracticeStep(ACTIVITY_IDS.mission, undefined, scored.score).catch(() => undefined);
+        recordPersonalOutcome({ activityId: ACTIVITY_IDS.mission, label: "Mission", scored, ref: `mission:${date}:${missionId}` }).catch(() => undefined);
+      }
     } catch (error) {
       logger.error(`[missions] log failed — ${(error as Error).message}`);
       setProgress((prev) => restore(prev, missionId, before));

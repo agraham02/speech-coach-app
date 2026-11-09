@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { ACTIVITY_IDS } from "../content/activities";
+import { MOMENT_DIFFICULTY, momentAfterScore, momentBeforeScore } from "../domain/personal/personalScores";
+import { recordPersonalOutcome } from "../services/practice/personalOutcome";
+import { noteNervesStart } from "../services/prefs/prefsStore";
 import { View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
@@ -76,7 +79,14 @@ export function EventCheckInScreen({ route, navigation }: Props) {
         await saveAfterCheckIn(event.id, { nerves, went, focusResult: savedFocus ? focusResult : null, wentOkay, tryNext });
         showGlobalToast(nervesSummary(expected, nerves) ?? "Saved. Well done for doing it.", "success");
       }
-      completePracticeStep(phase === "before" ? ACTIVITY_IDS.eventBefore : ACTIVITY_IDS.eventAfter, undefined, null).catch(() => undefined);
+      const nervesStart = nerves != null ? noteNervesStart(nerves) : null;
+      const scored =
+        phase === "before"
+          ? momentBeforeScore({ nerves, focus, nervesStart })
+          : momentAfterScore({ nerves, forecast: expected, nervesStart, went, focusResult: savedFocus ? focusResult : null, wentOkay, tryNext });
+      const activityId = phase === "before" ? ACTIVITY_IDS.eventBefore : ACTIVITY_IDS.eventAfter;
+      completePracticeStep(activityId, undefined, scored.score).catch(() => undefined);
+      recordPersonalOutcome({ activityId, label: phase === "before" ? "Moment, before" : "Moment, after", scored, difficulty: MOMENT_DIFFICULTY[event.kind], ref: `${activityId}:${event.id}` }).catch(() => undefined);
       return true;
     } catch (error) {
       logger.error(`[events] check-in save failed — ${(error as Error).message}`);

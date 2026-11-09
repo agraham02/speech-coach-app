@@ -31,6 +31,9 @@ import { completePracticeStep } from "../services/practice/practiceEvents";
 import { drillActivityId } from "../content/activities";
 import { showGlobalToast } from "../components/common/ToastProvider";
 import { logger } from "../utils/logger";
+import { attentionScore } from "../domain/personal/personalScores";
+import { recordPersonalOutcome } from "../services/practice/personalOutcome";
+import { ACTIVITY_IDS } from "../content/activities";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Conversation">;
@@ -261,6 +264,7 @@ export function ConversationRunnerScreen({ route, navigation }: Props) {
         gate: evaluated.gate,
       });
       if (replay) await markBlankMomentPracticed(replay.id);
+      if (!practice?.placement) await recordPersonalOutcome({ activityId: ACTIVITY_IDS.attention, label: "Attention", scored: attentionScore(selfFocusBefore, selfFocusAfter) });
       setChange(moved);
       setResult(evaluated);
     } catch (error) {

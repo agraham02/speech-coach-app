@@ -3,12 +3,13 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation";
 import { ListGroup, ListRow, SwitchRow } from "../common/ListRow";
-import { getPlanYourPointEnabled, setPlanYourPointEnabled } from "../../services/prefs/prefsStore";
+import { getPlanYourPointEnabled, getRewindDeliveryEnabled, setPlanYourPointEnabled, setRewindDeliveryEnabled } from "../../services/prefs/prefsStore";
 
 // Settings → Practice: who you're practicing as, and how a recording starts.
 export function PracticeSettings() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [planYourPoint, setPlanYourPoint] = useState(getPlanYourPointEnabled());
+  const [rewindDelivery, setRewindDelivery] = useState(getRewindDeliveryEnabled());
 
   return (
     <ListGroup>
@@ -35,6 +36,16 @@ export function PracticeSettings() {
         onValueChange={(enabled) => {
           setPlanYourPoint(enabled);
           setPlanYourPointEnabled(enabled);
+        }}
+      />
+      <SwitchRow
+        icon="mic-outline"
+        title="Rewinds count toward delivery"
+        subtitle="Your ums, likes and stalls in a Rewind move those skills a little"
+        value={rewindDelivery}
+        onValueChange={(enabled) => {
+          setRewindDelivery(enabled);
+          setRewindDeliveryEnabled(enabled);
         }}
       />
     </ListGroup>

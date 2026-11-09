@@ -488,3 +488,26 @@ The owner stopped the session at Phase 3 (3c.2 to 3d not started) and went throu
 **Self-ratings and performance leaves:** since 3a, a self-report can only move an inner leaf (`effectiveWeight`). The last self-rated screens are the three pitch exercises (D25), whose leaves are on probation, and the skill check's "how did it feel", which is felt-vs-measured. So nothing self-rated moves a performance leaf.
 
 **Owner's OK:** not asked; this is task 3c.3.
+
+## D30. Rewind, the inner voice and real moments get numbers (2026-11-09)
+
+**Was:** the personal rows in the grid moved nothing (D16: "until 3c.4 gives them their numbers"). Feeling of the week already did, as a take.
+
+**Now** (`domain/personal/personalScores.ts`, saved by `services/practice/personalOutcome.ts`):
+- **Rewind:** parts of the day ÷ 3 (40), details a minute ÷ 4 (40), talk time ÷ 60 s (20). It moves Specifics as a phone estimate, so light until Tono AI checks coverage. With **Settings, Practice, "Rewinds count toward delivery"** on (the default), your ums, "like"s and stalls move those leaves lightly, using the take's own formulas. Stalls are gaps of 2 s or more mid-sentence, by Whisper's word times. A Rewind the live recognizer wrote is a Quick check, and it is never counted for stuttering.
+- **Three things:** different things ÷ the day's aim (50), said aloud (50). Counted once a day, when you leave the screen with the day's set done.
+- **Talk back:** steps ÷ 6 (40), belief drop (40; two points is full marks), fairer line said (20).
+- **Prime:** fields ÷ 6. Open questions among yours move Open questions lightly (a question starting what, how, why, tell me, describe or explain counts as open).
+- **Debrief and Moment, after:** a real-world rep (Real-world reps, at the moment's difficulty: interview 8, talk and pitch 7, toast 6, date 5, other 3, a primed conversation 2), with Forecast gap (at or under your forecast is full marks, each point over costs a fifth) and Nerves trend (against your first nerves rating).
+- **Moment, before; the comfort check-in; attention before and after a conversation drill; missions** (when one is done for the day); **Plan your point** (fields ÷ 3, Has a shape lightly); **Rehearse** with follow-along (words followed, Read accuracy, light).
+- Your own counts and ratings move inner leaves only, as the rule says. Each attempt can carry a `ref` (schema 40), so a Rewind, a day of Three things, a mission or a Moment check-in counts once.
+- Missions, the comfort check-in, Plan your point and Rehearse now write to the activity log too.
+
+**Differs from the plan:**
+- **Prime's Forecast gap** waits for the debrief, which has an actual to compare with.
+- **A mission's own leaf** (plan: "Ask two follow-ups" also feeds Follow-up questions) waits for the content overhaul, which writes the missions.
+- **"Diminishing returns" on real-world reps** within a week isn't built: each moment counts at its own difficulty.
+- **Speech study** measures nothing (it's reading), so it moves nothing.
+- Reflections are scored at difficulty 3 until 3d.5 gives them their own.
+
+**Owner's OK:** not asked; this is task 3c.4.
