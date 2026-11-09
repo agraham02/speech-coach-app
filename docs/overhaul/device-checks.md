@@ -173,6 +173,12 @@ A new JS bundle is enough; no new build. Do a few real takes first, since the nu
 - [ ] **Transcription and Tono AI steps** read short; "See exactly what's sent" opens the full list.
 - [ ] **Reminders:** "Yes, remind me", a time, Continue: iOS asks for notifications before the next step. (If you said no to notifications before, iOS won't ask again; it's in iPhone Settings.)
 
+### Line of the day and Mark it up (3c.3)
+
+- [ ] **Line of the day:** record the three reads, tap Done: "Checking your reads…", then a percentage with "Words read". Read something else and it says it isn't scored.
+- [ ] **Mark it up:** mark a line, compare, record the reads. The result shows words read and marks matched, with no 1 to 5 rating.
+- [ ] **Skip recording:** it says "Not scored".
+
 ### Warm-ups (3c.2)
 
 - [ ] **Steady hiss:** do it well once, then badly (short, or loud-soft-loud). The first should score high, the second low. The microphone asks for permission the first time.

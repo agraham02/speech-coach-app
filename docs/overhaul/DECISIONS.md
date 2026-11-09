@@ -472,3 +472,19 @@ The owner stopped the session at Phase 3 (3c.2 to 3d not started) and went throu
 **Every threshold is a first guess** to tune from real warm-ups.
 
 **Owner's OK:** not asked; this is task 3c.2.
+
+## D29. Line reps and Line of the day are scored from your reads (2026-11-09)
+
+**Was:** Mark it up and the Phrasebook ended in "How close did your reads sound to the marks?", 1 to 5, which was the attempt's number (it moved no performance leaf after 3a). Line of the day recorded nothing at all.
+
+**Now** (`domain/cadence/lineReads.ts`): when you finish, Whisper reads each recorded read and:
+- **Words read** is the share of the line's words you read, averaged over your reads. It's the gate: under 70% (60% if English isn't your first language) isn't scored.
+- **Marks matched**, when you marked the line, is your marks against the coach's, as before.
+- The number is words read, or the average of words read and marks matched when you marked.
+- **Pauses at the marks** are found from Whisper's word times (250 ms counts) and shown as "not counted yet": Deliberate pauses is on probation.
+- **Stress on the right words** isn't measured. It needs loudness per word, which is on probation and unproven.
+- No recording is "Not scored", never a self-rating. Line of the day now saves an attempt and moves the same leaves as a line rep.
+
+**Self-ratings and performance leaves:** since 3a, a self-report can only move an inner leaf (`effectiveWeight`). The last self-rated screens are the three pitch exercises (D25), whose leaves are on probation, and the skill check's "how did it feel", which is felt-vs-measured. So nothing self-rated moves a performance leaf.
+
+**Owner's OK:** not asked; this is task 3c.3.

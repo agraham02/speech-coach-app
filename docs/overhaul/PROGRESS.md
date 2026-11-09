@@ -100,7 +100,7 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 |---|---|---|---|
 | 3c.1 | Mic and a number on all 26 guided exercises | iphone | D25. 23 record and score from Whisper's reading; 3 pitch/stress ones stay self-rated (still on probation). `domain/guided/guidedMeasures.ts` with 25 tests (lines, questions, pace, pauses, volume, ums, rating shares, gates, quick check); `MeasuredGuidedRunner`. Thresholds are first guesses. Not run on a phone |
 | 3c.2 | Warm-ups measured and recorded | iphone | D28. Hiss, pa-ta-ka and siren recorded in one piece with AudioRecorder and read per step; breathing warm-ups count rounds. `domain/warmups/warmUpMeasures.ts` with 14 tests (length, evenness, gaps, windows, rates, stray pitch, rounds, not heard); `screens/guided/WarmUpRunner.tsx`. Not run on a phone |
-| 3c.3 | Line of the day records; self-ratings stop moving performance leaves | todo | |
+| 3c.3 | Line of the day records; self-ratings stop moving performance leaves | iphone | D29. Recorded reads scored by Whisper: words read (the gate), marks matched, pauses at marks (probation, shown only); the rating step is gone. `domain/cadence/lineReads.ts` with 7 tests (mark positions with hyphens, averaging, gate, relaxed bar, no recording, pauses). Self-reports already move only inner leaves (`effectiveWeight`). Not run on a phone |
 | 3c.4 | Voice analysis on Rewind; inner-voice numbers | todo | |
 
 ## Phase 3d: difficulty
