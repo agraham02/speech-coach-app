@@ -318,7 +318,7 @@ function SkillChips({ play }: { play: boolean }) {
       {CHIPS.map((s, i) => (
         <Animated.View
           key={s}
-          entering={FadeInDown.delay(100 + i * 120).springify().damping(14)}
+          entering={FadeInDown.delay(100 + i * 120).duration(duration.slow).easing(easeOut).withInitialValues({ transform: [{ translateY: 12 }] })}
           style={[styles.chip, { backgroundColor: colors.skill[s].bg }]}
         >
           <View style={[styles.chipDot, { backgroundColor: colors.skill[s].fg }]} />

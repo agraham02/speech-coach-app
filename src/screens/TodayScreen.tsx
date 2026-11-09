@@ -107,7 +107,7 @@ export function TodayScreen() {
       // The next top-up, once the main plan is finished.
       Promise.all([planned, getCompletedTopUpSlots()]).then(async ([main, slots]) => {
         const next = ([1, 2] as const).find((s) => s < g && !slots.includes(s));
-        setTopUp(main.completedAt && next ? { slot: next, stored: await getTopUpPlan(next, { quiet: defaultsFromProfile(getUserProfile()).quiet }) } : null);
+        setTopUp(main.completedAt && next ? { slot: next, stored: await getTopUpPlan(next) } : null);
       });
     },
     [minutes],

@@ -206,7 +206,6 @@ describe("state presets", () => {
     expect(profile.speakingComfort).toBeDefined();
     expect(profile.videoComfort).toBeDefined();
     expect(profile.experience).toBeDefined();
-    expect(profile.practicePlace).toBeDefined();
     // No warm-up (the standard answers avoid Nerves) and the face stays on screen.
     expect(defaultsFromProfile(profile)).toMatchObject({ warmUp: false, recordBlind: false, stutterMode: false });
   });

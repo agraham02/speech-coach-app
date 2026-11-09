@@ -35,7 +35,6 @@ export function standardProfile(options: { age: AgeChoice; today: string; now?: 
     speakingComfort: 4,
     videoComfort: "fine",
     experience: "none",
-    practicePlace: "private",
     startedAt: options.today,
     onboardingStep: QUESTIONS.length,
     onboardingCompletedAt: now.toISOString(),

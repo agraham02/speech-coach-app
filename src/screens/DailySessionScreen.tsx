@@ -16,8 +16,7 @@ import { PrimaryButton } from "../components/common/PrimaryButton";
 import { getTodaysPlan, getTopUpPlan, skipPlanStep, type StoredPlan } from "../services/db/progressRepo";
 import { SKILL_LABELS } from "../theme/tokens";
 import { getAllSessions } from "../services/db/sessionsRepo";
-import { getPlanMinutes, getUserProfile } from "../services/prefs/prefsStore";
-import { defaultsFromProfile } from "../domain/profile";
+import { getPlanMinutes } from "../services/prefs/prefsStore";
 import { launchStep } from "../services/practice/launchStep";
 import { subscribePracticeSteps } from "../services/practice/practiceEvents";
 import { showGlobalToast } from "../components/common/ToastProvider";
@@ -40,7 +39,7 @@ export function DailySessionScreen({ route, navigation }: Props) {
   const [launching, setLaunching] = useState(false);
 
   const load = useCallback(() => {
-    (slot ? getTopUpPlan(slot, { quiet: defaultsFromProfile(getUserProfile()).quiet }) : getTodaysPlan(getPlanMinutes())).then(setStored);
+    (slot ? getTopUpPlan(slot) : getTodaysPlan(getPlanMinutes())).then(setStored);
   }, [slot]);
 
   useFocusEffect(load);
