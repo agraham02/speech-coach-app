@@ -8,6 +8,7 @@ import {
   SHADOWING_LINES,
 } from "../../content/drillContent";
 import { contentLevel, paramsFor, type DrillParams, type DrillType } from "./drillSpecs";
+import { pauseMarkPositions } from "./timedHeard";
 
 // Turns (drill type, difficulty level, optional content id, seed) into
 // everything the drill screen needs to show and score. Pure.
@@ -30,6 +31,8 @@ export interface DrillSetup {
   // What's shown on screen (pause drills show the marks).
   displayText?: string;
   pauseMarks?: number;
+  // Pause reading: the target word each mark follows (domain/drills/timedHeard.ts).
+  pauseAfter?: number[];
   words?: string[];
   letter?: string;
   category?: string;
@@ -81,6 +84,7 @@ export function prepareDrill(type: DrillType, level: number, seed: number, conte
         targetText: stripPauseMarks(passage.text),
         displayText: passage.text.replace(/\s*\/\/\s*/g, "  ‖  ").replace(/\s*\/\s*/g, "  |  "),
         pauseMarks: countPauseMarks(passage.text),
+        pauseAfter: pauseMarkPositions(passage.text),
       };
     }
     case "minimal_pairs": {

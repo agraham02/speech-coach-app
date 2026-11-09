@@ -211,6 +211,8 @@ export async function recordDrillOutcome(args: {
   // Failed: the attempt is kept, but it has no score, moves no leaf and doesn't
   // step the difficulty (plan 6.4, rule 2).
   gate?: GateVerdict;
+  // Scored from the live recognizer, not Whisper's reading of the clip: counts light.
+  quick?: boolean;
 }): Promise<ProgressChange> {
   const gated = args.gate?.passed === false;
   const db = await getDatabase();
@@ -246,6 +248,7 @@ export async function recordDrillOutcome(args: {
       leafScores: args.placement || gated ? {} : args.leafScores,
       difficulty: args.level,
       source: args.source ?? drillSource(args.drillType),
+      ...(args.quick ? { quick: true } : {}),
     },
     label: DRILL_TITLES[args.drillType] ?? "Drill",
     kind: "drill",

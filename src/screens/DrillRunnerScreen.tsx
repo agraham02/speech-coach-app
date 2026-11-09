@@ -22,6 +22,8 @@ import { prepareDrill, type DrillSetup } from "../domain/drills/prepareDrill";
 import { categoryWordsToCheck, chainJudgeRequest, evaluateDrill, type DrillEvaluation, type DrillDetails } from "../domain/drills/evaluateDrill";
 import { judgeChain, type ChainJudged } from "../services/drills/chainJudge";
 import { checkCategoryWords, checkCoherence, phoneJudgeChain } from "../services/language/meaningCheck";
+import { transcribeDrillClips } from "../services/speech/clipTranscript";
+import { chainStartsFromTimes, timedTokens } from "../domain/drills/timedHeard";
 import { useElapsed } from "../hooks/useElapsed";
 import { ChainVerdicts } from "../components/drills/ChainVerdicts";
 import type { Provenance } from "../domain/analysis/types";
@@ -77,6 +79,10 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
   // runs from an older render), and the heard-word index each run began at.
   const seedsRef = useRef<string[]>([]);
   const startsRef = useRef<number[]>([0]);
+  // When each Word chain start word appeared, in ms since listening began: Whisper's
+  // words have times, not the live recognizer's word counts.
+  const seedTimesRef = useRef<number[]>([0]);
+  const [quickCheck, setQuickCheck] = useState(false);
   // Word and Bridge Chain: how the attempt was checked.
   const [chainCheck, setChainCheck] = useState<{ by: Provenance | null; note: string | null } | null>(null);
   const lastActivityRef = useRef(0);
@@ -109,6 +115,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         const current = seedsRef.current;
         seedsRef.current = [...current, nextSeed(CHAIN_SEEDS, current, seedRef.current + current.length * 7)];
         startsRef.current = [...startsRef.current, heardCountRef.current];
+        seedTimesRef.current = [...seedTimesRef.current, Date.now() - startedAtRef.current];
         setSeeds(seedsRef.current);
         setSegmentStart(heardCountRef.current);
         Haptics.selectionAsync().catch(() => undefined);
@@ -195,6 +202,8 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
     if (!setup) return;
     seedsRef.current = setup.words ?? [];
     startsRef.current = [0];
+    seedTimesRef.current = [0];
+    setQuickCheck(false);
     setSeeds(seedsRef.current);
     setSegmentStart(0);
     lastActivityRef.current = Date.now();
@@ -204,6 +213,8 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
       // Biasing toward the target words would hide mispronunciations in
       // minimal pairs; reading drills don't need it either.
       contextualStrings: setup.type === "random_word_story" ? setup.words : [],
+      // The saved audio is what the score reads (Whisper), not the live words.
+      persistAudio: true,
     });
     startedAtRef.current = Date.now();
     setElapsedMs(0);
@@ -231,12 +242,20 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         setStage("result");
         return;
       }
+      // The score reads Whisper's transcript of the saved clip, with word times.
+      // Without the model (or if it doesn't finish) it is a "Quick check" from the
+      // live words, and counts light.
+      const whisper = await transcribeDrillClips(speech.session.getRecordings());
+      const timed = whisper ? timedTokens(whisper.words) : null;
+      const spokenMs = whisper && whisper.words.length > 1 ? whisper.words[whisper.words.length - 1].endMs - whisper.words[0].startMs : null;
+      setQuickCheck(!whisper);
       const measured = {
-        transcript: text,
-        speakingMs,
+        transcript: whisper?.text ?? text,
+        words: whisper?.words,
+        speakingMs: spokenMs ?? speakingMs,
         volume,
         seedWords: setup.live === "chain" ? seedsRef.current : undefined,
-        chainStarts: startsRef.current,
+        chainStarts: timed ? chainStartsFromTimes(timed, seedTimesRef.current) : startsRef.current,
         penalizeResets: !profileDefaults.stutterMode,
         ignoreSlips: profileDefaults.stutterMode,
         relaxedAccuracy: profileDefaults.relaxAccuracy,
@@ -288,6 +307,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         // A chain Tono AI checked counts in full; without it, the phone only counts.
         ...(check?.by ? { source: "judge" as const } : {}),
         gate: evaluated.gate,
+        quick: !whisper,
       });
       setChange(moved);
       setChainCheck(check);
@@ -381,7 +401,12 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
               {checkingFor >= 5 ? "Tono AI is still reading your links. It gives up after 15 seconds." : "Tono AI is reading your links. Usually a few seconds."}
             </Txt>
           ) : null}
-          <PrimaryButton label={setup.live === "chain" ? "Checking your links…" : "Scoring…"} onPress={() => undefined} loading />
+          {setup.live !== "chain" ? (
+            <Txt variant="footnote" tone="muted" align="center">
+              Checking your words. A few seconds.
+            </Txt>
+          ) : null}
+          <PrimaryButton label={setup.live === "chain" ? "Checking your links…" : "Checking…"} onPress={() => undefined} loading />
           {setup.live === "chain" && checkingFor >= 5 ? <PrimaryButton label="Count them without the check" variant="ghost" onPress={() => skipCheckRef.current?.()} /> : null}
         </>
       ) : null}
@@ -621,6 +646,11 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         {setup.type === "word_chain" && !details.links && details.counted && details.counted.length > 0 ? (
           <Txt variant="footnote" tone="secondary">
             {[seeds[0] ?? setup.words?.[0], ...details.counted].join(" → ")}
+          </Txt>
+        ) : null}
+        {quickCheck ? (
+          <Txt variant="footnote" tone="muted">
+            Quick check: scored from what your phone heard live, so it counts a little less. Download the transcription model (Settings, Coaching & AI) for the full check.
           </Txt>
         ) : null}
         {setup.live === "chain" && chainCheck?.note ? (

@@ -1,4 +1,4 @@
-import { TARGET_MULTIPLIER, effectiveWeight, getGridRow, type EvidenceSource, type LeafMove } from "../../content/skillGrid";
+import { GRID_WEIGHTS, TARGET_MULTIPLIER, effectiveWeight, getGridRow, type EvidenceSource, type LeafMove } from "../../content/skillGrid";
 import { leafIsCounted, type CountOptions } from "./rollup";
 import type { LeafId } from "./skillTree";
 import type { DrillType } from "../drills/drillSpecs";
@@ -25,6 +25,9 @@ export interface AttemptEvidence {
   leafScores?: Partial<Record<LeafId, LeafEvidence>>;
   difficulty: number;
   source: EvidenceSource;
+  // A "Quick check": scored from the live recognizer because Whisper's model
+  // isn't on the phone yet (plan 6.6). Every move counts as light until then.
+  quick?: boolean;
   // The lesson's or unit's target leaf, moving ×1.5 (plan section 7).
   targetLeaf?: LeafId | null;
   conditions?: AttemptConditions;
@@ -52,7 +55,8 @@ export function movesForAttempt(evidence: AttemptEvidence, options: CountOptions
     const score = evidence.leafScores ? own?.score : evidence.score;
     if (score == null || !Number.isFinite(score)) continue;
     const source = own?.source ?? evidence.source;
-    const base = effectiveWeight(move, source);
+    const full = effectiveWeight(move, source);
+    const base = evidence.quick ? Math.min(full, GRID_WEIGHTS.light) : full;
     if (base <= 0) continue;
     const target = move.leaf === evidence.targetLeaf ? TARGET_MULTIPLIER : 1;
     const weight = base * target * (evidence.scale?.(move.leaf) ?? 1);
