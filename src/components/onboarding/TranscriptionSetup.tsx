@@ -17,11 +17,7 @@ export function TranscriptionSetup() {
 
   return (
     <View style={styles.block}>
-      <View style={styles.points}>
-        <Point icon="text-outline" text="Turns each recording into text on your phone. Pace, fillers and your transcript all start from it." />
-        <Point icon="ear-outline" text="It catches every um and uh, so your filler count is honest." />
-        <Point icon="lock-closed-outline" text="Nothing is uploaded: the model runs on this phone, even in airplane mode." />
-      </View>
+      <Point icon="lock-closed-outline" text="Nothing is uploaded, and it works offline." />
 
       {model.status === "ready" ? (
         <View style={styles.status}>
@@ -33,7 +29,7 @@ export function TranscriptionSetup() {
           <View style={styles.flex}>
             <Txt variant="headline">{"Downloading " + model.percent + "%"}</Txt>
             <Txt variant="footnote" tone="secondary">
-              {formatSpeed(model.bytesPerSecond) + ". It keeps going while you finish setting up, even if you leave the app."}
+              {formatSpeed(model.bytesPerSecond) + ". It keeps going if you leave the app."}
             </Txt>
           </View>
           <PrimaryButton label="Pause" variant="ghost" size="md" onPress={() => model.pause().catch(() => undefined)} />
@@ -77,7 +73,6 @@ function Point({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: str
 
 const useStyles = makeStyles((t) => ({
   block: { gap: t.space.lg },
-  points: { gap: t.space.md },
   point: { flexDirection: "row", gap: t.space.md - 4, alignItems: "flex-start" },
   status: { flexDirection: "row", alignItems: "center", gap: t.space.md, padding: t.space.md, borderRadius: t.radius.md + 2, backgroundColor: t.colors.surfaceRaised },
   flex: { flex: 1 },

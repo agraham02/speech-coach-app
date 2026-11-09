@@ -4,6 +4,14 @@ import { getJudgeInput, getShareProfileWithReviews } from "../prefs/prefsStore";
 // Settings and the save screen. It must match what the code sends
 // (services/analysis/inputs.ts) and docs/privacy.md.
 
+// One line for the onboarding step, above "See exactly what's sent" (the full
+// whatGetsSent text), which is still shown before the person allows it.
+export function whatGetsSentShort(): string {
+  return getJudgeInput() === "video"
+    ? "To judge a take, its video goes to Tono's server and Google Gemini, then is deleted from Google."
+    : "To judge a take, its transcript goes to Tono's server and Google Gemini. Your video stays on your phone.";
+}
+
 export function whatGetsSent(): string {
   const take =
     getJudgeInput() === "video"

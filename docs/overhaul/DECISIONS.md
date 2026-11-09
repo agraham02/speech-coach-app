@@ -438,3 +438,19 @@ A reviewer who hadn't seen the work read the whole change. Fixed:
 - The last piece of a recording may not be saved when Stop is pressed, so Whisper could read a clip missing its tail.
 
 **Owner's OK:** not asked; these are fixes to the tasks above.
+
+## D27. The owner's notes on onboarding, after Phase 3 went out (2026-11-09)
+
+The owner stopped the session at Phase 3 (3c.2 to 3d not started) and went through onboarding.
+
+**Changed now:**
+- **Welcome:** the "Practice the hard parts" chips fade up like the other pages instead of springing in.
+- **"How do you feel about seeing yourself on video?"** is about the preview while recording, nothing else. It has two answers, "Show me while I record" and "Hide my face while I record". Before, "A bit awkward" did exactly what "It's fine" did, and the hint said results might open on the video, which nothing did. The video is always there afterwards, and looking back at it is the point. The eye button on the record screen changes the answer any time and remembers it, so the question isn't asked again. A speaking comfort of 1 or 2 still starts with the face hidden.
+- **"Where will you usually practice?" is gone** (the plan had moved it to a day-2 card). Tono assumes a quiet room to yourself. Top-ups no longer drop the loud drills, and the camera check is skipped only for "Hide my face".
+- **The transcription and Tono AI steps are shorter.** Tono AI keeps its disclosure for App Review 5.1.2(i): one plain line on what goes where, with the full list behind "See exactly what's sent", above the Allow button.
+
+**Added to Phase 7** (plan section 12 and task 7.5): onboarding asks only what the first week needs, then offers "Finish your profile now, or later". The rest (training so far, anything about your voice, your inner critic, what will be different, which days) sits in a "Complete your profile" row in Settings, Profile, showing how many are left. This replaces the plan's cards on day 2 and day 3. Your inner critic is still offered the first time you open Talk back, and your "why" still shows when a streak breaks.
+
+**Already in the plan, confirmed:** one "minutes a day" setting with 5, 10, 15, 20 and 30 (task 4.1, and onboarding asks it in Phase 7); the Today redesign (4.5, then Phase 8); Overall on Today and on You, and the tree as a screen where each pillar opens to its skills and leaves (5.4). The reminder step already asks for notification permission when you tap Continue after "Yes".
+
+**Owner's OK:** asked for by the owner on 2026-11-09.

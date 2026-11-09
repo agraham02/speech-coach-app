@@ -165,6 +165,14 @@ A new JS bundle is enough; no new build. Do a few real takes first, since the nu
 - [ ] **A wrong script.** On a script take, read something else: the same message. Read the script: it scores.
 - [ ] **Fair enough?** Tell me if a real attempt ever gets rejected. The 40% floor on Twister, Minimal pairs and Shadowing is my number, and the live recognizer is rough until 3b.3.
 
+### Onboarding notes (D27)
+
+- [ ] **Welcome:** the "Practice the hard parts" chips fade up, no bounce.
+- [ ] **Video question** has two answers. Pick "Hide my face while I record", then start a take: the preview is hidden, and the eye button shows it again (and remembers).
+- [ ] **No practice-place question.**
+- [ ] **Transcription and Tono AI steps** read short; "See exactly what's sent" opens the full list.
+- [ ] **Reminders:** "Yes, remind me", a time, Continue: iOS asks for notifications before the next step. (If you said no to notifications before, iOS won't ask again; it's in iPhone Settings.)
+
 ### Guided exercises with a mic (3c.1)
 
 - [ ] **Do two or three**, for example Practice the blank, Catch the um and Rate contrast (Learn, a lesson, or Practice). Each speaking step has a Record button; at the end there is a short "Checking…" and a percentage with a line for each try ("Said it", "3 of 3 things named").

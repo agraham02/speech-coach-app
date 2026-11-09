@@ -20,7 +20,6 @@ export type Obstacle =
   | "eye_contact"
   | "feelings";
 export type EventKind = "interview" | "talk" | "toast" | "pitch" | "date" | "other";
-export type PracticePlace = "private" | "car" | "shared" | "walking";
 
 // The birthday: asked in onboarding (and again at the Tono AI sign-in when
 // it was skipped), kept on this phone only. A birthday rather than an age
@@ -62,7 +61,8 @@ export interface UserProfile {
   event?: { date: string; kind: EventKind; note?: string } | null;
   // 1 "I avoid it" … 5 "I enjoy it"
   speakingComfort?: number;
-  videoComfort?: "fine" | "awkward" | "rather_not";
+  // Only the preview while recording: the video is always there afterwards.
+  videoComfort?: "fine" | "rather_not";
   experience?: "none" | "little" | "course" | "lots";
   englishFirst?: "yes" | "no" | "unsaid";
   speechDifference?: "none" | "stutter" | "other" | "unsaid";
@@ -70,7 +70,6 @@ export interface UserProfile {
   // What the inner critic says (Talk back): the preset worries picked, and
   // ones written in. Kept in step with the Talk back list.
   innerCritic?: { presets: string[]; custom: string[] };
-  practicePlace?: PracticePlace;
   why?: string;
   // When onboarding started (YYYY-MM-DD) — the goal boosts fade from here.
   startedAt: string;
@@ -142,9 +141,7 @@ export function daysUntilEvent(event: UpcomingEvent | null, today: string): numb
 export interface ProfileDefaults {
   // Hide your own face while recording (1.5 low comfort, 1.6 "rather not").
   recordBlind: boolean;
-  // Practicing somewhere shared or walking: no projection / Move It in top-ups.
-  quiet: boolean;
-  // Camera framing checks don't apply (car, walking, or no video wanted).
+  // Camera framing checks don't apply (no video wanted while recording).
   audioFirst: boolean;
   // A lot of training already: start lesson explainers collapsed.
   collapseTeach: boolean;
@@ -160,11 +157,9 @@ export interface ProfileDefaults {
 
 export function defaultsFromProfile(profile: UserProfile | null): ProfileDefaults {
   const comfort = profile?.speakingComfort ?? 3;
-  const place = profile?.practicePlace;
   return {
     recordBlind: comfort <= 2 || profile?.videoComfort === "rather_not",
-    quiet: place === "shared" || place === "walking",
-    audioFirst: place === "car" || place === "walking" || profile?.videoComfort === "rather_not",
+    audioFirst: profile?.videoComfort === "rather_not",
     collapseTeach: profile?.experience === "lots",
     relaxAccuracy: profile?.englishFirst === "no",
     stutterMode: profile?.speechDifference === "stutter",

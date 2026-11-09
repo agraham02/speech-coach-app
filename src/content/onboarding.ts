@@ -1,4 +1,4 @@
-import type { EventKind, Obstacle, PracticePlace, SpeakingContext } from "../domain/profile";
+import type { EventKind, Obstacle, SpeakingContext } from "../domain/profile";
 
 // Onboarding questions. One question per
 // screen, most answered with a tap. Every question changes something — see
@@ -21,7 +21,6 @@ export type QuestionId =
   | "minutes"
   | "days"
   | "anchor"
-  | "place"
   | "reminders"
   | "transcription"
   | "cloud"
@@ -88,7 +87,7 @@ export const QUESTIONS: Question[] = [
     id: "video",
     chapter: 0,
     title: "How do you feel about seeing yourself on video?",
-    changes: "Whether recordings start with your face hidden, and whether results open on the video.",
+    changes: "Whether your face shows on screen while you record. Switch it any time with the eye button on the record screen. You always see the video afterwards.",
   },
   {
     id: "experience",
@@ -134,22 +133,21 @@ export const QUESTIONS: Question[] = [
     subtitle: "Tie it to something you already do every day.",
     changes: "“After I ___, I practice” — a plan tied to a habit is far more likely to happen. It shows on Today and in your reminders.",
   },
-  { id: "place", chapter: 2, title: "Where will you usually practice?", changes: "Somewhere shared? Top-ups skip the loud drills, and camera checks are skipped in the car." },
   { id: "reminders", chapter: 2, title: "Want a reminder?", changes: "One nudge per session, skipped once it's done." },
   {
     id: "transcription",
     chapter: 2,
     title: "Get the transcription model",
-    subtitle: "Tono turns what you say into text on your phone. The model that does it is too big to ship inside the app, so it downloads once.",
-    changes: "Start the download and carry on: it keeps going in the background. Until it finishes, a banner shows its progress, and takes you save are transcribed afterwards.",
+    subtitle: "It turns what you say into text, right on this phone.",
+    changes: "It downloads once, in the background, so you can carry on.",
   },
   {
     id: "cloud",
     chapter: 2,
     title: "Meet Tono AI, your coach",
-    subtitle: "Your phone measures every take on its own. It can't tell whether your answer made sense or landed. Tono AI can, and Tono leans on it for your scores and your plan.",
+    subtitle: "Your phone hears how you sound. Tono AI listens to what you say, and tells you what landed and what to try next.",
     optional: true,
-    changes: "Skip it and everything runs on this phone, free. Turn it on any time in Settings → Tono AI.",
+    changes: "Skip it and everything stays on your phone. Turn it on any time in Settings.",
   },
   { id: "retention", chapter: 2, title: "How long should full videos be kept?", changes: "Older videos are cleared automatically; the best and the toughest take from each month are always kept." },
   {
@@ -204,10 +202,9 @@ export const EVENT_WHEN: { label: string; days: number }[] = [
   { label: "In 2–3 months", days: 75 },
 ];
 
-export const VIDEO_OPTIONS: Option<"fine" | "awkward" | "rather_not">[] = [
-  { key: "fine", label: "It's fine" },
-  { key: "awkward", label: "A bit awkward" },
-  { key: "rather_not", label: "I'd rather not" },
+export const VIDEO_OPTIONS: Option<"fine" | "rather_not">[] = [
+  { key: "fine", label: "Show me while I record" },
+  { key: "rather_not", label: "Hide my face while I record" },
 ];
 
 export const EXPERIENCE_OPTIONS: Option<"none" | "little" | "course" | "lots">[] = [
@@ -228,13 +225,6 @@ export const SPEECH_OPTIONS: Option<"none" | "stutter" | "other" | "unsaid">[] =
   { key: "stutter", label: "Yes, I stutter" },
   { key: "other", label: "Yes, something else" },
   { key: "unsaid", label: "Prefer not to say" },
-];
-
-export const PLACE_OPTIONS: Option<PracticePlace>[] = [
-  { key: "private", label: "A room to myself" },
-  { key: "car", label: "In the car (parked)" },
-  { key: "shared", label: "Office or shared space" },
-  { key: "walking", label: "Walking outside" },
 ];
 
 // The habit to tie practice to, and the hour it suggests for the reminder.

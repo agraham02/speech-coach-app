@@ -27,7 +27,7 @@ describe("profile personalization", () => {
 
   it("turns answers into defaults", () => {
     expect(defaultsFromProfile(profile({ speakingComfort: 1 })).recordBlind).toBe(true);
-    expect(defaultsFromProfile(profile({ practicePlace: "shared" })).quiet).toBe(true);
+    expect(defaultsFromProfile(profile({ videoComfort: "rather_not" }))).toMatchObject({ recordBlind: true, audioFirst: true });
     expect(defaultsFromProfile(profile({ speechDifference: "stutter" })).stutterMode).toBe(true);
     expect(defaultsFromProfile(profile({ englishFirst: "no" })).relaxAccuracy).toBe(true);
     expect(defaultsFromProfile(null).recordBlind).toBe(false);

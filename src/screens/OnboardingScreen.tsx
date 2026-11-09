@@ -28,7 +28,6 @@ import {
   EVENT_WHEN,
   EXPERIENCE_OPTIONS,
   OBSTACLE_OPTIONS,
-  PLACE_OPTIONS,
   QUESTIONS,
   RETENTION_OPTIONS,
   SPEECH_OPTIONS,
@@ -157,8 +156,6 @@ export function OnboardingScreen({ route, navigation }: Props) {
         return !!profile.experience;
       case "anchor":
         return !!anchorKey && (anchorKey !== "custom" || customAnchor.trim().length > 2);
-      case "place":
-        return !!profile.practicePlace;
       case "retention":
         return !!retention;
       // Required, but only to start: the download carries on in the background.
@@ -502,8 +499,6 @@ export function OnboardingScreen({ route, navigation }: Props) {
             ) : null}
           </View>
         );
-      case "place":
-        return <Choices options={PLACE_OPTIONS} value={profile.practicePlace} onPick={(practicePlace) => update({ practicePlace })} />;
       case "reminders":
         return (
           <View style={styles.block}>

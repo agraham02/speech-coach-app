@@ -1009,6 +1009,8 @@ Saving earns a field rep, which feeds Real-world reps.
 
 On decent Wi-Fi, the download and analysis should finish about when you reach step 9, but that's an estimate to check on your phone.
 
+**Then: "Finish your profile now, or later?"** (D27). Everything onboarding doesn't need sits in a "Complete your profile" row in Settings, Profile, with how many are left: training so far, anything about your voice, your inner critic, what will be different when this works, and which days. Nothing there blocks practice.
+
 **The first session is the skill check.** Reading a passage, a category sprint, a conversation reply and a longer talk become your first session on Today, in place of a separate gate. It sets your starting values when it finishes (bug fixed) and ends with the Starting Point summary. The camera check happens the first time the camera opens.
 
 **Where the 22 questions go**
@@ -1016,20 +1018,20 @@ On decent Wi-Fi, the download and analysis should finish about when you reach st
 | Question | New home |
 |---|---|
 | Name | Step 1 |
-| Video comfort | Step 2, as the hide-your-face option |
+| Video comfort | Step 2, as the hide-your-face option (preview while recording only; the eye button changes it later, D27) |
 | English, speech | Step 5 |
 | Contexts, obstacles, comfort | Step 6 |
 | Event | Step 7 |
 | Goal + minutes | One question, step 8 |
 | Anchor, reminders | Step 8 |
-| Days | Step 8, optional; default every day |
+| Days | "Complete your profile"; default every day |
 | Birthday, Tono AI consent | When Tono AI is first offered, after you've seen results |
 | Transcription | Automatic |
-| Place | A small card on day 2 |
-| Inner critic | First time you open Talk back |
-| Why | A card around day 3, shown back if your streak breaks |
+| Place | Dropped: Tono assumes a quiet room to yourself (D27) |
+| Inner critic | "Complete your profile", and offered the first time you open Talk back |
+| Why | "Complete your profile", shown back if your streak breaks |
 | Retention | Default 30 days, in Settings |
-| Experience, voice note | Dropped from onboarding; editable in Profile |
+| Experience, voice note | "Complete your profile" |
 
 ---
 
