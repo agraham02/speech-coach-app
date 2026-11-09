@@ -173,6 +173,12 @@ A new JS bundle is enough; no new build. Do a few real takes first, since the nu
 - [ ] **Transcription and Tono AI steps** read short; "See exactly what's sent" opens the full list.
 - [ ] **Reminders:** "Yes, remind me", a time, Continue: iOS asks for notifications before the next step. (If you said no to notifications before, iOS won't ask again; it's in iPhone Settings.)
 
+### Difficulty (3d)
+
+- [ ] **Drill results** show "Difficulty N · Easy/Medium/Hard".
+- [ ] **Settings, Practice, Challenge:** pick Push me; drills should climb faster.
+- [ ] **Stretch:** the first plan drill each week says "Stretch" in its header and runs two levels up.
+
 ### Rewind, inner voice and moments (3c.4)
 
 - [ ] **Rewind:** tell your day for a minute or more. Afterwards Overall or Specifics should move (the trail shows in You, Speaker level). Settings, Practice has "Rewinds count toward delivery".

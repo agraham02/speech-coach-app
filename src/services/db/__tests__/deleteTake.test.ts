@@ -19,6 +19,8 @@ jest.mock("../../prefs/prefsStore", () => ({
   getReminderSettings: () => ({ practiceDays: [] }),
   getUserProfile: () => ({}),
   setTakeLevel: () => undefined,
+  getChallenge: () => "standard",
+  setLastStretchWeek: () => undefined,
 }));
 jest.mock("../../storage/videoStorage", () => ({
   deleteRecording: (uri: string) => mockDeletedFiles.push(uri),

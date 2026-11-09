@@ -20,8 +20,12 @@ const DOWN = STEP * TARGET_SUCCESS; // 0.82
 export const MIN_LEVEL = 1;
 export const MAX_LEVEL = 10;
 
-export function nextDifficulty(level: number, success: boolean): number {
-  const next = success ? level + UP : level - DOWN;
+// `target` is the success rate the staircase settles at (the challenge setting,
+// difficulty/challenge.ts): a step up of 1 − target, a step down of target.
+export function nextDifficulty(level: number, success: boolean, target = TARGET_SUCCESS): number {
+  const up = target === TARGET_SUCCESS ? UP : STEP * (1 - target);
+  const down = target === TARGET_SUCCESS ? DOWN : STEP * target;
+  const next = success ? level + up : level - down;
   return Math.round(Math.max(MIN_LEVEL, Math.min(MAX_LEVEL, next)) * 100) / 100;
 }
 

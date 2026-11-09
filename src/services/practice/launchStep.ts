@@ -1,3 +1,5 @@
+import { stretchDue } from "../../domain/difficulty/challenge";
+import { getLastStretchWeek } from "../prefs/prefsStore";
 import type { NavigationProp } from "@react-navigation/native";
 import type { RootStackParamList } from "../../navigation";
 import type { LessonStep } from "../../content/lessons";
@@ -44,7 +46,9 @@ export async function launchStep(navigation: Nav, step: LessonStep, practice: Pr
       } else if (isSummaryDrill(step.drill)) {
         navigation.navigate("Summary", { drill: step.drill, contentId: step.contentId, practice });
       } else {
-        navigation.navigate("Drill", { drill: step.drill, contentId: step.contentId, practice });
+        // Once a week, a plan's drill is the Stretch rep.
+        const stretch = !!practice.planDate && !practice.placement && stretchDue(getLastStretchWeek(), todayISODate());
+        navigation.navigate("Drill", { drill: step.drill, contentId: step.contentId, practice: stretch ? { ...practice, stretch: true } : practice });
       }
       return;
     case "rep": {

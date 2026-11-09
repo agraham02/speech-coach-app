@@ -18,6 +18,8 @@ jest.mock("../../prefs/prefsStore", () => ({
   getReminderSettings: () => ({ practiceDays: [] }),
   getUserProfile: () => mockProfile,
   setTakeLevel: () => undefined,
+  getChallenge: () => "standard",
+  setLastStretchWeek: () => undefined,
 }));
 jest.mock("../../dev/signalLabStore", () => ({ activeReadingPreview: () => ({}) }));
 jest.mock("../../progress/progressEvents", () => ({ emitStageEarned: (e: unknown) => mockStageEvents.push(e) }));
@@ -41,6 +43,18 @@ describeIfSqlite("the skill tree's numbers", () => {
     await ensureSchema(mockDb as never);
     mockProfile = null;
     mockStageEvents.length = 0;
+  });
+
+  it("a Stretch miss lowers nothing, and a good Stretch counts more", async () => {
+    await setLeaf("word_retrieval", 40, 10);
+    await recordDrillOutcome({ drillType: "category_fluency", outcome: ok(0.2), level: 4, stretch: { baseLevel: 2 } });
+    expect((await getLeafRatings()).word_retrieval?.rating).toBe(40);
+    const stretched = await recordDrillOutcome({ drillType: "category_fluency", outcome: ok(0.9), level: 4, stretch: { baseLevel: 2 } });
+    mockDb = createTestDatabase();
+    await ensureSchema(mockDb as never);
+    await setLeaf("word_retrieval", 40, 10);
+    const plain = await recordDrillOutcome({ drillType: "category_fluency", outcome: ok(0.9), level: 4 });
+    expect(stretched.ratingAfter - stretched.ratingBefore).toBeGreaterThan(plain.ratingAfter - plain.ratingBefore);
   });
 
   it("a new drill starts at your skill, and a stage keeps a floor under it", async () => {

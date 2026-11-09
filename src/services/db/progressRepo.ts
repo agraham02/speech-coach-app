@@ -6,7 +6,8 @@ import { generateId } from "../../utils/generateId";
 import { isoDateFromDate, todayISODate } from "../../utils/dateUtils";
 import { buildTopUpPlan } from "../../domain/dailyGoal";
 import { priorityFor } from "../../domain/profile";
-import { getNextEvent, getReminderSettings, getUserProfile, setTakeLevel } from "../prefs/prefsStore";
+import { getChallenge, getNextEvent, getReminderSettings, getUserProfile, setLastStretchWeek, setTakeLevel } from "../prefs/prefsStore";
+import { CHALLENGE_TARGET, STRETCH_BONUS, stretchWeekOf } from "../../domain/difficulty/challenge";
 import { computeStreakState, type StreakState } from "../../domain/streaks";
 import type { SkillId } from "../../theme/tokens";
 import { DRILL_SKILL, DRILL_TITLES, type DrillOutcome, type DrillType } from "../../domain/drills/drillSpecs";
@@ -232,6 +233,9 @@ export async function recordDrillOutcome(args: {
   gate?: GateVerdict;
   // Scored from the live recognizer, not Whisper's reading of the clip: counts light.
   quick?: boolean;
+  // The week's Stretch rep, run above your level (`level`): a good result counts
+  // extra, a miss lowers nothing, and the staircase steps from `baseLevel`.
+  stretch?: { baseLevel: number };
 }): Promise<ProgressChange> {
   const gated = args.gate?.passed === false;
   const db = await getDatabase();
@@ -255,8 +259,16 @@ export async function recordDrillOutcome(args: {
       !gated && args.outcome.success ? 1 : 0,
     ],
   );
-  const levelAfter = gated ? args.level : nextDifficulty(args.level, args.outcome.success);
-  if (!gated && !args.placement) missesInARow.set(args.drillType, args.outcome.success ? 0 : (missesInARow.get(args.drillType) ?? 0) + 1);
+  const target = CHALLENGE_TARGET[getChallenge()];
+  const levelAfter = gated
+    ? args.level
+    : args.stretch
+      ? args.outcome.success
+        ? nextDifficulty(args.stretch.baseLevel, true, target)
+        : args.stretch.baseLevel
+      : nextDifficulty(args.level, args.outcome.success, target);
+  if (!gated && !args.placement && !args.stretch) missesInARow.set(args.drillType, args.outcome.success ? 0 : (missesInARow.get(args.drillType) ?? 0) + 1);
+  if (!gated && args.stretch) setLastStretchWeek(stretchWeekOf(now.slice(0, 10)));
   if (!gated) await saveDrillLevel(args.drillType, levelAfter, args.outcome.success);
 
   const stages = await getNodeStages();
@@ -269,10 +281,12 @@ export async function recordDrillOutcome(args: {
       difficulty: args.level,
       source: args.source ?? drillSource(args.drillType),
       ...(args.quick ? { quick: true } : {}),
+      ...(args.stretch && args.outcome.success ? { scale: () => STRETCH_BONUS } : {}),
     },
     label: DRILL_TITLES[args.drillType] ?? "Drill",
     kind: "drill",
     drillType: args.drillType,
+    noLoss: !!args.stretch,
   });
   const main = mainSkill(result, skill);
   const pillar = PILLAR_OF_SKILL[main];
@@ -317,7 +331,7 @@ export async function recordTakeOutcome(
   if (!result.moves.length) return [];
   const success = (context.meanScore ?? 0) >= 0.7;
   // The staircase that sets up your next take steps from where it was.
-  const levelAfter = nextDifficulty(repLevel, success);
+  const levelAfter = nextDifficulty(repLevel, success, CHALLENGE_TARGET[getChallenge()]);
   await saveDrillLevel("rep", levelAfter, success);
   const moved = (result.trail?.pillars ?? []).filter((p) => skillOfPillar(p.id as PillarId));
   return moved.map((p) => {

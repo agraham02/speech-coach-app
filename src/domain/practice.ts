@@ -15,4 +15,6 @@ export interface PracticeContext {
   // keeps seedSkillRatings (which skips any skill with attempts) free to place
   // each skill from the check.
   placement?: boolean;
+  // The week's Stretch rep: 2 levels above you (domain/difficulty/challenge.ts).
+  stretch?: boolean;
 }

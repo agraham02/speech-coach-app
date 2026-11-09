@@ -19,6 +19,8 @@ jest.mock("../../prefs/prefsStore", () => ({
   getReminderSettings: () => ({ practiceDays: [] }),
   getUserProfile: () => null,
   setTakeLevel: () => undefined,
+  getChallenge: () => "standard",
+  setLastStretchWeek: () => undefined,
 }));
 jest.mock("../../progress/progressEvents", () => ({ emitStageEarned: () => undefined }));
 jest.mock("../../notifications/reminderScheduler", () => ({ syncDailyReminder: async () => undefined }));

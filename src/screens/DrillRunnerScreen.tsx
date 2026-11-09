@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { MAX_LEVEL } from "../domain/mastery";
+import { STRETCH_LEVELS } from "../domain/difficulty/challenge";
 import { SkeletonCard } from "../components/common/Skeleton";
 import { GuideTip } from "../components/common/GuideTip";
 import { ScrollView, View } from "react-native";
@@ -70,6 +72,9 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
   const startedAtRef = useRef(0);
   const finishingRef = useRef(false);
   const seedRef = useRef(Math.floor(Math.random() * 100_000));
+  // The week's Stretch rep: the first attempt runs 2 levels up; a retry is normal.
+  const [stretch, setStretch] = useState(!!practice?.stretch);
+  const baseLevelRef = useRef(1);
   const profileDefaults = useMemo(() => defaultsFromProfile(getUserProfile()), []);
   // Word chain: every seed shown so far, and where in the transcript the
   // current one started (the chain on screen restarts with each seed).
@@ -88,7 +93,10 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
   const lastActivityRef = useRef(0);
 
   useEffect(() => {
-    getDrillLevel(drill).then((level) => setSetup(prepareDrill(drill, level, seedRef.current, contentId)));
+    getDrillLevel(drill).then((level) => {
+      baseLevelRef.current = level;
+      setSetup(prepareDrill(drill, stretch ? Math.min(MAX_LEVEL, level + STRETCH_LEVELS) : level, seedRef.current, contentId));
+    });
   }, [drill, contentId]);
 
   // Clock while listening; timed drills end on their own.
@@ -316,6 +324,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         contentId: setup.contentId,
         lessonId: practice?.lessonId,
         placement: practice?.placement,
+        ...(stretch ? { stretch: { baseLevel: baseLevelRef.current } } : {}),
         accuracyPercent: evaluated.details.accuracyPercent ?? null,
         wpm: evaluated.details.wpm ?? null,
         metrics: evaluated.details,
@@ -325,6 +334,7 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
         quick,
       });
       setChange(moved);
+      if (stretch && evaluated.gate.passed) setStretch(false);
       setChainCheck(check);
       setResult(evaluated);
     } catch (error) {
@@ -351,7 +361,12 @@ export function DrillRunnerScreen({ route, navigation }: Props) {
 
   return (
     <ScreenContainer style={styles.container}>
-      <Header eyebrow={`${DRILL_TITLES[setup.type]} · level ${Math.floor(setup.level)}`} title={setup.title} onBack={() => navigation.goBack()} backIcon="close" />
+      <Header eyebrow={`${DRILL_TITLES[setup.type]} · level ${Math.floor(setup.level)}${stretch ? " · Stretch" : ""}`} title={setup.title} onBack={() => navigation.goBack()} backIcon="close" />
+      {stretch && stage === "intro" ? (
+        <Txt variant="footnote" tone="secondary">
+          This week's stretch: two levels above you. A good result counts extra, and a miss can't lower anything.
+        </Txt>
+      ) : null}
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {stage === "intro" ? (
