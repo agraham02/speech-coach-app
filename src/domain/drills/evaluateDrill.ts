@@ -34,6 +34,7 @@ import {
 } from "./chainJudging";
 import { countRate, countReached } from "./breathCount";
 import type { TopicVerdict } from "../meaning/meaning";
+import { pausesAtMarks, timedTokens, type TimedWordInput } from "./timedHeard";
 import { accuracyGate, chainGate, PASSED, readingGate, repetitionGate, storyGate, topicGate, wordsHeardGate, type GateVerdict } from "../gates";
 
 // Scores one live drill attempt from what the screen measured. Pure.
@@ -54,6 +55,9 @@ export interface DrillMeasurements {
   // Category sprint: which of the counted words the phone found outside the
   // category ("table" isn't an animal). Absent when it couldn't check.
   categoryCheck?: { misfits: string[] };
+  // Whisper's words for the saved clip, with times. When present the transcript is
+  // Whisper's too; Pause reading uses the times to find pauses at the marks.
+  words?: TimedWordInput[];
   // Sixty seconds and Random-word story: whether the sentences hang together.
   coherence?: TopicVerdict | null;
   // Word chain: off for people who stutter, so blocks never cost points.
@@ -137,7 +141,15 @@ function scoreDrill(setup: DrillSetup, m: DrillMeasurements): { outcome: DrillOu
       const details: DrillDetails = { accuracyPercent: score.accuracyPercent, wpm: score.wpm, misses: score.misses };
       if (setup.type === "pace_reading") return { outcome: scorePace(score.wpm, score.accuracyPercent, setup.params), details };
       if (setup.type === "pause_reading") {
-        const vol = summarizeVolume(m.volume, setup.params.minPauseMs ?? 400);
+        const minPauseMs = setup.params.minPauseMs ?? 400;
+        // From Whisper's word times: a pause counts only where the passage marks one.
+        if (m.words?.length && setup.pauseAfter?.length) {
+          const found = pausesAtMarks(target, timedTokens(m.words), setup.pauseAfter, minPauseMs);
+          details.pauses = found.held;
+          return { outcome: scorePauses(found.held, found.marks), details };
+        }
+        // The live recognizer has no word times: pauses anywhere, as before.
+        const vol = summarizeVolume(m.volume, minPauseMs);
         details.pauses = vol.pauses.length;
         return { outcome: scorePauses(vol.pauses.length, setup.pauseMarks ?? 1), details };
       }

@@ -165,6 +165,14 @@ A new JS bundle is enough; no new build. Do a few real takes first, since the nu
 - [ ] **A wrong script.** On a script take, read something else: the same message. Read the script: it scores.
 - [ ] **Fair enough?** Tell me if a real attempt ever gets rejected. The 40% floor on Twister, Minimal pairs and Shadowing is my number, and the live recognizer is rough until 3b.3.
 
+### Drills read by Whisper (3b.3)
+
+- [ ] **A drill, with the model on the phone.** Do Pace reading, Twister or Category sprint. After you finish there is a short "Checking…" (a few seconds), then the result. Tell me how long it felt.
+- [ ] **Fillers.** On Sixty seconds say a few "um"s. They should show in the result's filler count (the old live recognizer dropped them).
+- [ ] **Pause reading.** Hold a real pause at each mark: it counts them. Then read straight through and pause at other places: it should count none.
+- [ ] **No model.** In Settings, Coaching & AI delete the transcription model, do a drill: it still scores, with "Quick check" on the result. Download the model again afterwards.
+- [ ] **Word chain** still cuts into runs at each fresh word, and the links shown are your words.
+
 ### Meaning checks on the phone (3b.4)
 
 - [ ] **Signal Lab, Content, Word links.** Run it (it takes a second). Tell me the result: how many broken links it caught, how many real ones it failed, and the cut it used. This decides whether Word chain can be checked without Tono AI.

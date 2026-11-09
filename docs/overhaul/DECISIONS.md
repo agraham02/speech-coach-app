@@ -350,3 +350,23 @@ When a check is off, it says "not checked", never a guess, and nothing is punish
 **Why:** a check that can wrongly fail people's real answers is worse than none, and the plan says a failed phone check falls back to level 2 or "not checked". Self-testing on the phone gets that without waiting for the owner to run anything.
 
 **Owner's OK:** not asked; this is task 3b.4. Two things to look at: Sixty seconds and Random-word story use coherence only, and a take can now fail for being off-topic.
+
+## D22. Drills are scored from Whisper's reading of the clip (2026-11-08)
+
+**Was:** every live drill scored from the on-device live recognizer, which drops fillers and mishears (Signal Lab, round 1.3). Plan 6.6: only takes and Rewind used Whisper.
+
+**Now:**
+- **Drills record their audio** (`persistAudio`) and, when they end, the clips are read by Whisper (the same large-v3-turbo the takes use). The score reads that transcript, with each word's time. The live recognizer is only for on-screen feedback: highlighting words as you read, showing a fresh word in a chain. The clips are deleted after.
+- **A short "Checking…" state** covers the wait, about a quarter of the clip's length by the Signal Lab timings (Whisper read 30 s in 3.4 s).
+- **Quick check.** If the model isn't on the phone, or Whisper doesn't finish, the drill still scores from the live words, says "Quick check" on the result, and every leaf it moves counts light (the grid's ● weight, 0.25) at most, until the model is there.
+- **Pause reading counts pauses at the marks.** The passage's marks are mapped to the words they follow; a pause counts only if Whisper's gap between those two words is at least the drill's minimum. Long pauses elsewhere get no credit (section 16's validity test). With no word times (a quick check) it counts pauses anywhere, as before.
+- **Word chain** cuts the words into runs by the *time* each start word appeared, since Whisper's word count differs from the live one.
+- **Pace** uses Whisper's first and last word for the time spoken.
+
+**Left on the live recognizer, on purpose:** the conversation drills (Talk back, Three things) and anything where the app must answer within a second: a reply can't wait for Whisper. Their words only need to be roughly right for a reply of 3+ words.
+
+**A limit to know:** the live recognizer cuts its audio into pieces at long silences, and the pieces are joined, so a silence of 2 seconds or more inside a Pause reading may vanish from the clip. The drill's pauses are 0.3 to 0.65 s, well under that.
+
+**Why:** the plan's rule that nothing that depends on words reads the weaker recognizer; the Quick check keeps a drill usable before the model download (phase 7 puts the download in onboarding).
+
+**Owner's OK:** not asked; this is task 3b.3. One thing to look at: the extra few seconds after each drill.

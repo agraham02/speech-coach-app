@@ -32,6 +32,17 @@ describe("what an attempt moves", () => {
     expect(effectiveWeight({ leaf: "bouncing_back", weight: "main" }, "self")).toBe(0);
   });
 
+  it("counts a Quick check light: scored from the live words, not Whisper's reading", () => {
+    // A twister moves Speed with clarity fully and Read accuracy half; a quick check caps both at light.
+    const full = movesForAttempt({ activityId: drillActivityId("twister"), score: 0.8, difficulty: 3, source: "measured" });
+    const quick = movesForAttempt({ activityId: drillActivityId("twister"), score: 0.8, difficulty: 3, source: "measured", quick: true });
+    expect(byLeaf(full)).toEqual({ speed_clarity: 1, read_accuracy: 0.5 });
+    expect(byLeaf(quick)).toEqual({ speed_clarity: 0.25, read_accuracy: 0.25 });
+    // Already-light moves stay light, and a quick check never raises a weight.
+    const light = movesForAttempt({ activityId: drillActivityId("word_chain"), score: 0.8, difficulty: 3, source: "phone_estimate", quick: true });
+    expect(light.every((m) => m.weight <= 0.25)).toBe(true);
+  });
+
   it("moves nothing on a leaf that doesn't count yet", () => {
     expect(movesForAttempt({ activityId: guidedActivityId("gd_inflection"), score: 1, difficulty: 3, source: "measured" })).toEqual([]);
   });
