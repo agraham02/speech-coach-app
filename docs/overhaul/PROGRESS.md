@@ -108,7 +108,7 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 | ID | Task | Status | Evidence |
 |---|---|---|---|
 | 3d.1 | One 1–10 scale; the practice step and `curriculum.ts` removed | iphone | D31. `domain/difficulty/scale.ts` with 4 tests (bands, take settings both ways, unknown parts, pool widening); a take moves leaves at its own difficulty; curriculum code, screen, pin and table (schema 41) removed; drill results show the difficulty. Not run on a phone |
-| 3d.2 | Seed from skill, pull back on drift, rising floors | todo | |
+| 3d.2 | Seed from skill, pull back on drift, rising floors | iphone | D33. `domain/difficulty/choose.ts` in `getDrillLevel`: start at (leaf − 20) ÷ 10, pulled back past 2 levels of drift, stage floors with three misses easing them; 4 pure tests and a real-SQLite test. Not run on a phone |
 | 3d.3 | Stage proof at difficulty, unlocks by stage, reviews at current difficulty | todo | |
 | 3d.4 | Stretch rep and the challenge setting | todo | |
 | 3d.5 | New knobs for guided exercises, warm-ups, Rewind, Moments | todo | |

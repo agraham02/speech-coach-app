@@ -19,7 +19,8 @@ import { activityOfDrill } from "../../content/activities";
 import { SKILL_CHECK_LEAVES, type EvidenceSource } from "../../content/skillGrid";
 import type { GateVerdict } from "../../domain/gates";
 import { emitStageEarned } from "../progress/progressEvents";
-import { getAttemptsFor, getAttemptsSince, getNodeStages, getPillarProgress, getTreeScores, recordAttempt, seedLeaves, type AttemptResult } from "./leafRepo";
+import { chooseLevel, mainLeafOf } from "../../domain/difficulty/choose";
+import { getAttemptsFor, getAttemptsSince, getLeafRatings, getNodeStages, getPillarProgress, getTreeScores, recordAttempt, seedLeaves, type AttemptResult } from "./leafRepo";
 import { getPathOrder } from "./pathRepo";
 import { isSessionLive } from "./sessionsRepo";
 import { getPracticeMarkerDates } from "./practiceDaysRepo";
@@ -132,10 +133,27 @@ export async function getSkillMovesSince(sinceIso: string): Promise<{ skill: Ski
   return [...moves.values()];
 }
 
-export async function getDrillLevel(type: DrillType): Promise<number> {
+// Misses in a row per drill this launch: three ease the stage floor by 1 (6.7, rule 6).
+const missesInARow = new Map<string, number>();
+
+// The difficulty this drill runs at now: its staircase, started from your skill
+// the first time, pulled back if it drifts from it, and never under the floor
+// your stage on its leaf has earned (domain/difficulty/choose.ts).
+export async function getDrillLevel(type: DrillType, contentId?: string): Promise<number> {
   const db = await getDatabase();
   const row = await db.getFirstAsync<{ level: number }>(`SELECT level FROM drill_difficulty WHERE drill_type = ?`, [type]);
-  return row?.level ?? MIN_LEVEL;
+  const leaf = mainLeafOf(activityOfDrill(type, contentId));
+  let leafRating: number | null = null;
+  let leafStage: Stage | null = null;
+  if (leaf) {
+    const [ratings, stages] = await Promise.all([getLeafRatings(), getNodeStages()]);
+    leafRating = ratings[leaf]?.rating ?? STARTING_VALUE;
+    leafStage = stages.get(leaf)?.stage ?? null;
+  } else if (type === "rep") {
+    // A take moves many leaves: it follows Overall.
+    leafRating = (await getTreeScores()).overall;
+  }
+  return chooseLevel({ stored: row?.level ?? null, leafRating, leafStage, missesInARow: missesInARow.get(type) ?? 0 });
 }
 
 export async function getAllDrillLevels(): Promise<Partial<Record<DrillType, { level: number; attempts: number; successes: number }>>> {
@@ -238,6 +256,7 @@ export async function recordDrillOutcome(args: {
     ],
   );
   const levelAfter = gated ? args.level : nextDifficulty(args.level, args.outcome.success);
+  if (!gated && !args.placement) missesInARow.set(args.drillType, args.outcome.success ? 0 : (missesInARow.get(args.drillType) ?? 0) + 1);
   if (!gated) await saveDrillLevel(args.drillType, levelAfter, args.outcome.success);
 
   const stages = await getNodeStages();
