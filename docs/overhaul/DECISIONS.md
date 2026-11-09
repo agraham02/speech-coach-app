@@ -386,3 +386,20 @@ When a check is off, it says "not checked", never a guess, and nothing is punish
 **Cost, as an estimate:** about 0.08 cents a call by the plan's figure, so 60 checks is about 5 cents a free user a month; watch the real number in the ledger.
 
 **Owner's OK:** not asked; this is task 3b.5. Two things to look at: 60 a month for free accounts, and that Word chain now works for a signed-in free account.
+
+## D24. Checkpoints (2026-11-08)
+
+**Was:** the plan has a checkpoint for each unit ("a 1-minute rep that closes a unit", pass at 70, retry, skip for now; section 5.1 and 7), scored on the unit's target leaf. The catalogue and the grid already had the row; nothing in the app used it.
+
+**What I found:** only 6 of the 22 units have a target leaf that a one-minute talk can show (Speaking rate, Sentence ends, Rhythm, Hits the beats, Clear endings, On the lens). The rest test things like Tricky sounds, Word retrieval, Settling or Follow-ups, which no talk measures. So "a 1-minute rep scored on the target leaf" can't be one kind of rep.
+
+**Now:**
+- **The rep is the unit's own drill where a talk can't show the target.** The checkpoint runs the last drill in the unit's lessons whose row moves the target leaf (main or partial), once, with the usual gate, and it passes at 70 on that drill's own number. For the six units whose target a talk shows (and no drill moves it), it is a one-minute impromptu talk at the unit's tier, scored on that leaf, and it moves only that leaf, ×1.5, as the grid says. A drill checkpoint moves leaves as the drill does (no extra ×1.5); I left that off to keep one drill from counting twice.
+- **A unit with nothing to test finishes on lessons alone.** That is a unit whose target leaf isn't counted yet (Endings that fall, Stress on the right words) as the plan says, and a unit whose target only guided exercises or warm-ups move: they have no number until 3c, so they join the checkpoints then (the rule is in one place: `checkpointRep` in `domain/checkpoint.ts`).
+- **State** is a small record per unit (passed, skipped, tried, best, tries) in the phone's preferences. A pass is permanent; a miss leaves it open and keeps the best; "Skip for now" never undoes a pass; a rep that couldn't be scored isn't a try.
+- **Where it shows:** Learn, Your path, has a "Checkpoints" section for units whose lessons are done and checkpoint is open (Take it, Skip for now), and a unit's line shows "Checkpoint passed · 81" or "best 62 of 70 needed".
+- **Not changed:** a unit still finishes (and the finale still opens) on its lessons alone. Making the checkpoint part of "unit done" is the Path rebuild in phase 5, where the unit screens are redone; until then it can't block anything.
+
+**Also fixed here (a bug in my 3b.4/3b.5 work):** the take's on-topic check read the prompt from the take's saved extras, which only hold made-up prompts, so a library prompt (most of them) was never checked. It now looks the prompt up the way the judge does. Library prompts are checked from this version on.
+
+**Owner's OK:** not asked; this is task 3b.6. Two things to look at: six units get a talk and the rest a drill, and a pass is 70 on a drill's own number.

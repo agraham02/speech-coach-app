@@ -11,6 +11,7 @@ import { Txt } from "../common/Txt";
 import { DeltaBar } from "../celebrate/DeltaBar";
 import type { PathView } from "../../services/path/pathService";
 import { isPathComplete } from "../../domain/pathFinale";
+import { checkpointLine, checkpointOpen } from "../../domain/checkpoint";
 import { SKILL_LABELS } from "../../theme/tokens";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
@@ -21,7 +22,20 @@ const UP_NEXT_SHOWN = 6;
 // Learn's "Your path": every unit in your order — what's on the go now,
 // what's next and why, what's done, and what the skill check showed you
 // already have. Tapping a unit opens its next lesson.
-export function PathList({ view, onOpenUnit, onOpenFinale }: { view: PathView | null; onOpenUnit: (unit: PathUnitView) => void; onOpenFinale?: () => void }) {
+export function PathList({
+  view,
+  onOpenUnit,
+  onOpenFinale,
+  onCheckpoint,
+  onSkipCheckpoint,
+}: {
+  view: PathView | null;
+  onOpenUnit: (unit: PathUnitView) => void;
+  onOpenFinale?: () => void;
+  // Take, or skip for now, a finished unit's one-minute checkpoint.
+  onCheckpoint?: (unit: PathUnitView) => void;
+  onSkipCheckpoint?: (unit: PathUnitView) => void;
+}) {
   const styles = useStyles();
   const { colors } = useTheme();
   const [showAll, setShowAll] = useState(false);
@@ -31,6 +45,8 @@ export function PathList({ view, onOpenUnit, onOpenFinale }: { view: PathView | 
   const upcoming = view.units.filter((u) => u.status === "upcoming");
   const done = view.units.filter((u) => u.status === "done");
   const shown = view.units.filter((u) => u.status === "tested_out");
+  // Units whose lessons are done and whose checkpoint is still to take.
+  const checkpoints = view.units.filter((u) => u.status !== "tested_out" && checkpointOpen(u.checkpoint));
   const total = done.length + active.length + upcoming.length;
   // What the order was built from, in your words.
   const builtFrom = [...new Set(view.units.flatMap((u) => u.reasons).filter((r) => r.kind === "obstacle" || r.kind === "event" || r.kind === "skill_check").map((r) => r.text))].slice(0, 3);
@@ -38,7 +54,14 @@ export function PathList({ view, onOpenUnit, onOpenFinale }: { view: PathView | 
   const step = (u: PathUnitView, state: TimelineStep["state"], showReason = true): TimelineStep => ({
     id: u.unitId,
     title: u.title,
-    subtitle: [u.status === "active" || u.done > 0 ? `${u.done} of ${u.total} lessons` : null, showReason ? u.reasons[0]?.text : null].filter(Boolean).join(" · ") || undefined,
+    subtitle:
+      [
+        u.status === "active" || u.done > 0 ? `${u.done} of ${u.total} lessons` : null,
+        showReason ? u.reasons[0]?.text : null,
+        checkpointLine(u.checkpoint, u.checkpointBest != null ? { status: "tried", best: u.checkpointBest, attempts: 1, at: "" } : undefined),
+      ]
+        .filter(Boolean)
+        .join(" · ") || undefined,
     meta: SKILL_LABELS[u.skill],
     metaColor: colors.skill[u.skill].fg,
     color: colors.skill[u.skill].fg,
@@ -63,6 +86,26 @@ export function PathList({ view, onOpenUnit, onOpenFinale }: { view: PathView | 
           <PrimaryButton label="Open the finale" variant="secondary" size="sm" onPress={onOpenFinale} style={styles.finale} />
         ) : null}
       </HeroCard>
+
+      {checkpoints.length && onCheckpoint ? (
+        <View style={styles.section}>
+          <SectionHeader title="Checkpoints" subtitle="A one-minute talk that closes a unit. Pass at 70, try again as often as you like, or skip it for now." />
+          <Card style={styles.path}>
+            {checkpoints.map((u) => (
+              <View key={u.unitId} style={styles.checkpoint}>
+                <Txt variant="headline">{u.title}</Txt>
+                <Txt variant="footnote" tone="secondary">
+                  {checkpointLine(u.checkpoint, u.checkpointBest != null ? { status: "tried", best: u.checkpointBest, attempts: 1, at: "" } : undefined)}
+                </Txt>
+                <View style={styles.checkpointButtons}>
+                  <PrimaryButton label="Take it" size="sm" onPress={() => onCheckpoint(u)} />
+                  {u.checkpoint === "ready" && onSkipCheckpoint ? <PrimaryButton label="Skip for now" variant="ghost" size="sm" onPress={() => onSkipCheckpoint(u)} /> : null}
+                </View>
+              </View>
+            ))}
+          </Card>
+        </View>
+      ) : null}
 
       {active.length ? (
         <TourTarget id="learn.path" style={styles.section}>
@@ -117,4 +160,6 @@ const useStyles = makeStyles((t) => ({
   finale: { alignSelf: "flex-start", marginTop: t.space.xs },
   section: { gap: t.space.sm + 4 },
   path: { paddingBottom: t.space.sm + 4 },
+  checkpoint: { gap: t.space.xs, paddingVertical: t.space.sm },
+  checkpointButtons: { flexDirection: "row", gap: t.space.sm, marginTop: t.space.xs },
 }));

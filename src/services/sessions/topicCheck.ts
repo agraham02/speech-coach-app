@@ -5,6 +5,7 @@ import type { Session } from "../../domain/sessionTypes";
 import { requestAnalysis } from "../analysis";
 import { getArtifact, putArtifact } from "../db/artifactsRepo";
 import { checkTopic } from "../language/meaningCheck";
+import { gradingContextFromSession } from "./sessionSubject";
 import { logger } from "../../utils/logger";
 
 // Is a take about its prompt? Asked once per take, the answer kept with it:
@@ -26,14 +27,21 @@ interface StoredTopic {
 const askedServer = new Set<string>();
 
 export async function topicVerdictFor(session: Session, hasJudgedReview: boolean): Promise<TopicVerdict | null> {
-  const prompt = session.subjectExtras?.promptText;
   const text = session.transcriptVerbatim ?? "";
   // A judge that scored the take already knows whether it answered; a script take
-  // has no prompt to answer; a record with no topic has none.
-  if (hasJudgedReview || session.sessionType === "script_practice" || !prompt || text.trim().split(/\s+/).length < TAKE_MIN_WORDS) return null;
+  // and a feeling rep have no prompt to answer; a free record has one only if it
+  // was given a topic.
+  if (hasJudgedReview || session.sessionType === "script_practice" || session.sessionType === "feeling") return null;
+  if (session.sessionType === "free_record" && !session.subjectExtras?.promptText) return null;
+  if (text.trim().split(/\s+/).length < TAKE_MIN_WORDS) return null;
 
   const stored = await getArtifact<StoredTopic>(session.id, "topic_check");
   if (stored) return stored.verdict;
+
+  // The prompt's words: a library prompt is looked up, a made-up one is on the take.
+  const context = await gradingContextFromSession(session);
+  const prompt = context?.kind === "prompt" ? context.promptText : null;
+  if (!prompt) return null;
 
   const phone = await checkTopic(prompt, text);
   if (phone) {

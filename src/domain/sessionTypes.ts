@@ -59,6 +59,8 @@ export type RecordingSubject =
       conciseSeconds?: number;
       // Set when the rep belongs to a lesson / daily plan (Phase 3).
       lessonId?: string;
+      // This rep is a unit's checkpoint (domain/checkpoint.ts).
+      checkpointUnitId?: string;
       targetFramework?: string;
       targetSeconds?: number;
       prepSeconds?: number;
@@ -202,6 +204,8 @@ export interface SessionSubjectExtras {
   conciseSeconds?: number;
   // Curriculum context (Phase 3): which lesson/framework this rep was for.
   lessonId?: string;
+  // The unit whose checkpoint this rep was.
+  checkpointUnitId?: string;
   targetFramework?: string;
   // For ad-hoc prompts (id starts with ADHOC_PROMPT_PREFIX) that aren't in
   // the prompt library — follow-up questions, generated drill prompts.

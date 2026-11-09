@@ -165,6 +165,13 @@ A new JS bundle is enough; no new build. Do a few real takes first, since the nu
 - [ ] **A wrong script.** On a script take, read something else: the same message. Read the script: it scores.
 - [ ] **Fair enough?** Tell me if a real attempt ever gets rejected. The 40% floor on Twister, Minimal pairs and Shadowing is my number, and the live recognizer is rough until 3b.3.
 
+### Checkpoints (3b.6)
+
+- [ ] **Finish a unit.** Learn, Your path: when every lesson of a unit is done, a "Checkpoints" section appears with that unit, "Take it" and "Skip for now". (Dev can mark lessons done faster than doing them all.)
+- [ ] **Take one.** It starts a drill (or a one-minute talk). When you finish a drill and tap Done, a toast says "Checkpoint passed" or how far off you were. A miss keeps it open with "best 62 of 70 needed".
+- [ ] **Skip for now** moves it to "Checkpoint skipped for now" and it is still there to take later. A passed one shows "Checkpoint passed · 81" under the unit and never reopens.
+- [ ] **Does it feel fair?** Tell me if the rep chosen for a unit isn't the right test of what the unit taught.
+
 ### The small content check (3b.5)
 
 - [ ] **Deploy it first.** Apply `supabase/migrations/20261109000000_small_checks.sql` in the Supabase SQL editor, then `npx supabase functions deploy --use-api`. Republish `docs/privacy.md` and `docs/terms.md` where they are hosted.

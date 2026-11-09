@@ -20,6 +20,8 @@ import { lessonPosition } from "../../domain/path";
 import { getUnit } from "../../content/lessons";
 import { SKILL_LABELS } from "../../theme/tokens";
 import { navigationRef } from "../../navigation/navigationRef";
+import { checkpointLeaf } from "../../domain/checkpoint";
+import { settleCheckpoint } from "../checkpoint/checkpointService";
 
 // Moves skill mastery for an impromptu rep — once per session, after its
 // analysis has settled. It used to run as soon as the phone's coach
@@ -51,6 +53,7 @@ export async function settleRepProgress(sessionId: string, options: { abandoned?
       activityId: activityOfSession(session),
       readings: takeLeafReadings(facts),
       lessonId: session.subjectExtras?.lessonId ?? null,
+      checkpointUnitId: session.subjectExtras?.checkpointUnitId ?? null,
       noPrep: !session.subjectExtras?.prepUsed?.seconds,
       hasTopic: !!session.subjectExtras?.promptText,
       // Research makes it a prepared answer, not an impromptu one.
@@ -61,6 +64,13 @@ export async function settleRepProgress(sessionId: string, options: { abandoned?
     const changes = session.subjectExtras?.placement
       ? []
       : await recordTakeOutcome(evidence, { sessionId, label: subject.title || "A recorded take", meanScore: evidence.score ?? null });
+    // A checkpoint: the take's number on the unit's target leaf is the try's score.
+    const checkpointUnit = session.subjectExtras?.checkpointUnitId;
+    if (checkpointUnit) {
+      const leaf = checkpointLeaf(checkpointUnit);
+      const reading = leaf ? evidence.leafScores?.[leaf] : undefined;
+      settleCheckpoint(checkpointUnit, reading ? Math.round(reading.score * 100) : null);
+    }
     // A path lesson's rep says where it leaves you in the unit.
     const position = session.subjectExtras?.lessonId ? lessonPosition(session.subjectExtras.lessonId) : null;
     const unit = position ? getUnit(position.unitId) : undefined;

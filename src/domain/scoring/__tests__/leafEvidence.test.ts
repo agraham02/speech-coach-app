@@ -89,6 +89,15 @@ describe("a take's evidence", () => {
     expect(byLeaf(planned)).toEqual({ speaking_rate: 1, point_first: 0.25, answers_question: 1, starting_fast: 1 });
   });
 
+  it("moves only the unit's target leaf, ×1.5, when the rep is a checkpoint", () => {
+    const unit = "art_sounds";
+    const leaf = unitTargetLeaf(unit)!;
+    const checkpointReadings = { ...readings, [leaf]: { score: 77, source: "measured" as const, value: "", rule: "" } };
+    const planned = moves({ activityId: ACTIVITY_IDS.checkpoint, checkpointUnitId: unit, readings: checkpointReadings });
+    expect(byLeaf(planned)).toEqual({ [leaf]: 1.5 });
+    expect(planned[0].score).toBe(0.77);
+  });
+
   it("counts Starting fast only with no prep", () => {
     expect(byLeaf(moves({ noPrep: false })).starting_fast).toBeUndefined();
   });

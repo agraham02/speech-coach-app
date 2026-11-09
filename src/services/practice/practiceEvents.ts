@@ -80,6 +80,14 @@ export async function completePracticeStep(activityId: string, context: Practice
       logger.error(`[practice] couldn't log ${activityId} — ${(error as Error).message}`);
     }
   }
+  // A unit's checkpoint rep: the drill's own number (0 to 1) is the try.
+  if (context?.checkpointUnitId) {
+    // Lazy: the checkpoint service reaches for screens and toasts, which a plain
+    // practice log shouldn't pull in.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { settleCheckpoint } = require("../checkpoint/checkpointService") as typeof import("../checkpoint/checkpointService");
+    settleCheckpoint(context.checkpointUnitId, score == null ? null : Math.round(score * 100));
+  }
   listeners.forEach((l) => l({ activityId, context: context ?? {}, score, sessionId: extra.sessionId, lessonCompleted }));
 }
 
@@ -95,7 +103,7 @@ async function recordActivity(activityId: string, context: PracticeContext, scor
   let lessonStepIndex = context.lessonStepIndex ?? null;
   // A plan step that came from the lesson names its step; one that didn't (the
   // line of the day, more of the same skill) must not tick one by accident.
-  if (lessonStepIndex == null && !context.planStepId) {
+  if (lessonStepIndex == null && !context.planStepId && !context.checkpointUnitId) {
     const candidates = lessonId ? [lessonId] : await getCurrentLessonIds().catch(() => [] as string[]);
     for (const id of candidates) {
       const lesson = getLesson(id);

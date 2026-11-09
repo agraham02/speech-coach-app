@@ -9,6 +9,7 @@ export function activityOfTake(subject: RecordingSubject): { activityId: string;
   if (subject.kind === "script") return { activityId: ACTIVITY_IDS.script, variant: null };
   if (subject.skillCheck) return { activityId: ACTIVITY_IDS.skillCheck, variant: null };
   if (subject.feeling) return { activityId: ACTIVITY_IDS.feeling, variant: null };
+  if (subject.checkpointUnitId) return { activityId: ACTIVITY_IDS.checkpoint, variant: subject.checkpointUnitId };
   if (isFreeRecordPrompt(subject.prompt.id)) return { activityId: ACTIVITY_IDS.freeRecord, variant: null };
   if (subject.conciseSeconds != null) return { activityId: ACTIVITY_IDS.concise, variant: null };
   const framework = subject.targetFramework;
@@ -18,6 +19,7 @@ export function activityOfTake(subject: RecordingSubject): { activityId: string;
 // The same, for a saved take (the grid's row for it).
 export function activityOfSession(session: Pick<Session, "sessionType" | "subjectExtras">): string {
   if (session.subjectExtras?.placement) return ACTIVITY_IDS.skillCheck;
+  if (session.subjectExtras?.checkpointUnitId) return ACTIVITY_IDS.checkpoint;
   switch (session.sessionType) {
     case "script_practice":
       return ACTIVITY_IDS.script;
