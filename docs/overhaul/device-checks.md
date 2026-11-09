@@ -165,6 +165,12 @@ A new JS bundle is enough; no new build. Do a few real takes first, since the nu
 - [ ] **A wrong script.** On a script take, read something else: the same message. Read the script: it scores.
 - [ ] **Fair enough?** Tell me if a real attempt ever gets rejected. The 40% floor on Twister, Minimal pairs and Shadowing is my number, and the live recognizer is rough until 3b.3.
 
+### Guided exercises with a mic (3c.1)
+
+- [ ] **Do two or three**, for example Practice the blank, Catch the um and Rate contrast (Learn, a lesson, or Practice). Each speaking step has a Record button; at the end there is a short "Checking…" and a percentage with a line for each try ("Said it", "3 of 3 things named").
+- [ ] **Does the number match what you did?** Say the lines wrongly or not at all and it should score low or say "Not scored". Do it well and it should be high. Tell me which exercises feel wrong; the cut-offs are first guesses.
+- [ ] **The three that are still a rating** (Emphasis shift, Statement or question?, Same line, different feeling) say they stay a rating.
+
 ### Checkpoints (3b.6)
 
 - [ ] **Finish a unit.** Learn, Your path: when every lesson of a unit is done, a "Checkpoints" section appears with that unit, "Take it" and "Skip for now". (Dev can mark lessons done faster than doing them all.)

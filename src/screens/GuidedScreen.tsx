@@ -14,6 +14,8 @@ import { CountdownRing } from "../components/common/CountdownRing";
 import { WARM_UPS } from "../content/drillContent";
 import { getGuided } from "../content/lessons";
 import { scoreSelfRating } from "../domain/drills/drillSpecs";
+import { isMeasured, SELF_RATED_ONLY } from "../domain/guided/guidedMeasures";
+import { MeasuredGuidedRunner } from "./guided/MeasuredGuidedRunner";
 import { getDrillLevel, recordDrillOutcome } from "../services/db/progressRepo";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { announceTrail } from "../components/celebrate/trailToast";
@@ -27,14 +29,17 @@ type Props = NativeStackScreenProps<RootStackParamList, "Guided">;
 // The box the countdown ring and the breathing aura behind it share.
 const RING_WRAP = 300;
 
-// Warm-ups (timed steps) and guided exercises (steps + an honest 1-5
-// self-rating, for things the phone can't measure reliably).
+// Warm-ups (timed steps) and guided exercises. Most guided exercises have a
+// microphone and a number (screens/guided/MeasuredGuidedRunner.tsx); the three
+// that depend on pitch and stress, which are unproven, end in an honest 1-5
+// self-rating and say so.
 export function GuidedScreen({ route, navigation }: Props) {
   const { warmupId, guidedId, practice } = route.params;
   const warmUp = warmupId ? WARM_UPS.find((w) => w.id === warmupId) : undefined;
   const guided = guidedId ? getGuided(guidedId) : undefined;
 
   if (warmUp) return <WarmUpRunner warmUp={warmUp} onDone={() => finish(null)} onBack={() => navigation.goBack()} />;
+  if (guided && isMeasured(guided.id)) return <MeasuredGuidedRunner exercise={guided} onDone={(score) => finish(score)} onBack={() => navigation.goBack()} />;
   if (guided) return <GuidedRunner exercise={guided} onDone={(score) => finish(score)} onBack={() => navigation.goBack()} />;
   return null;
 
@@ -210,6 +215,11 @@ function GuidedRunner({
         ) : (
           <Card style={styles.guidedStep}>
             <Txt variant="headline">{exercise.ratingQuestion}</Txt>
+            {SELF_RATED_ONLY[exercise.id] ? (
+              <Txt variant="footnote" tone="muted">
+                {SELF_RATED_ONLY[exercise.id]}
+              </Txt>
+            ) : null}
             <View style={styles.ratingRow}>
               {[1, 2, 3, 4, 5].map((n) => (
                 <Pressable
