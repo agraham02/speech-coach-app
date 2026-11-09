@@ -403,3 +403,17 @@ When a check is off, it says "not checked", never a guess, and nothing is punish
 **Also fixed here (a bug in my 3b.4/3b.5 work):** the take's on-topic check read the prompt from the take's saved extras, which only hold made-up prompts, so a library prompt (most of them) was never checked. It now looks the prompt up the way the judge does. Library prompts are checked from this version on.
 
 **Owner's OK:** not asked; this is task 3b.6. Two things to look at: six units get a talk and the rest a drill, and a pass is 70 on a drill's own number.
+
+## D25. The guided exercises get a mic (2026-11-08)
+
+**Was:** 26 guided exercises ended in a 1 to 5 self-rating (plan 3c.1; section 7's table says what each number should be).
+
+**Now:** 23 of them record. Each speaking step is a "try" with a Record button; when the exercise ends, Whisper reads each recording (the same path as drills, D22) and the checks in `domain/guided/guidedMeasures.ts` add up to a number: lines said (the words, not how they sounded), a question asked, one or two sentences then a question or an offer, three things named, an if-then plan, a pause pattern, pauses at bars, two-second holds, faster than slower by 1.5 times, fewer ums in the second half, the last word holding its volume, louder the second time. A few keep a share for your own rating (Reframe it 40%, Where's my attention 40%, Set down the rehearsal 30%); Reset before you speak gives half for the sighs, which a microphone can't hear. Nothing heard in any try is "Not scored", and the attempt is kept. Without the transcription model it is a Quick check: it counts light, and the checks that need word times hold back rather than fail you.
+
+**Three stay self-rated, and say so:** Emphasis shift, Statement or question? and Same line, different feeling. Their numbers would be stress on the right word, the pitch at the end of a line, and the pitch and loudness range across feelings. All three leaves are still on probation (D11), so no number is claimed until Signal Lab proves them. They moved nothing before and still move nothing.
+
+**Every threshold is a first guess** (the plan marks most as "tune"): 150 words a minute for "unhurried", a 250 ms pause at a bar, 1.8 s for a two-second hold, 2 meter units for the last word's drop, 4 s for "in time". The recognizer's meter is not true decibels, so "within 6 dB" is approximated. Real recordings will tune them.
+
+**Not built:** Predict, then check only hears the prediction; its other half, comparing it with what happened, waits for Debrief to be linked to it. Listen for the spark asks for a question about the clip you chose; the app plays no clip yet. Warm-ups are 3c.2. The checkpoint's choice of rep doesn't use guided exercises yet.
+
+**Owner's OK:** not asked; this is task 3c.1.

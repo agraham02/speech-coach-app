@@ -12,6 +12,9 @@ export const PASSED: GateVerdict = { passed: true };
 const failed = (reason: string): GateVerdict => ({ passed: false, kind: "failed", reason });
 const notChecked = (reason: string): GateVerdict => ({ passed: false, kind: "not_checked", reason });
 
+// For the checks that live beside the gates (guided exercises).
+export const failedGate = failed;
+
 // People whose first language isn't English: live recognition is less sure of
 // their words, which isn't their mistake.
 const RELAXED_BY = 10;
