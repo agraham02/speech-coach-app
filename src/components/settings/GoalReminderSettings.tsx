@@ -9,21 +9,24 @@ import { Txt } from "../common/Txt";
 import { useToast } from "../common/ToastProvider";
 import { ReminderHours } from "./ReminderHours";
 import { PracticeHabitSettings } from "./PracticeHabitSettings";
-import { sessionHours, type DailyGoal } from "../../domain/dailyGoal";
-import { formatReminderHour, setSessionHour } from "../../domain/reminderSettings";
-import { getDailySessionGoal, getReminderSettings, getRewindReminder, setDailySessionGoal, setReminderSettings, setRewindReminder } from "../../services/prefs/prefsStore";
+import { blocksFor, MINUTE_CHOICES, type DailyMinutes } from "../../domain/sessionLength";
+import { formatReminderHour, planSessionHours, setSessionHour } from "../../domain/reminderSettings";
+import { getReminderSettings, getRewindReminder, getUsualMinutes, setReminderSettings, setRewindReminder, setUsualMinutes } from "../../services/prefs/prefsStore";
 import { syncRewindReminder } from "../../services/rewind/rewindReminder";
 import { cancelDailyReminder, requestNotificationPermission, syncDailyReminder } from "../../services/notifications/reminderScheduler";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
-// Settings → Goal & reminders: how many sessions a day, which days you plan to
-// practice, and when to be nudged.
+// Settings → Goal & reminders: your usual minutes a day, which days you plan
+// to practice, and when to be nudged.
 export function GoalReminderSettings() {
   const styles = useStyles();
   const { colors } = useTheme();
   const showToast = useToast();
   const [reminderSettings, setReminderSettingsState] = useState(getReminderSettings());
-  const [goal, setGoalState] = useState<DailyGoal>(getDailySessionGoal());
+  const [usual, setUsualState] = useState<DailyMinutes>(getUsualMinutes());
+  // A 20 or 30 minute day is two blocks, each with its reminder.
+  const goal = blocksFor(usual).length;
+  const sessionHours = (first: number, extra: number[] | undefined, blocks: number) => planSessionHours(first, extra, blocks);
   const [rewind, setRewindState] = useState(getRewindReminder());
 
   function save(next: typeof reminderSettings) {
@@ -69,10 +72,11 @@ export function GoalReminderSettings() {
   }
 
   async function handleGoalChange(key: string) {
-    const next = Number(key) as DailyGoal;
-    setGoalState(next);
-    setDailySessionGoal(next);
-    // Spread the top-up reminders through the day, each after the one before.
+    const minutes = Number(key) as DailyMinutes;
+    setUsualState(minutes);
+    setUsualMinutes(minutes);
+    // A second block gets its own reminder, after the first.
+    const next = blocksFor(minutes).length;
     const planned = sessionHours(reminderSettings.hour, reminderSettings.extraHours, next);
     const kept = (reminderSettings.extraHours ?? []).slice(planned.length - 1);
     save({ ...reminderSettings, hour: planned[0], extraHours: [...planned.slice(1), ...kept] });
@@ -99,18 +103,14 @@ export function GoalReminderSettings() {
     <>
       <Card style={styles.section}>
         <View style={styles.sectionText}>
-          <Txt variant="headline">Daily goal</Txt>
+          <Txt variant="headline">Minutes a day</Txt>
           <Txt variant="footnote" tone="secondary">
-            The first session is your daily plan; the rest are 4-minute top-ups. Your streak only ever needs one.
+            Your usual. Change it for one day on Today. 20 and 30 split into two blocks. Your streak only needs one activity.
           </Txt>
         </View>
         <SegmentedControl
-          options={[
-            { key: "1", label: "1x / day" },
-            { key: "2", label: "2x / day" },
-            { key: "3", label: "3x / day" },
-          ]}
-          value={String(goal)}
+          options={MINUTE_CHOICES.map((m) => ({ key: String(m), label: `${m}` }))}
+          value={String(usual)}
           onChange={handleGoalChange}
         />
         <View style={styles.sectionText}>
@@ -147,7 +147,7 @@ export function GoalReminderSettings() {
       <Card style={styles.section}>
         <SwitchRow
           title="Reminders"
-          subtitle={goal > 1 ? "A nudge for each session — skipped once it's done." : "A nudge to practice, once a day."}
+          subtitle={goal > 1 ? "A nudge for each block — skipped once it's done." : "A nudge to practice, once a day."}
           value={reminderSettings.enabled}
           onValueChange={handleReminderToggle}
         />

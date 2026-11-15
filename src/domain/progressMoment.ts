@@ -30,7 +30,7 @@ export interface MomentInput {
   speakerLevelAfter?: number;
   // This take kept the streak going (the day's first practice).
   streakDays?: number | null;
-  // Sessions done today against the daily goal, when the goal is above one.
+  // Minutes done today against today's goal.
   goal?: { done: number; goal: number } | null;
   // Where this take leaves you on the path (domain/path.ts).
   path?: { unitTitle: string; lessonIndex: number; lessonCount: number } | null;
@@ -132,7 +132,7 @@ export function buildMoment(input: MomentInput): Beat[] {
   // 6. The path, then the streak or the goal.
   if (input.path) beats.push({ kind: "path", ...input.path });
   if (input.streakDays && input.streakDays > 0) beats.push({ kind: "streak", days: input.streakDays });
-  else if (input.goal && input.goal.goal > 1) beats.push({ kind: "goal", ...input.goal });
+  else if (input.goal && input.goal.goal > 0) beats.push({ kind: "goal", ...input.goal });
 
   return beats.slice(0, MAX_BEATS);
 }

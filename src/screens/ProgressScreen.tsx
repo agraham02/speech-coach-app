@@ -18,9 +18,9 @@ import { SkillRings } from "../components/common/SkillRings";
 import { MetricChart } from "../components/common/MetricChart";
 import { ConversationProgress } from "../components/conversation/ConversationProgress";
 import { ProgressProfileCards } from "../components/onboarding/SkillCheckCards";
-import { getAllDrillLevels, getDailySessionCounts, getRecentDrillAttempts, getSkillStates, getStreakDates, getStreakState } from "../services/db/progressRepo";
-import { getDailySessionGoal, getReminderSettings } from "../services/prefs/prefsStore";
-import { goalDays } from "../domain/dailyGoal";
+import { getAllDrillLevels, getMinutesByDay, getPlanGoals, getRecentDrillAttempts, getSkillStates, getStreakDates, getStreakState } from "../services/db/progressRepo";
+import { getReminderSettings, getUsualMinutes } from "../services/prefs/prefsStore";
+import { goalDays } from "../domain/sessionLength";
 import { getSessionMetricSeries, getWeeklySummaries, type SessionMetricPoint, type WeekSummary } from "../services/db/statsRepo";
 import { FREEZE_EVERY, FREEZE_MAX } from "../domain/streaks";
 import { withAlpha } from "../utils/color";
@@ -86,12 +86,10 @@ export function ProgressScreen() {
       );
       getSessionMetricSeries(30).then(setSeries);
       getWeeklySummaries().then(setWeeks2);
-      const goal = getDailySessionGoal();
-      if (goal > 1) {
-        getDailySessionCounts().then((counts) => setGoalWeek({ goal, ...goalDays(counts, goal, new Date(), 7, getReminderSettings().practiceDays) }));
-      } else {
-        setGoalWeek(null);
-      }
+      const usual = getUsualMinutes();
+      Promise.all([getMinutesByDay(), getPlanGoals()])
+        .then(([done, goals]) => setGoalWeek({ goal: usual, ...goalDays(done, goals, usual, new Date(), 7, getReminderSettings().practiceDays) }))
+        .catch(() => setGoalWeek(null));
       Promise.all([getStreakDates(), getStreakState()]).then(([dates, s]) => {
         setStreak({ current: s.currentStreak, longest: s.longestStreak, freezes: s.freezesHeld, toward: s.practicedTowardNext });
         setFrozenDays(new Set(s.frozenDates));
@@ -156,7 +154,7 @@ export function ProgressScreen() {
             {goalWeek ? (
               <>
                 <Txt variant="footnote" tone="secondary" align="right" style={styles.sideGap}>
-                  {goalWeek.goal} a day
+                  {goalWeek.goal} min a day
                 </Txt>
                 <Txt variant="title2" align="right" tabular color={goalWeek.met ? colors.success : undefined}>
                   {goalWeek.met}/{goalWeek.of}

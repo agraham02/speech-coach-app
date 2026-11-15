@@ -17,7 +17,6 @@ export type QuestionId =
   | "speech"
   | "voiceNote"
   | "innerCritic"
-  | "goal"
   | "minutes"
   | "days"
   | "anchor"
@@ -119,12 +118,11 @@ export const QUESTIONS: Question[] = [
     changes: "They go in Talk back, where you can look at each one fairly — what's true, what isn't, and a fairer way to say it.",
   },
   {
-    id: "goal",
+    id: "minutes",
     chapter: 2,
-    title: "How many times a day do you want to practice?",
-    changes: "The first is your daily plan; the rest are 4-minute top-ups. Your streak only ever needs one.",
+    title: "How many minutes a day?",
+    changes: "Your usual. Change it for one day on Today, without changing this. 20 and 30 split into two blocks.",
   },
-  { id: "minutes", chapter: 2, title: "How long is a session?", changes: "The length of your daily plan. Change it any day on Today." },
   { id: "days", chapter: 2, title: "Which days?", changes: "Reminders only on these days — and a day off never breaks your streak." },
   {
     id: "anchor",

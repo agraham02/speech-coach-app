@@ -3,8 +3,8 @@ import { getArtifact, putArtifact } from "../db/artifactsRepo";
 import { getSessionById } from "../db/sessionsRepo";
 import { getScoreHistoryBefore } from "../db/scoresRepo";
 import type { TakeScores } from "../../domain/scoring/takeScore";
-import { getPracticeDates, getSessionsDoneToday, getStreakState, type ProgressChange } from "../db/progressRepo";
-import { getDailySessionGoal } from "../prefs/prefsStore";
+import { getMinutesToday, getPracticeDates, getStreakState, type ProgressChange } from "../db/progressRepo";
+import { getTodayMinutes } from "../prefs/prefsStore";
 import { describeSessionSubject } from "../sessions/sessionSubject";
 import { buildMoment, type Beat, type MomentInput } from "../../domain/progressMoment";
 import { isoDateFromDate, todayISODate } from "../../utils/dateUtils";
@@ -62,8 +62,8 @@ export async function loadMoment(sessionId: string): Promise<LoadedMoment | null
       // stored as a bare date, and a plan is never finished without one.
       const before = (await getPracticeDates()).filter((d) => d.endsWith("Z") && d < session.recordedAt && isoDateFromDate(new Date(d)) === day);
       if (before.length === 0) streakDays = (await getStreakState()).currentStreak;
-      const g = getDailySessionGoal();
-      if (g > 1) goal = { done: Math.min(await getSessionsDoneToday(), g), goal: g };
+      const g = getTodayMinutes();
+      goal = { done: Math.min(Math.round(await getMinutesToday()), g), goal: g };
     }
     const first = progress.changes[0];
     const beats = buildMoment({

@@ -41,6 +41,8 @@ export interface PlanStepRef {
   id: string;
   kind: string;
   lessonStep?: LessonStep;
+  // A reflect or moment step names its activity directly.
+  activityId?: string;
 }
 
 export interface PlanRef {
@@ -49,9 +51,11 @@ export interface PlanRef {
   steps: PlanStepRef[];
 }
 
-// The activity a plan step asks for. A "review" step is the quick review of a
-// take; every other step is built from a lesson step.
+// The activity a plan step asks for. A reflect or moment step names it; a
+// "review" step (plans before minutes a day) is the quick review of a take;
+// every other step is built from a lesson step.
 export function wantedByPlanStep(step: PlanStepRef): { activityId: string; variant: string | null } | null {
+  if (step.activityId) return { activityId: step.activityId, variant: null };
   if (step.kind === "review") return { activityId: ACTIVITY_IDS.review, variant: null };
   if (!step.lessonStep) return null;
   return { activityId: activityIdOfStep(step.lessonStep), variant: variantOfStep(step.lessonStep) };

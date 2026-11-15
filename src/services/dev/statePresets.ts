@@ -23,9 +23,8 @@ import {
   markRewindNotificationAsked,
   resetGuide,
   setCloudReviewDefault,
-  setDailySessionGoal,
   setGuideOff,
-  setPlanMinutes,
+  setUsualMinutes,
   setPracticeAnchor,
   setRecordBlindPref,
   setReminderSettings,
@@ -62,8 +61,7 @@ export async function applyOnboardedPreset(options: { age: AgeChoice; name?: str
   setRecordBlindPref(defaults.recordBlind);
   setWarmUpEnabled(defaults.warmUp);
   setUserProfile(profile);
-  setDailySessionGoal(1);
-  setPlanMinutes(STANDARD_PLAN_MINUTES);
+  setUsualMinutes(STANDARD_PLAN_MINUTES);
   setPracticeAnchor(STANDARD_ANCHOR.anchor, STANDARD_ANCHOR.hour);
   setReminderSettings({ enabled: false, hour: STANDARD_ANCHOR.hour, extraHours: [], practiceDays: [] });
   setVideoRetentionDays(STANDARD_RETENTION_DAYS);

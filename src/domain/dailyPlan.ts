@@ -1,23 +1,47 @@
 import type { SkillId } from "../theme/tokens";
 import { getGuided, getLesson, getUnit, LESSONS, type Lesson, type LessonStep } from "../content/lessons";
 import { nextLessonInUnit, pickActive } from "./path";
-import { DRILL_TITLES } from "./drills/drillSpecs";
+import { CONVERSATION_DRILLS, DRILL_TITLES, type DrillType } from "./drills/drillSpecs";
 import { FRAMEWORK_LABELS, type FrameworkId } from "./coach/structureHeuristics";
 import { WARM_UPS } from "../content/drillContent";
 import { SKILLS } from "./mastery";
-import { getLines } from "../content/lines";
-import { lineOfTheDay } from "./cadence/lineRep";
+import { ACTIVITY_IDS, drillActivityId } from "../content/activities";
+import { getGridRow } from "../content/skillGrid";
+import { LEAVES, PILLAR_OF_SKILL, STARTING_VALUE, leafCounts, type LeafId } from "./scoring/skillTree";
+import { blocksFor, SLOT_ORDER, type BlockShape, type DailyMinutes, type SlotKind } from "./sessionLength";
 
-// Builds today's 5–12 minute session: warm-up -> line of the day -> focus
-// drill(s) from the next lesson on your path -> one impromptu rep -> quick
-// review. The path (domain/path.ts) has two units on the go at once, from
-// different skills; days alternate between them. When reviews pile up, the
-// day goes to them instead. The line of the day (one marked line, read with the marks
-// and without) puts cadence in every plan, whatever the focus skill.
-// Deterministic for a given day and inputs, so reopening the app shows the
-// same plan.
+// Builds today's session (docs/overhaul/PLAN.md, sections 5.3 and 9). The
+// minutes a day split into one or two blocks; each block is built from five
+// slots:
+//   1. Warm up.
+//   2. Learn: the current lesson's next steps.
+//   3. Drill: aimed at the lowest leaf on your focus, or your last result's
+//      "one thing next".
+//   4. Record + review: a take and its three passes, as one step.
+//   5. Reflect or Moment: a debrief, a rehearsal, Feeling of the week, Rewind
+//      or Three things, the first that applies.
+// A 15-minute block adds a conversation or a second rep; a second block (20
+// and 30 minutes) is Drill, Conversation, Review, Reflect. Each slot gets the
+// time budget in sessionLength.ts.
+//
+// The lesson comes from your path (two units on the go, taking turns), or by
+// need without one; when reviews pile up the day goes to them. Deterministic
+// for a given day and inputs, so reopening the app shows the same plan.
 
-export type PlanMinutes = 5 | 8 | 12;
+export type PlanMinutes = DailyMinutes;
+
+// What slot 5 can offer today. Worked out by the caller from events, the
+// week's Feeling, and Rewind's timing.
+export interface ReflectContext {
+  // An event yesterday (up to about 3 days ago) not yet debriefed.
+  debrief?: { eventId: string; title: string } | null;
+  // An event within 2 days.
+  eventSoon?: { eventId: string; title: string; daysAway: number } | null;
+  // This week's Feeling of the week isn't done, and it's been a few days.
+  feelingDue?: boolean;
+  // A day waiting to be told, from Rewind's timing.
+  rewind?: { day: "today" | "yesterday"; date: string } | null;
+}
 
 export interface PlanInput {
   date: string; // YYYY-MM-DD
@@ -31,35 +55,44 @@ export interface PlanInput {
   // gets in your way, fading over a few weeks; an upcoming event's skills.
   priority?: Partial<Record<SkillId, number>>;
   // Your path's units still to do, in order. Without one (or once it's
-  // finished) the plan picks a skill by need, as before paths existed.
+  // finished) the plan picks a skill by need.
   path?: string[];
   // Positions of the steps already done in each lesson's current go (from the
-  // activity log). A plan that covers only some of a lesson's steps brings the
-  // ones still to do first, so a short plan still gets the lesson finished.
+  // activity log). Steps still to do come first, so a short plan still gets
+  // the lesson finished.
   lessonStepsDone?: Record<string, number[]>;
+  // Leaf ratings, for the drill slot. Missing leaves sit at the starting value.
+  leafRatings?: Partial<Record<LeafId, number>>;
+  // Your last result's "one thing next", when it names a drill.
+  nextDrill?: DrillType | null;
+  reflect?: ReflectContext;
 }
 
-export type PlanStepKind = "warmup" | "line" | "drill" | "guided" | "rep" | "review";
+export type PlanStepKind = "warmup" | "drill" | "guided" | "rep" | "reflect" | "moment";
 
 export interface PlanStep {
   id: string;
   kind: PlanStepKind;
+  // Which of the block's slots it fills, and which block (0 or 1).
+  slot: SlotKind;
+  block: number;
   title: string;
   detail: string;
   minutes: number;
   lessonStep?: LessonStep;
-  // Where lessonStep sits in the lesson's own steps, when it came from there
-  // (not from another lesson or the generic apply step). Logged with the step
-  // so the lesson knows exactly which of its steps this was.
+  // Where lessonStep sits in its lesson's own steps, when it came from there.
+  // Logged with the step so the lesson knows exactly which of its steps this
+  // was. `lessonId` is set when that lesson isn't the plan's (a review).
   lessonStepIndex?: number;
+  lessonId?: string;
+  // A reflect or moment step's activity (activities.ts), and the event it's for.
+  activityId?: string;
+  eventId?: string;
 }
 
 // Bumped when the plan's shape changes, so a stored plan nobody has started
-// yet is rebuilt (v2: line of the day; v3: a lesson's own warm-up no longer
-// takes one of its practice slots; v4: lessons come from your path; v5: the
-// 12-minute plan adds steps instead of repeating the 8-minute one; v6: steps
-// from the lesson carry their position, and steps not yet done come first).
-export const PLAN_VERSION = 6;
+// yet is rebuilt (v7: minutes a day, blocks and the five slots).
+export const PLAN_VERSION = 7;
 
 // This many lessons due for review make the day a review day.
 export const REVIEW_DAY_DUE = 3;
@@ -72,15 +105,15 @@ export interface DailyPlan {
   lessonId: string;
   isReview: boolean;
   steps: PlanStep[];
+  // One entry per block, with its minutes.
+  blocks: { minutes: number }[];
   // The path unit the lesson belongs to, when the path chose it.
   unitId?: string;
   // Built with a path to follow (even on a review day, which sets no unit).
   followsPath?: boolean;
 }
 
-// Confidence and conversation days settle nerves with the calming sigh: a
-// long out-breath, no holds — the lessons teach starting to speak on an
-// out-breath, not after holding one.
+// Confidence and conversation days settle nerves with the calming sigh.
 const WARMUP_FOR: Record<SkillId, string> = {
   articulation: "wu_articulators",
   cadence: "wu_resonance",
@@ -89,11 +122,18 @@ const WARMUP_FOR: Record<SkillId, string> = {
   conversation: "wu_sigh",
 };
 
-// A conversation day ends on a conversation drill, not a monologue rep —
-// the first of these the day's practice doesn't already include.
-const CONVERSATION_APPLY: Extract<LessonStep, { kind: "drill" }>["drill"][] = ["conv_thread", "conv_echo", "conv_reply"];
+type DrillStep = Extract<LessonStep, { kind: "drill" }>;
+type RepStep = Extract<LessonStep, { kind: "rep" }>;
+type LessonDrill = DrillStep["drill"];
+
+// Conversation drills a plan may use (Live, which needs Plus, isn't one).
+const CONVERSATION_STEPS = [...CONVERSATION_DRILLS] as LessonDrill[];
 
 const DEFAULT_FRAMEWORKS: FrameworkId[] = ["PREP", "WhatSoWhatNowWhat", "PastPresentFuture", "ListOfThree"];
+
+// Drills a plan can pick for the drill slot: the ones lessons already use, so
+// each has content and a runner.
+const PLAN_DRILLS: LessonDrill[] = [...new Set(LESSONS.flatMap((l) => l.steps.flatMap((s) => (s.kind === "drill" && s.drill !== "conv_live" ? [s.drill] : []))))];
 
 export function hashString(input: string): number {
   let h = 0;
@@ -141,29 +181,9 @@ export function chooseLesson(skill: SkillId, input: PlanInput): { lesson: Lesson
   return { lesson: track[hashString(input.date) % track.length], isReview: true };
 }
 
-function describeStep(step: LessonStep): { kind: PlanStepKind; title: string; detail: string; minutes: number } {
-  switch (step.kind) {
-    case "warmup": {
-      const w = WARM_UPS.find((x) => x.id === step.warmupId);
-      return { kind: "warmup", title: w?.title ?? "Warm-up", detail: "Get your voice and body ready.", minutes: 1 };
-    }
-    case "drill":
-      return { kind: "drill", title: DRILL_TITLES[step.drill], detail: "Focus drill", minutes: 2 };
-    case "guided":
-      return { kind: "guided", title: getGuided(step.guidedId)?.title ?? "Guided exercise", detail: "Follow the steps, then rate yourself.", minutes: 2 };
-    case "rep":
-      return {
-        kind: "rep",
-        title: step.framework ? FRAMEWORK_LABELS[step.framework] : "Impromptu rep",
-        detail: step.focus,
-        minutes: 2,
-      };
-  }
-}
-
-// The path's pick for today: the next lesson in one of the two units on
-// the go — the one whose skill wasn't yesterday's focus, so they take turns.
-// Null on a review day, or with no path left.
+// The path's pick for today: the next lesson in one of the two units on the
+// go — the one whose skill wasn't yesterday's focus, so they take turns. Null
+// on a review day, or with no path left.
 export function choosePathLesson(input: PlanInput): { lesson: Lesson; unitId: string } | null {
   if (!input.path?.length) return null;
   const due = LESSONS.filter((l) => isDue(input.lessons[l.id]?.nextReviewAt ?? null, input.date)).length;
@@ -176,22 +196,47 @@ export function choosePathLesson(input: PlanInput): { lesson: Lesson; unitId: st
   return lesson ? { lesson, unitId } : null;
 }
 
-// The 12-minute plan used to be the 8-minute one whenever a lesson has only
-// two practice steps, and a short lesson left any plan under its minutes. A
-// plan now adds to what it has, never takes from it: drills of the same skill
-// from other lessons ("more of the same"), kept while the total stays within
-// the minutes picked.
-function spareDrills(lesson: Lesson, skill: SkillId, taken: Set<string>, date: string): Extract<LessonStep, { kind: "drill" }>[] {
-  const out: Extract<LessonStep, { kind: "drill" }>[] = [];
-  for (const other of LESSONS) {
-    if (other.skill !== skill || other.id === lesson.id) continue;
-    for (const st of other.steps) {
-      if (st.kind === "drill" && !taken.has(st.drill) && !out.some((x) => x.drill === st.drill)) out.push(st);
-    }
+function titleOf(step: LessonStep): string {
+  switch (step.kind) {
+    case "warmup":
+      return WARM_UPS.find((x) => x.id === step.warmupId)?.title ?? "Warm-up";
+    case "drill":
+      return DRILL_TITLES[step.drill];
+    case "guided":
+      return getGuided(step.guidedId)?.title ?? "Guided exercise";
+    case "rep":
+      return step.framework ? FRAMEWORK_LABELS[step.framework] : "Impromptu rep";
   }
-  if (!out.length) return out;
-  const offset = hashString(date) % out.length;
-  return [...out.slice(offset), ...out.slice(0, offset)];
+}
+
+// The lowest counted leaf on the focus skill's pillar, and the drills that
+// train it most, best first. Ties go to the leaf listed first in the tree.
+export function drillsForWeakestLeaf(focus: SkillId, ratings: Partial<Record<LeafId, number>> = {}): { leaf: LeafId; drills: LessonDrill[] } | null {
+  const pillar = PILLAR_OF_SKILL[focus];
+  const trainable = (leaf: LeafId, weight: "main" | "partial") =>
+    PLAN_DRILLS.filter((d) => getGridRow(drillActivityId(d))?.moves.some((m) => m.leaf === leaf && m.weight === weight && !m.displayOnly));
+  const leaves = LEAVES.filter((l) => l.pillarId === pillar && leafCounts(l.id))
+    .map((l) => ({ leaf: l.id, rating: ratings[l.id] ?? STARTING_VALUE }))
+    .filter((l) => trainable(l.leaf, "main").length + trainable(l.leaf, "partial").length > 0)
+    .sort((a, b) => a.rating - b.rating);
+  const weakest = leaves[0];
+  if (!weakest) return null;
+  return { leaf: weakest.leaf, drills: [...trainable(weakest.leaf, "main"), ...trainable(weakest.leaf, "partial")] };
+}
+
+// Slot 5's choices for today, in the order section 5.3 gives. Three things is
+// always last, so there is always one.
+function reflectChoices(ctx: ReflectContext | undefined): Omit<PlanStep, "id" | "slot" | "block" | "minutes">[] {
+  const out: Omit<PlanStep, "id" | "slot" | "block" | "minutes">[] = [];
+  if (ctx?.debrief) out.push({ kind: "moment", title: "How did it go?", detail: `Debrief ${ctx.debrief.title}`, activityId: ACTIVITY_IDS.eventAfter, eventId: ctx.debrief.eventId });
+  if (ctx?.eventSoon) {
+    const when = ctx.eventSoon.daysAway <= 0 ? "today" : ctx.eventSoon.daysAway === 1 ? "tomorrow" : `in ${ctx.eventSoon.daysAway} days`;
+    out.push({ kind: "rep", title: "Rehearsal rep", detail: `For ${ctx.eventSoon.title}, ${when}`, lessonStep: { kind: "rep", focus: `Rehearse for ${ctx.eventSoon.title}.` }, eventId: ctx.eventSoon.eventId });
+  }
+  if (ctx?.feelingDue) out.push({ kind: "reflect", title: "Feeling of the week", detail: "One line, read four ways", activityId: ACTIVITY_IDS.feeling });
+  if (ctx?.rewind) out.push({ kind: "reflect", title: ctx.rewind.day === "today" ? "Rewind today" : "Rewind yesterday", detail: ctx.rewind.day === "today" ? "Tell the story of your day" : "Tell the story of yesterday", activityId: ACTIVITY_IDS.rewind });
+  out.push({ kind: "reflect", title: "Three things", detail: "Three good things, said out loud", activityId: ACTIVITY_IDS.threeThings });
+  return out;
 }
 
 export function buildDailyPlan(input: PlanInput): DailyPlan {
@@ -199,135 +244,188 @@ export function buildDailyPlan(input: PlanInput): DailyPlan {
   const focusSkill = fromPath?.lesson.skill ?? chooseFocusSkill(input);
   const { lesson, isReview } = fromPath ? { lesson: fromPath.lesson, isReview: false } : chooseLesson(focusSkill, input);
   const unitId = fromPath?.unitId;
-  const steps: PlanStep[] = [];
-  const push = (step: LessonStep) => {
-    const d = describeStep(step);
-    const at = lesson.steps.indexOf(step);
-    steps.push({ id: `${steps.length}`, ...d, lessonStep: step, ...(at >= 0 ? { lessonStepIndex: at } : {}) });
-  };
   const doneInLesson = new Set(input.lessonStepsDone?.[lesson.id] ?? []);
+  const open = (st: LessonStep) => !doneInLesson.has(lesson.steps.indexOf(st));
+  const openFirst = <T extends LessonStep>(list: T[]) => [...list].sort((a, b) => Number(!open(a)) - Number(!open(b)));
+  const conversationDay = focusSkill === "conversation";
+  const blocks = blocksFor(input.minutes);
 
-  // 1. Warm-up — the lesson's own if it opens with one — then the line of
-  // the day. A 5-minute plan swaps the generic warm-up for the line, so it
-  // stays at 5 minutes; if the lesson brings its own warm-up, a 5-minute
-  // plan skips the line. Either way the warm-up never takes a practice slot
-  // below — otherwise a short plan would mark "Breathe low" done without
-  // ever reaching its drill.
-  const lessonHasWarmup = lesson.steps[0]?.kind === "warmup";
-  if (lessonHasWarmup) push(lesson.steps[0]);
-  else if (input.minutes !== 5) push({ kind: "warmup", warmupId: WARMUP_FOR[focusSkill] });
-  if (!lessonHasWarmup || input.minutes !== 5) {
-    const line = lineOfTheDay(getLines(), input.date, hashString);
-    steps.push({
-      id: `${steps.length}`,
-      kind: "line",
-      title: "Line of the day",
-      detail: line.text,
-      minutes: 1,
-      lessonStep: { kind: "drill", drill: "marked_reading", contentId: line.id },
-    });
-  }
-
-  // 2. Lesson practice (drills / guided), more of it in longer sessions.
-  // Steps not yet done come first (in lesson order), then the ones already done.
-  const practice = lesson.steps.filter((s) => s.kind !== "rep" && s.kind !== "warmup").sort((a, b) => Number(doneInLesson.has(lesson.steps.indexOf(a))) - Number(doneInLesson.has(lesson.steps.indexOf(b))));
-  const practiceCount = input.minutes === 5 ? 1 : input.minutes === 8 ? 2 : practice.length;
-  practice.slice(0, Math.max(1, practiceCount)).forEach(push);
-
-  // 3. One apply step. Conversation: a partner drill. Otherwise one
-  // impromptu rep: the lesson's own, or a framework rep.
-  const isRep = (s: LessonStep): s is Extract<LessonStep, { kind: "rep" }> => s.kind === "rep";
-  // A lesson with two reps gets the first one not yet done.
-  const lessonRep = lesson.steps.find((s) => isRep(s) && !doneInLesson.has(lesson.steps.indexOf(s))) ?? lesson.steps.find(isRep);
-  // Every lesson has to be finishable from Today alone. Usually the steps
-  // still open come around by themselves; but a conversation day has no rep,
-  // and a lesson can have two. When none of the open steps is in the plan, the
-  // plan would only repeat what is done, so the first open step is added.
-  const ensureLessonReachable = (): boolean => {
-    const covered = new Set(steps.map((st) => st.lessonStepIndex));
-    const open = lesson.steps.map((_, i) => i).filter((i) => !doneInLesson.has(i));
-    if (open.length === 0 || open.some((i) => covered.has(i))) return false;
-    push(lesson.steps[open[0]]);
-    return true;
+  const steps: PlanStep[] = [];
+  const usedDrills = new Set<string>();
+  const usedReflect = new Set<string>();
+  const fromLesson = (st: LessonStep): Pick<PlanStep, "lessonStep" | "lessonStepIndex"> => {
+    const at = lesson.steps.indexOf(st);
+    return at >= 0 ? { lessonStep: st, lessonStepIndex: at } : { lessonStep: st };
   };
-  if (focusSkill === "conversation") {
-    // The lesson's own drill comes first — a short plan may have kept only
-    // its guided step, and finishing the plan marks the lesson done.
-    const used = new Set(steps.map((s) => (s.lessonStep?.kind === "drill" ? s.lessonStep.drill : null)));
-    const lessonDrill = practice.find((s): s is Extract<LessonStep, { kind: "drill" }> => s.kind === "drill" && !used.has(s.drill));
-    push(lessonDrill ?? { kind: "drill", drill: CONVERSATION_APPLY.find((d) => !used.has(d)) ?? "conv_reply" });
-    {
-      const taken = new Set(steps.map((s) => (s.lessonStep?.kind === "drill" ? s.lessonStep.drill : "")));
-      const more = [...CONVERSATION_APPLY.filter((d) => !taken.has(d)).map((d): Extract<LessonStep, { kind: "drill" }> => ({ kind: "drill", drill: d })), ...spareDrills(lesson, focusSkill, taken, input.date)];
-      for (const extra of more.slice(0, 2)) {
-        if (steps.reduce((sum, x) => sum + x.minutes, 0) + 2 > input.minutes) break;
-        push(extra);
+  const kindOf = (st: LessonStep): PlanStepKind => (st.kind === "warmup" ? "warmup" : st.kind);
+  const add = (block: number, slot: SlotKind, minutes: number, step: Omit<PlanStep, "id" | "slot" | "block" | "minutes">) => {
+    if (step.lessonStep?.kind === "drill") usedDrills.add(step.lessonStep.drill);
+    steps.push({ id: "", slot, block, minutes, ...step });
+  };
+  const lessonStep = (block: number, slot: SlotKind, minutes: number, st: LessonStep, detail: string) =>
+    add(block, slot, minutes, { kind: kindOf(st), title: titleOf(st), detail, ...fromLesson(st) });
+
+  const lessonWarmup = lesson.steps[0]?.kind === "warmup" ? lesson.steps[0] : null;
+  const practice = openFirst(lesson.steps.filter((s) => s.kind === "drill" || s.kind === "guided"));
+  const reps = openFirst(lesson.steps.filter((s): s is RepStep => s.kind === "rep"));
+  const lessonConversation = practice.filter((s): s is DrillStep => s.kind === "drill" && CONVERSATION_STEPS.includes(s.drill));
+  let practiceAt = 0;
+  let repAt = 0;
+
+  const pickConversation = (): DrillStep => {
+    const own = lessonConversation.find((s) => !usedDrills.has(s.drill));
+    if (own) return own;
+    const offset = hashString(input.date) % CONVERSATION_STEPS.length;
+    const rotated = [...CONVERSATION_STEPS.slice(offset), ...CONVERSATION_STEPS.slice(0, offset)];
+    return { kind: "drill", drill: rotated.find((d) => !usedDrills.has(d)) ?? rotated[0] };
+  };
+  const pickFramework = (n: number): FrameworkId => DEFAULT_FRAMEWORKS[(hashString(input.date) + n) % DEFAULT_FRAMEWORKS.length];
+  const pickTargetDrill = (): { step: DrillStep; detail: string } | null => {
+    const next = PLAN_DRILLS.find((d) => d === input.nextDrill);
+    if (next && !usedDrills.has(next)) return { step: { kind: "drill", drill: next }, detail: "Your one thing to try next" };
+    const weak = drillsForWeakestLeaf(focusSkill, input.leafRatings);
+    const candidates = (weak?.drills ?? []).filter((d) => !usedDrills.has(d));
+    if (!weak || !candidates.length) return null;
+    const name = LEAVES.find((l) => l.id === weak.leaf)?.name ?? "your weakest area";
+    return { step: { kind: "drill", drill: candidates[hashString(`${input.date}:${steps.length}`) % candidates.length] }, detail: `For ${name}` };
+  };
+  // Another drill of the focus skill from other lessons, when nothing else fits.
+  const spareDrill = (): DrillStep | null => {
+    const pool = LESSONS.filter((l) => l.skill === focusSkill && l.id !== lesson.id).flatMap((l) => l.steps.filter((s): s is DrillStep => s.kind === "drill" && s.drill !== "conv_live" && !usedDrills.has(s.drill)));
+    return pool.length ? pool[hashString(`${input.date}:spare:${steps.length}`) % pool.length] : null;
+  };
+  // A second block's review: a due lesson that isn't today's.
+  const reviewStep = (): { step: LessonStep; lessonId: string; index: number; title: string } | null => {
+    const due = LESSONS.filter((l) => l.id !== lesson.id && isDue(input.lessons[l.id]?.nextReviewAt ?? null, input.date));
+    for (const l of due) {
+      const index = l.steps.findIndex((s) => (s.kind === "drill" && !usedDrills.has(s.drill) && s.drill !== "conv_live") || s.kind === "guided");
+      if (index >= 0) return { step: l.steps[index], lessonId: l.id, index, title: l.title };
+    }
+    return null;
+  };
+  const reflectFor = (): Omit<PlanStep, "id" | "slot" | "block" | "minutes"> => {
+    const choice = reflectChoices(input.reflect).find((c) => !usedReflect.has(c.activityId ?? c.title)) ?? { kind: "reflect" as const, title: "Talk back", detail: "Answer one harsh thought out loud", activityId: ACTIVITY_IDS.talkBack };
+    usedReflect.add(choice.activityId ?? choice.title);
+    return choice;
+  };
+
+  blocks.forEach((block: BlockShape, b) => {
+    for (const slot of SLOT_ORDER) {
+      const budget = block.budget[slot];
+      if (budget == null) continue;
+      switch (slot) {
+        case "warmup":
+          if (lessonWarmup) lessonStep(b, slot, budget, lessonWarmup, "Get your voice and body ready.");
+          else add(b, slot, budget, { kind: "warmup", title: titleOf({ kind: "warmup", warmupId: WARMUP_FOR[focusSkill] }), detail: "Get your voice and body ready.", lessonStep: { kind: "warmup", warmupId: WARMUP_FOR[focusSkill] } });
+          break;
+        case "learn": {
+          // About one lesson step per 2 minutes, at least one. Conversation
+          // days keep the lesson's conversation drill for the record slot.
+          const take = Math.max(1, Math.round(budget / 2));
+          const pool = conversationDay && practice.length > 1 ? practice.filter((s) => !(lessonConversation.includes(s as DrillStep) && open(s))) : practice;
+          const chosen = (pool.length ? pool : practice).slice(practiceAt, practiceAt + take);
+          practiceAt += chosen.length;
+          for (const st of chosen) lessonStep(b, slot, budget / chosen.length, st, "From your lesson");
+          if (!chosen.length) {
+            const spare = spareDrill();
+            if (spare) lessonStep(b, slot, budget, spare, "More of the same skill");
+          }
+          break;
+        }
+        case "drill":
+        case "review": {
+          const review = slot === "review" ? reviewStep() : null;
+          if (review) {
+            add(b, slot, budget, { kind: kindOf(review.step), title: titleOf(review.step), detail: `Review: ${review.title}`, lessonStep: review.step, lessonStepIndex: review.index, lessonId: review.lessonId });
+            break;
+          }
+          const target = pickTargetDrill();
+          if (target) {
+            add(b, slot, budget, { kind: "drill", title: titleOf(target.step), detail: target.detail, lessonStep: target.step });
+            break;
+          }
+          const spare = spareDrill();
+          if (spare) lessonStep(b, slot, budget, spare, "More of the same skill");
+          break;
+        }
+        case "record": {
+          // A conversation day has no video take: a partner drill instead.
+          if (conversationDay) {
+            const conv = pickConversation();
+            lessonStep(b, slot, budget, conv, "Your conversation rep");
+            break;
+          }
+          const own = reps[repAt];
+          repAt += own ? 1 : 0;
+          const rep: RepStep = own ?? { kind: "rep", framework: pickFramework(0), focus: `Use ${FRAMEWORK_LABELS[pickFramework(0)]}.` };
+          add(b, slot, budget, { kind: "rep", title: titleOf(rep), detail: `${rep.focus} Then watch it back.`, ...fromLesson(rep) });
+          break;
+        }
+        case "extra": {
+          // "Conversation or second rep": a conversation drill in a second
+          // block, on a conversation day, or every other day; otherwise a
+          // second rep with a different structure.
+          if (block.second || conversationDay || hashString(input.date) % 2 === 0) {
+            lessonStep(b, slot, budget, pickConversation(), "Back and forth");
+          } else {
+            const own = reps[repAt];
+            repAt += own ? 1 : 0;
+            const framework = pickFramework(1);
+            const rep: RepStep = own ?? { kind: "rep", framework, focus: "A second rep, with a different structure." };
+            add(b, slot, budget, { kind: "rep", title: titleOf(rep), detail: rep.focus, ...fromLesson(rep) });
+          }
+          break;
+        }
+        case "reflect":
+          add(b, slot, budget, reflectFor());
+          break;
       }
     }
-    ensureLessonReachable();
-    // No video rep to review on a conversation day.
-    return { version: PLAN_VERSION, date: input.date, minutes: input.minutes, focusSkill, lessonId: lesson.id, isReview, steps, unitId, followsPath: !!input.path?.length };
-  }
-  if (lessonRep) {
-    push(lessonRep);
-  } else {
-    const framework = DEFAULT_FRAMEWORKS[hashString(input.date) % DEFAULT_FRAMEWORKS.length];
-    push({ kind: "rep", framework, focus: `Use ${FRAMEWORK_LABELS[framework]}.` });
+  });
+
+  // Every lesson has to be finishable from Today alone. If none of the
+  // lesson's open steps made it in (a conversation lesson's rep, a short plan
+  // on a lesson with many steps), the first open one takes the drill slot, or
+  // joins the learn slot when there is none.
+  const openIndexes = lesson.steps.map((_, i) => i).filter((i) => !doneInLesson.has(i));
+  const covered = new Set(steps.filter((s) => !s.lessonId).map((s) => s.lessonStepIndex));
+  if (openIndexes.length && !openIndexes.some((i) => covered.has(i))) {
+    const st = lesson.steps[openIndexes[0]];
+    const replace = steps.findIndex((s) => s.block === 0 && s.slot === "drill");
+    const replacement: PlanStep = { id: "", slot: replace >= 0 ? "drill" : "learn", block: 0, minutes: replace >= 0 ? steps[replace].minutes : 1.5, kind: kindOf(st), title: titleOf(st), detail: "From your lesson", ...fromLesson(st) };
+    if (replace >= 0) steps[replace] = replacement;
+    else steps.splice(Math.max(0, steps.findIndex((s) => s.slot === "learn") + 1), 0, replacement);
   }
 
-  // The longest session also gets a second rep (and a longer review for it),
-  // then more of the same skill, while it stays within 12 minutes.
-  let reviewMinutes = input.minutes >= 8 ? 1 : 0;
-  const spent = () => steps.reduce((sum, x) => sum + x.minutes, 0) + reviewMinutes;
-  if (input.minutes === 12) {
-    const first = DEFAULT_FRAMEWORKS[hashString(input.date) % DEFAULT_FRAMEWORKS.length];
-    const second = DEFAULT_FRAMEWORKS[(hashString(input.date) + 1) % DEFAULT_FRAMEWORKS.length];
-    if (spent() + 3 <= 12) {
-      push({ kind: "rep", framework: second === first ? DEFAULT_FRAMEWORKS[(hashString(input.date) + 2) % DEFAULT_FRAMEWORKS.length] : second, focus: "A second rep, with a different structure." });
-      reviewMinutes += 1;
-    }
-  }
-  // A short lesson would leave the session under the minutes picked; more of
-  // the same skill fills it, never past them.
-  {
-    const taken = new Set(steps.map((s) => (s.lessonStep?.kind === "drill" ? s.lessonStep.drill : "")));
-    for (const extra of spareDrills(lesson, focusSkill, taken, input.date).slice(0, 2)) {
-      if (spent() + 2 > input.minutes) break;
-      // Before the reps: practice, then apply, then review.
-      const at = steps.findIndex((s) => s.kind === "rep");
-      steps.splice(at, 0, { id: "", ...describeStep(extra), detail: "More of the same skill", lessonStep: extra });
-    }
-    steps.forEach((s, i) => (s.id = `${i}`));
-  }
+  steps.forEach((s, i) => (s.id = `${i}`));
+  return {
+    version: PLAN_VERSION,
+    date: input.date,
+    minutes: input.minutes,
+    focusSkill,
+    lessonId: lesson.id,
+    isReview,
+    steps,
+    blocks: blocks.map((bl) => ({ minutes: bl.minutes })),
+    unitId,
+    followsPath: !!input.path?.length,
+  };
+}
 
-  if (ensureLessonReachable()) {
-    // Make room for it: extras that aren't the lesson's own go first, then
-    // repeats of lesson steps already done, so the plan stays within its
-    // minutes where it can.
-    const added = steps[steps.length - 1];
-    const extra = (st: PlanStep) => st !== added && st.lessonStepIndex == null && ((st.kind === "drill" && st.detail === "More of the same skill") || (st.kind === "rep" && st.detail.startsWith("A second rep")));
-    const repeat = (st: PlanStep) => st !== added && st.lessonStepIndex != null && doneInLesson.has(st.lessonStepIndex) && st.kind !== "warmup";
-    while (spent() > input.minutes) {
-      let at = steps.findIndex(extra);
-      if (at < 0) at = steps.findIndex(repeat);
-      if (at < 0) break;
-      if (steps[at].kind === "rep") reviewMinutes = Math.max(0, reviewMinutes - 1);
-      steps.splice(at, 1);
-    }
-    steps.forEach((st, i) => (st.id = `${i}`));
-  }
+// The steps of one block.
+export function blockSteps(plan: DailyPlan, block: number): PlanStep[] {
+  return plan.steps.filter((s) => (s.block ?? 0) === block);
+}
 
-  // 4. Quick review of today's rep(s) (the three-pass method).
-  if (reviewMinutes > 0) {
-    steps.push({ id: `${steps.length}`, kind: "review", title: "Quick review", detail: "Watch, listen, then both — at 1.5×.", minutes: reviewMinutes });
-  }
-
-  return { version: PLAN_VERSION, date: input.date, minutes: input.minutes, focusSkill, lessonId: lesson.id, isReview, steps, unitId, followsPath: !!input.path?.length };
+// The first block with a step not done, or null when the day is done.
+export function currentBlock(plan: DailyPlan, done: Set<string>): number | null {
+  for (let b = 0; b < (plan.blocks?.length ?? 1); b++) if (blockSteps(plan, b).some((s) => !done.has(s.id))) return b;
+  return null;
 }
 
 // The next `days` days of plans, simulated — each day's focus counts as
-// practiced, and its lesson as done, for the next. For the "your first week" preview after the
-// skill check; the real plans are still built day by day.
+// practiced, and its lesson as done, for the next. For the "your first week"
+// preview after the skill check; the real plans are still built day by day.
 export function previewPlans(input: PlanInput, days: number): DailyPlan[] {
   const skills = { ...input.skills };
   const lessons = { ...input.lessons };

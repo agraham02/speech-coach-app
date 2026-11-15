@@ -1,9 +1,9 @@
 import * as Notifications from "expo-notifications";
-import { reminderHours } from "../../domain/reminderSettings";
-import { reminderDates } from "../../domain/dailyGoal";
+import { reminderDates, reminderHours } from "../../domain/reminderSettings";
+import { blocksFor } from "../../domain/sessionLength";
 import { daysUntil, recencyFacts, reminderText } from "../../domain/notificationCopy";
-import { getDailySessionGoal, getNextEvent, getPracticeAnchor, getPracticeAnchorHour, getReminderSettings, getUserProfile } from "../prefs/prefsStore";
-import { getLessonStates, getSessionsDoneToday, getStreakDates, getStreakState } from "../db/progressRepo";
+import { getNextEvent, getTodayMinutes, getPracticeAnchor, getPracticeAnchorHour, getReminderSettings, getUserProfile } from "../prefs/prefsStore";
+import { getBlocksDoneToday, getLessonStates, getStreakDates, getStreakState } from "../db/progressRepo";
 import { getLesson } from "../../content/lessons";
 import { logger } from "../../utils/logger";
 
@@ -23,8 +23,8 @@ export async function requestNotificationPermission(): Promise<boolean> {
 }
 
 // Re-arms the practice reminders as one-shot notifications — one for each of
-// today's remaining sessions (daily goal) whose hour hasn't passed and that
-// isn't done yet, plus the first session of the next practice day. One-shots
+// today's remaining blocks (a 20 or 30 minute day has two) whose hour hasn't
+// passed and that isn't done yet, plus the first block of the next practice day. One-shots
 // (rather than recurring DAILY triggers, which fire unconditionally) are what
 // let a session you've already done skip its nudge — so this is called again
 // whenever that could have changed: settings, a finished session or step,
@@ -34,8 +34,8 @@ export async function syncDailyReminder(): Promise<void> {
   await cancelDailyReminder();
   if (!settings.enabled) return;
 
-  const goal = getDailySessionGoal();
-  const doneToday = await getSessionsDoneToday().catch(() => 0);
+  const goal = blocksFor(getTodayMinutes()).length;
+  const doneToday = await getBlocksDoneToday().catch(() => 0);
   const dates = reminderDates(reminderHours(settings, goal), doneToday, new Date(), settings.practiceDays ?? []);
   const anchor = getPracticeAnchor();
   const profile = getUserProfile();

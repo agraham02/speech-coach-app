@@ -153,7 +153,7 @@ function BeatRow({ beat, delay, animate }: { beat: Beat; delay: number; animate:
           icon="checkmark-circle-outline"
           color={colors.success}
           bg={colors.successMuted}
-          title={beat.done >= beat.goal ? "Today's goal, done" : `${beat.done} of ${beat.goal} sessions today`}
+          title={beat.done >= beat.goal ? "Today's goal, done" : `${beat.done} of ${beat.goal} minutes today`}
           detail={null}
         />
       );
