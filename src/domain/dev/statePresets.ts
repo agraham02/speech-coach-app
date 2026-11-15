@@ -48,6 +48,6 @@ export const STANDARD_ANCHOR = (() => {
 })();
 
 export const STANDARD_RETENTION_DAYS = 30;
-export const STANDARD_PLAN_MINUTES = 5;
+export const STANDARD_PLAN_MINUTES = 5 as const;
 
 export type ThemeChoice = "light" | "dark" | "system";

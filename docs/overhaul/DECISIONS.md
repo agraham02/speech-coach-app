@@ -666,3 +666,19 @@ Two more, also accepted:
 **Why:** the table gave sizes and conditions but not the hours, the order within a size, or what "about 4" means. These keep the day's most urgent card on top and the page short.
 
 **Owner's OK:** not asked; this is task 4.5.
+
+## D42. Minutes a day and the five-slot session (2026-11-15)
+
+**Now** (tasks 4.1, 4.2, 4.4):
+- **One number, minutes a day** (`domain/sessionLength.ts`): 5, 10, 15, 20 or 30, default 10. 20 is 10 + 10 and 30 is 15 + 15. Where section 9 gives a range, the budget picks a point inside it so the block adds up: 15 is Warm up 1, Learn 3, Drill 2.5, Record 5, Conversation or second rep 2.5, Reflect 1. A second block is Drill 3, Conversation 3, Review 3, Reflect 1 (10), or 4, 5, 5, 1 (15).
+- **Sessions a day, plan length and the top-ups are gone**, with the `daily_topups` table (schema 42) and the old prefs keys. One plan a day holds both blocks; each step knows its block. Reminders are one per block; the second defaults to 6 pm ("best around 6 pm"), at least an hour after the first.
+- **Your usual and today:** the usual is set in onboarding or Settings. Today's card changes today only, and shows "Make N min your usual" when the two differ. **Nudges:** above your usual on each of the last 3 practice days offers the next step up (or what you've been doing); below it on each of the last 7 offers a step down.
+- **Minutes done** are each logged activity's catalogue minutes, wherever it was done; a skip counts nothing. They fill Today's ring and decide "goal met" in Progress, against each day's own goal (its plan's minutes).
+- **The five slots** (`buildDailyPlan`): the lesson's own warm-up or the focus skill's; about one lesson step per 2 minutes of Learn, steps not yet done first; the drill slot aims at the lowest counted leaf on the focus pillar that has a drill not already in the plan, or at the last result's drill when a take in the last 3 days names one; Record + review is one step (the lesson's rep or a framework rep, a conversation drill on a conversation day); Reflect takes the first of a debrief (an event up to 3 days ago, not debriefed), a rehearsal rep (an event within 2 days), Feeling of the week (no rep yet, from Thursday on), Rewind (4.3's offer), then Three things. A second block's reflect never repeats the first's, with Talk back last. A second block's Review is a step from a lesson that's due, logged against that lesson.
+
+**Changed from the plan, and why:**
+- **Line of the day leaves the session.** The five slots have no place for it, and the drill slot now aims at the weakest leaf. It stays in Practice.
+- **The take's review isn't a separate step.** Record + review is one step, as section 10 says. Until 6.1 builds the Review screen, the step ticks when the take is done.
+- **Today's card ranking (4.5) isn't wired into Today yet.** Today is rebuilt to the canvas after 8.1 and 8.2 (D38), so wiring the old cards to it now would be done twice. R1 moves with that rebuild. Until then Today keeps its cards, with the minutes control as a five-way switch, not the canvas's value and sheet.
+
+**Owner's OK:** not asked; these are tasks 4.1, 4.2 and 4.4.

@@ -161,7 +161,7 @@ export function StartingPointScreen({ route, navigation }: Props) {
       previewPlans(
         {
           date: todayISODate(),
-          minutes: 8,
+          minutes: 10,
           skills: Object.fromEntries(SKILLS.map((k) => [k, { rating: skills[k].rating, lastPracticedAt: skills[k].lastPracticedAt }])) as Record<SkillId, { rating: number; lastPracticedAt: string | null }>,
           recentFocus: [],
           lessons: Object.fromEntries(Object.entries(lessons).map(([id, l]) => [id, { done: l.done, nextReviewAt: l.nextReviewAt }])),

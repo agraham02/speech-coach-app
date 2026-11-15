@@ -38,7 +38,7 @@ import { ensureSchema } from "../schema";
 import { insertSession, getAllSessionsWithScores, getRecentlyUsedPromptIds, getTodaysSession, markSessionDeleted, restoreSession } from "../sessionsRepo";
 import { upsertScores, getPreviousOverallScore, getScoreHistoryBefore } from "../scoresRepo";
 import { putArtifact, listArtifactsOfKind } from "../artifactsRepo";
-import { markReviewPass, getSkillEvents, getSkillMovesSince, getPracticeDates, getStreakState, getDailySessionCounts, getReviewPasses } from "../progressRepo";
+import { markReviewPass, getSkillEvents, getSkillMovesSince, getPracticeDates, getStreakState, getReviewPasses } from "../progressRepo";
 import { getCompletedSessionDates, getScoreSeries, getSessionMetricSeries, getUsageTotals, getWeeklySummaries, getPromptComparison } from "../statsRepo";
 import { saveSkillCheck, listSkillChecks } from "../skillChecksRepo";
 import { createRewind, updateRewind, listRewinds, getRewindDates } from "../rewindRepo";
@@ -296,7 +296,7 @@ describeIfSqlite("deleting a take", () => {
     expect((await getStreakState()).currentStreak).toBe(3);
     expect(await getPracticeDates()).toHaveLength(3);
     // "Practiced today" still reads true, from the marker.
-    expect((await getDailySessionCounts())[isoDateFromDate(new Date())]).toBe(1);
+    expect((await getPracticeDates()).some((d) => (d.length > 10 ? isoDateFromDate(new Date(d)) : d) === isoDateFromDate(new Date()))).toBe(true);
   });
 
   it("does not count a take that was never finished toward the streak", async () => {

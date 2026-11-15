@@ -520,6 +520,13 @@ const STEPS: SchemaStep[] = [
       DROP TABLE IF EXISTS curriculum_state;
     `,
   },
+  {
+    version: 42,
+    description: "minutes a day (task 4.1): one plan a day in blocks; the top-up sessions are gone",
+    sql: `
+      DROP TABLE IF EXISTS daily_topups;
+    `,
+  },
 ];
 
 export const SCHEMA_VERSION = STEPS[STEPS.length - 1].version;

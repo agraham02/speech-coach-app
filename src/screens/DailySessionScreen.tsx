@@ -13,10 +13,12 @@ import { duration } from "../theme/motion";
 import { Card } from "../components/common/Card";
 import { Txt } from "../components/common/Txt";
 import { PrimaryButton } from "../components/common/PrimaryButton";
-import { getTodaysPlan, getTopUpPlan, skipPlanStep, type StoredPlan } from "../services/db/progressRepo";
-import { SKILL_LABELS } from "../theme/tokens";
+import { getTodaysPlan, skipPlanStep, type StoredPlan } from "../services/db/progressRepo";
 import { getAllSessions } from "../services/db/sessionsRepo";
-import { getPlanMinutes } from "../services/prefs/prefsStore";
+import { getTodayMinutes } from "../services/prefs/prefsStore";
+import { ACTIVITY_IDS } from "../content/activities";
+import { SECOND_BLOCK_HOUR } from "../domain/sessionLength";
+import { formatReminderHour } from "../domain/reminderSettings";
 import { launchStep } from "../services/practice/launchStep";
 import { subscribePracticeSteps } from "../services/practice/practiceEvents";
 import { showGlobalToast } from "../components/common/ToastProvider";
@@ -29,18 +31,18 @@ import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "DailySession">;
 
-// Runs today's plan one step at a time. Progress is saved per step, so
-// leaving and coming back (or a restart) picks up where you left off.
-export function DailySessionScreen({ route, navigation }: Props) {
-  const slot = route.params?.slot;
+// Runs today's plan one step at a time, block by block. Progress is saved per
+// step, so leaving and coming back (or a restart) picks up where you left off.
+// Session mode (task 5.7) replaces this list with steps that play in a row.
+export function DailySessionScreen({ navigation }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
   const [stored, setStored] = useState<StoredPlan | null>(null);
   const [launching, setLaunching] = useState(false);
 
   const load = useCallback(() => {
-    (slot ? getTopUpPlan(slot) : getTodaysPlan(getPlanMinutes())).then(setStored);
-  }, [slot]);
+    getTodaysPlan(getTodayMinutes()).then(setStored);
+  }, []);
 
   useFocusEffect(load);
   useEffect(() => subscribePracticeSteps(() => load()), [load]);
@@ -64,8 +66,28 @@ export function DailySessionScreen({ route, navigation }: Props) {
     if (launching) return;
     setLaunching(true);
     try {
-      const practice = { planDate: plan.date, planStepId: step.id, planSlot: slot, lessonId: plan.lessonId || undefined, lessonStepIndex: step.lessonStepIndex };
-      if (step.kind === "review") {
+      const practice = { planDate: plan.date, planStepId: step.id, lessonId: step.lessonId ?? (plan.lessonId || undefined), lessonStepIndex: step.lessonStepIndex };
+      // Reflect and moment steps open their own screens; what they log ticks the
+      // step wherever it was done.
+      switch (step.activityId) {
+        case ACTIVITY_IDS.rewind:
+          navigation.navigate("Rewind", { day: step.title.endsWith("yesterday") ? "yesterday" : "today" });
+          return;
+        case ACTIVITY_IDS.threeThings:
+          navigation.navigate("ThreeThings");
+          return;
+        case ACTIVITY_IDS.talkBack:
+          navigation.navigate("TalkBack");
+          return;
+        case ACTIVITY_IDS.feeling:
+          navigation.navigate("Feeling", { practice });
+          return;
+        case ACTIVITY_IDS.eventAfter:
+          if (step.eventId) navigation.navigate("EventCheckIn", { eventId: step.eventId, phase: "after" });
+          return;
+      }
+      // A plan from before minutes a day can still hold a review step.
+      if ((step.kind as string) === "review") {
         // Review today's rep with the three-pass player.
         const today = todayISODate();
         const sessions = await getAllSessions();
@@ -77,10 +99,6 @@ export function DailySessionScreen({ route, navigation }: Props) {
           return;
         }
         navigation.navigate("Result", { sessionId: latest.id, practice });
-        return;
-      }
-      if (step.kind === "line" && step.lessonStep?.kind === "drill") {
-        navigation.navigate("LineRep", { mode: "lineOfDay", lineIds: step.lessonStep.contentId ? [step.lessonStep.contentId] : undefined, practice });
         return;
       }
       if (step.lessonStep) await launchStep(navigation, step.lessonStep, practice);
@@ -95,7 +113,7 @@ export function DailySessionScreen({ route, navigation }: Props) {
     const before = stored;
     setStored((prev) => (prev && !prev.completedStepIds.includes(step.id) ? { ...prev, completedStepIds: [...prev.completedStepIds, step.id] } : prev));
     try {
-      const updated = await skipPlanStep(plan.date, slot ?? 0, step.id);
+      const updated = await skipPlanStep(plan.date, step.id);
       if (updated) setStored(updated);
     } catch (error) {
       logger.error(`[daily] skip failed — ${(error as Error).message}`);
@@ -107,8 +125,8 @@ export function DailySessionScreen({ route, navigation }: Props) {
   const focus = colors.skill[plan.focusSkill];
   return (
     <Screen
-      eyebrow={slot ? `Top-up ${slot + 1} · about ${plan.steps.reduce((m, s) => m + s.minutes, 0)} min` : `Today · ${plan.minutes} min`}
-      title={slot ? `${SKILL_LABELS[plan.focusSkill]} top-up` : lesson?.title ?? "Daily session"}
+      eyebrow={`Today · ${plan.minutes} min${(plan.blocks?.length ?? 1) > 1 ? " in two blocks" : ""}`}
+      title={lesson?.title ?? "Daily session"}
       onBack={() => navigation.goBack()}
     >
       {stored.completedAt ? (
@@ -117,10 +135,10 @@ export function DailySessionScreen({ route, navigation }: Props) {
             <Ionicons name="checkmark" size={34} color={colors.background} />
           </Animated.View>
           <Txt variant="title1" align="center">
-            {slot ? "Top-up done." : "That's today done."}
+            That's today done.
           </Txt>
           <Txt variant="callout" tone="secondary" align="center">
-            {slot ? "Spread-out sessions stick better than one long one." : "Short daily reps beat occasional long ones. See you tomorrow."}
+            Short daily reps beat occasional long ones. See you tomorrow.
           </Txt>
           <SessionRecap />
           <PrimaryButton label="Back to Today" onPress={() => navigation.goBack()} style={styles.doneButton} />
@@ -152,8 +170,15 @@ export function DailySessionScreen({ route, navigation }: Props) {
           const isDone = done.has(step.id);
           const isNext = next?.id === step.id;
           const last = i === plan.steps.length - 1;
+          const blockStart = i > 0 && (step.block ?? 0) !== (plan.steps[i - 1].block ?? 0);
           return (
-            <View key={step.id} style={styles.stepRow}>
+            <View key={step.id}>
+            {blockStart ? (
+              <Txt variant="footnote" weight="600" tone="secondary" style={styles.blockHead}>
+                Second block · best around {formatReminderHour(SECOND_BLOCK_HOUR)}
+              </Txt>
+            ) : null}
+            <View style={styles.stepRow}>
               <View style={styles.rail}>
                 {!last ? <View style={[styles.line, isDone && { backgroundColor: focus.fg, opacity: 0.6 }]} /> : null}
                 {isDone ? (
@@ -201,6 +226,7 @@ export function DailySessionScreen({ route, navigation }: Props) {
                 ) : null}
               </Card>
             </View>
+            </View>
           );
         })}
       </View>
@@ -215,6 +241,7 @@ const useStyles = makeStyles((t) => ({
   howRow: { flexDirection: "row", gap: t.space.sm + 2, alignItems: "flex-start" },
   howDot: { width: 6, height: 6, borderRadius: 3, marginTop: 8 },
   flex: { flex: 1 },
+  blockHead: { marginTop: t.space.md, marginBottom: t.space.sm, marginLeft: NODE + t.space.md - 4 },
   stepRow: { flexDirection: "row", gap: t.space.md - 4 },
   rail: { width: NODE, alignItems: "center", paddingTop: t.space.md + 2 },
   line: { position: "absolute", top: t.space.md + 2 + NODE + 4, bottom: -2, width: 1.5, borderRadius: 1, backgroundColor: t.colors.textMuted, opacity: 0.35 },

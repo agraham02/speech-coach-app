@@ -31,7 +31,7 @@ jest.mock("../../path/pathService", () => ({
 
 import { ensureSchema } from "../schema";
 import { getEntriesForLesson, getEntriesOn, getLessonStepsDone, logActivity } from "../activityLogRepo";
-import { getLessonStates, getLessonStepsState, getTodaysPlan, getTopUpPlan, skipPlanStep } from "../progressRepo";
+import { getLessonStates, getLessonStepsState, getMinutesByDay, getTodaysPlan, skipPlanStep } from "../progressRepo";
 import { completePracticeStep, forgetRecentSteps, subscribePracticeSteps, type PracticeStepDone } from "../../practice/practiceEvents";
 import { ACTIVITY_IDS, activityIdOfStep, variantOfStep } from "../../../content/activities";
 import { LESSONS, type Lesson } from "../../../content/lessons";
@@ -91,33 +91,33 @@ describeIfSqlite("the activity log", () => {
 
 describeIfSqlite("check-offs on the plan", () => {
   it("ticks a plan step when its activity is done from Practice", async () => {
-    const stored = await getTodaysPlan(8);
-    const step = stored.plan.steps.find((s) => s.lessonStep && s.kind !== "line")!;
+    const stored = await getTodaysPlan(10);
+    const step = stored.plan.steps.find((s) => s.lessonStep && s.slot !== "reflect")!;
     expect(stored.completedStepIds).toEqual([]);
 
     await completePracticeStep(activityIdOfStep(step.lessonStep!), undefined, 0.8);
 
-    const after = await getTodaysPlan(8);
+    const after = await getTodaysPlan(10);
     expect(after.completedStepIds).toContain(step.id);
   });
 
   it("ticks a step done from the plan itself, and not the others", async () => {
-    const { plan } = await getTodaysPlan(8);
+    const { plan } = await getTodaysPlan(10);
     const step = plan.steps[0];
     await completePracticeStep(activityIdOfStep(step.lessonStep!), { planDate: plan.date, planStepId: step.id, lessonId: plan.lessonId, lessonStepIndex: step.lessonStepIndex }, 0.7, {
       variant: variantOfStep(step.lessonStep!),
     });
-    const after = await getTodaysPlan(8);
+    const after = await getTodaysPlan(10);
     expect(after.completedStepIds).toEqual([step.id]);
   });
 
   it("finishes the plan when every step is done, from anywhere, and remembers when", async () => {
-    const { plan } = await getTodaysPlan(8);
+    const { plan } = await getTodaysPlan(10);
     for (const step of plan.steps) {
-      const id = step.kind === "review" ? ACTIVITY_IDS.review : activityIdOfStep(step.lessonStep!);
+      const id = step.activityId ?? activityIdOfStep(step.lessonStep!);
       await completePracticeStep(id, undefined, 0.8, { variant: step.lessonStep ? variantOfStep(step.lessonStep) : null });
     }
-    const after = await getTodaysPlan(8);
+    const after = await getTodaysPlan(10);
     expect(after.completedStepIds).toHaveLength(plan.steps.length);
     expect(after.completedAt).not.toBeNull();
     const row = await mockDb.getFirstAsync<{ completed_at: string | null }>("SELECT completed_at FROM daily_plans WHERE date = ?", [plan.date]);
@@ -125,9 +125,9 @@ describeIfSqlite("check-offs on the plan", () => {
   });
 
   it("counts a skip for the plan and nothing else", async () => {
-    const { plan } = await getTodaysPlan(8);
+    const { plan } = await getTodaysPlan(10);
     const step = plan.steps.find((s) => s.lessonStepIndex != null)!;
-    const after = await skipPlanStep(plan.date, 0, step.id);
+    const after = await skipPlanStep(plan.date, step.id);
     expect(after?.completedStepIds).toEqual([step.id]);
     expect(await getLessonStepsState(plan.lessonId)).toEqual(new Set());
     expect((await getEntriesOn(plan.date))[0]).toMatchObject({ outcome: "skipped", planStepId: step.id });
@@ -135,50 +135,63 @@ describeIfSqlite("check-offs on the plan", () => {
 
   it("lets something already done today tick a plan made afterwards", async () => {
     // Make today's plan, forget it, do one of its steps from Practice, then make it again.
-    const first = await getTodaysPlan(8);
-    const step = first.plan.steps.find((s) => s.lessonStep && s.kind !== "line")!;
+    const first = await getTodaysPlan(10);
+    const step = first.plan.steps.find((s) => s.lessonStep && s.slot !== "reflect")!;
     await mockDb.runAsync("DELETE FROM daily_plans");
     await completePracticeStep(activityIdOfStep(step.lessonStep!), undefined, 0.8);
-    const again = await getTodaysPlan(8);
+    const again = await getTodaysPlan(10);
     expect(again.plan.steps.map((x) => x.id)).toEqual(first.plan.steps.map((x) => x.id));
     expect(again.completedStepIds).toContain(step.id);
   });
 
-  it("keeps a top-up's activity out of the daily plan, even when they ask for the same one", async () => {
-    const main = await getTodaysPlan(8);
-    const shared = main.plan.steps.find((st) => st.lessonStep && st.kind === "drill")!;
-    // A top-up holding the same activity as one of the daily plan's steps.
-    const topUpPlan = { ...main.plan, steps: [{ ...shared, id: "0" }] };
-    await mockDb.runAsync("INSERT INTO daily_topups (date, slot, plan_json) VALUES (?, 1, ?)", [main.plan.date, JSON.stringify(topUpPlan)]);
+  it("ticks a reflect step when its activity is done anywhere", async () => {
+    const { plan } = await getTodaysPlan(10);
+    const reflect = plan.steps.find((st) => st.slot === "reflect")!;
+    expect(reflect.activityId).toBeTruthy();
+    await completePracticeStep(reflect.activityId!, undefined, null);
+    expect((await getTodaysPlan(10)).completedStepIds).toContain(reflect.id);
+  });
 
-    await completePracticeStep(activityIdOfStep(shared.lessonStep!), { planDate: main.plan.date, planSlot: 1, planStepId: "0" }, 0.9);
+  it("builds a 20-minute day as one plan in two blocks, ticked as one", async () => {
+    const { plan } = await getTodaysPlan(20);
+    expect(plan.blocks).toHaveLength(2);
+    const second = plan.steps.find((st) => st.block === 1 && st.lessonStep)!;
+    await completePracticeStep(activityIdOfStep(second.lessonStep!), { planDate: plan.date, planStepId: second.id }, 0.8);
+    expect((await getTodaysPlan(20)).completedStepIds).toEqual([second.id]);
+  });
 
-    expect((await getTopUpPlan(1)).completedStepIds).toEqual(["0"]);
-    expect((await getTodaysPlan(8)).completedStepIds).not.toContain(shared.id);
+  it("counts minutes from what was done, wherever, and nothing for a skip", async () => {
+    const { plan } = await getTodaysPlan(10);
+    await completePracticeStep(ACTIVITY_IDS.threeThings, undefined, null);
+    await skipPlanStep(plan.date, plan.steps[0].id);
+    const minutes = (await getMinutesByDay())[todayISODate()];
+    expect(minutes).toBeGreaterThan(0);
+    await completePracticeStep(ACTIVITY_IDS.rewind, undefined, null);
+    expect((await getMinutesByDay())[todayISODate()]).toBeGreaterThan(minutes);
   });
 
   it("counts a step finished after midnight for the plan it belonged to", async () => {
-    const { plan } = await getTodaysPlan(8);
+    const { plan } = await getTodaysPlan(10);
     const step = plan.steps[0];
     const lateAt = new Date(new Date(`${plan.date}T12:00:00`).getTime() + 13 * 3_600_000).toISOString(); // 01:00 the next day
     await logActivity({ activityId: activityIdOfStep(step.lessonStep!), planDate: plan.date, planStepId: step.id, at: lateAt });
-    expect((await getTodaysPlan(8)).completedStepIds).toContain(step.id);
+    expect((await getTodaysPlan(10)).completedStepIds).toContain(step.id);
   });
 
   it("keeps the plan when it has been worked on, but not for a drill done from Practice", async () => {
-    const first = await getTodaysPlan(8);
+    const first = await getTodaysPlan(10);
     await completePracticeStep(activityIdOfStep(first.plan.steps.find((st) => st.lessonStep)!.lessonStep!), undefined, 0.8);
     // Only Practice touched it: new minutes rebuild it.
-    expect((await getTodaysPlan(12, true)).plan.minutes).toBe(12);
+    expect((await getTodaysPlan(15, true)).plan.minutes).toBe(15);
     // Now a step is done from the plan: it stays as it is.
-    const plan = (await getTodaysPlan(12)).plan;
+    const plan = (await getTodaysPlan(15)).plan;
     const step = plan.steps.find((st) => st.lessonStep)!;
     await completePracticeStep(activityIdOfStep(step.lessonStep!), { planDate: plan.date, planStepId: step.id }, 0.8);
-    expect((await getTodaysPlan(5, true)).plan.minutes).toBe(12);
+    expect((await getTodaysPlan(5, true)).plan.minutes).toBe(15);
   });
 
   it("counts one tap on Done once, however many times it fires", async () => {
-    const { plan } = await getTodaysPlan(8);
+    const { plan } = await getTodaysPlan(10);
     const step = plan.steps.find((st) => st.lessonStep && st.kind === "drill")!;
     const context = { planDate: plan.date, planStepId: step.id };
     await Promise.all([completePracticeStep(activityIdOfStep(step.lessonStep!), context, 0.8), completePracticeStep(activityIdOfStep(step.lessonStep!), context, 0.8)]);

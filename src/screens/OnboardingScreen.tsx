@@ -37,18 +37,16 @@ import {
 import { defaultsFromProfile, EMPTY_PROFILE, type EventKind, type UserProfile } from "../domain/profile";
 import { MAX_CUSTOM_THOUGHTS, PRESET_THOUGHTS } from "../domain/innerVoice/thoughts";
 import { syncOnboardingThoughts } from "../services/db/selfTalkRepo";
-import { defaultExtraHours, sessionHours, type DailyGoal } from "../domain/dailyGoal";
-import { setSessionHour } from "../domain/reminderSettings";
+import { defaultExtraHours, planSessionHours as sessionHours, setSessionHour } from "../domain/reminderSettings";
+import { blocksFor, MINUTE_CHOICES, type DailyMinutes } from "../domain/sessionLength";
 import {
-  getDailySessionGoal,
-  getPlanMinutes,
+  getUsualMinutes,
   getPracticeAnchor,
   getReminderSettings,
   getUserProfile,
   hasTonoConsent,
   setCloudReviewDefault,
-  setDailySessionGoal,
-  setPlanMinutes,
+  setUsualMinutes,
   setPracticeAnchor,
   setRecordBlindPref,
   setReminderSettings,
@@ -88,8 +86,9 @@ export function OnboardingScreen({ route, navigation }: Props) {
   });
   const [step, setStep] = useState(() => (profile.onboardingStep != null && mode === "full" ? profile.onboardingStep : -1));
   const reminder = getReminderSettings();
-  const [goal, setGoal] = useState<DailyGoal>(getDailySessionGoal());
-  const [minutes, setMinutes] = useState(getPlanMinutes());
+  const [minutes, setMinutes] = useState<DailyMinutes>(getUsualMinutes());
+  // Reminders: one per block (a 20 or 30 minute day has two).
+  const goal = blocksFor(minutes).length;
   const [days, setDays] = useState<number[]>(reminder.practiceDays?.length ? reminder.practiceDays : [0, 1, 2, 3, 4, 5, 6]);
   const [anchorKey, setAnchorKey] = useState<string | null>(null);
   const [customAnchor, setCustomAnchor] = useState("");
@@ -208,11 +207,8 @@ export function OnboardingScreen({ route, navigation }: Props) {
           // Never blocks onboarding: the event can be added again from Today.
         }
         return true;
-      case "goal":
-        setDailySessionGoal(goal);
-        return true;
       case "minutes":
-        setPlanMinutes(minutes as 5 | 8 | 12);
+        setUsualMinutes(minutes);
         return true;
       case "anchor": {
         const option = ANCHOR_OPTIONS.find((a) => a.key === anchorKey);
@@ -445,28 +441,12 @@ export function OnboardingScreen({ route, navigation }: Props) {
       }
       case "voiceNote":
         return <TextInput maxLength={300} value={profile.voiceNote ?? ""} onChangeText={(voiceNote) => update({ voiceNote })} placeholder="e.g. my voice gets tired quickly" placeholderTextColor={colors.textMuted} style={[styles.input, styles.multiline]} multiline />;
-      case "goal":
-        return (
-          <Choices
-            options={[
-              { key: "1", label: "Once a day" },
-              { key: "2", label: "Twice — plan + a top-up" },
-              { key: "3", label: "Three times — plan + two top-ups" },
-            ]}
-            value={String(goal)}
-            onPick={(k) => setGoal(Number(k) as DailyGoal)}
-          />
-        );
       case "minutes":
         return (
           <Choices
-            options={[
-              { key: "5", label: "5 minutes" },
-              { key: "8", label: "8 minutes" },
-              { key: "12", label: "12 minutes" },
-            ]}
+            options={MINUTE_CHOICES.map((m) => ({ key: String(m), label: m >= 20 ? `${m} minutes, in two blocks` : `${m} minutes` }))}
             value={String(minutes)}
-            onPick={(k) => setMinutes(Number(k) as 5 | 8 | 12)}
+            onPick={(k) => setMinutes(Number(k) as DailyMinutes)}
           />
         );
       case "days":

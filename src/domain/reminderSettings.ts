@@ -1,7 +1,9 @@
+import { SECOND_BLOCK_HOUR } from "./sessionLength";
+
 export interface ReminderSettings {
   enabled: boolean;
-  hour: number; // 24-hour, local time, on the hour — the first session's
-  // Hours for top-up sessions 2 and 3 (daily goal above 1).
+  hour: number; // 24-hour, local time, on the hour — the first block's
+  // The second block's hour, on a 20 or 30 minute day.
   extraHours?: number[];
   // 0 (Sunday) - 6 you plan to practice; empty/missing means every day.
   practiceDays?: number[];
@@ -28,22 +30,18 @@ export function hoursInPeriod(period: Period): number[] {
   return [...Array.from({ length: 11 }, (_, i) => start + i + 1), start];
 }
 
-// Spaced default hours for a goal, anchored on the first reminder. Top-ups
-// always come after the first session — Today only offers one once the main
-// plan is done.
-export function defaultExtraHours(firstHour: number, goal: number): number[] {
-  if (goal <= 1) return [];
-  const later = (h: number) => Math.min(LAST_HOUR, h);
-  if (firstHour <= 9) return goal === 2 ? [later(firstHour + 9)] : [later(firstHour + 5), later(firstHour + 10)];
-  if (firstHour <= 13) return goal === 2 ? [later(firstHour + 6)] : [later(firstHour + 4), later(firstHour + 8)];
-  return goal === 2 ? [later(firstHour + 2)] : [later(firstHour + 1), later(firstHour + 2)];
+// The default hour for a second block's reminder: "best around 6 pm", and at
+// least an hour after the first. `blocks` is 1 or 2 (domain/sessionLength.ts).
+export function defaultExtraHours(firstHour: number, blocks: number): number[] {
+  if (blocks <= 1) return [];
+  return [Math.min(LAST_HOUR, Math.max(SECOND_BLOCK_HOUR, firstHour + 1))];
 }
 
 // Every session's reminder hour, first to last: the user's picks with the
 // spaced defaults filling any session they haven't set, forced into strictly
 // increasing order (session 2 is always after session 1) and inside the day.
 export function planSessionHours(firstHour: number, extraHours: number[] | undefined, goal: number): number[] {
-  const count = Math.max(1, Math.min(3, goal));
+  const count = Math.max(1, Math.min(2, goal));
   const defaults = defaultExtraHours(firstHour, count);
   const raw = [firstHour, ...defaults.map((h, i) => extraHours?.[i] ?? h)];
   const hours = raw.map((h) => Math.max(0, Math.min(LAST_HOUR, Math.round(h))));
@@ -98,4 +96,27 @@ export function switchPeriod(hour: number, period: Period, bounds: HourBounds = 
 // Reminders are on the hour, so "7 PM" rather than "7:00 PM".
 export function formatReminderHour(hour: number): string {
   return `${clockHour(hour)} ${periodOf(hour)}`;
+}
+
+// The one-shot reminders to arm: each of today's remaining blocks whose hour
+// hasn't passed and that isn't done yet, plus the first block of the next
+// practice day. `practiceDays` are 0 (Sunday) - 6; empty means every day.
+export function reminderDates(hours: number[], doneToday: number, now: Date, practiceDays: number[] = []): Date[] {
+  const isPracticeDay = (d: Date) => !practiceDays.length || practiceDays.includes(d.getDay());
+  const at = (day: Date, hour: number) => new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0, 0, 0);
+  const out: Date[] = [];
+  if (isPracticeDay(now)) {
+    hours.forEach((hour, slot) => {
+      const when = at(now, hour);
+      if (when.getTime() > now.getTime() && doneToday <= slot) out.push(when);
+    });
+  }
+  for (let ahead = 1; ahead <= 7 && hours.length; ahead++) {
+    const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + ahead);
+    if (isPracticeDay(day)) {
+      out.push(at(day, hours[0]));
+      break;
+    }
+  }
+  return out;
 }

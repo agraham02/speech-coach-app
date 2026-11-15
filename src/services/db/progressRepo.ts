@@ -4,7 +4,6 @@ import { getDrillCompletionDates } from "./drillsRepo";
 import { getRewindDates } from "./rewindRepo";
 import { generateId } from "../../utils/generateId";
 import { isoDateFromDate, todayISODate } from "../../utils/dateUtils";
-import { buildTopUpPlan } from "../../domain/dailyGoal";
 import { priorityFor } from "../../domain/profile";
 import { getChallenge, getNextEvent, getReminderSettings, getUserProfile, setLastStretchWeek, setTakeLevel } from "../prefs/prefsStore";
 import { CHALLENGE_TARGET, STRETCH_BONUS, stretchWeekOf } from "../../domain/difficulty/challenge";
@@ -26,7 +25,13 @@ import { getAttemptsFor, getAttemptsSince, getLeafRatings, getNodeStages, getPil
 import { getPathOrder } from "./pathRepo";
 import { isSessionLive } from "./sessionsRepo";
 import { getPracticeMarkerDates } from "./practiceDaysRepo";
-import { buildDailyPlan, PLAN_VERSION, type DailyPlan, type PlanMinutes } from "../../domain/dailyPlan";
+import { buildDailyPlan, currentBlock, PLAN_VERSION, type DailyPlan, type PlanMinutes, type ReflectContext } from "../../domain/dailyPlan";
+import { listEvents } from "./eventsRepo";
+import { daysAway, eventName, eventPhase } from "../../domain/events";
+import { getFeelingWeek } from "./feelingsRepo";
+import { getRewindOffer } from "../rewind/rewindTiming";
+import { getActivity } from "../../content/activities";
+import { isDrillType } from "../../domain/drills/drillSpecs";
 import { doneStepsByPlan, lessonProgress, wantedByPlanStep } from "../../domain/activityLog";
 import { getEntriesForLesson, getEntriesOn, getLessonStepsDone, logActivity } from "./activityLogRepo";
 import { getLesson } from "../../content/lessons";
@@ -457,41 +462,64 @@ export interface StoredPlan {
 // out from the activity log (domain/activityLog.ts), so a step done anywhere
 // ticks everywhere. Only when the plan finishes is that remembered (completed_at),
 // because streaks and the path read it.
-async function readStored(date: string, slot: number): Promise<StoredPlan | null> {
+async function readPlan(date: string): Promise<StoredPlan | null> {
   const db = await getDatabase();
-  const rows = await db.getAllAsync<{ slot: number; plan_json: string; completed_at: string | null }>(
-    `SELECT 0 AS slot, plan_json, completed_at FROM daily_plans WHERE date = ?
-     UNION ALL SELECT slot, plan_json, completed_at FROM daily_topups WHERE date = ?`,
-    [date, date],
-  );
-  const mine = rows.find((r) => r.slot === slot);
-  if (!mine) return null;
-  const plans = rows.map((r) => ({ date, slot: r.slot, steps: (JSON.parse(r.plan_json) as DailyPlan).steps }));
-  const done = doneStepsByPlan(plans, await getEntriesOn(date))[slot] ?? new Set<string>();
-  const plan = JSON.parse(mine.plan_json) as DailyPlan;
+  const row = await db.getFirstAsync<{ plan_json: string; completed_at: string | null }>(`SELECT plan_json, completed_at FROM daily_plans WHERE date = ?`, [date]);
+  if (!row) return null;
+  const plan = JSON.parse(row.plan_json) as DailyPlan;
+  const done = doneStepsByPlan([{ date, slot: 0, steps: plan.steps }], await getEntriesOn(date))[0] ?? new Set<string>();
   const completedStepIds = plan.steps.filter((st) => done.has(st.id)).map((st) => st.id);
   const allDone = plan.steps.length > 0 && completedStepIds.length === plan.steps.length;
-  let completedAt = mine.completed_at;
+  let completedAt = row.completed_at;
   if (allDone && !completedAt) {
     completedAt = new Date().toISOString();
-    if (slot === 0) await db.runAsync(`UPDATE daily_plans SET completed_at = ? WHERE date = ?`, [completedAt, date]);
-    else await db.runAsync(`UPDATE daily_topups SET completed_at = ? WHERE date = ? AND slot = ?`, [completedAt, date, slot]);
+    await db.runAsync(`UPDATE daily_plans SET completed_at = ? WHERE date = ?`, [completedAt, date]);
   }
   return { plan, completedStepIds, completedAt };
 }
 
-const readPlan = (date: string) => readStored(date, 0);
-const readTopUp = (date: string, slot: number) => readStored(date, slot);
-
 async function planWorkedOn(date: string): Promise<boolean> {
   const db = await getDatabase();
-  const row = await db.getFirstAsync<{ n: number }>(`SELECT COUNT(*) AS n FROM activity_log WHERE plan_date = ? AND COALESCE(plan_slot, 0) = 0`, [date]);
+  const row = await db.getFirstAsync<{ n: number }>(`SELECT COUNT(*) AS n FROM activity_log WHERE plan_date = ?`, [date]);
   return (row?.n ?? 0) > 0;
 }
 
-// After something was logged: the day's plans may now be finished.
+// After something was logged: the day's plan may now be finished.
 export async function refreshPlanCompletion(date: string): Promise<void> {
-  for (const slot of [0, 1, 2]) await readStored(date, slot);
+  await readPlan(date);
+}
+
+// Slot 5's facts for today: events, the week's Feeling, Rewind.
+async function reflectContext(date: string): Promise<ReflectContext> {
+  const [events, feeling] = await Promise.all([listEvents().catch(() => []), getFeelingWeek(date).catch(() => null)]);
+  const debriefable = events
+    .filter((e) => eventPhase(e, date) === "debrief" && daysAway(e.date, date) <= 3)
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
+  const soon = events.filter((e) => e.date >= date && daysAway(date, e.date) <= 2).sort((a, b) => a.date.localeCompare(b.date))[0];
+  // "It's been a few days": from Thursday of the week on, if no rep yet.
+  const weekday = new Date(`${date}T12:00:00`).getDay();
+  const feelingDue = !!feeling && feeling.reps === 0 && (weekday === 0 || weekday >= 4);
+  return {
+    debrief: debriefable ? { eventId: debriefable.id, title: eventName(debriefable) } : null,
+    eventSoon: soon ? { eventId: soon.id, title: eventName(soon), daysAway: daysAway(date, soon.date) } : null,
+    feelingDue,
+    rewind: await getRewindOffer().catch(() => null),
+  };
+}
+
+// Your last result's "one thing next", when it names a drill, from a take in
+// the last three days.
+async function lastNextDrill(): Promise<DrillType | null> {
+  const db = await getDatabase();
+  const row = await db
+    .getFirstAsync<{ recommended_drill: string | null }>(
+      `SELECT sc.recommended_drill FROM scores sc JOIN sessions s ON s.id = sc.session_id
+       WHERE s.deleted_at IS NULL AND s.recorded_at >= ? ORDER BY s.recorded_at DESC LIMIT 1`,
+      [new Date(Date.now() - 3 * 86_400_000).toISOString()],
+    )
+    .catch(() => null);
+  const drill = row?.recommended_drill?.trim();
+  return drill && isDrillType(drill) ? drill : null;
 }
 
 // Today's plan — generated once per day and stored, so it can be resumed.
@@ -510,11 +538,14 @@ export async function getTodaysPlan(minutes: PlanMinutes, regenerate = false): P
   if (existing && (await planWorkedOn(date))) return existing;
 
   const db = await getDatabase();
-  const [skills, lessons, recent, lessonStepsDone] = await Promise.all([
+  const [skills, lessons, recent, lessonStepsDone, leaves, nextDrill, reflect] = await Promise.all([
     getSkillStates(),
     getLessonStates(),
     db.getAllAsync<{ plan_json: string }>(`SELECT plan_json FROM daily_plans WHERE date < ? ORDER BY date DESC LIMIT 2`, [date]),
     getLessonStepsDone(),
+    getLeafRatings().catch(() => ({}) as Awaited<ReturnType<typeof getLeafRatings>>),
+    lastNextDrill(),
+    reflectContext(date),
   ]);
   const plan = buildDailyPlan({
     date,
@@ -528,6 +559,9 @@ export async function getTodaysPlan(minutes: PlanMinutes, regenerate = false): P
     priority: priorityFor(getUserProfile(), date, getNextEvent()),
     path,
     lessonStepsDone,
+    leafRatings: Object.fromEntries(Object.entries(leaves).map(([id, r]) => [id, r!.rating])),
+    nextDrill,
+    reflect,
   });
   await db.runAsync(`INSERT OR REPLACE INTO daily_plans (date, plan_json, completed_at) VALUES (?, ?, NULL)`, [date, JSON.stringify(plan)]);
   // Anything already done today (from Practice, say) ticks the new plan at once.
@@ -536,8 +570,8 @@ export async function getTodaysPlan(minutes: PlanMinutes, regenerate = false): P
 
 // Skipping a step counts it done for this plan only. It is logged as a skip,
 // not as the activity, so nothing else ticks and no lesson step is satisfied.
-export async function skipPlanStep(date: string, slot: number, stepId: string): Promise<StoredPlan | null> {
-  const stored = await readStored(date, slot);
+export async function skipPlanStep(date: string, stepId: string): Promise<StoredPlan | null> {
+  const stored = await readPlan(date);
   const step = stored?.plan.steps.find((st) => st.id === stepId);
   if (!stored || !step) return stored;
   const wanted = wantedByPlanStep(step);
@@ -546,67 +580,49 @@ export async function skipPlanStep(date: string, slot: number, stepId: string): 
     variant: wanted?.variant ?? null,
     outcome: "skipped",
     planDate: date,
-    planSlot: slot || null,
+    planSlot: null,
     planStepId: stepId,
   });
-  return readStored(date, slot);
+  return readPlan(date);
 }
 
 // ---------------------------------------------------------------------------
-// Daily goal: top-up sessions (2 and 3)
+// Minutes a day
 // ---------------------------------------------------------------------------
 
-// Today's top-up for a slot — built once on a skill today hasn't touched yet,
-// then stored so it can be resumed.
-export async function getTopUpPlan(slot: 1 | 2, options: { quiet?: boolean } = {}): Promise<StoredPlan> {
+// Minutes practised per local day: each activity done counts its catalogue
+// minutes (activities.ts), wherever it was done. Skips count nothing.
+export async function getMinutesByDay(sinceDate?: string): Promise<Record<string, number>> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{ local_date: string; activity_id: string }>(
+    `SELECT local_date, activity_id FROM activity_log WHERE outcome = 'done'${sinceDate ? " AND local_date >= ?" : ""}`,
+    sinceDate ? [sinceDate] : [],
+  );
+  const out: Record<string, number> = {};
+  for (const r of rows) out[r.local_date] = (out[r.local_date] ?? 0) + (getActivity(r.activity_id)?.minutes ?? 1);
+  return out;
+}
+
+export async function getMinutesToday(): Promise<number> {
   const date = todayISODate();
-  const existing = await readTopUp(date, slot);
-  if (existing) return existing;
-  const [main, other, skills, lessons, lessonStepsDone] = await Promise.all([readPlan(date), readTopUp(date, slot === 1 ? 2 : 1), getSkillStates(), getLessonStates(), getLessonStepsDone()]);
-  const doneSkills = [main?.plan.focusSkill, other?.plan.focusSkill].filter((s): s is SkillId => !!s);
-  const plan = buildTopUpPlan({
-    date,
-    minutes: 5,
-    slot,
-    doneSkills,
-    quiet: options.quiet,
-    skills: Object.fromEntries(SKILLS.map((k) => [k, { rating: skills[k].rating, lastPracticedAt: skills[k].lastPracticedAt }])) as Record<
-      SkillId,
-      { rating: number; lastPracticedAt: string | null }
-    >,
-    recentFocus: [],
-    lessons: Object.fromEntries(Object.entries(lessons).map(([id, l]) => [id, { done: l.done, nextReviewAt: l.nextReviewAt }])),
-    lessonStepsDone,
-  });
-  const db = await getDatabase();
-  await db.runAsync(`INSERT OR REPLACE INTO daily_topups (date, slot, plan_json, completed_at) VALUES (?, ?, ?, NULL)`, [date, slot, JSON.stringify(plan)]);
-  return (await readTopUp(date, slot)) ?? { plan, completedStepIds: [], completedAt: null };
+  return (await getMinutesByDay(date))[date] ?? 0;
 }
 
-// Which top-up slots are finished today.
-export async function getCompletedTopUpSlots(date = todayISODate()): Promise<number[]> {
+// Each day's goal: the minutes its plan was built for.
+export async function getPlanGoals(): Promise<Record<string, number>> {
   const db = await getDatabase();
-  const rows = await db.getAllAsync<{ slot: number }>(`SELECT slot FROM daily_topups WHERE date = ? AND completed_at IS NOT NULL`, [date]);
-  return rows.map((r) => r.slot);
+  const rows = await db.getAllAsync<{ date: string; plan_json: string }>(`SELECT date, plan_json FROM daily_plans`);
+  return Object.fromEntries(rows.map((r) => [r.date, (JSON.parse(r.plan_json) as DailyPlan).minutes]));
 }
 
-// Sessions done per local day: the first counts for any practice that day
-// (the plan or anything else); each finished top-up adds one.
-export async function getDailySessionCounts(): Promise<Record<string, number>> {
-  const db = await getDatabase();
-  const [practice, topups] = await Promise.all([
-    getPracticeDates(),
-    db.getAllAsync<{ date: string }>(`SELECT date FROM daily_topups WHERE completed_at IS NOT NULL`),
-  ]);
-  const counts: Record<string, number> = {};
-  // recorded_at / started_at are UTC datetimes: use their local date.
-  for (const d of practice) counts[d.length > 10 ? isoDateFromDate(new Date(d)) : d] = 1;
-  for (const t of topups) counts[t.date] = (counts[t.date] ?? 1) + 1;
-  return counts;
-}
-
-export async function getSessionsDoneToday(): Promise<number> {
-  return (await getDailySessionCounts())[todayISODate()] ?? 0;
+// Blocks finished today (0, 1 or 2), for reminders: a block is finished when
+// none of its steps is still open.
+export async function getBlocksDoneToday(): Promise<number> {
+  const stored = await readPlan(todayISODate());
+  if (!stored) return 0;
+  const blocks = stored.plan.blocks?.length ?? 1;
+  const current = currentBlock(stored.plan, new Set(stored.completedStepIds));
+  return current == null ? blocks : current;
 }
 
 export async function getPlanCompletionDates(): Promise<string[]> {

@@ -10,7 +10,7 @@ import {
 } from "../../domain/recordingSettings";
 import { DEFAULT_REMINDER_SETTINGS, type ReminderSettings } from "../../domain/reminderSettings";
 import type { CheckpointRecords } from "../../domain/checkpoint";
-import type { DailyGoal } from "../../domain/dailyGoal";
+import { DEFAULT_MINUTES, isDailyMinutes, minutesFor, type DailyMinutes, type DayOverride } from "../../domain/sessionLength";
 import { EMPTY_PROFILE, type UserProfile } from "../../domain/profile";
 import { todayISODate } from "../../utils/dateUtils";
 import { DEFAULT_RUN, type RunState } from "../../domain/innerVoice/run";
@@ -37,7 +37,6 @@ const KEYS = {
   lastStretchWeek: "lastStretchWeek",
   recordingDurationManuallySet: "recordingDurationManuallySet",
   prepSettingsManuallySet: "prepSettingsManuallySet",
-  dailySessionGoal: "dailySessionGoal",
   practiceAnchor: "practiceAnchor",
   practiceAnchorHour: "practiceAnchorHour",
   userProfile: "userProfile",
@@ -249,27 +248,39 @@ export function setPrepSettingsManuallySet(value: boolean): void {
   storage.set(KEYS.prepSettingsManuallySet, value);
 }
 
-// Daily plan length (Today screen): 5 / 8 / 12 minutes.
-const PLAN_MINUTES_KEY = "plan_minutes";
+// Minutes a day (PLAN section 9): your usual, and a change for one day that
+// leaves the usual alone. See domain/sessionLength.ts.
+const USUAL_MINUTES_KEY = "usual_minutes";
+const DAY_MINUTES_KEY = "day_minutes";
 
-export function getPlanMinutes(): 5 | 8 | 12 {
-  const value = storage.getNumber(PLAN_MINUTES_KEY);
-  return value === 5 || value === 12 ? value : 8;
+export function getUsualMinutes(): DailyMinutes {
+  const value = storage.getNumber(USUAL_MINUTES_KEY);
+  return isDailyMinutes(value) ? value : DEFAULT_MINUTES;
 }
 
-export function setPlanMinutes(minutes: 5 | 8 | 12): void {
-  storage.set(PLAN_MINUTES_KEY, minutes);
+export function setUsualMinutes(minutes: DailyMinutes): void {
+  storage.set(USUAL_MINUTES_KEY, minutes);
 }
 
-// How many practice sessions a day you're aiming for (1-3). The first is the
-// daily plan; the rest are short top-ups. See domain/dailyGoal.ts.
-export function getDailySessionGoal(): DailyGoal {
-  const n = storage.getNumber(KEYS.dailySessionGoal);
-  return n === 2 || n === 3 ? n : 1;
+export function getDayOverride(): DayOverride | null {
+  try {
+    const raw = storage.getString(DAY_MINUTES_KEY);
+    const parsed = raw ? (JSON.parse(raw) as DayOverride) : null;
+    return parsed && typeof parsed.date === "string" && isDailyMinutes(parsed.minutes) ? parsed : null;
+  } catch {
+    return null;
+  }
 }
 
-export function setDailySessionGoal(goal: DailyGoal): void {
-  storage.set(KEYS.dailySessionGoal, goal);
+// Today's minutes only. Setting it back to your usual clears it.
+export function setTodayMinutes(minutes: DailyMinutes, date = todayISODate()): void {
+  if (minutes === getUsualMinutes()) storage.remove(DAY_MINUTES_KEY);
+  else storage.set(DAY_MINUTES_KEY, JSON.stringify({ date, minutes } satisfies DayOverride));
+}
+
+// The minutes for a day: that day's change, or your usual.
+export function getTodayMinutes(date = todayISODate()): DailyMinutes {
+  return minutesFor(date, getUsualMinutes(), getDayOverride());
 }
 
 // The habit practice is tied to ("After my morning coffee"), from onboarding
@@ -407,8 +418,9 @@ export function setLastAutoCleanup(date: string): void {
 // Prefs for features that no longer exist: the Notion journal's default and
 // the AssemblyAI switch (removed 2026-10-12), and bring-your-own-key's
 // provider, models, per-provider consents and daily call count (removed
-// 2026-10-23: Tono AI is the only judge).
-const REMOVED_KEYS = ["notionDefault", "assemblyAiEnabled", "cloudProvider", "cloudModels", "cloudConsent", "rewindCloudConsent", "cloudCalls"];
+// 2026-10-23: Tono AI is the only judge), and the plan length and sessions a
+// day (2026-11-15: one number, minutes a day).
+const REMOVED_KEYS = ["notionDefault", "assemblyAiEnabled", "cloudProvider", "cloudModels", "cloudConsent", "rewindCloudConsent", "cloudCalls", "plan_minutes", "dailySessionGoal"];
 
 export function removeObsoletePrefs(): void {
   for (const key of REMOVED_KEYS) storage.remove(key);

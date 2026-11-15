@@ -403,3 +403,8 @@ export function scoreBreathCount(count: number, target: number, perSecond: numbe
 export function scoreSelfRating(rating: number): DrillOutcome {
   return outcome(rating / 5, `Self-rated ${rating}/5`, rating >= 4);
 }
+
+// A drill id from outside the code (a stored coaching tip), checked.
+export function isDrillType(value: string): value is DrillType {
+  return Object.prototype.hasOwnProperty.call(DRILL_TITLES, value);
+}

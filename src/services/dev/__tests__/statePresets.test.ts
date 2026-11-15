@@ -16,8 +16,7 @@ jest.mock("../../prefs/prefsStore", () => {
     setUserProfile: set("profile"),
     isOnboardingComplete: () => !!(mockPrefs.profile as { onboardingCompletedAt?: string } | undefined)?.onboardingCompletedAt,
     setSkillCheckPending: set("skillCheckPending"),
-    setDailySessionGoal: set("goal"),
-    setPlanMinutes: set("minutes"),
+    setUsualMinutes: set("minutes"),
     setPracticeAnchor: (anchor: string | null, hour: number | null = null) => void (mockPrefs.anchor = { anchor, hour }),
     setReminderSettings: set("reminders"),
     getReminderSettings: () => mockPrefs.reminders ?? { enabled: true, hour: 19 },
@@ -54,7 +53,6 @@ describe("state presets", () => {
     expect(profile.onboardingStep).toBe(QUESTIONS.length);
     expect(isAdultFromBirthDate(profile.birthDate, new Date().toISOString().slice(0, 10))).toBe(true);
     expect(mockPrefs).toMatchObject({
-      goal: 1,
       minutes: 5,
       anchor: { anchor: "After work", hour: 18 },
       reminders: { enabled: false },

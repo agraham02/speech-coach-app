@@ -18,7 +18,7 @@ From Appendix B of `PLAN.md`. A phase can't close while one of its IDs is open. 
 | R12 | One scoring logic across the whole app | 6 | Grid coverage test | 3a | done | Every attempt goes through the grid onto leaves (`scoring/leafEvidence.ts`, `db/leafRepo.ts`); `skillGrid.test.ts` for coverage |
 | R13 | Everything earns a score, including Rewind | 7 | Grid coverage test | 3a | done | `skillGrid.test.ts`: every activity has a number and a row. Rewind's and the other personal rows' numbers start moving leaves in 3c.4 |
 | R14 | One curriculum, like Duolingo | 5 | Plan, Path and Practice read the same catalogue | 2 | todo |  |
-| R15 | Rewind, Feeling, Conversations in the daily session | 5.3 | Session builder tests | 4 | todo |  |
+| R15 | Rewind, Feeling, Conversations in the daily session | 5.3 | Session builder tests | 4 | done | `dailyPlan.test.ts`: the reflect slot's order (debrief, rehearsal, Feeling of the week, Rewind, Three things) and a conversation in the 15-minute block and every second block (D42) |
 | R16 | Check-offs sync both ways | 5.2 | Tests and emulator | 2 | todo |  |
 | R17 | Clear which are lessons, drills, repeatable or one-off | 5.1 | Catalogue test; labels on screen | 2 | todo |  |
 | R18 | One central place to start any drill | 4, 5.3 | Emulator: Practice lists every drill | 5 | todo |  |
@@ -31,7 +31,7 @@ From Appendix B of `PLAN.md`. A phase can't close while one of its IDs is open. 
 | R25 | Onboarding flow | 12 | iPhone walkthrough | 7 | todo |  |
 | R26 | You and Settings redesigned | 13 | Emulator walkthrough | 5 | todo |  |
 | R27 | Libraries and animation researched and used | 15 | Library table followed; animation list checked | 8 | todo |  |
-| R28 | Session length flexible day by day | 9 | Budget tests; a day's change doesn't alter your usual | 4 | todo |  |
+| R28 | Session length flexible day by day | 9 | Budget tests; a day's change doesn't alter your usual | 4 | done | `sessionLength.test.ts`: budgets for all five goals; `minutesFor` keeps a day's change to that day (D42) |
 | R29 | Content judged; nonsense can't score well | 6.4, 7 | Validity tests for every gate | 3b | todo |  |
 | R30 | Better pitch and volume, fixed graphs | 6.5 | Signal Lab results on iPhone | 1 | doing | PRs #38 to #46. Pitch agrees with Praat about 99% on real takes, and pitch and volume count in scores. The graphs are phase 6 |
 | R31 | Playback is always the 3 passes | 10 | iPhone walkthrough | 6 | todo |  |
@@ -54,6 +54,6 @@ From Appendix B of `PLAN.md`. A phase can't close while one of its IDs is open. 
 | R48 | Plan saved in the repo; ways to stick to it | 17 | Files exist; `check:overhaul` runs | Setup | done | `docs/overhaul/`, `overhaulPlan.test.ts` |
 | R49 | Fix the bugs found (toast, seed, warm-up copy) | 1, 14 | Tests | 0 | done | PRs #29, #30, #31, each with tests |
 | R50 | Small content checks free for signed-in adults | 6.6 | Allowance tests; real cost in the ledger | 3b | todo |  |
-| R51 | One "minutes a day" number replaces two settings | 9 | Old settings gone; budget tests | 4 | todo |  |
+| R51 | One "minutes a day" number replaces two settings | 9 | Old settings gone; budget tests | 4 | done | Sessions a day and plan length removed (prefs, Settings, onboarding, top-ups, schema 42); budget tests in `sessionLength.test.ts` (D42) |
 | R52 | Feature branches merged into `staging` (DECISIONS D1), session-start hook | 17 | Hook prints the next task | Setup | done | `.claude/settings.json`, `scripts/overhaul-status.mjs` |
 | R53 | Clean the repo on `staging` first, then branch off | 14 | `docs/decisions/cleanup-2026-11.md` exists; all checks pass | −1 | done | `docs/decisions/cleanup-2026-11.md`; C.5 still open for the owner's answers |

@@ -5,14 +5,14 @@ import Animated from "react-native-reanimated";
 import { Txt } from "../common/Txt";
 import { CountUp } from "./CountUp";
 import { DeltaBar } from "./DeltaBar";
-import { getSessionsDoneToday, getSkillMovesSince, getStreakState } from "../../services/db/progressRepo";
-import { getDailySessionGoal } from "../../services/prefs/prefsStore";
+import { getMinutesToday, getSkillMovesSince, getStreakState } from "../../services/db/progressRepo";
+import { getTodayMinutes } from "../../services/prefs/prefsStore";
 import { SKILL_LABELS, type SkillId } from "../../theme/tokens";
 import { enter } from "../../theme/motion";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
-// The end of a day's session: the streak ticking over, the goal's dots
-// filling, and what today's practice did to each skill it touched.
+// The end of a day's session: the streak ticking over, today's minutes
+// against the goal, and what today's practice did to each skill it touched.
 export function SessionRecap() {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -26,9 +26,9 @@ export function SessionRecap() {
     getStreakState()
       .then((s) => setStreak(s.currentStreak))
       .catch(() => undefined);
-    const g = getDailySessionGoal();
-    getSessionsDoneToday()
-      .then((done) => setGoal({ done: Math.min(done, g), goal: g }))
+    const g = getTodayMinutes();
+    getMinutesToday()
+      .then((done) => setGoal({ done: Math.min(Math.round(done), g), goal: g }))
       .catch(() => undefined);
     getSkillMovesSince(midnight.toISOString())
       .then((m) => setMoves(m.filter((x) => Math.abs(x.to - x.from) >= 0.1).sort((a, b) => b.to - b.from - (a.to - a.from)).slice(0, 3)))
@@ -44,13 +44,11 @@ export function SessionRecap() {
             <CountUp variant="subhead" weight="600" from={Math.max(0, streak - 1)} to={streak} delay={500} durationMs={600} suffix="-day streak" />
           </View>
         ) : null}
-        {goal && goal.goal > 1 ? (
+        {goal ? (
           <View style={styles.pill}>
-            {Array.from({ length: goal.goal }, (_, i) => (
-              <View key={i} style={[styles.goalDot, i < goal.done && { backgroundColor: colors.success, borderColor: colors.success }]} />
-            ))}
+            <Ionicons name="time-outline" size={15} color={goal.done >= goal.goal ? colors.success : colors.textSecondary} />
             <Txt variant="subhead" weight="600" tabular>
-              {goal.done} of {goal.goal} today
+              {goal.done} of {goal.goal} min today
             </Txt>
           </View>
         ) : null}
