@@ -142,6 +142,13 @@ describe("every task", () => {
 
   it("builds the exercise prompts", () => {
     expect(buildRewindNotes({ transcript: "I had coffee." }).prompt).toContain("story of their day");
+    expect(buildRewindNotes({ transcript: "I had coffee.", day: "today" }).prompt).not.toContain("YESTERDAY");
+    const yesterday = buildRewindNotes({ transcript: "I had coffee.", day: "yesterday" }).prompt;
+    expect(yesterday).toContain("about YESTERDAY");
+    expect(yesterday).toContain("past tense");
+    expect(yesterday).toContain("transcript of their day yesterday");
+    expect(TASKS.rewind_notes.inputs.safeParse({ transcript: "x", day: "tomorrow" }).success).toBe(false);
+    expect(TASKS.rewind_notes.inputs.safeParse({ transcript: "x", day: "yesterday" }).success).toBe(true);
     expect(buildMarkUp({ text: "Hello there, friend." }).prompt).toContain("Mark this text:");
     const summary = buildSummaryNotes({ type: "sum_up", turns: [{ show: "Hamlet", sentenceLimit: 2 }], transcripts: ["A prince avenges his father."], speaker: null, stutterMode: false });
     expect(summary.prompt).toContain("SENTENCE LIMIT: 2");

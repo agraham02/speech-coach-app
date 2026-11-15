@@ -134,8 +134,10 @@ export type RootStackParamList = {
   Phrasebook: undefined;
   ThreeThings: undefined;
   TalkBack: undefined;
-  Rewind: undefined;
-  RewindRecord: undefined;
+  // `day`: which day to tell. Left out, the Rewind screen picks (rewindTiming.ts).
+  Rewind: { day?: "today" | "yesterday" } | undefined;
+  // Which day this take is about; yesterday's is saved with yesterday's date.
+  RewindRecord: { day?: "today" | "yesterday" } | undefined;
   RewindResult: { id: string };
   ThoughtChallenge: { thoughtId: string };
   // capstone: the wrap-up after thirty days.

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { completePracticeStep } from "../services/practice/practiceEvents";
 import { ACTIVITY_IDS } from "../content/activities";
 import { ActivityIndicator, Alert, BackHandler, View } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -12,7 +12,8 @@ import { IconButton } from "../components/common/IconButton";
 import { PrimaryButton } from "../components/common/PrimaryButton";
 import { Txt } from "../components/common/Txt";
 import { Waveform } from "../components/rewind/Waveform";
-import { cueForSeconds, MAX_REWIND_SECONDS, MIN_REWIND_SECONDS, type DayPart } from "../domain/rewind/stats";
+import { cueForSeconds, MAX_REWIND_SECONDS, MIN_REWIND_SECONDS } from "../domain/rewind/stats";
+import { dateOffset, rewindWords } from "../domain/rewind/rewindTiming";
 import { useRewindRecorder } from "../hooks/useRewindRecorder";
 import { discardRewindSegments, startRewind } from "../services/rewind/rewindProcessor";
 import { formatDuration } from "../utils/dateUtils";
@@ -22,7 +23,6 @@ import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Stage = "ready" | "recording" | "finishing" | "unavailable";
 
-const CUES: Record<DayPart, string> = { morning: "Morning", midday: "Midday", evening: "Evening" };
 // A soft cue that the end is near.
 const NEARLY_DONE_SECONDS = 105;
 const GET_READY_SECONDS = 3;
@@ -36,6 +36,12 @@ export function RewindRecordScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<RootStackParamList, "RewindRecord">>();
+  const day = route.params?.day === "yesterday" ? "yesterday" : "today";
+  const words = rewindWords(day);
+  // The day this take is about, fixed when the screen opens (a take that runs
+  // past midnight is still about the day it was started for).
+  const aboutDate = useRef(dateOffset(new Date(), day === "yesterday" ? -1 : 0));
   const recorder = useRewindRecorder();
   const [stage, setStage] = useState<Stage>("ready");
   const [elapsed, setElapsed] = useState(0);
@@ -91,7 +97,7 @@ export function RewindRecordScreen() {
     setStage("finishing");
     const take = await recorder.stop();
     success();
-    const id = await startRewind(take);
+    const id = await startRewind(take, aboutDate.current);
     completePracticeStep(ACTIVITY_IDS.rewind, undefined, null).catch(() => undefined);
     navigation.replace("RewindResult", { id });
   }
@@ -141,10 +147,10 @@ export function RewindRecordScreen() {
             </Txt>
           </CountdownRing>
           <Txt variant="title3" align="center">
-            Tell me about your day
+            {words.title}
           </Txt>
           <Txt variant="subhead" tone="secondary" align="center">
-            Morning to night. Details, however small.
+            {words.sub}
           </Txt>
         </View>
       ) : null}
@@ -166,7 +172,7 @@ export function RewindRecordScreen() {
             {stage === "recording" ? (
               <Animated.View key={cue} entering={FadeIn.duration(duration.slow)} exiting={FadeOut.duration(duration.fast)}>
                 <Txt variant="callout" tone="secondary">
-                  {CUES[cue]}
+                  {words.cues[cue]}
                 </Txt>
               </Animated.View>
             ) : null}

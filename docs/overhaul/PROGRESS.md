@@ -123,9 +123,9 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 |---|---|---|---|
 | 4.1 | Minutes a day replaces both settings, with blocks and budgets | todo | |
 | 4.2 | `buildDailyPlan` rebuilt around five slots | todo | |
-| 4.3 | Rewind at any hour, with habit detection | todo | |
+| 4.3 | Rewind at any hour, with habit detection | iphone | D40. `rewindTiming.test.ts` (domain, 19 tests: morning offers yesterday, evening offers today, each day told once, nothing older than yesterday, habit detection at the hour boundaries, the setting overriding it, past-tense words) and `services/db/__tests__/rewindTiming.test.ts` (real SQLite: a Rewind of yesterday keeps yesterday's `date` apart from `recorded_at`, the habit read from the activity log) and `prompts.test.ts` (the judge's past-tense prompt). `tsc` clean, whole suite passes, `expo export --platform ios` builds. **Not run on a phone.** Needs the functions deployed for the past-tense notes. Today's card and the nudge are wired in the Today task (4.5) and 4.6 |
 | 4.4 | Day override that leaves your usual alone | todo | |
-| 4.5 | `domain/today/cards.ts`, tested at different hours and event distances | todo | |
+| 4.5 | `domain/today/cards.ts`, tested at different hours and event distances | done | `domain/today/cards.ts`, `domain/today/__tests__/cards.test.ts` (90 tests, fixed clock): the session card's line at 7:00, 13:00 and 21:00; a Moment at 15, 14, 4, 3, 1 and 0 days before and 1, 3 and 4 days after; ranking; snoozing; "Show N more"; Rewind full or tile and hidden inside an unfinished session; every card going away when its condition clears. D41. Wired into Today later in Phase 4. |
 | 4.6 | Streak repair, reminders updated | todo | |
 
 ## Phase 8, first part: foundations (before Phase 5, D38)

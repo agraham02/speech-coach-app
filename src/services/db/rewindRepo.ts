@@ -28,7 +28,7 @@ export type ReviewSource = string | null;
 
 export interface Rewind {
   id: string;
-  date: string; // local YYYY-MM-DD it was told
+  date: string; // local YYYY-MM-DD the take is about (recordedAt may be a day later)
   recordedAt: string;
   audioFile: string | null;
   durationSeconds: number;
@@ -86,12 +86,14 @@ function fromRow(r: Row): Rewind {
 }
 
 // Starts a take's row, before any of the slow work (joining audio, Whisper,
-// the coach), so a take is never lost to a failure partway.
-export async function createRewind(durationSeconds: number, pending?: RewindPending): Promise<Rewind> {
+// the coach), so a take is never lost to a failure partway. `date` is the day
+// the take is about (local YYYY-MM-DD): today unless it is about yesterday;
+// `recorded_at` is always now, so the two stay apart.
+export async function createRewind(durationSeconds: number, pending?: RewindPending, date: string = todayISODate()): Promise<Rewind> {
   const db = await getDatabase();
   const rewind: Rewind = {
     id: generateId(),
-    date: todayISODate(),
+    date,
     recordedAt: new Date().toISOString(),
     audioFile: null,
     durationSeconds: Math.round(durationSeconds),
@@ -222,11 +224,13 @@ export async function getRewindDates(): Promise<string[]> {
   return rows.map((r) => r.date);
 }
 
-export async function hasRewindToday(): Promise<boolean> {
+export async function hasRewindOn(date: string): Promise<boolean> {
   const db = await getDatabase();
-  const row = await db.getFirstAsync<{ n: number }>(`SELECT COUNT(*) AS n FROM day_recalls WHERE deleted_at IS NULL AND date = ?`, [todayISODate()]);
+  const row = await db.getFirstAsync<{ n: number }>(`SELECT COUNT(*) AS n FROM day_recalls WHERE deleted_at IS NULL AND date = ?`, [date]);
   return (row?.n ?? 0) > 0;
 }
+
+export const hasRewindToday = (): Promise<boolean> => hasRewindOn(todayISODate());
 
 // Rewinds that were being processed when the app was closed, with what they
 // need to start again (null: nothing was kept).

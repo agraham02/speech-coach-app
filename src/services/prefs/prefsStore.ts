@@ -16,6 +16,7 @@ import { todayISODate } from "../../utils/dateUtils";
 import { DEFAULT_RUN, type RunState } from "../../domain/innerVoice/run";
 import { parseCalibration, type FaceCalibration } from "../../domain/faceCalibration";
 import type { UpcomingEvent } from "../../domain/events";
+import type { RewindTimeSetting } from "../../domain/rewind/rewindTiming";
 
 const storage = createMMKV({ id: "speech-coach-prefs" });
 
@@ -51,6 +52,7 @@ const KEYS = {
   freezeAnnouncedThrough: "freezeAnnouncedThrough",
   selfLikesRun: "selfLikesRun",
   rewindReminder: "rewindReminder",
+  rewindTime: "rewindTime",
   rewindNotificationsAsked: "rewindNotificationsAsked",
   shareProfileWithReviews: "shareProfileWithReviews",
   audioRetentionDays: "audioRetentionDays",
@@ -495,6 +497,17 @@ export function getRewindReminder(): RewindReminder {
 
 export function setRewindReminder(value: RewindReminder): void {
   storage.set(KEYS.rewindReminder, JSON.stringify(value));
+}
+
+// Settings, Practice: when Rewind is offered. "auto" follows when you usually
+// practise (domain/rewind/rewindTiming.ts); morning or evening overrides it.
+export function getRewindTime(): RewindTimeSetting {
+  const v = storage.getString(KEYS.rewindTime);
+  return v === "morning" || v === "evening" ? v : "auto";
+}
+
+export function setRewindTime(value: RewindTimeSetting): void {
+  storage.set(KEYS.rewindTime, value);
 }
 
 // The first finished Rewind asks about notifications once, so the evening

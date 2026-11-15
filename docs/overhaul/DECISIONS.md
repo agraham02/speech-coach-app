@@ -634,3 +634,35 @@ Two more, also accepted:
 **Why:** the owner's instruction: "only ask me to test or run migrations or anything else after all the phases are finished... I am trying to get through all of the phases."
 
 **Owner's OK:** that instruction.
+
+## D40. Rewind at any hour (2026-11-15)
+
+**Now** (`domain/rewind/rewindTiming.ts`, `services/rewind/rewindTiming.ts`):
+- **Which day Rewind offers.** From 18:00 (the old evening card's hour) until told: today. Before 18:00, if yesterday wasn't told: yesterday. Each day is told once (a failed take still counts as told, a deleted one doesn't), and a day older than yesterday is never offered. `decideRewindOffer` returns `{ date, day }` or null.
+- **Habit.** From the activity log over the last 14 days: 4:00 to 11:59 is morning, 17:00 to 3:59 is evening (after midnight belongs to the evening before), 12:00 to 16:59 counts for neither. A day-half counts once however many things were done in it. At least 4 morning-or-evening halves are needed, and morning wins at 60% or more; otherwise evening. Rewind itself and skipped steps aren't counted, so telling yesterday each morning can't make you a morning person on its own.
+- **A morning person is offered yesterday only.** After 18:00 they get nothing: one Rewind a day, told the morning after. An evening person is offered today at night, and yesterday in the morning if they missed it.
+- **Setting.** Settings, Practice, "Rewind time: Auto / Morning / Evening" (`rewindTime` in prefs, default Auto) overrides the habit.
+- **Rewind of yesterday.** `day_recalls.date` is yesterday and `recorded_at` is now, so the two stay apart. The Rewind screen starts about the offered day (with a "tell yesterday/today instead" link), the record screen's title and cues become "Tell me about yesterday" and "Yesterday morning / midday / evening", and the judge gets `day: "yesterday"` (the notes are in the past tense, prompt version `rewind-notes/2026-11-15`).
+- **For Today (4.5):** `getRewindOffer(now?)` and `getRewindWindow(now?)` from `services/rewind/rewindTiming.ts`, and `decideRewindOffer` / `detectRewindWindow` in the domain; navigate to `Rewind` or `RewindRecord` with `{ day }`.
+
+**Not built, and why:**
+- **Today's Rewind card and the nudge.** The card is rewritten with Today in 4.5 and the reminders in 4.6, so `RewindTodayCard` and `rewindReminder.ts` still show and fire in the evening only. The two exports above are what they need.
+- **Before 4:00 counts as yesterday's turn.** A Rewind at 1 am offers "yesterday", which is the calendar day before. Telling the evening you're still in as "today" would need the day to roll over at 4 am everywhere (the log, streaks, plans), which is bigger than this task.
+- **The hour boundaries are mine.** The plan said "sensible hours"; 18:00, 4:00, noon and 17:00 above are easy to change (constants at the top of `rewindTiming.ts`).
+
+**Owner's OK:** not asked; this is task 4.3.
+
+## D41. Today's cards (2026-11-15)
+
+**Now** (`domain/today/cards.ts`), where the plan's table left a choice:
+- **Hours:** morning is 05:00 to 12:00, midday 12:00 to 17:00, evening 17:00 to 05:00 (`MORNING_START_HOUR`, `MIDDAY_START_HOUR`, `EVENING_START_HOUR`). The small hours count as evening. Three things shows only in the morning. Rewind's own timing is not computed here; it arrives as data.
+- **Ranking:** full cards first, then tiles, then one-liners. Full: a Moment today, a Moment 1 to 3 days out, your take, streak repair, a Moment's "How did it go?", new progress, Rewind when it's the only card. Tiles: Rewind, Three things, missions, review due, Feeling of the week, skill check, comfort check-in. One-liners: a Moment further out, path changed, model download. Time-sensitive things come first.
+- **"About 4" is exactly 4**, counting full cards and tiles. One-liners don't count and are always shown. "Show N more" hides the lowest-ranked.
+- **Rewind is full** when no other full card or tile is showing (one-liners don't count), after snoozes. A Rewind that's hidden or snoozed doesn't promote anything.
+- **Several Moments:** each gets its own card by date; of those 4 to 14 days out, only the nearest gets a line. A Moment 15 or more days out, or more than 3 days after, shows nothing.
+- **Your take** is one card listing every take that is working, stuck, or ready and unopened.
+- **A snooze hides any card for the day** by its id (`moment:<id>` for Moments). Checks that carry their own "snoozed" flag are hidden by that too.
+
+**Why:** the table gave sizes and conditions but not the hours, the order within a size, or what "about 4" means. These keep the day's most urgent card on top and the page short.
+
+**Owner's OK:** not asked; this is task 4.5.
