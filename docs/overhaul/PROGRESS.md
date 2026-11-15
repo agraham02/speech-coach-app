@@ -123,7 +123,7 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 |---|---|---|---|
 | 4.1 | Minutes a day replaces both settings, with blocks and budgets | todo | |
 | 4.2 | `buildDailyPlan` rebuilt around five slots | todo | |
-| 4.3 | Rewind at any hour, with habit detection | todo | |
+| 4.3 | Rewind at any hour, with habit detection | iphone | D40. `rewindTiming.test.ts` (domain, 19 tests: morning offers yesterday, evening offers today, each day told once, nothing older than yesterday, habit detection at the hour boundaries, the setting overriding it, past-tense words) and `services/db/__tests__/rewindTiming.test.ts` (real SQLite: a Rewind of yesterday keeps yesterday's `date` apart from `recorded_at`, the habit read from the activity log) and `prompts.test.ts` (the judge's past-tense prompt). `tsc` clean, whole suite passes, `expo export --platform ios` builds. **Not run on a phone.** Needs the functions deployed for the past-tense notes. Today's card and the nudge are wired in the Today task (4.5) and 4.6 |
 | 4.4 | Day override that leaves your usual alone | todo | |
 | 4.5 | `domain/today/cards.ts`, tested at different hours and event distances | todo | |
 | 4.6 | Streak repair, reminders updated | todo | |

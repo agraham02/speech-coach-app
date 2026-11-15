@@ -1,5 +1,5 @@
 import { getDatabase } from "./database";
-import { getActivity } from "../../content/activities";
+import { ACTIVITY_IDS, getActivity } from "../../content/activities";
 import type { ActivityEntry, ActivityOutcome } from "../../domain/activityLog";
 import { isoDateFromDate } from "../../utils/dateUtils";
 import { logger } from "../../utils/logger";
@@ -119,6 +119,16 @@ export async function getEntriesOn(localDate: string): Promise<ActivityEntry[]> 
   const db = await getDatabase();
   const rows = await db.getAllAsync<Row>(`SELECT * FROM activity_log WHERE local_date = ? OR plan_date = ? ORDER BY at`, [localDate, localDate]);
   return rows.map(toEntry);
+}
+
+// When things were done since a local day, for spotting when you practise
+// (domain/rewind/rewindTiming.ts). Only what was done (not skipped), and not
+// Rewind itself: telling yesterday in the morning would otherwise make you a
+// morning person for ever.
+export async function getPracticeTimesSince(localDate: string): Promise<string[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{ at: string }>(`SELECT at FROM activity_log WHERE outcome = 'done' AND local_date >= ? AND activity_id <> ? ORDER BY at`, [localDate, ACTIVITY_IDS.rewind]);
+  return rows.map((r) => r.at);
 }
 
 // Everything logged against one lesson, oldest first.

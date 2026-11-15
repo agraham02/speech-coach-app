@@ -234,3 +234,14 @@ A new JS bundle is enough; no new build. Do a few real takes first, since the nu
 - [ ] **Category sprint.** On "animals", say a few animals and "table", "chair". The result should say "2 didn't fit" and not count them. Say real animals only: nothing is dropped.
 - [ ] **Off-topic take.** Record a take whose prompt asks one thing and talk about something else for 30 seconds, with no Tono AI review. It should say "We couldn't score this one" and why. A real answer should always score.
 - [ ] **Fair enough?** Tell me if a real answer is ever rejected as off-topic or a real link shown as "no clear connection".
+
+## Phase 4: session and Today logic
+
+### Rewind at any hour (4.3, D40)
+
+- [ ] **Deploy the functions first** (`npx supabase functions deploy --use-api`), or notes on a Rewind of yesterday come back in the present tense. Nothing else on the server changed.
+- [ ] **Morning.** Settings, Practice, Rewind time: Morning. Open Rewind: it says "Say yesterday out loud" and Start. The recording screen says "Tell me about yesterday" and the cue walks "Yesterday morning", "Yesterday midday", "Yesterday evening". It shows in Your days as "Yesterday" even though you recorded it today.
+- [ ] **Notes in the past tense.** On that Rewind, ask for Tono AI's notes: they talk about yesterday ("yesterday morning you...") and don't call the evening "right now".
+- [ ] **Told once.** After telling yesterday, Rewind (from You) offers today instead, and "Tell yesterday instead" is gone.
+- [ ] **Evening.** Rewind time: Evening, after 6 pm: it offers today. Before 6 pm with yesterday untold: it offers yesterday, with "Tell today instead" under Start.
+- [ ] **Auto.** Practise a few mornings, then check Settings says Auto and Rewind offers yesterday at midday. (Dev can't fake the activity log's times: if this is slow to try, tell me and I'll skip it.)

@@ -114,7 +114,7 @@ export function takeReviewInputs(input: TakeReviewInput) {
 const withProblems = (problems: string[]) => (problems.length ? { problems: problems.slice(0, 8).map((p) => p.slice(0, 300)) } : {});
 
 export function rewindNotesInputs(input: RewindNotesInput, problems: string[] = []) {
-  return { transcript: input.transcript, ...withProblems(problems) };
+  return { transcript: input.transcript, ...(input.day === "yesterday" ? { day: "yesterday" } : {}), ...withProblems(problems) };
 }
 
 // The pairs to judge, numbered by the phone so it can check the answer.

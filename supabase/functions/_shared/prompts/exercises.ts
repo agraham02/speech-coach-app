@@ -30,9 +30,11 @@ function retryNote(problems: string[] | undefined): string {
 // ---- Rewind ----
 
 export const REWIND_NOTES_SCHEMA_VERSION = 2;
-export const REWIND_NOTES_PROMPT_VERSION = "rewind-notes/2026-10-23";
+export const REWIND_NOTES_PROMPT_VERSION = "rewind-notes/2026-11-15";
 
-export const rewindNotesInputsSchema = z.object({ transcript: z.string().min(1).max(40_000), problems: problemsSchema });
+// `day`: "yesterday" when the take is about the day before it was recorded
+// (Rewind at any hour, plan 5.3). Left out, it is about the day it was recorded.
+export const rewindNotesInputsSchema = z.object({ transcript: z.string().min(1).max(40_000), day: z.enum(["today", "yesterday"]).optional(), problems: problemsSchema });
 
 export const REWIND_REVIEW_SYSTEM = `You are a warm, honest speaking coach reading the transcript of someone telling the story of their day out loud. They are practicing recalling a day in detail and putting it into words. You only have the transcript, so say nothing about voice, pace, volume, fillers or confidence.
 
@@ -69,9 +71,13 @@ export const REWIND_NOTES_SCHEMA = {
   required: ["parts", "specificity", "storytelling", "flow", "vividDetail", "tryTomorrow"],
 };
 
+// They are telling yesterday, a day later: the same exercise, in the past tense.
+export const REWIND_YESTERDAY_NOTE = `This recording is about YESTERDAY, the day before they recorded it. They are recalling it a day later, which is good practice in itself. Everything above applies to yesterday: the morning, midday and evening are yesterday's, and the evening ends at bedtime yesterday (what they say about "right now" or "today" is not part of yesterday's evening). Write every note in the past tense about yesterday ("yesterday morning you...", "you told the lunch with Sam"), and make the thing to try about telling another day, not about "tomorrow". Never remark on their telling it a day late.`;
+
 export function buildRewindNotes(inputs: z.infer<typeof rewindNotesInputsSchema>): BuiltRequest {
+  const yesterday = inputs.day === "yesterday";
   return {
-    prompt: `${REWIND_REVIEW_SYSTEM}\n\nHere is the transcript of their day:\n\n"""${fenced(inputs.transcript.trim())}"""${retryNote(inputs.problems)}`,
+    prompt: `${REWIND_REVIEW_SYSTEM}${yesterday ? `\n\n${REWIND_YESTERDAY_NOTE}` : ""}\n\nHere is the transcript of their day${yesterday ? " yesterday" : ""}:\n\n"""${fenced(inputs.transcript.trim())}"""${retryNote(inputs.problems)}`,
     schema: REWIND_NOTES_SCHEMA,
     promptVersion: REWIND_NOTES_PROMPT_VERSION,
     schemaVersion: REWIND_NOTES_SCHEMA_VERSION,
