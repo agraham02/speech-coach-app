@@ -634,3 +634,18 @@ Two more, also accepted:
 **Why:** the owner's instruction: "only ask me to test or run migrations or anything else after all the phases are finished... I am trying to get through all of the phases."
 
 **Owner's OK:** that instruction.
+
+## D41. Today's cards (2026-11-15)
+
+**Now** (`domain/today/cards.ts`), where the plan's table left a choice:
+- **Hours:** morning is 05:00 to 12:00, midday 12:00 to 17:00, evening 17:00 to 05:00 (`MORNING_START_HOUR`, `MIDDAY_START_HOUR`, `EVENING_START_HOUR`). The small hours count as evening. Three things shows only in the morning. Rewind's own timing is not computed here; it arrives as data.
+- **Ranking:** full cards first, then tiles, then one-liners. Full: a Moment today, a Moment 1 to 3 days out, your take, streak repair, a Moment's "How did it go?", new progress, Rewind when it's the only card. Tiles: Rewind, Three things, missions, review due, Feeling of the week, skill check, comfort check-in. One-liners: a Moment further out, path changed, model download. Time-sensitive things come first.
+- **"About 4" is exactly 4**, counting full cards and tiles. One-liners don't count and are always shown. "Show N more" hides the lowest-ranked.
+- **Rewind is full** when no other full card or tile is showing (one-liners don't count), after snoozes. A Rewind that's hidden or snoozed doesn't promote anything.
+- **Several Moments:** each gets its own card by date; of those 4 to 14 days out, only the nearest gets a line. A Moment 15 or more days out, or more than 3 days after, shows nothing.
+- **Your take** is one card listing every take that is working, stuck, or ready and unopened.
+- **A snooze hides any card for the day** by its id (`moment:<id>` for Moments). Checks that carry their own "snoozed" flag are hidden by that too.
+
+**Why:** the table gave sizes and conditions but not the hours, the order within a size, or what "about 4" means. These keep the day's most urgent card on top and the page short.
+
+**Owner's OK:** not asked; this is task 4.5.
