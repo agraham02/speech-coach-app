@@ -682,3 +682,14 @@ Two more, also accepted:
 - **Today's card ranking (4.5) isn't wired into Today yet.** Today is rebuilt to the canvas after 8.1 and 8.2 (D38), so wiring the old cards to it now would be done twice. R1 moves with that rebuild. Until then Today keeps its cards, with the minutes control as a five-way switch, not the canvas's value and sheet.
 
 **Owner's OK:** not asked; these are tasks 4.1, 4.2 and 4.4.
+
+## D43. Streak repair and reminders (2026-11-15)
+
+**Now** (task 4.6):
+- **Streak repair.** A streak of at least 2 days broken by 1 or 2 missed planned days (rest days don't count, and freezes are used first) can be won back by **finishing today's whole session**. The missed days are then stored as repaired and bridge the gap like a rest day, without adding to the count, so the two runs join. It is judged on the days before today, so practising first doesn't hide it. Today shows it with your "why"; "Start fresh instead" dismisses that break for good.
+- **Practice reminders** are one per block (D42): one, or two on a 20 or 30 minute day.
+- **Rewind's nudge follows your Rewind time** (D40). Evening people are nudged at their Rewind hour to tell today; morning people in the morning to tell yesterday, at their practice reminder's hour when that is in the morning, else 8 am. It's skipped when that day is already told.
+
+**Why these numbers:** the plan says "keep streak freezes and add repair" without the terms. A repair that costs a full session keeps it earned, and two missed days is about as far as "a slip" stretches before it is a new start.
+
+**Owner's OK:** not asked; this is task 4.6.

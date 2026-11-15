@@ -274,8 +274,16 @@ export function reminderText(ctx: ReminderContext): NotificationText {
 }
 
 // The evening "tell your day" nudge.
-export function rewindReminderText(name: string | null | undefined, when: Date): NotificationText {
+export function rewindReminderText(name: string | null | undefined, when: Date, day: "today" | "yesterday" = "today"): NotificationText {
   const who = firstName(name);
+  if (day === "yesterday") {
+    const morning = [
+      "How did yesterday go? Tell it start to finish, in about two minutes.",
+      "Rewind: say yesterday out loud, small details and all.",
+      "Two minutes to put yesterday into words, before it blurs.",
+    ];
+    return { title: who ? `Morning, ${who}` : "Good morning", body: pick(morning, when) };
+  }
   const pool = [
     "How did today go? Tell it start to finish, in about two minutes.",
     "Rewind: say your day out loud, small details and all.",

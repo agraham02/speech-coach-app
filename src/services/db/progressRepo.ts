@@ -5,9 +5,9 @@ import { getRewindDates } from "./rewindRepo";
 import { generateId } from "../../utils/generateId";
 import { isoDateFromDate, todayISODate } from "../../utils/dateUtils";
 import { priorityFor } from "../../domain/profile";
-import { getChallenge, getNextEvent, getReminderSettings, getUserProfile, setLastStretchWeek, setTakeLevel } from "../prefs/prefsStore";
+import { addRepairedDays, getChallenge, getDismissedRepair, getNextEvent, getRepairedDays, getReminderSettings, getUserProfile, setLastStretchWeek, setTakeLevel } from "../prefs/prefsStore";
 import { CHALLENGE_TARGET, STRETCH_BONUS, stretchWeekOf } from "../../domain/difficulty/challenge";
-import { computeStreakState, type StreakState } from "../../domain/streaks";
+import { computeStreakState, streakBreak, type StreakBreak, type StreakState } from "../../domain/streaks";
 import type { SkillId } from "../../theme/tokens";
 import { DRILL_SKILL, DRILL_TITLES, type DrillOutcome, type DrillType } from "../../domain/drills/drillSpecs";
 import { MIN_LEVEL, SKILLS, nextDifficulty, nextReviewIntervalDays, type SkillRating } from "../../domain/mastery";
@@ -713,5 +713,22 @@ export async function getStreakDates(): Promise<string[]> {
 // The one streak every screen shows — practice of any kind, rest days left
 // out, and freezes covering a missed day (see domain/streaks.ts).
 export async function getStreakState(): Promise<StreakState> {
-  return computeStreakState(await getStreakDates(), new Date(), getReminderSettings().practiceDays);
+  return computeStreakState(await getStreakDates(), new Date(), getReminderSettings().practiceDays, getRepairedDays());
+}
+
+// A streak that broke and can still be won back today, unless dismissed.
+export async function getStreakRepair(): Promise<StreakBreak | null> {
+  const found = streakBreak(await getStreakDates(), new Date(), getReminderSettings().practiceDays, getRepairedDays());
+  return found && found.lastPracticed !== getDismissedRepair() ? found : null;
+}
+
+// Finishing today's whole session wins the break back: its missed days are
+// covered from now on. Returns the streak won back, or null.
+export async function claimStreakRepair(): Promise<number | null> {
+  const found = await getStreakRepair();
+  if (!found) return null;
+  const today = await readPlan(todayISODate());
+  if (!today?.completedAt) return null;
+  addRepairedDays(found.missed);
+  return found.lost;
 }
