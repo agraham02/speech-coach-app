@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { View } from "react-native";
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
 import { Screen } from "../components/common/Screen";
@@ -9,7 +9,9 @@ import { ListGroup, ListRow } from "../components/common/ListRow";
 import { PrimaryButton } from "../components/common/PrimaryButton";
 import { Txt } from "../components/common/Txt";
 import { partsCovered } from "../domain/rewind/stats";
-import { listRewinds, type Rewind } from "../services/db/rewindRepo";
+import { getRewindDates, listRewinds, type Rewind } from "../services/db/rewindRepo";
+import { getRewindOffer } from "../services/rewind/rewindTiming";
+import { canTellDay, rewindWords, type RewindDay } from "../domain/rewind/rewindTiming";
 import { dayLabel } from "../domain/rewind/labels";
 import { formatDuration } from "../utils/dateUtils";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
@@ -39,22 +41,40 @@ export function RewindScreen() {
   const styles = useStyles();
   const { colors } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<RootStackParamList, "Rewind">>();
+  const asked = route.params?.day;
   const [takes, setTakes] = useState<Rewind[]>([]);
+  // Which day Start tells: the one asked for if it is still open, else the one
+  // on offer right now (yesterday in the morning if it wasn't told), else today.
+  const [chosen, setChosen] = useState<RewindDay | null>(null);
+  const [yesterdayOpen, setYesterdayOpen] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       listRewinds().then(setTakes);
-    }, []),
+      Promise.all([getRewindOffer(), getRewindDates()])
+        .then(([offer, told]) => {
+          setYesterdayOpen(canTellDay("yesterday", new Date(), told));
+          setChosen(asked && canTellDay(asked, new Date(), told) ? asked : (offer?.day ?? "today"));
+        })
+        .catch(() => setChosen(asked ?? "today"));
+    }, [asked]),
   );
+
+  const day: RewindDay = chosen ?? asked ?? "today";
+  const words = rewindWords(day);
+  const other: RewindDay = day === "today" ? "yesterday" : "today";
+  const showSwitch = day === "yesterday" || yesterdayOpen;
 
   return (
     <Screen title="Rewind" eyebrow="Tell your day" onBack={() => navigation.goBack()} contentStyle={styles.content}>
       <HeroCard accent={colors.skill.conversation.fg} contentStyle={styles.hero}>
-        <Txt variant="title2">Say your whole day out loud</Txt>
+        <Txt variant="title2">{words.hero}</Txt>
         <Txt variant="callout" tone="secondary">
-          One to two minutes, morning to night. The aim isn't to sound good — it's to recall and describe: as much detail as you can find, however ordinary.
+          {words.heroBody}
         </Txt>
-        <PrimaryButton label="Start" iconRight="arrow-forward" onPress={() => navigation.navigate("RewindRecord")} />
+        <PrimaryButton label="Start" iconRight="arrow-forward" onPress={() => navigation.navigate("RewindRecord", { day })} />
+        {showSwitch ? <PrimaryButton label={other === "yesterday" ? "Tell yesterday instead" : "Tell today instead"} variant="ghost" onPress={() => setChosen(other)} /> : null}
       </HeroCard>
 
       <View style={styles.tips}>

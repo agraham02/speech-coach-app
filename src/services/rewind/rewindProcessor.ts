@@ -63,8 +63,8 @@ export function getRewindStage(id: string): RewindStage | null {
 // wait here for Whisper, with nothing to do and nothing to see: now the result
 // screen opens straight away and fills in (and a take cut off by the app being
 // closed is started again at the next launch: resumeRewinds).
-export async function startRewind(take: RewindTake): Promise<string> {
-  const rewind = await createRewind(take.durationMs / 1000, { segments: take.segments, liveText: take.liveText, volume: take.volume, durationMs: take.durationMs, resumes: 0 });
+export async function startRewind(take: RewindTake, date?: string): Promise<string> {
+  const rewind = await createRewind(take.durationMs / 1000, { segments: take.segments, liveText: take.liveText, volume: take.volume, durationMs: take.durationMs, resumes: 0 }, date);
   run(rewind.id, take);
   return rewind.id;
 }

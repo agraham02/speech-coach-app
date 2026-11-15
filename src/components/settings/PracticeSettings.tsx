@@ -5,7 +5,8 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation";
 import { ListGroup, ListRow, SwitchRow } from "../common/ListRow";
-import { getChallenge, getPlanYourPointEnabled, getRewindDeliveryEnabled, setChallenge, setPlanYourPointEnabled, setRewindDeliveryEnabled } from "../../services/prefs/prefsStore";
+import { REWIND_TIME_OPTIONS, type RewindTimeSetting } from "../../domain/rewind/rewindTiming";
+import { getChallenge, getPlanYourPointEnabled, getRewindDeliveryEnabled, getRewindTime, setChallenge, setPlanYourPointEnabled, setRewindDeliveryEnabled, setRewindTime } from "../../services/prefs/prefsStore";
 
 // Settings → Practice: who you're practicing as, and how a recording starts.
 export function PracticeSettings() {
@@ -14,6 +15,22 @@ export function PracticeSettings() {
   const [rewindDelivery, setRewindDelivery] = useState(getRewindDeliveryEnabled());
   const [challenge, setChallengeState] = useState<Challenge>(getChallenge());
   const current = CHALLENGE_OPTIONS.find((o) => o.key === challenge)!;
+  const [rewindTime, setRewindTimeState] = useState<RewindTimeSetting>(getRewindTime());
+  const rewindOption = REWIND_TIME_OPTIONS.find((o) => o.key === rewindTime)!;
+
+  // When Rewind is offered: yesterday in the morning, today at night (plan 5.3).
+  function pickRewindTime() {
+    Alert.alert("Rewind time", "Morning offers you yesterday. Evening offers you today. Auto follows when you usually practise.", [
+      ...REWIND_TIME_OPTIONS.map((o) => ({
+        text: o.key === rewindTime ? `${o.label} ✓` : o.label,
+        onPress: () => {
+          setRewindTime(o.key);
+          setRewindTimeState(o.key);
+        },
+      })),
+      { text: "Cancel", style: "cancel" as const },
+    ]);
+  }
 
   // How hard practice gets: where each drill's difficulty settles (plan 6.7, rule 11).
   function pickChallenge() {
@@ -60,6 +77,7 @@ export function PracticeSettings() {
           setPlanYourPointEnabled(enabled);
         }}
       />
+      <ListRow icon="time-outline" title={`Rewind time: ${rewindOption.label}`} subtitle={rewindOption.detail} chevron onPress={pickRewindTime} />
       <SwitchRow
         icon="mic-outline"
         title="Rewinds count toward delivery"

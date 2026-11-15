@@ -1,6 +1,7 @@
 import { reviewInCloud } from "./rewindReview";
 import { updateRewind } from "../db/rewindRepo";
 import { producerName } from "../../domain/analysis/provenance";
+import { rewindAboutDay } from "../../domain/rewind/rewindTiming";
 
 // Asking for the notes on a Rewind, with its state kept outside the screen: the
 // request carries on if the person leaves the result screen, and coming back
@@ -33,11 +34,11 @@ export function subscribeNotes(listener: () => void): () => void {
 }
 
 // Resolves when the request has ended (notes saved, declined or failed).
-export async function requestNotes(rewind: { id: string; transcript: string }, openSettings: () => void): Promise<void> {
+export async function requestNotes(rewind: { id: string; transcript: string; date: string; recordedAt: string }, openSettings: () => void): Promise<void> {
   if (states.get(rewind.id)?.status === "running") return;
   set(rewind.id, { status: "running", since: Date.now() });
   try {
-    const result = await reviewInCloud(rewind.transcript, openSettings);
+    const result = await reviewInCloud(rewind.transcript, openSettings, rewindAboutDay(rewind.date, rewind.recordedAt));
     if (result.ok) {
       await updateRewind(rewind.id, { review: result.review, reviewSource: producerName(result.provenance) });
       set(rewind.id, IDLE);

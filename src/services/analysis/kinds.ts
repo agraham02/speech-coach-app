@@ -43,6 +43,9 @@ export interface TakeReviewOutput {
 
 export interface RewindNotesInput {
   transcript: string;
+  // "yesterday": the take is about the day before it was recorded, so the notes
+  // are written in the past tense. Left out or "today": the same day.
+  day?: "today" | "yesterday";
 }
 
 // A Word Chain attempt, split into the runs between start words (the phone's
