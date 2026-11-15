@@ -224,6 +224,14 @@ export async function getRewindDates(): Promise<string[]> {
   return rows.map((r) => r.date);
 }
 
+// When each Rewind was recorded (UTC), for the streak: telling yesterday this
+// morning is practice today, not yesterday.
+export async function getRewindRecordedTimes(): Promise<string[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{ recorded_at: string }>(`SELECT recorded_at FROM day_recalls WHERE deleted_at IS NULL`);
+  return rows.map((r) => r.recorded_at);
+}
+
 export async function hasRewindOn(date: string): Promise<boolean> {
   const db = await getDatabase();
   const row = await db.getFirstAsync<{ n: number }>(`SELECT COUNT(*) AS n FROM day_recalls WHERE deleted_at IS NULL AND date = ?`, [date]);

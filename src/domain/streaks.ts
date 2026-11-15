@@ -51,7 +51,11 @@ export interface StreakState extends StreakResult {
 // and the covered days don't add to its count. A longer gap breaks the streak
 // and spends nothing. The gap before today is judged the same way, so a streak
 // is "alive" if freezes could cover the days since your last practice.
-export function computeStreakState(dates: string[], today: Date = new Date(), practiceDays: number[] = []): StreakState {
+//
+// `repaired` (YYYY-MM-DD) are missed days you won back with a streak repair
+// (streakBreak below): they bridge the gap like a rest day, without counting.
+export function computeStreakState(dates: string[], today: Date = new Date(), practiceDays: number[] = [], repaired: string[] = []): StreakState {
+  const repairedSet = new Set(repaired);
   const days = Array.from(new Set(dates.map((d) => (d.length > 10 ? isoDateFromDate(new Date(d)) : d.slice(0, 10)))))
     .sort()
     .map(dateFromISODate);
@@ -67,7 +71,7 @@ export function computeStreakState(dates: string[], today: Date = new Date(), pr
     const gap = daysBetween(from, to);
     for (let i = 1; i < gap; i++) {
       const d = new Date(from.getFullYear(), from.getMonth(), from.getDate() + i);
-      if (!isRest(d)) missed.push(d);
+      if (!isRest(d) && !repairedSet.has(isoDateFromDate(d))) missed.push(d);
     }
     return missed;
   };
@@ -109,6 +113,44 @@ export function computeStreakState(dates: string[], today: Date = new Date(), pr
   }
 
   return { currentStreak, longestStreak: longest, freezesHeld: held, frozenDates: frozen.map(isoDateFromDate), practicedTowardNext: toward };
+}
+
+// --- repair ----------------------------------------------------------------------
+
+// A broken streak can be won back (Silverman & Barasch 2023: breaks hurt less
+// when repairable) by finishing today's whole session, while the break is
+// fresh: up to REPAIR_MAX_MISSED planned days missed, from a streak of at
+// least REPAIR_MIN_STREAK days.
+export const REPAIR_MAX_MISSED = 2;
+export const REPAIR_MIN_STREAK = 2;
+
+export interface StreakBreak {
+  // The streak that broke, and the planned days that broke it.
+  lost: number;
+  missed: string[];
+  // The last day of the lost streak; a dismissal is remembered against it.
+  lastPracticed: string;
+}
+
+// The break a repair could fix today, or null. Practice today doesn't hide
+// it: the break is judged on the days before today.
+export function streakBreak(dates: string[], today: Date = new Date(), practiceDays: number[] = [], repaired: string[] = []): StreakBreak | null {
+  const todayIso = isoDateFromDate(today);
+  const before = dates.filter((d) => (d.length > 10 ? isoDateFromDate(new Date(d)) : d.slice(0, 10)) < todayIso);
+  if (!before.length) return null;
+  if (computeStreakState(before, today, practiceDays, repaired).currentStreak > 0) return null;
+  const last = before.map((d) => (d.length > 10 ? isoDateFromDate(new Date(d)) : d.slice(0, 10))).sort().at(-1)!;
+  const lastDay = dateFromISODate(last);
+  const lost = computeStreakState(before, lastDay, practiceDays, repaired).currentStreak;
+  if (lost < REPAIR_MIN_STREAK) return null;
+  const missed: string[] = [];
+  const repairedSet = new Set(repaired);
+  for (let i = 1; i < daysBetween(lastDay, dateFromISODate(todayIso)); i++) {
+    const d = new Date(lastDay.getFullYear(), lastDay.getMonth(), lastDay.getDate() + i);
+    if ((practiceDays.length === 0 || practiceDays.includes(d.getDay())) && !repairedSet.has(isoDateFromDate(d))) missed.push(isoDateFromDate(d));
+  }
+  if (missed.length === 0 || missed.length > REPAIR_MAX_MISSED) return null;
+  return { lost, missed, lastPracticed: last };
 }
 
 // The current and longest streak — see computeStreakState for the rules.

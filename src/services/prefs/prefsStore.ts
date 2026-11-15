@@ -636,3 +636,24 @@ export function getPathFinaleSeenAt(): string | null {
 export function setPathFinaleSeenAt(at: string): void {
   storage.set(KEYS.pathFinaleSeenAt, at);
 }
+
+// Streak repair (domain/streaks.ts): the missed days won back, and the break
+// last dismissed (by the day its streak ended).
+const STREAK_REPAIRED_KEY = "streak_repaired";
+const STREAK_REPAIR_DISMISSED_KEY = "streak_repair_dismissed";
+
+export function getRepairedDays(): string[] {
+  return readJson<string[]>(STREAK_REPAIRED_KEY, []);
+}
+
+export function addRepairedDays(days: string[]): void {
+  storage.set(STREAK_REPAIRED_KEY, JSON.stringify([...new Set([...getRepairedDays(), ...days])].sort()));
+}
+
+export function getDismissedRepair(): string | null {
+  return storage.getString(STREAK_REPAIR_DISMISSED_KEY) ?? null;
+}
+
+export function dismissRepair(lastPracticed: string): void {
+  storage.set(STREAK_REPAIR_DISMISSED_KEY, lastPracticed);
+}

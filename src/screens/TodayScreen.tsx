@@ -22,11 +22,13 @@ import { FeelingWeekCard } from "../components/feelings/FeelingWeekCard";
 import { PastEntryCard } from "../components/innerVoice/PastEntryCard";
 import { RewindTodayCard } from "../components/rewind/RewindTodayCard";
 import { TodaySkillCheckCard } from "../components/onboarding/SkillCheckCards";
-import { getMinutesByDay, getSkillStates, getTodaysPlan, getStreakState, type SkillState, type StoredPlan } from "../services/db/progressRepo";
+import { claimStreakRepair, getFirstActivityDate, getMinutesByDay, getSkillStates, getStreakRepair, getTodaysPlan, getStreakState, type SkillState, type StoredPlan } from "../services/db/progressRepo";
+import type { StreakBreak } from "../domain/streaks";
 import { getSpeakerLevel } from "../services/db/leafRepo";
-import { getPracticeAnchor, getPracticeAnchorHour, getReminderSettings, getTodayMinutes, getUsualMinutes, getUserProfile, setTodayMinutes, setUsualMinutes } from "../services/prefs/prefsStore";
+import { dismissRepair, getPracticeAnchor, getPracticeAnchorHour, getReminderSettings, getTodayMinutes, getUsualMinutes, getUserProfile, setTodayMinutes, setUsualMinutes } from "../services/prefs/prefsStore";
 import { MINUTE_CHOICES, minutesNudge, ringProgress, type DailyMinutes, type MinutesNudge } from "../domain/sessionLength";
 import { isoDateFromDate } from "../utils/dateUtils";
+import { syncDailyReminder } from "../services/notifications/reminderScheduler";
 import { defaultsFromProfile } from "../domain/profile";
 import { anchorFits } from "../domain/notificationCopy";
 import { takeFreezeNotice } from "../services/streaks/freezeNotice";
@@ -67,6 +69,7 @@ export function TodayScreen() {
   const [usual, setUsual] = useState<DailyMinutes>(getUsualMinutes());
   const [minutesDone, setMinutesDone] = useState(0);
   const [nudge, setNudge] = useState<MinutesNudge>(null);
+  const [repair, setRepair] = useState<StreakBreak | null>(null);
   const [stored, setStored] = useState<StoredPlan | null>(null);
   const [skillStates, setSkillStates] = useState<Record<SkillId, SkillState> | null>(null);
   const [level, setLevel] = useState<number | null>(null);
@@ -87,6 +90,18 @@ export function TodayScreen() {
         .catch(() => undefined)
         .then(() => getTodaysPlan(m));
       planned.then(setStored);
+      // A finished session wins a broken streak back; otherwise offer it.
+      planned
+        .then(() => claimStreakRepair())
+        .then((won) => {
+          if (won) {
+            showGlobalToast(`Streak repaired: ${won + 1} days and counting`, "success");
+            getStreakState().then((s) => setStreak(s.currentStreak));
+          }
+          return getStreakRepair();
+        })
+        .then(setRepair)
+        .catch(() => setRepair(null));
       getSkillStates().then(setSkillStates);
       getSpeakerLevel().then(setLevel);
       getStreakState().then((state) => {
@@ -97,14 +112,17 @@ export function TodayScreen() {
       });
       // Today's ring, and the last week's minutes for the "make it your usual"
       // nudge (practice days only; today isn't over, so it isn't counted).
-      getMinutesByDay(isoDateFromDate(new Date(Date.now() - 8 * 86_400_000)))
-        .then((byDay) => {
+      Promise.all([getMinutesByDay(isoDateFromDate(new Date(Date.now() - 22 * 86_400_000))), getFirstActivityDate()])
+        .then(([byDay, first]) => {
           const today = new Date();
           setMinutesDone(byDay[isoDateFromDate(today)] ?? 0);
+          // The last 7 practice days before today (rest days skipped), and
+          // none from before you started.
           const practiceDays = getReminderSettings().practiceDays ?? [];
           const days: number[] = [];
-          for (let i = 1; i <= 7; i++) {
+          for (let i = 1; i <= 21 && days.length < 7; i++) {
             const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+            if (!first || isoDateFromDate(d) < first) break;
             if (practiceDays.length && !practiceDays.includes(d.getDay())) continue;
             days.push(byDay[isoDateFromDate(d)] ?? 0);
           }
@@ -123,6 +141,8 @@ export function TodayScreen() {
     setMinutes(m);
     setTodayMinutes(m);
     getTodaysPlan(m, true).then(setStored);
+    // A 20 or 30 minute day has a second block, with its own reminder.
+    syncDailyReminder().catch(() => undefined);
   }
 
   function makeUsual(m: DailyMinutes) {
@@ -330,7 +350,34 @@ export function TodayScreen() {
 
       <TodaySkillCheckCard />
 
-      {streak === 0 && profile?.why ? (
+      {repair ? (
+        <Card style={styles.nudge}>
+          <Txt variant="headline">Your {repair.lost}-day streak broke</Txt>
+          <Txt variant="callout" tone="secondary">
+            Finish today's session to win it back. {repair.missed.length === 1 ? "One missed day" : "Two missed days"} won't undo the work.
+          </Txt>
+          {profile?.why ? (
+            <View style={styles.why}>
+              <Txt variant="footnote" weight="500" tone="secondary">
+                Why you started
+              </Txt>
+              <Txt variant="quote">“{profile.why}”</Txt>
+            </View>
+          ) : null}
+          <PressableScale
+            onPress={() => {
+              dismissRepair(repair.lastPracticed);
+              setRepair(null);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss streak repair"
+          >
+            <Txt variant="subhead" weight="500" tone="muted">
+              Start fresh instead
+            </Txt>
+          </PressableScale>
+        </Card>
+      ) : streak === 0 && profile?.why ? (
         <View style={styles.why}>
           <Txt variant="footnote" weight="500" tone="secondary">
             Why you started

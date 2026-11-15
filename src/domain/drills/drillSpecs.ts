@@ -408,3 +408,12 @@ export function scoreSelfRating(rating: number): DrillOutcome {
 export function isDrillType(value: string): value is DrillType {
   return Object.prototype.hasOwnProperty.call(DRILL_TITLES, value);
 }
+
+// The drill a coaching tip names, from its id or its title in the text ("Try
+// the Tongue twister drill"), longest title first. Null when it names none.
+export function drillFromText(text: string): DrillType | null {
+  const t = text.trim().toLowerCase();
+  if (isDrillType(t)) return t;
+  const titles = (Object.entries(DRILL_TITLES) as [DrillType, string][]).filter(([id]) => id !== "guided" && id !== "warmup").sort((a, b) => b[1].length - a[1].length);
+  return titles.find(([, title]) => title.length >= 5 && t.includes(title.toLowerCase()))?.[0] ?? null;
+}
