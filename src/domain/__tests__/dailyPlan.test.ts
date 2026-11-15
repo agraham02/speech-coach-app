@@ -1,4 +1,7 @@
-import { buildDailyPlan, chooseFocusSkill, previewPlans, type PlanInput } from "../dailyPlan";
+import { buildDailyPlan, chooseFocusSkill, drillsForWeakestLeaf, previewPlans, weakestLeaves, type PlanInput } from "../dailyPlan";
+import { MINUTE_CHOICES } from "../sessionLength";
+import { ACTIVITY_IDS, drillActivityId } from "../../content/activities";
+import { getGridRow } from "../../content/skillGrid";
 import { LESSONS, UNITS, getGuided } from "../../content/lessons";
 import { DRILL_SKILL } from "../drills/drillSpecs";
 import { MINIMAL_PAIRS } from "../../content/drillContent";
@@ -7,7 +10,7 @@ import { TONGUE_TWISTERS } from "../../data/tongueTwisters";
 function input(overrides: Partial<PlanInput> = {}): PlanInput {
   return {
     date: "2026-10-07",
-    minutes: 8,
+    minutes: 10,
     skills: {
       articulation: { rating: 40, lastPracticedAt: "2026-09-30T10:00:00Z" },
       cadence: { rating: 40, lastPracticedAt: "2026-09-30T10:00:00Z" },
@@ -36,9 +39,9 @@ describe("daily plan and the lesson's own steps", () => {
     expect(plan.steps.some((st) => st.lessonStepIndex != null)).toBe(true);
   });
 
-  it("gives no position to the line of the day or a review", () => {
-    const plan = buildDailyPlan(input({ minutes: 12 }));
-    for (const step of plan.steps.filter((st) => st.kind === "line" || st.kind === "review")) expect(step.lessonStepIndex).toBeUndefined();
+  it("gives no lesson position to a reflect step", () => {
+    const plan = buildDailyPlan(input({ minutes: 15 }));
+    for (const step of plan.steps.filter((st) => st.kind === "reflect" || st.kind === "moment")) expect(step.lessonStepIndex).toBeUndefined();
   });
 
   it("brings the lesson's practice steps not yet done ahead of the ones done", () => {
@@ -62,7 +65,7 @@ describe("daily plan and the lesson's own steps", () => {
 describe("every lesson can be finished from Today alone", () => {
   // Someone who only ever does the plan: each day they do every step that came
   // from the lesson. The lesson must complete, whatever the plan length.
-  const cases = LESSONS.flatMap((lesson) => ([5, 8, 12] as const).map((minutes) => [lesson.id, minutes] as const));
+  const cases = LESSONS.flatMap((lesson) => MINUTE_CHOICES.map((minutes) => [lesson.id, minutes] as const));
 
   it.each(cases)("%s on a %i-minute plan", (lessonId, minutes) => {
     const lesson = LESSONS.find((l) => l.id === lessonId)!;
@@ -109,25 +112,24 @@ describe("daily plan", () => {
     expect(seen.size).toBe(5);
   });
 
-  it("builds warm-up -> practice -> rep -> review for 8 minutes", () => {
+  it("builds the five slots for 10 minutes: warm up, learn, drill, record + review, reflect", () => {
     const skills = { ...input().skills, cadence: { rating: 5, lastPracticedAt: "2026-09-30T10:00:00Z" } };
     const plan = buildDailyPlan(input({ skills }));
     expect(plan.focusSkill).toBe("cadence");
-    const kinds = plan.steps.map((s) => s.kind);
-    expect(kinds[0]).toBe("warmup");
-    expect(kinds).toContain("rep");
-    expect(kinds[kinds.length - 1]).toBe("review");
+    expect([...new Set(plan.steps.map((s) => s.slot))]).toEqual(["warmup", "learn", "drill", "record", "reflect"]);
+    expect(plan.steps[0].kind).toBe("warmup");
+    expect(plan.steps.find((s) => s.slot === "record")?.kind).toBe("rep");
+    expect(plan.steps.at(-1)?.kind).toBe("reflect");
+    expect(plan.steps.some((s) => (s.kind as string) === "review")).toBe(false);
   });
 
-  it("ends a conversation day on a partner drill, with no video rep or review", () => {
+  it("makes a conversation day's record slot a partner drill, with no video take", () => {
     const skills = { ...input().skills, conversation: { rating: 5, lastPracticedAt: null } };
     const plan = buildDailyPlan(input({ skills }));
     expect(plan.focusSkill).toBe("conversation");
-    const kinds = plan.steps.map((s) => s.kind);
-    expect(kinds).not.toContain("rep");
-    expect(kinds).not.toContain("review");
-    const last = plan.steps[plan.steps.length - 1].lessonStep;
-    expect(last?.kind === "drill" && DRILL_SKILL[last.drill]).toBe("conversation");
+    expect(plan.steps.map((s) => s.kind)).not.toContain("rep");
+    const record = plan.steps.find((s) => s.slot === "record")?.lessonStep;
+    expect(record?.kind === "drill" && DRILL_SKILL[record.drill]).toBe("conversation");
   });
 
   it("keeps the lesson's own drill in a 5-minute conversation plan", () => {
@@ -143,7 +145,7 @@ describe("daily plan", () => {
     // Confidence's breath unit opens with "Breathe low" (warm-up + drill).
     const skills = { ...input().skills, confidence: { rating: 5, lastPracticedAt: null } };
     const lessons = { con_b5_calm: { done: true, nextReviewAt: "2026-10-30" }, con_1_excited: { done: true, nextReviewAt: "2026-10-30" } };
-    for (const minutes of [5, 8] as const) {
+    for (const minutes of [5, 10] as const) {
       const plan = buildDailyPlan(input({ skills, lessons, minutes }));
       expect(plan.lessonId).toBe("con_2_breath");
       const kinds = plan.steps.map((s) => s.lessonStep?.kind === "drill" ? s.lessonStep.drill : s.kind);
@@ -153,10 +155,9 @@ describe("daily plan", () => {
     }
   });
 
-  it("keeps the 5-minute plan short", () => {
+  it("keeps the 5-minute plan to warm up, learn, and record + review", () => {
     const plan = buildDailyPlan(input({ minutes: 5 }));
-    expect(plan.steps.length).toBeLessThanOrEqual(3);
-    expect(plan.steps.some((s) => s.kind === "review")).toBe(false);
+    expect(plan.steps.map((s) => s.slot)).toEqual(["warmup", "learn", "record"]);
   });
 
   it("moves to the next unfinished lesson, and to due reviews", () => {
@@ -230,46 +231,104 @@ describe("curriculum content", () => {
     }
   });
 
-  it("puts a line of the day in every plan, without growing the 5-minute one", () => {
-    for (const minutes of [5, 8, 12] as const) {
-      for (let day = 1; day <= 10; day++) {
-        const plan = buildDailyPlan(input({ minutes, date: `2026-10-${String(day).padStart(2, "0")}` }));
-        const kinds = plan.steps.map((s) => s.kind);
-        if (minutes === 5) expect(kinds.filter((k) => k === "warmup" || k === "line").length).toBeLessThanOrEqual(1);
-        else expect(kinds).toContain("line");
-      }
-    }
-    const plan = buildDailyPlan(input({ minutes: 8 }));
-    const line = plan.steps.find((s) => s.kind === "line")!;
-    expect(line.lessonStep).toMatchObject({ kind: "drill", drill: "marked_reading" });
-  });
 });
 
-describe("the minutes picked", () => {
+describe("minutes a day", () => {
   const skills = ["articulation", "cadence", "impromptu", "confidence", "conversation"] as const;
-  const total = (plan: ReturnType<typeof buildDailyPlan>) => plan.steps.reduce((sum, s) => sum + s.minutes, 0);
+  const total = (plan: ReturnType<typeof buildDailyPlan>) => plan.steps.reduce((sum, st) => sum + st.minutes, 0);
 
-  it("makes the 12-minute plan longer than the 8-minute one, without dropping any of its steps, and never past 12", () => {
+  it("fills every goal's budget exactly, for every skill's lessons", () => {
     let checked = 0;
     for (const skill of skills) {
       const track = LESSONS.filter((l) => l.skill === skill);
       for (let k = 0; k < track.length; k++) {
         const lessons: PlanInput["lessons"] = {};
         track.slice(0, k).forEach((l) => (lessons[l.id] = { done: true, nextReviewAt: "2027-01-01" }));
-        const rated = Object.fromEntries(skills.map((s) => [s, { rating: s === skill ? 1 : 90, lastPracticedAt: "2026-10-01T00:00:00Z" }])) as PlanInput["skills"];
-        const eight = buildDailyPlan(input({ minutes: 8, skills: rated, lessons }));
-        const twelve = buildDailyPlan(input({ minutes: 12, skills: rated, lessons }));
-        if (eight.focusSkill !== skill) continue;
-        expect(total(twelve)).toBeLessThanOrEqual(12);
-        expect(total(twelve)).toBeGreaterThan(total(eight));
-        // Everything in the 8-minute plan is still there.
-        for (const step of eight.steps.filter((x) => x.kind !== "review")) {
-          expect(twelve.steps.some((x) => x.title === step.title && x.kind === step.kind)).toBe(true);
+        const rated = Object.fromEntries(skills.map((x) => [x, { rating: x === skill ? 1 : 90, lastPracticedAt: "2026-10-01T00:00:00Z" }])) as PlanInput["skills"];
+        for (const minutes of MINUTE_CHOICES) {
+          const plan = buildDailyPlan(input({ minutes, skills: rated, lessons }));
+          expect([plan.lessonId, minutes, total(plan)]).toEqual([plan.lessonId, minutes, minutes]);
+          checked++;
         }
-        checked++;
       }
     }
-    expect(checked).toBeGreaterThan(20);
+    expect(checked).toBeGreaterThan(100);
+  });
+
+  it("splits 20 and 30 into two blocks; the second is drill, conversation, review, reflect", () => {
+    for (const minutes of [20, 30] as const) {
+      const plan = buildDailyPlan(input({ minutes }));
+      expect(plan.blocks.map((b) => b.minutes)).toEqual(minutes === 20 ? [10, 10] : [15, 15]);
+      const second = plan.steps.filter((st) => st.block === 1);
+      expect(second.map((st) => st.slot)).toEqual(["drill", "extra", "review", "reflect"]);
+      const extra = second[1].lessonStep;
+      expect(extra?.kind === "drill" && DRILL_SKILL[extra.drill]).toBe("conversation");
+      // Two reflect steps, never the same one twice.
+      const reflects = plan.steps.filter((st) => st.slot === "reflect").map((st) => st.activityId);
+      expect(new Set(reflects).size).toBe(2);
+    }
+    expect(buildDailyPlan(input({ minutes: 15 })).blocks).toHaveLength(1);
+  });
+
+  it("gives a second block's review to a lesson that's due, and says which", () => {
+    const due = LESSONS.find((l) => l.skill === "articulation" && l.steps.some((st) => st.kind === "drill" || st.kind === "guided"))!;
+    const plan = buildDailyPlan(input({ minutes: 20, lessons: { [due.id]: { done: true, nextReviewAt: "2026-10-01" } } }));
+    const review = plan.steps.find((st) => st.slot === "review")!;
+    if (plan.lessonId !== due.id) {
+      expect(review.lessonId).toBe(due.id);
+      expect(due.steps[review.lessonStepIndex!]).toEqual(review.lessonStep);
+    }
+  });
+});
+
+describe("the drill slot", () => {
+  it("aims at the lowest counted leaf on the focus", () => {
+    const weak = drillsForWeakestLeaf("articulation", {});
+    expect(weak).not.toBeNull();
+    const low = drillsForWeakestLeaf("articulation", { [weak!.leaf]: 90 });
+    // Raising that leaf moves the aim to another one.
+    expect(low?.leaf).not.toBe(weak!.leaf);
+    for (const d of low!.drills) expect(getGridRow(drillActivityId(d))?.moves.some((m) => m.leaf === low!.leaf)).toBe(true);
+  });
+
+  it("puts in a drill for the lowest leaf whose drills aren't already in the plan", () => {
+    for (const skill of ["articulation", "cadence", "impromptu", "confidence"] as const) {
+      const skills = { ...input().skills, [skill]: { rating: 5, lastPracticedAt: "2026-09-30T10:00:00Z" } };
+      const plan = buildDailyPlan(input({ skills }));
+      const drill = plan.steps.find((st) => st.slot === "drill")!;
+      if (drill.lessonStepIndex != null || !drill.detail.startsWith("For ")) continue;
+      const others = new Set(plan.steps.filter((st) => st !== drill).flatMap((st) => (st.lessonStep?.kind === "drill" ? [st.lessonStep.drill] : [])));
+      const ranked = weakestLeaves(skill, {});
+      const at = ranked.findIndex((l) => l.drills.some((d) => !others.has(d)));
+      expect(drill.lessonStep?.kind === "drill" && ranked[at].drills.includes(drill.lessonStep.drill)).toBe(true);
+    }
+  });
+
+  it("uses your last result's one thing next when it names a drill", () => {
+    const skills = { ...input().skills, cadence: { rating: 5, lastPracticedAt: "2026-09-30T10:00:00Z" } };
+    const plan = buildDailyPlan(input({ skills, nextDrill: "twister" }));
+    const drill = plan.steps.find((st) => st.slot === "drill")!;
+    if (drill.lessonStepIndex == null) expect(drill).toMatchObject({ lessonStep: { kind: "drill", drill: "twister" }, detail: "Your one thing to try next" });
+  });
+});
+
+describe("the reflect slot", () => {
+  const reflect = (ctx: PlanInput["reflect"]) => buildDailyPlan(input({ reflect: ctx })).steps.find((st) => st.slot === "reflect")!;
+
+  it("takes the first that applies: debrief, rehearsal, Feeling of the week, Rewind, then Three things", () => {
+    const all = {
+      debrief: { eventId: "e1", title: "your interview" },
+      eventSoon: { eventId: "e2", title: "your talk", daysAway: 1 },
+      feelingDue: true,
+      rewind: { day: "yesterday" as const, date: "2026-10-06" },
+    };
+    expect(reflect(all)).toMatchObject({ kind: "moment", activityId: ACTIVITY_IDS.eventAfter, eventId: "e1" });
+    expect(reflect({ ...all, debrief: null })).toMatchObject({ kind: "rep", eventId: "e2", detail: "For your talk, tomorrow" });
+    expect(reflect({ ...all, debrief: null, eventSoon: null })).toMatchObject({ activityId: ACTIVITY_IDS.feeling });
+    expect(reflect({ rewind: { day: "yesterday", date: "2026-10-06" } })).toMatchObject({ activityId: ACTIVITY_IDS.rewind, title: "Rewind yesterday" });
+    expect(reflect({ rewind: { day: "today", date: "2026-10-07" } })).toMatchObject({ title: "Rewind today" });
+    expect(reflect({})).toMatchObject({ activityId: ACTIVITY_IDS.threeThings });
+    expect(reflect(undefined)).toMatchObject({ activityId: ACTIVITY_IDS.threeThings });
   });
 });
 

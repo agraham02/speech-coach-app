@@ -178,7 +178,7 @@ export type RootStackParamList = {
   ConversationLog: undefined;
   Lesson: { lessonId: string };
   // slot 1-2: a daily-goal top-up instead of the main plan.
-  DailySession: { slot?: 1 | 2 } | undefined;
+  DailySession: undefined;
   Practice: undefined;
   Frameworks: undefined;
   Sources: undefined;

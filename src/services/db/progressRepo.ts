@@ -29,6 +29,7 @@ import { buildDailyPlan, currentBlock, PLAN_VERSION, type DailyPlan, type PlanMi
 import { listEvents } from "./eventsRepo";
 import { daysAway, eventName, eventPhase } from "../../domain/events";
 import { getFeelingWeek } from "./feelingsRepo";
+import { getRewindOffer } from "../rewind/rewindTiming";
 import { getActivity } from "../../content/activities";
 import { isDrillType } from "../../domain/drills/drillSpecs";
 import { doneStepsByPlan, lessonProgress, wantedByPlanStep } from "../../domain/activityLog";
@@ -502,18 +503,8 @@ async function reflectContext(date: string): Promise<ReflectContext> {
     debrief: debriefable ? { eventId: debriefable.id, title: eventName(debriefable) } : null,
     eventSoon: soon ? { eventId: soon.id, title: eventName(soon), daysAway: daysAway(date, soon.date) } : null,
     feelingDue,
-    rewind: await rewindOffer(date),
+    rewind: await getRewindOffer().catch(() => null),
   };
-}
-
-// The day Rewind offers now. Task 4.3 replaces this with its timing rules.
-async function rewindOffer(date: string): Promise<ReflectContext["rewind"]> {
-  const told = new Set(await getRewindDates().catch(() => [] as string[]));
-  if (new Date().getHours() >= 17) return told.has(date) ? null : { day: "today", date };
-  const y = new Date(`${date}T12:00:00`);
-  y.setDate(y.getDate() - 1);
-  const yesterday = isoDateFromDate(y);
-  return told.has(yesterday) ? null : { day: "yesterday", date: yesterday };
 }
 
 // Your last result's "one thing next", when it names a drill, from a take in

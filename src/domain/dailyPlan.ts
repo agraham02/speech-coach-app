@@ -209,9 +209,10 @@ function titleOf(step: LessonStep): string {
   }
 }
 
-// The lowest counted leaf on the focus skill's pillar, and the drills that
-// train it most, best first. Ties go to the leaf listed first in the tree.
-export function drillsForWeakestLeaf(focus: SkillId, ratings: Partial<Record<LeafId, number>> = {}): { leaf: LeafId; drills: LessonDrill[] } | null {
+// The counted leaves on the focus skill's pillar that a drill trains, lowest
+// first, each with the drills that train it most, best first. Ties go to the
+// leaf listed first in the tree.
+export function weakestLeaves(focus: SkillId, ratings: Partial<Record<LeafId, number>> = {}): { leaf: LeafId; drills: LessonDrill[] }[] {
   const pillar = PILLAR_OF_SKILL[focus];
   const trainable = (leaf: LeafId, weight: "main" | "partial") =>
     PLAN_DRILLS.filter((d) => getGridRow(drillActivityId(d))?.moves.some((m) => m.leaf === leaf && m.weight === weight && !m.displayOnly));
@@ -219,9 +220,11 @@ export function drillsForWeakestLeaf(focus: SkillId, ratings: Partial<Record<Lea
     .map((l) => ({ leaf: l.id, rating: ratings[l.id] ?? STARTING_VALUE }))
     .filter((l) => trainable(l.leaf, "main").length + trainable(l.leaf, "partial").length > 0)
     .sort((a, b) => a.rating - b.rating);
-  const weakest = leaves[0];
-  if (!weakest) return null;
-  return { leaf: weakest.leaf, drills: [...trainable(weakest.leaf, "main"), ...trainable(weakest.leaf, "partial")] };
+  return leaves.map((l) => ({ leaf: l.leaf, drills: [...trainable(l.leaf, "main"), ...trainable(l.leaf, "partial")] }));
+}
+
+export function drillsForWeakestLeaf(focus: SkillId, ratings: Partial<Record<LeafId, number>> = {}): { leaf: LeafId; drills: LessonDrill[] } | null {
+  return weakestLeaves(focus, ratings)[0] ?? null;
 }
 
 // Slot 5's choices for today, in the order section 5.3 gives. Three things is
@@ -283,11 +286,14 @@ export function buildDailyPlan(input: PlanInput): DailyPlan {
   const pickTargetDrill = (): { step: DrillStep; detail: string } | null => {
     const next = PLAN_DRILLS.find((d) => d === input.nextDrill);
     if (next && !usedDrills.has(next)) return { step: { kind: "drill", drill: next }, detail: "Your one thing to try next" };
-    const weak = drillsForWeakestLeaf(focusSkill, input.leafRatings);
-    const candidates = (weak?.drills ?? []).filter((d) => !usedDrills.has(d));
-    if (!weak || !candidates.length) return null;
-    const name = LEAVES.find((l) => l.id === weak.leaf)?.name ?? "your weakest area";
-    return { step: { kind: "drill", drill: candidates[hashString(`${input.date}:${steps.length}`) % candidates.length] }, detail: `For ${name}` };
+    // The lowest leaf with a drill not already in today's plan.
+    for (const weak of weakestLeaves(focusSkill, input.leafRatings)) {
+      const candidates = weak.drills.filter((d) => !usedDrills.has(d));
+      if (!candidates.length) continue;
+      const name = LEAVES.find((l) => l.id === weak.leaf)?.name ?? "your weakest area";
+      return { step: { kind: "drill", drill: candidates[hashString(`${input.date}:${steps.length}`) % candidates.length] }, detail: `For ${name}` };
+    }
+    return null;
   };
   // Another drill of the focus skill from other lessons, when nothing else fits.
   const spareDrill = (): DrillStep | null => {
@@ -345,7 +351,13 @@ export function buildDailyPlan(input: PlanInput): DailyPlan {
             break;
           }
           const spare = spareDrill();
-          if (spare) lessonStep(b, slot, budget, spare, "More of the same skill");
+          if (spare) {
+            lessonStep(b, slot, budget, spare, "More of the same skill");
+            break;
+          }
+          // Everything is in the plan already: the weakest leaf's drill again.
+          const again = weakestLeaves(focusSkill, input.leafRatings)[0]?.drills[0];
+          if (again) add(b, slot, budget, { kind: "drill", title: DRILL_TITLES[again], detail: "Once more", lessonStep: { kind: "drill", drill: again } });
           break;
         }
         case "record": {
@@ -386,15 +398,19 @@ export function buildDailyPlan(input: PlanInput): DailyPlan {
   // Every lesson has to be finishable from Today alone. If none of the
   // lesson's open steps made it in (a conversation lesson's rep, a short plan
   // on a lesson with many steps), the first open one takes the drill slot, or
-  // joins the learn slot when there is none.
+  // the learn slot when there is no drill slot (it holds only repeats then),
+  // so the plan keeps its minutes.
   const openIndexes = lesson.steps.map((_, i) => i).filter((i) => !doneInLesson.has(i));
   const covered = new Set(steps.filter((s) => !s.lessonId).map((s) => s.lessonStepIndex));
   if (openIndexes.length && !openIndexes.some((i) => covered.has(i))) {
     const st = lesson.steps[openIndexes[0]];
-    const replace = steps.findIndex((s) => s.block === 0 && s.slot === "drill");
-    const replacement: PlanStep = { id: "", slot: replace >= 0 ? "drill" : "learn", block: 0, minutes: replace >= 0 ? steps[replace].minutes : 1.5, kind: kindOf(st), title: titleOf(st), detail: "From your lesson", ...fromLesson(st) };
+    let replace = steps.findIndex((s) => s.block === 0 && s.slot === "drill");
+    if (replace < 0) replace = steps.findIndex((s) => s.block === 0 && s.slot === "learn");
+    if (replace < 0) replace = steps.findIndex((s) => s.block === 0 && s.slot === "record");
+    const slot = replace >= 0 ? steps[replace].slot : "learn";
+    const replacement: PlanStep = { id: "", slot, block: 0, minutes: replace >= 0 ? steps[replace].minutes : 1.5, kind: kindOf(st), title: titleOf(st), detail: "From your lesson", ...fromLesson(st) };
     if (replace >= 0) steps[replace] = replacement;
-    else steps.splice(Math.max(0, steps.findIndex((s) => s.slot === "learn") + 1), 0, replacement);
+    else steps.push(replacement);
   }
 
   steps.forEach((s, i) => (s.id = `${i}`));

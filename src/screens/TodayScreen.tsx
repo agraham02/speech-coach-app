@@ -22,19 +22,11 @@ import { FeelingWeekCard } from "../components/feelings/FeelingWeekCard";
 import { PastEntryCard } from "../components/innerVoice/PastEntryCard";
 import { RewindTodayCard } from "../components/rewind/RewindTodayCard";
 import { TodaySkillCheckCard } from "../components/onboarding/SkillCheckCards";
-import {
-  getCompletedTopUpSlots,
-  getSkillStates,
-  getTodaysPlan,
-  getTopUpPlan,
-  getStreakState,
-  getSessionsDoneToday,
-  type SkillState,
-  type StoredPlan,
-} from "../services/db/progressRepo";
+import { getMinutesByDay, getSkillStates, getTodaysPlan, getStreakState, type SkillState, type StoredPlan } from "../services/db/progressRepo";
 import { getSpeakerLevel } from "../services/db/leafRepo";
-import { getDailySessionGoal, getPlanMinutes, getPracticeAnchor, getPracticeAnchorHour, getReminderSettings, getUserProfile, setPlanMinutes } from "../services/prefs/prefsStore";
-import { formatReminderHour, reminderHours } from "../domain/reminderSettings";
+import { getPracticeAnchor, getPracticeAnchorHour, getReminderSettings, getTodayMinutes, getUsualMinutes, getUserProfile, setTodayMinutes, setUsualMinutes } from "../services/prefs/prefsStore";
+import { MINUTE_CHOICES, minutesNudge, ringProgress, type DailyMinutes, type MinutesNudge } from "../domain/sessionLength";
+import { isoDateFromDate } from "../utils/dateUtils";
 import { defaultsFromProfile } from "../domain/profile";
 import { anchorFits } from "../domain/notificationCopy";
 import { takeFreezeNotice } from "../services/streaks/freezeNotice";
@@ -45,7 +37,7 @@ import { SKILL_LABELS, type SkillId } from "../theme/tokens";
 import type { Stage } from "../domain/levels";
 import { PressableScale } from "../components/common/PressableScale";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
-import { success } from "../utils/haptics";
+import { success, tick } from "../utils/haptics";
 import { TranscriptionBanner } from "../components/common/TranscriptionBanner";
 import { ActiveTakesCard } from "../components/work/ActiveTakesCard";
 import { EventTodayCard } from "../components/events/EventTodayCard";
@@ -71,22 +63,24 @@ export function TodayScreen() {
   const styles = useStyles();
   const { colors } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [minutes, setMinutes] = useState(getPlanMinutes());
+  const [minutes, setMinutes] = useState<DailyMinutes>(getTodayMinutes());
+  const [usual, setUsual] = useState<DailyMinutes>(getUsualMinutes());
+  const [minutesDone, setMinutesDone] = useState(0);
+  const [nudge, setNudge] = useState<MinutesNudge>(null);
   const [stored, setStored] = useState<StoredPlan | null>(null);
   const [skillStates, setSkillStates] = useState<Record<SkillId, SkillState> | null>(null);
   const [level, setLevel] = useState<number | null>(null);
   const [streak, setStreak] = useState(0);
   const [freezes, setFreezes] = useState(0);
-  const [goal, setGoal] = useState(getDailySessionGoal());
-  const [doneToday, setDoneToday] = useState(0);
-  const [topUp, setTopUp] = useState<{ slot: 1 | 2; stored: StoredPlan } | null>(null);
   const [pathView, setPathView] = useState<PathView | null>(null);
   const anchor = getPracticeAnchor();
   const profile = getUserProfile();
   const defaults = defaultsFromProfile(profile);
 
   const load = useCallback(
-    (m = minutes) => {
+    (m = getTodayMinutes()) => {
+      setMinutes(m);
+      setUsual(getUsualMinutes());
       // The plan follows the path, so the path is brought up to date first.
       const planned = getPathView()
         .then(setPathView)
@@ -101,25 +95,44 @@ export function TodayScreen() {
         const notice = takeFreezeNotice(state);
         if (notice) showGlobalToast(notice, "success");
       });
-      const g = getDailySessionGoal();
-      setGoal(g);
-      getSessionsDoneToday().then(setDoneToday);
-      // The next top-up, once the main plan is finished.
-      Promise.all([planned, getCompletedTopUpSlots()]).then(async ([main, slots]) => {
-        const next = ([1, 2] as const).find((s) => s < g && !slots.includes(s));
-        setTopUp(main.completedAt && next ? { slot: next, stored: await getTopUpPlan(next) } : null);
-      });
+      // Today's ring, and the last week's minutes for the "make it your usual"
+      // nudge (practice days only; today isn't over, so it isn't counted).
+      getMinutesByDay(isoDateFromDate(new Date(Date.now() - 8 * 86_400_000)))
+        .then((byDay) => {
+          const today = new Date();
+          setMinutesDone(byDay[isoDateFromDate(today)] ?? 0);
+          const practiceDays = getReminderSettings().practiceDays ?? [];
+          const days: number[] = [];
+          for (let i = 1; i <= 7; i++) {
+            const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+            if (practiceDays.length && !practiceDays.includes(d.getDay())) continue;
+            days.push(byDay[isoDateFromDate(d)] ?? 0);
+          }
+          setNudge(minutesNudge(days, getUsualMinutes()));
+        })
+        .catch(() => undefined);
     },
-    [minutes],
+    [],
   );
 
   useFocusEffect(load);
 
+  // The card's minutes change today only; your usual stays as it is.
   function changeMinutes(key: string) {
-    const m = Number(key) as 5 | 8 | 12;
+    const m = Number(key) as DailyMinutes;
     setMinutes(m);
-    setPlanMinutes(m);
+    setTodayMinutes(m);
     getTodaysPlan(m, true).then(setStored);
+  }
+
+  function makeUsual(m: DailyMinutes) {
+    tick();
+    setUsualMinutes(m);
+    setTodayMinutes(m);
+    setUsual(m);
+    setNudge(null);
+    if (m !== minutes) changeMinutes(String(m));
+    showGlobalToast(`${m} minutes is your usual now`, "success");
   }
 
   const plan = stored?.plan;
@@ -177,18 +190,16 @@ export function TodayScreen() {
               ) : null}
             </View>
           ) : null}
-          {goal > 1 ? (
-            <View style={styles.pill} accessibilityLabel={`${Math.min(doneToday, goal)} of ${goal} sessions today`}>
-              {Array.from({ length: goal }, (_, i) => (
-                <View key={i} style={[styles.goalDot, i < doneToday && styles.goalDotDone]} />
-              ))}
-              <Txt variant="footnote" weight="600" tabular>
-                {Math.min(doneToday, goal)} of {goal} today
-              </Txt>
+          <View style={styles.pill} accessibilityLabel={`${Math.round(minutesDone)} of ${minutes} minutes today`}>
+            <View style={styles.ringTrack}>
+              <View style={[styles.ringFill, { width: `${Math.round(ringProgress(minutesDone, minutes) * 100)}%` }]} />
             </View>
-          ) : null}
+            <Txt variant="footnote" weight="600" tabular>
+              {Math.min(Math.round(minutesDone), minutes)} of {minutes} min
+            </Txt>
+          </View>
         </View>
-        {anchor && doneToday === 0 && anchorFits(anchor, new Date(), getPracticeAnchorHour()) ? (
+        {anchor && minutesDone === 0 && anchorFits(anchor, new Date(), getPracticeAnchorHour()) ? (
           <Txt variant="footnote" tone="muted">
             Your plan: {anchor.charAt(0).toLowerCase() + anchor.slice(1)}, practice.
           </Txt>
@@ -216,16 +227,7 @@ export function TodayScreen() {
             <Badge label={SKILL_LABELS[plan.focusSkill]} fg={focus.fg} bg={focus.bg} dot />
             {!started ? (
               <View style={styles.length}>
-                <SegmentedControl
-                  size="sm"
-                  options={[
-                    { key: "5", label: "5 min" },
-                    { key: "8", label: "8 min" },
-                    { key: "12", label: "12 min" },
-                  ]}
-                  value={String(minutes)}
-                  onChange={changeMinutes}
-                />
+                <SegmentedControl size="sm" options={MINUTE_CHOICES.map((m) => ({ key: String(m), label: `${m}` }))} value={String(minutes)} onChange={changeMinutes} />
               </View>
             ) : (
               <Txt variant="footnote" tone="secondary" tabular>
@@ -257,8 +259,16 @@ export function TodayScreen() {
             ) : null}
           </View>
           <Txt variant="footnote" tone="secondary" tabular>
-            {`${plan.steps.reduce((sum, step) => sum + step.minutes, 0)} min in all`}
+            {`${plan.minutes} min${(plan.blocks?.length ?? 1) > 1 ? ", in two blocks" : ""}`}
+            {minutes !== usual ? " · today only" : ""}
           </Txt>
+          {minutes !== usual && !started ? (
+            <PressableScale onPress={() => makeUsual(minutes)} accessibilityRole="button" accessibilityLabel={`Make ${minutes} minutes your usual`}>
+              <Txt variant="footnote" weight="600" color={focus.fg}>
+                Make {minutes} min your usual
+              </Txt>
+            </PressableScale>
+          ) : null}
           <StepTimeline
             color={focus.fg}
             dense
@@ -300,7 +310,23 @@ export function TodayScreen() {
         </TourTarget>
       ) : null}
 
-      {topUp ? <TopUpCard slot={topUp.slot} stored={topUp.stored} goal={goal} onStart={() => navigation.navigate("DailySession", { slot: topUp.slot })} /> : null}
+      {nudge ? (
+        <Card style={styles.nudge}>
+          <Txt variant="callout">
+            {nudge.kind === "raise"
+              ? `You've done more than ${usual} minutes three days running. Make ${nudge.to} your usual?`
+              : `Your usual is ${usual} minutes, and this week has been lighter. ${nudge.to} minutes still counts. Make that your usual?`}
+          </Txt>
+          <View style={styles.nudgeActions}>
+            <PrimaryButton label={`Make ${nudge.to} my usual`} variant="secondary" size="sm" onPress={() => makeUsual(nudge.to)} />
+            <PressableScale onPress={() => setNudge(null)} accessibilityRole="button" accessibilityLabel="Keep my usual">
+              <Txt variant="subhead" weight="500" tone="muted">
+                Keep {usual}
+              </Txt>
+            </PressableScale>
+          </View>
+        </Card>
+      ) : null}
 
       <TodaySkillCheckCard />
 
@@ -351,50 +377,6 @@ export function TodayScreen() {
   );
 }
 
-function TopUpCard({ slot, stored, goal, onStart }: { slot: 1 | 2; stored: StoredPlan; goal: number; onStart: () => void }) {
-  const styles = useStyles();
-  const { colors } = useTheme();
-  const focus = colors.skill[stored.plan.focusSkill];
-  const minutes = stored.plan.steps.reduce((m, s) => m + s.minutes, 0);
-  const hour = reminderHours(getReminderSettings(), goal)[slot];
-  const suggestion =
-    hour != null && new Date().getHours() < hour
-      ? `Best around ${formatReminderHour(hour)} — spacing sessions out helps them stick.`
-      : "A good time for it now.";
-  const done = new Set(stored.completedStepIds);
-  return (
-    <Card style={styles.topUp}>
-      <View style={styles.heroTop}>
-        <Txt variant="footnote" weight="500" tone="secondary">
-          Top-up · session {slot + 1} of {goal} · {minutes} min
-        </Txt>
-        <Badge label={SKILL_LABELS[stored.plan.focusSkill]} fg={focus.fg} bg={focus.bg} dot />
-      </View>
-      <StepTimeline
-        color={focus.fg}
-        dense
-        steps={stored.plan.steps.map((step) => ({
-          id: step.id,
-          title: step.title,
-          meta: `${step.minutes} min`,
-          state: done.has(step.id) ? "done" : "todo",
-        }))}
-      />
-      <Txt variant="footnote" tone="secondary">
-        {suggestion}
-      </Txt>
-      <PrimaryButton
-        label={stored.completedStepIds.length ? "Continue top-up" : "Start top-up"}
-        variant="secondary"
-        onPress={() => {
-          success();
-          onStart();
-        }}
-      />
-    </Card>
-  );
-}
-
 const useStyles = makeStyles((t) => ({
   heroSkeleton: { gap: t.space.md, paddingVertical: t.space.lg },
   meta: { gap: t.space.sm, marginTop: -4 },
@@ -408,8 +390,10 @@ const useStyles = makeStyles((t) => ({
     borderRadius: t.radius.pill,
     backgroundColor: t.colors.surfaceRaised,
   },
-  goalDot: { width: 8, height: 8, borderRadius: 4, borderWidth: 1.5, borderColor: t.colors.textMuted },
-  goalDotDone: { backgroundColor: t.colors.success, borderColor: t.colors.success },
+  ringTrack: { width: 28, height: 6, borderRadius: 3, backgroundColor: t.colors.textMuted + "44", overflow: "hidden" },
+  ringFill: { height: 6, borderRadius: 3, backgroundColor: t.colors.success },
+  nudge: { gap: t.space.sm },
+  nudgeActions: { flexDirection: "row", alignItems: "center", gap: t.space.md },
   hero: { gap: t.space.lg - 4 },
   heroTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: t.space.md },
   length: { width: 190 },
@@ -417,7 +401,6 @@ const useStyles = makeStyles((t) => ({
   pathLine: { gap: 2 },
   finished: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: t.space.sm, paddingVertical: t.space.sm },
   placeholder: { height: 320 },
-  topUp: { gap: t.space.md },
   why: { gap: t.space.xs, paddingHorizontal: 4, paddingVertical: t.space.sm },
   section: { gap: t.space.sm + 4 },
 }));

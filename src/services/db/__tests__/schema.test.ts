@@ -120,7 +120,7 @@ describeIfSqlite("the 2.0.0 schema", () => {
       CREATE TABLE skill_events (id TEXT PRIMARY KEY NOT NULL, skill TEXT NOT NULL);
       CREATE TABLE skill_mastery (skill TEXT PRIMARY KEY NOT NULL, rating REAL NOT NULL);
       ALTER TABLE daily_plans ADD COLUMN completed_steps_json TEXT NOT NULL DEFAULT '[]';
-      ALTER TABLE daily_topups ADD COLUMN completed_steps_json TEXT NOT NULL DEFAULT '[]';
+      CREATE TABLE daily_topups (date TEXT NOT NULL, slot INTEGER NOT NULL, plan_json TEXT NOT NULL, completed_at TEXT, completed_steps_json TEXT NOT NULL DEFAULT '[]', PRIMARY KEY (date, slot));
       INSERT INTO daily_plans (date, plan_json, completed_steps_json) VALUES ('2026-11-06', '{}', '["0"]');
       INSERT INTO confidence_checkins (date, rating) VALUES ('2026-11-06', 4);
       PRAGMA user_version = 37;
