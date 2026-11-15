@@ -1,7 +1,7 @@
 import { getDatabase } from "./database";
 import { getCompletedSessionDates } from "./statsRepo";
 import { getDrillCompletionDates } from "./drillsRepo";
-import { getRewindDates } from "./rewindRepo";
+import { getRewindRecordedTimes } from "./rewindRepo";
 import { generateId } from "../../utils/generateId";
 import { isoDateFromDate, todayISODate } from "../../utils/dateUtils";
 import { priorityFor } from "../../domain/profile";
@@ -31,9 +31,9 @@ import { daysAway, eventName, eventPhase } from "../../domain/events";
 import { getFeelingWeek } from "./feelingsRepo";
 import { getRewindOffer } from "../rewind/rewindTiming";
 import { getActivity } from "../../content/activities";
-import { isDrillType } from "../../domain/drills/drillSpecs";
-import { doneStepsByPlan, lessonProgress, wantedByPlanStep } from "../../domain/activityLog";
-import { getEntriesForLesson, getEntriesOn, getLessonStepsDone, logActivity } from "./activityLogRepo";
+import { drillFromText } from "../../domain/drills/drillSpecs";
+import { doneStepsByPlan, lessonProgress, matchPlanEntries, minutesOnDay, wantedByPlanStep } from "../../domain/activityLog";
+import { getEntriesForLesson, getEntriesOn, getEntriesSince, getLessonStepsDone, logActivity } from "./activityLogRepo";
 import { getLesson } from "../../content/lessons";
 import { summarizeAttempt, type AttemptSummary } from "../../domain/conversation/attemptMetrics";
 
@@ -484,9 +484,11 @@ async function planWorkedOn(date: string): Promise<boolean> {
   return (row?.n ?? 0) > 0;
 }
 
-// After something was logged: the day's plan may now be finished.
+// After something was logged: the day's plan may now be finished, and that
+// may win back a broken streak (D43) wherever it was finished.
 export async function refreshPlanCompletion(date: string): Promise<void> {
-  await readPlan(date);
+  const stored = await readPlan(date);
+  if (stored?.completedAt && date === todayISODate()) await claimStreakRepair().catch(() => null);
 }
 
 // Slot 5's facts for today: events, the week's Feeling, Rewind.
@@ -518,8 +520,8 @@ async function lastNextDrill(): Promise<DrillType | null> {
       [new Date(Date.now() - 3 * 86_400_000).toISOString()],
     )
     .catch(() => null);
-  const drill = row?.recommended_drill?.trim();
-  return drill && isDrillType(drill) ? drill : null;
+  // The judge writes the drill in words; it counts when it names one of ours.
+  return row?.recommended_drill ? drillFromText(row.recommended_drill) : null;
 }
 
 // Today's plan — generated once per day and stored, so it can be resumed.
@@ -590,17 +592,37 @@ export async function skipPlanStep(date: string, stepId: string): Promise<Stored
 // Minutes a day
 // ---------------------------------------------------------------------------
 
-// Minutes practised per local day: each activity done counts its catalogue
-// minutes (activities.ts), wherever it was done. Skips count nothing.
+// Minutes practised per local day (domain/activityLog.ts minutesOnDay): a
+// step of that day's plan counts its own minutes, so a finished plan fills its
+// goal; anything else done counts its catalogue minutes. Skips count nothing.
 export async function getMinutesByDay(sinceDate?: string): Promise<Record<string, number>> {
   const db = await getDatabase();
-  const rows = await db.getAllAsync<{ local_date: string; activity_id: string }>(
-    `SELECT local_date, activity_id FROM activity_log WHERE outcome = 'done'${sinceDate ? " AND local_date >= ?" : ""}`,
-    sinceDate ? [sinceDate] : [],
-  );
+  const [entries, plans] = await Promise.all([
+    getEntriesSince(sinceDate),
+    db.getAllAsync<{ date: string; plan_json: string }>(`SELECT date, plan_json FROM daily_plans${sinceDate ? " WHERE date >= ?" : ""}`, sinceDate ? [sinceDate] : []),
+  ]);
+  const planOn = new Map(plans.map((p) => [p.date, (JSON.parse(p.plan_json) as DailyPlan).steps]));
+  const byDay = new Map<string, typeof entries>();
+  for (const e of entries) {
+    // An entry from a plan belongs to the plan's day, even after midnight.
+    const day = e.planDate ?? e.localDate;
+    if (sinceDate && day < sinceDate) continue;
+    byDay.set(day, [...(byDay.get(day) ?? []), e]);
+  }
   const out: Record<string, number> = {};
-  for (const r of rows) out[r.local_date] = (out[r.local_date] ?? 0) + (getActivity(r.activity_id)?.minutes ?? 1);
+  for (const [day, list] of byDay) {
+    const steps = planOn.get(day);
+    const minutes = minutesOnDay(steps ? { date: day, slot: 0, steps } : null, list, (id) => getActivity(id)?.minutes ?? 1);
+    if (minutes > 0) out[day] = Math.round(minutes * 10) / 10;
+  }
   return out;
+}
+
+// The first day anything was logged, or null.
+export async function getFirstActivityDate(): Promise<string | null> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ d: string | null }>(`SELECT MIN(local_date) AS d FROM activity_log`);
+  return row?.d ?? null;
 }
 
 export async function getMinutesToday(): Promise<number> {
@@ -706,7 +728,7 @@ export async function getPracticeDates(): Promise<string[]> {
 // Every day that counts toward the streak. Kept apart from getPracticeDates,
 // which also decides whether today's session is done.
 export async function getStreakDates(): Promise<string[]> {
-  const [practice, rewinds] = await Promise.all([getPracticeDates(), getRewindDates()]);
+  const [practice, rewinds] = await Promise.all([getPracticeDates(), getRewindRecordedTimes()]);
   return [...practice, ...rewinds];
 }
 
@@ -727,8 +749,15 @@ export async function getStreakRepair(): Promise<StreakBreak | null> {
 export async function claimStreakRepair(): Promise<number | null> {
   const found = await getStreakRepair();
   if (!found) return null;
-  const today = await readPlan(todayISODate());
+  const date = todayISODate();
+  const today = await readPlan(date);
   if (!today?.completedAt) return null;
+  // "The whole session": done, not skipped through. One skipped step is
+  // allowed (a step that can't run here, say).
+  const entries = await getEntriesOn(date);
+  const matched = matchPlanEntries([{ date, slot: 0, steps: today.plan.steps }], entries);
+  const doneSteps = new Set([...matched].filter(([id]) => entries.find((e) => e.id === id)?.outcome === "done").map(([, m]) => m.stepId));
+  if (doneSteps.size < today.plan.steps.length - 1) return null;
   addRepairedDays(found.missed);
   return found.lost;
 }

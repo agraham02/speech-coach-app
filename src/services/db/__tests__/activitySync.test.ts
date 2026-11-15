@@ -160,6 +160,15 @@ describeIfSqlite("check-offs on the plan", () => {
     expect((await getTodaysPlan(20)).completedStepIds).toEqual([second.id]);
   });
 
+  it("fills the day's minutes when the plan is finished from Practice", async () => {
+    const { plan } = await getTodaysPlan(15);
+    for (const step of plan.steps) {
+      const id = step.activityId ?? activityIdOfStep(step.lessonStep!);
+      await completePracticeStep(id, undefined, 0.8, { variant: step.lessonStep ? variantOfStep(step.lessonStep) : null });
+    }
+    expect((await getMinutesByDay())[todayISODate()]).toBeCloseTo(15);
+  });
+
   it("counts minutes from what was done, wherever, and nothing for a skip", async () => {
     const { plan } = await getTodaysPlan(10);
     await completePracticeStep(ACTIVITY_IDS.threeThings, undefined, null);

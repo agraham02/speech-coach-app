@@ -113,6 +113,15 @@ export async function logActivity(n: NewActivity): Promise<ActivityEntry> {
   return entry;
 }
 
+// Everything logged since a local day (all of it without one), oldest first.
+export async function getEntriesSince(localDate?: string): Promise<ActivityEntry[]> {
+  const db = await getDatabase();
+  const rows = localDate
+    ? await db.getAllAsync<Row>(`SELECT * FROM activity_log WHERE local_date >= ? OR plan_date >= ? ORDER BY at`, [localDate, localDate])
+    : await db.getAllAsync<Row>(`SELECT * FROM activity_log ORDER BY at`);
+  return rows.map(toEntry);
+}
+
 // Everything logged on one local day, oldest first, and everything done from
 // that day's plan even if it was finished after midnight.
 export async function getEntriesOn(localDate: string): Promise<ActivityEntry[]> {

@@ -1,3 +1,5 @@
+import { REWIND_EVENING_FROM_HOUR } from "./rewindTiming";
+
 // When to nudge you to tell your day. Pure.
 
 // How many evenings ahead are armed, so a few days away from the app still
@@ -8,8 +10,9 @@ export const REMINDER_DAYS_AHEAD = 7;
 // when it's in the morning, else this.
 export const MORNING_REWIND_HOUR = 8;
 
+// An evening nudge comes no earlier than Rewind starts offering today.
 export function rewindReminderHour(window: "morning" | "evening", eveningHour: number, practiceHour: number | null): number {
-  if (window === "evening") return eveningHour;
+  if (window === "evening") return Math.max(eveningHour, REWIND_EVENING_FROM_HOUR);
   return practiceHour != null && practiceHour >= 4 && practiceHour < 12 ? practiceHour : MORNING_REWIND_HOUR;
 }
 

@@ -693,3 +693,16 @@ Two more, also accepted:
 **Why these numbers:** the plan says "keep streak freezes and add repair" without the terms. A repair that costs a full session keeps it earned, and two missed days is about as far as "a slip" stretches before it is a new start.
 
 **Owner's OK:** not asked; this is task 4.6.
+
+## D44. A fresh review of Phase 4, and what it fixed (2026-11-15)
+
+A Sonnet reviewer read all of Phase 4 (4.1 to 4.6). Fixed:
+- **A finished plan never filled the ring.** Minutes came from each activity's catalogue time, which adds up to less than the plan's budget (a finished 30-minute day read about 19). A step of the day's plan now counts its own minutes, wherever it was done; anything else counts its catalogue time. So "Today's goal, done" and Progress's goal days now happen. `minutesOnDay` in `domain/activityLog.ts`, tested at all five goals.
+- **The "lower your usual" nudge** looked at 7 calendar days, so with rest days it never fired, and with the bug above it fired for someone finishing every plan. It now reads the last 7 practice days, none from before you started.
+- **The last result's drill was never used:** the judge writes it in words, not as an id. `drillFromText` now finds one of our drill names in the text.
+- **A Rewind of yesterday counted for yesterday's streak**, which could hide a missed day (and the repair). For the streak, a Rewind now counts on the day it was recorded; "told" still uses the day it is about.
+- **Streak repair could be claimed by skipping through the session.** It now needs every step done, with at most one skipped. It is also claimed when the plan is finished anywhere, not only when Today opens, and Today re-reads the streak after a repair.
+- **An evening Rewind nudge set before 6 pm** said "tell today" while Rewind still offered yesterday. The nudge now comes no earlier than 6 pm.
+- Also: changing today's minutes re-arms the reminders, so a 20 or 30 minute day gets its second block's reminder.
+
+**Owner's OK:** not asked; these are fixes to Phase 4.

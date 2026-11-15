@@ -70,8 +70,17 @@ export function wantedByPlanStep(step: PlanStepRef): { activityId: string; varia
 // for the top-up is not also counted for the daily plan.
 export function doneStepsByPlan(plans: PlanRef[], entries: ActivityEntry[]): Record<number, Set<string>> {
   const result: Record<number, Set<string>> = {};
+  for (const plan of plans) result[plan.slot] = new Set<string>();
+  for (const [, m] of matchPlanEntries(plans, entries)) result[m.slot].add(m.stepId);
+  return result;
+}
+
+// The same matching, entry by entry: which plan step each entry ticked.
+export function matchPlanEntries(plans: PlanRef[], entries: ActivityEntry[]): Map<string, { slot: number; stepId: string }> {
+  const matched = new Map<string, { slot: number; stepId: string }>();
   const used = new Set<string>();
   const ordered = [...plans].sort((a, b) => a.slot - b.slot);
+  const result: Record<number, Set<string>> = {};
 
   for (const plan of ordered) {
     const done = new Set<string>();
@@ -79,8 +88,11 @@ export function doneStepsByPlan(plans: PlanRef[], entries: ActivityEntry[]): Rec
     const stepIds = new Set(plan.steps.map((s) => s.id));
     for (const e of entries) {
       if (e.planDate !== plan.date || (e.planSlot ?? 0) !== plan.slot || e.planStepId == null) continue;
-      if (stepIds.has(e.planStepId)) {
+      if (stepIds.has(e.planStepId) && !done.has(e.planStepId)) {
         done.add(e.planStepId);
+        used.add(e.id);
+        matched.set(e.id, { slot: plan.slot, stepId: e.planStepId });
+      } else if (stepIds.has(e.planStepId)) {
         used.add(e.id);
       }
     }
@@ -103,10 +115,28 @@ export function doneStepsByPlan(plans: PlanRef[], entries: ActivityEntry[]): Rec
       if (match) {
         used.add(match.id);
         done.add(step.id);
+        matched.set(match.id, { slot: plan.slot, stepId: step.id });
       }
     }
   }
-  return result;
+  return matched;
+}
+
+// Minutes practised on one day: a done entry that ticked a plan step counts
+// that step's minutes (its share of the day's budget); any other done entry
+// counts its catalogue minutes. Skips count nothing.
+type TimedStep = PlanStepRef & { minutes: number };
+
+export function minutesOnDay(plan: { date: string; slot: number; steps: TimedStep[] } | null, entries: ActivityEntry[], catalogueMinutes: (activityId: string) => number): number {
+  const matched = plan ? matchPlanEntries([plan], entries) : new Map<string, { slot: number; stepId: string }>();
+  let total = 0;
+  for (const e of entries) {
+    if (e.outcome !== "done") continue;
+    const m = matched.get(e.id);
+    const step: TimedStep | undefined = m ? plan!.steps.find((s) => s.id === m.stepId) : undefined;
+    total += step ? step.minutes : catalogueMinutes(e.activityId);
+  }
+  return total;
 }
 
 // ---------------------------------------------------------------------------

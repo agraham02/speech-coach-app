@@ -65,3 +65,10 @@ describe("Rewind's nudge follows your Rewind time", () => {
     expect(rewindReminderText("Sam", new Date(2026, 9, 14, 21, 0)).title).toBe("Evening, Sam");
   });
 });
+
+describe("review fixes (D44)", () => {
+  it("never nudges in the evening before Rewind offers today", () => {
+    expect(rewindReminderHour("evening", 15, null)).toBe(18);
+    expect(rewindReminderHour("evening", 21, null)).toBe(21);
+  });
+});
