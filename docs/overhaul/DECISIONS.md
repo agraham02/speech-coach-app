@@ -600,3 +600,37 @@ A Sonnet reviewer read the 3d changes. It found no crash and no broken staircase
 - **The path:** stage readiness is now a weight in the choice, not a filter, so an urgent unit (an event, an obstacle) can still come first.
 
 **Owner's OK:** not asked; these are fixes to 3d.
+
+## D38. The redesign canvas's answers, and building screens to it (2026-11-15)
+
+**Was:** sections 8 to 15 described the screens in words, Phase 8 restyled everything last, and section 15 made ink the main action.
+
+**Now:** the redesign canvas ("Tono UX Redesign", 2026-11-11, "Words and bands" look) is the source for every screen in phases 4 to 8. The owner accepted all ten open questions:
+- **Q1 Session mode:** Start plays the steps back to back, full screen; the close button saves your place (section 8).
+- **Q2 Minutes** is one value on the session card plus a sheet, not a five-segment control (sections 8, 9).
+- **Q3 One Activity sheet** opens any drill or exercise from Practice, Path, You or a result (section 5.3).
+- **Q4 Path is a list** of unit cards, lesson rows and a checkpoint row, not a map (section 4).
+- **Q5 Reflect tools** (Rewind, Three things, Talk back, Feeling of the week, Phrasebook) live in Practice; You keeps your record and settings (section 5.3).
+- **Q6 Moments** sit in Practice and on Today by date, one page each with Before, Day of and After (section 11).
+- **Q7 Composure's colour** is moss green (section 15).
+- **Q8 Onboarding** reaches your first results on screen 11; minutes, anchor and reminder share "Your plan" (section 12).
+- **Q9 Results:** Done in the top bar and once at the end; "Practise this prompt again" in the ⋯ menu (section 10).
+- **Q10 Per-take options** (prep, length, warm-up first) move to Settings, Practice; the session sheet goes (section 13).
+
+Two more, also accepted:
+- **The main action is brand red, not ink** (section 15), as the approved "Words and bands" look has it. The canvas's "Start here" board was corrected to match: it still said red meant only recording and that the logo's bars showed the session, both dropped on 2026-11-11.
+- **8.1 (type scale) and 8.2 (components) move before Phase 5**, so phases 5 to 7 build each screen to the canvas once instead of building it in the old style and restyling it in Phase 8. 8.3 (animation) and 8.4 (Appearance) stay last. Session mode is a new task, 5.7.
+
+**Why:** the owner paused before Phase 4 to settle the UI and UX up front, to cut ambiguity, and asked that the plan's features stay while their screens are rethought.
+
+**Owner's OK:** 2026-11-15: "all yes, Q7 yes, both extras yes".
+
+## D39. Owner tasks wait until every phase is built (2026-11-15)
+
+**Was:** phases were built without stopping for iPhone tests, but migrations, deploys and other owner steps were raised as they came up, and sessions stopped after a task or two.
+
+**Now:** iPhone tests, server migrations, function deploys, republishing the legal pages, builds and every other step only the owner can do wait until all phases are finished, unless doing one sooner clearly saves work. They are still logged in `device-checks.md` as they come up. The emulator is used when needed. Each session aims to finish a whole phase.
+
+**Why:** the owner's instruction: "only ask me to test or run migrations or anything else after all the phases are finished... I am trying to get through all of the phases."
+
+**Owner's OK:** that instruction.
