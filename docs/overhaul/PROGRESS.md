@@ -6,6 +6,10 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 
 ## Where we left off
 
+2026-11-15: **The owner answered the canvas: all ten questions yes, plus two changes (D38).** Sections 8 to 15 of the plan now follow the canvas; the main action is brand red; 8.1 and 8.2 run before Phase 5, so new screens are built to the canvas once; Session mode is task 5.7. **D39: iPhone tests, migrations, deploys and every other owner step wait until all phases are built,** and each session aims to finish a whole phase. Next: Phase 4, starting with 4.1.
+
+2026-11-11: **UI and UX planned ahead of Phase 4, for sign-off.** At the owner's request, the UI/UX for phases 4 to 8 was designed up front on a review canvas (claude.ai artifact "Tono UX Redesign", private to the owner): a brief, a flow map, 13 user stories each with a flow board covering every user-facing screen (Dev summarised), the design system and control guide, motion/haptics/accessibility notes per screen, dark boards and edge states. The owner's rule: the plan's features stay; how screens deliver them is open. The canvas lists open questions Q1 to Q10 (Session mode, minutes as a value plus a sheet, one Activity sheet, Path as a list, Reflect and Moments under Practice, Composure's colour, onboarding length, Results' Done, per-take options in Settings). **Nothing changes in the plan until the owner answers them;** then log the answers in DECISIONS.md and fold them into plan sections 8 to 15 before 4.1. No code changed. Next: the owner reviews the canvas, then Phase 4 (4.1).
+
 2026-11-09 (later): **Phase 3 is built.** The owner asked to build straight through without stopping for phone tests. 3c.2 to 3c.4 and 3d.1 to 3d.5 are merged (D28 to D36), with a fresh review of 3c (D32). All are waiting on the iPhone. Next: Phase 4 (session and Today logic), starting with 4.1. Earlier on 2026-11-09: the owner stopped the session at Phase 3, deployed the server and published the update, and sent notes on onboarding, Today and Learn. D27: the small onboarding fixes are merged (welcome chips, the video question, practice place dropped, shorter transcription and Tono AI steps); the rest is in the plan (task 7.5, section 12). Phase 3 still has 3c.2 to 3c.4 and 3d to do. 2026-11-08 (later): the owner made the one build and Native check passed. Since then: 3b.4 to 3b.6 and 3c.1 are built and merged, all waiting on the iPhone (D21 to D26); a fresh review of 3b.3 to 3b.6 found problems that D26 fixes. **The server needs the migration and a functions deploy for 3b.5 (D23).** Next: 3c.2 (warm-ups), 3c.3, 3c.4, then 3d. Earlier summary: Phase 3a's tasks are all done (D15 to D17). A fresh review of the whole phase found four real problems, all fixed: the Library's ring read 0 to 10, the Path finale compared the check's number with the pillar's, Concise never moved Within limits, and Move it hid the trail on a level-up. 3b.1 (gates, D18) is done and 3b.2 (the judge, D19) is built. The owner deployed the server on 2026-11-08, so 3b.2 is waiting only on an iPhone test. D20 puts every native piece the rest of the plan needs into one build: **the owner makes it (`device-checks.md`, "The one build"), then everything else ships as updates.** Next is 3b.4, the phone's meaning checks, because the native module it needs is now in the one build (D20), then 3b.3. The owner's iPhone checks for phases 0, 2 and 3a are in `device-checks.md`. Still open from before: 1.5 and 1.9 (blocked), and republishing `docs/privacy.md` and `docs/terms.md`. To replay recordings against the code: unpack the tar and run `LAB_RAW_DIR=path LAB_OUT=out.json npx jest replay.local`.
 
 **Running the emulator:** another project's Metro may be on 8081, and a stale Metro of this repo can be left on 8082 or elsewhere without showing in `netstat` or `Get-NetTCPConnection`, so the emulator loads old code from it. Check with `curl 127.0.0.1:PORT/status`, find leftovers with `Get-CimInstance Win32_Process` for node processes started from this repo, kill them by id, and use a port that refuses connections (8083 worked). Check the installed app too: `adb shell dumpsys package com.ahmadgraham.tono | grep versionName` must say 2.0.0, and the dev client needs a build that has `react-native-keyboard-controller`; a stale APK fails with "doesn't seem to be linked". `adb install -r -d C:/dev/tb/android/app/build/outputs/apk/debug/app-debug.apk` fixed it without a rebuild. Otherwise use `--port 8082` and open the dev client with that port. Rebuild the dev client with `bash scripts/build-android-dev.sh [git ref]` (only when native code changes). It builds in a worktree at `C:/dev/tb`, because the repo's path is too long for the native build tools; stop leftover Gradle and Kotlin daemons first if it fails with EBUSY or out-of-memory. To see the soft keyboard, see section 2.5b of the emulator plan. If a Metro hangs, kill it by its process id: stopping the background shell doesn't always end it.
@@ -124,6 +128,13 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 | 4.5 | `domain/today/cards.ts`, tested at different hours and event distances | todo | |
 | 4.6 | Streak repair, reminders updated | todo | |
 
+## Phase 8, first part: foundations (before Phase 5, D38)
+
+| ID | Task | Status | Evidence |
+|---|---|---|---|
+| 8.1 | One type scale, with the canvas's type; legacy uses and raw `<Text>` migrated | todo | |
+| 8.2 | Tokens (brand red, pillar colours with moss-green Composure) and components per section 15 and the canvas | todo | |
+
 ## Phase 5: new structure
 
 | ID | Task | Status | Evidence |
@@ -134,6 +145,7 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 | 5.4 | You tab with the tree as a screen | todo | |
 | 5.5 | Settings down to 5 sections | todo | |
 | 5.6 | Moments merge Events with Prime and Debrief | todo | |
+| 5.7 | Session mode: Start plays the steps back to back, full screen; close saves your place (D38) | todo | |
 
 ## Phase 6: results flow
 
@@ -155,12 +167,10 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 | 7.4 | Test plans' onboarding sections rewritten | todo | |
 | 7.5 | Essentials first, then "Finish your profile now, or later", and a "Complete your profile" row in Profile (D27) | todo | |
 
-## Phase 8: look and feel
+## Phase 8: look and feel (the rest)
 
 | ID | Task | Status | Evidence |
 |---|---|---|---|
-| 8.1 | One type scale; legacy uses and raw `<Text>` migrated | todo | |
-| 8.2 | Components per section 15 | todo | |
 | 8.3 | Animation moments per section 15; Reduce Motion respected | todo | |
 | 8.4 | Appearance setting | todo | |
 

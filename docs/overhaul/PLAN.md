@@ -44,6 +44,7 @@ The audit behind this plan was done on `fix/hotfix-round-1`, the newest branch a
 | Results | Predict, always 3 passes, results open at the top, nothing pinned, Rewatch and Analysis in accordions | 10 |
 | Onboarding | Speak first, with Whisper; questions fill the wait | 12 |
 | Release | Version 2.0.0, a clean start with no backwards compatibility | 14 |
+| Screens | **Built to the redesign canvas** ("Tono UX Redesign", "Words and bands"): Session mode, one Activity sheet, Path as a list. The type scale and shared components come before Phase 5. Added 2026-11-15 (`DECISIONS.md` D38). | 8 to 15 |
 | Working style | **One feature at a time, merged into `staging` once verified, with a session-start hook.** Changed 2026-11-06 (`DECISIONS.md` D1). | 17 |
 | Later | Content overhaul of lessons and drills, as separate work | 18 |
 
@@ -120,7 +121,7 @@ The app stays **Tono**. What sets it apart, as far as I could find (reviews of c
 | Tab | Job | What lives there |
 |---|---|---|
 | **Today** | What to do now | Session, relevant cards, this week |
-| **Path** | The course | Units, lessons, checkpoints |
+| **Path** | The course | Units, lessons, checkpoints, as a readable list (unit cards, lesson rows, a checkpoint row), not a map of nodes (D38) |
 | **Practice** | The gym | Every repeatable thing: all drills, speak modes, conversation, Reflect tools, Moments, prompts, frameworks |
 | **You** | Your record | Overall, the skill tree, trends, recordings, settings |
 
@@ -171,7 +172,7 @@ Rebuild `buildDailyPlan` (`domain/dailyPlan.ts`) around five slots:
 - **The app learns your habit.** From the activity log it sees when you usually practise over the last 14 days. Morning people get their Rewind nudge and card in the morning; evening people at night. Settings can override it.
 - **Each day can be told once,** and a day older than yesterday isn't offered.
 
-Practice tab: search and pillar filters, then "For you" (3 tiles), then sections by kind.
+Practice tab: search and pillar filters, then "For you" (3 tiles), then sections by kind. Reflect tools (Rewind, Three things, Talk back, Feeling of the week, Phrasebook) and Moments live here, not under You. **Every activity opens the same Activity sheet** (what it is, what it trains, your level, Start), whether you open it from Practice, Path, You or a result (D38).
 
 ---
 
@@ -876,10 +877,12 @@ These turn on the mic. "Said" uses the existing `saidRatio`.
 
 **Layout**
 1. Greeting, Overall, and a small streak flame.
-2. **Session card:** the lesson's title, "Unit 3 · Lesson 2", the focus as a small chip, the minutes control, the slots as a playlist row, and the only filled primary button on the page.
+2. **Session card:** the lesson's title, "Unit 3 · Lesson 2", the focus as a small chip, the minutes as one value ("10 min", section 9), the slots as a playlist row, and the only filled primary button on the page.
 3. **Right now:** full-width cards for time-sensitive things.
 4. **Also today:** smaller tiles in a 2-column grid.
 5. **This week:** a 7-day strip. On Mondays it's the weekly recap and next week's focus.
+
+**Session mode (D38).** Start plays the session's steps back to back, full screen, with a capsule progress bar, instead of returning to a list after each one. Each step ends on "done, what moved, up next". The close button saves your place, and Today's card resumes from it.
 
 **Rules** (a new pure, tested function, `domain/today/cards.ts`):
 
@@ -915,7 +918,7 @@ Other rules:
 | Setting | Works like |
 |---|---|
 | **Your usual** | Picked at onboarding, changed in Settings. Default suggestion: 10. |
-| **Today** | A 5 · 10 · 15 · 20 · 30 control on the session card, available until you start. It changes *today only*. Today it overwrites your default (`TodayScreen.tsx:119`), which I'd change. |
+| **Today** | One value on the session card ("10 min"), available until you start. Tapping it opens a sheet with 5 · 10 · 15 · 20 · 30, what each length holds, and "Make this my usual" (D38). It changes *today only*. Today it overwrites your default (`TodayScreen.tsx:119`), which I'd change. |
 | **Streak** | Any one finished activity, as now, widened to every activity. |
 | **Ring** | Fills from anything you do, anywhere, toward today's goal. |
 | **Nudges** | Above your usual 3 days running: "Make 15 your usual?" Below for a week: offer to lower it, no guilt. |
@@ -956,7 +959,7 @@ You can do the blocks back to back. Top-ups disappear; "Keep going" is just the 
 
 **The plan's review step.** The take and its passes are one step. Finishing the passes ticks it, so there's no return trip. If you skip, the step stays open and goes straight to the Review screen.
 
-**Overview, top to bottom. Nothing is pinned.** The prompt scrolls away, Done is in the nav bar and at the end, and the Overview / Transcript / Details switch scrolls with the page.
+**Overview, top to bottom. Nothing is pinned.** The prompt scrolls away, Done is in the nav bar and once at the end, and the Overview / Transcript / Details switch scrolls with the page. "Practise this prompt again" moves to the ⋯ menu, so nothing competes with Done (D38).
 1. **Score** (not collapsible): the ring, one verdict line, what was checked, the change since your last take, and the trail.
 2. **Rewatch (accordion):** the felt / after-watching / measured track and the player. **Open if you skipped the passes; closed if you finished them**, with a summary like "Watched ✓ · Felt 3, after 4, measured 3.6".
 3. **Coaching** (open): one thing to try next + **Practise this**, your strength, the follow-up question.
@@ -977,6 +980,8 @@ You can do the blocks back to back. Top-ups disappear; "Keep going" is just the 
 ---
 
 ## 11. Moments (merges Events and Prime/Debrief)
+
+Each Moment gets one page with **Before**, **Day of** and **After**. Moments are listed in Practice and appear on Today by date (section 8) (D38).
 
 - **Before:** nerves (0–10), one focus, "Warm up for it".
 - **After:**
@@ -1008,6 +1013,8 @@ Saving earns a field rep, which feeds Real-world reps.
 10. **Your path.** The first units, explained by your answers, with your first bar already partly filled.
 
 On decent Wi-Fi, the download and analysis should finish about when you reach step 9, but that's an estimate to check on your phone.
+
+The canvas draws these steps as 11 screens, with your first results on screen 11; minutes, anchor and reminder share the one "Your plan" screen (D38).
 
 **Then: "Finish your profile now, or later?"** (D27). Everything onboarding doesn't need sits in a "Complete your profile" row in Settings, Profile, with how many are left: training so far, anything about your voice, your inner critic, what will be different when this works, and which days. Nothing there blocks practice.
 
@@ -1055,7 +1062,7 @@ On decent Wi-Fi, the download and analysis should finish about when you reach st
 | Section | Contains |
 |---|---|
 | **Profile** | Name, birthday, goals, situations, speech difference, language. Edited one at a time; no re-running onboarding. |
-| **Practice** | Usual minutes, practice days, anchor, reminders, Rewind time (Auto, Morning, Evening), challenge level (Gentle, Standard, Push me), Plan your point, whether personal recordings feed delivery leaves |
+| **Practice** | Usual minutes, practice days, anchor, reminders, Rewind time (Auto, Morning, Evening), challenge level (Gentle, Standard, Push me), Plan your point, whether personal recordings feed delivery leaves, and the per-take options (prep time, take length, warm-up first), so the separate session sheet goes (D38) |
 | **Tono AI** | Merges "Coaching & AI" and "Tono AI": on or off, what's sent, usage this month |
 | **Account & Plus** | Sign-in, subscription, restore |
 | **App** | Appearance (System, Light, Dark), permissions, camera calibration, storage and videos, tips, export, reset, delete, legal |
@@ -1126,7 +1133,7 @@ What a read-only check has already found:
 | **5. New structure** | Practice tab, Path shows lessons, You with the tree, Settings, Moments merge | `navigation/index.tsx`, `LearnScreen.tsx`, `HistoryScreen.tsx`, `YouScreen.tsx`, `pathTargets.ts` |
 | **6. Results flow** | Review screen, Overview order, accordions, Details as the tree, by-phrase strip, Transcript | `ResultScreen.tsx`, `ThreePassPlayer.tsx`, `ScoresTab.tsx`, `AnnotatedTranscript.tsx` |
 | **7. Onboarding** | Speak-first flow with Whisper, questions moved, skill check as first session | `OnboardingScreen.tsx`, `content/onboarding.ts`, `SkillCheckScreen.tsx`, `useTranscriptionModel.ts` |
-| **8. Look and feel** | Section 15 | `theme/`, `components/common/` |
+| **8. Look and feel** | Section 15. **8.1 (type scale) and 8.2 (components) run before Phase 5**, so phases 5 to 7 build each screen to the canvas once (D38); 8.3 and 8.4 stay last | `theme/`, `components/common/` |
 
 **Reuse, don't rewrite:** `recordDrillOutcome`, `measuredSubscores`, `alignFinal`, `saidRatio`, `countQuestions`, `echoAskAdd`, `ramblingMetrics`, `guessStructure`, `findHedges`, `countDetails`, `feelingWordsUsed`, `askChecked`, `acceptJudgedReview`, `summarizeWork`, `workCopy.ts`, `ThreePassPlayer`, `ScaleSlider`, `CelebrationHost`, `ProgressReveal`, `bannerEvent`, `useLiveSpeech`, the stored 10 ms track.
 
@@ -1134,10 +1141,20 @@ Check each API against https://docs.expo.dev/versions/v57.0.0/ before writing co
 
 ---
 
-## 15. UI, UX and animation (the last phase)
+## 15. UI, UX and animation
+
+**The source for every screen is the redesign canvas** ("Tono UX Redesign" on claude.ai, private to you): a board per user flow, with Why, Motion, Feel and A11y notes under each phone, plus the design system, dark boards and edge states. Where this section and the canvas differ, the canvas wins (D38).
 
 ### Design language
-Keep "Quiet Studio": warm neutrals, ink as the main action, colour that means something, Instrument Sans, light and dark tokens. The work is finishing it:
+Keep "Quiet Studio" (warm neutrals, colour that means something, Instrument Sans, light and dark tokens), in the **"Words and bands"** style you approved:
+- **Brand red** (the logo's dot) for the main action and the selected tab's dot only. It replaces ink as the main action.
+- **Two-tone sentence headlines**, where a phrase can be the control ("Today, **10 min**").
+- **Stacked tinted bands** instead of floating cards; big light-weight numbers.
+- **The native iOS tab bar**: a floating pill, the selected tab a tinted capsule.
+- **Nothing that isn't tappable looks like a button.** "Up next" is plain text; a chevron means it opens.
+- The six pillar colours, with **Composure in moss green**.
+
+The work is finishing it:
 - One type scale (119 legacy uses and 27 files with raw `<Text>` to migrate).
 - New tokens: `highlight` (fillers) and `fieldRep`.
 - Fix the hard-coded `SegmentedControl` indicator.
@@ -1153,7 +1170,7 @@ Keep "Quiet Studio": warm neutrals, ink as the main action, colour that means so
 | **Cards** | One thing you can act on | Plain lists |
 | **Bento grid** | Six pillars, "Also today" tiles, "For you" in Practice | Long lists, charts |
 | **Accordions** | Rewatch, How we scored this, Analysis, tree rows on Details | The score itself |
-| **Segmented control** | Overview / Transcript / Details, Progress / Recordings, minutes | Many options |
+| **Segmented control** | Overview / Transcript / Details, Progress / Recordings | Many options; minutes (a value and a sheet, section 9) |
 | **Week strip** | Today | Long history |
 | **Calendar** | Streak history in You, Moments dates | The home screen |
 | **Graphs** | By-phrase strip, trends, a leaf's history, felt vs measured | Anything a single number says better |
