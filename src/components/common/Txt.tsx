@@ -1,4 +1,4 @@
-import { Text, type TextProps, type TextStyle } from "react-native";
+import { StyleSheet, Text, type TextProps, type TextStyle } from "react-native";
 import { useTheme } from "../../theme/ThemeProvider";
 import { font, type TypeStyle } from "../../theme/tokens";
 
@@ -20,6 +20,17 @@ interface TxtProps extends TextProps {
 }
 
 const EYEBROW: TextStyle = { fontSize: 13, lineHeight: 18, letterSpacing: 0 };
+
+// Big light numbers track tight in proportion to their size (about -0.065
+// em, as the canvas draws them), so a display style resized for a ring or a
+// timer keeps that proportion instead of the 52-point default.
+export const DISPLAY_TRACKING = -0.065;
+
+export function displayTracking(style: TextProps["style"]): TextStyle | null {
+  const flat = StyleSheet.flatten(style) as TextStyle | undefined;
+  if (!flat?.fontSize || flat.letterSpacing != null) return null;
+  return { letterSpacing: Math.round(flat.fontSize * DISPLAY_TRACKING * 10) / 10 };
+}
 
 // Text bound to the theme's type scale and semantic colors — screens use
 // this instead of hand-picking font sizes and hex values.
@@ -46,6 +57,7 @@ export function Txt({ variant = "body", tone = "primary", color, weight, align, 
         tabular ? { fontVariant: ["tabular-nums"] } : null,
         align ? { textAlign: align } : null,
         style,
+        variant === "display" ? displayTracking(style) : null,
       ]}
     />
   );

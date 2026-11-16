@@ -253,7 +253,8 @@ const styles = StyleSheet.create({
   clockRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   // A big digit sized to the row, so size and line height are set here on top of the display variant.
   clock: { color: colors.textPrimary, fontSize: 44, lineHeight: 50 },
-  clockUp: { color: colors.warning },
+  // "Time's up" is words, not digits: normal tracking.
+  clockUp: { color: colors.warning, letterSpacing: -0.5 },
   notesInput: {
     minHeight: 150,
     maxHeight: 260,

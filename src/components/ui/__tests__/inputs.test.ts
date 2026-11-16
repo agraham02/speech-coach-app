@@ -110,6 +110,15 @@ describe("compare track", () => {
     expect(close).toHaveLength(3);
   });
 
+  it("joins a label that has no room either side to its neighbour, so a tie never prints labels on top of each other", () => {
+    const tie = placeMarkers({ felt: 3, after: 3, measured: 3 });
+    const shown = tie.filter((m) => m.names.length > 0);
+    // Every marker is named exactly once, and no two shown labels share a side at the same spot.
+    expect(tie.flatMap((m) => m.names).sort()).toEqual(["after", "felt", "measured"]);
+    expect(new Set(shown.map((m) => m.side)).size).toBe(shown.length);
+    expect(placeMarkers({ felt: 1, after: 3, measured: 5 }).map((m) => m.names)).toEqual([["felt"], ["after"], ["measured"]]);
+  });
+
   it("skips markers without a value", () => {
     expect(placeMarkers({ felt: 2, after: null }).map((m) => m.key)).toEqual(["felt"]);
   });

@@ -103,6 +103,10 @@ export interface PlacedMarker {
   // Which side of the line its label sits on, so close markers don't print
   // their labels on top of each other.
   side: "above" | "below";
+  // The names its label shows: its own, plus any marker too close to label
+  // on either side (a tie reads "You · Measured"). Empty when it joined
+  // another marker's label.
+  names: MarkerKey[];
 }
 
 // Markers in felt, after, measured order, placed along the track. A label
@@ -115,18 +119,28 @@ export function placeMarkers(values: CompareValues, min = 1, max = 5, minGap = 0
     const value = values[key];
     return value == null ? [] : [{ key, value, position: markerPosition(value, min, max) }];
   });
-  const taken: Record<"above" | "below", number[]> = { above: [], below: [] };
-  const room = (side: "above" | "below", position: number) => Math.min(Infinity, ...taken[side].map((p) => Math.abs(p - position)));
+  const taken: Record<"above" | "below", { key: MarkerKey; position: number }[]> = { above: [], below: [] };
+  const room = (side: "above" | "below", position: number) => Math.min(Infinity, ...taken[side].map((t) => Math.abs(t.position - position)));
   const sides = new Map<MarkerKey, "above" | "below">();
+  const names = new Map<MarkerKey, MarkerKey[]>();
   // Place left to right so the crowding is judged in reading order.
   for (const m of [...present].sort((a, b) => a.position - b.position)) {
     const above = room("above", m.position);
     const below = room("below", m.position);
-    const side = above >= minGap ? "above" : below >= minGap ? "below" : above >= below ? "above" : "below";
-    taken[side].push(m.position);
-    sides.set(m.key, side);
+    if (above >= minGap || below >= minGap) {
+      const side = above >= minGap ? "above" : "below";
+      taken[side].push(m);
+      sides.set(m.key, side);
+      names.set(m.key, [m.key]);
+      continue;
+    }
+    // No room either side: join the nearest label instead of printing over it.
+    const nearest = [...taken.above, ...taken.below].sort((a, b) => Math.abs(a.position - m.position) - Math.abs(b.position - m.position))[0];
+    sides.set(m.key, sides.get(nearest.key)!);
+    names.get(nearest.key)!.push(m.key);
+    names.set(m.key, []);
   }
-  return present.map((m) => ({ ...m, side: sides.get(m.key)! }));
+  return present.map((m) => ({ ...m, side: sides.get(m.key)!, names: names.get(m.key)! }));
 }
 
 // ---------- Checklist and filter chips ----------

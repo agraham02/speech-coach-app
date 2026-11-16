@@ -34,7 +34,7 @@ describe("tokens", () => {
   it("has the tree's six pillars, Composure included", () => {
     expect([...PILLAR_KEYS]).toEqual(SKILL_TREE.map((p) => p.id));
     for (const [, p] of themes) expect(Object.keys(p.pillar).sort()).toEqual([...PILLAR_KEYS].sort());
-    expect(lightPalette.pillar.composure.fg).toBe("#526E10");
+    expect(lightPalette.pillar.composure.fg).toBe("#4C660F");
     expect(darkPalette.pillar.composure.fg).toBe("#B6D96A");
   });
 
@@ -61,10 +61,11 @@ describe("tokens", () => {
     }
   });
 
-  it("gives bands five tints that keep body text readable", () => {
-    for (const [, p] of themes) {
-      expect(p.bands).toHaveLength(5);
-      for (const band of p.bands) expect([band, contrast(rgb(p.textPrimary), rgb(band)) >= 4.5]).toEqual([band, true]);
+  it.each(themes)("keeps every text colour readable on the background and on all five band tints (%s)", (_, p) => {
+    expect(p.bands).toHaveLength(5);
+    const texts = { textPrimary: p.textPrimary, textSecondary: p.textSecondary, textMuted: p.textMuted, success: p.success, warning: p.warning, danger: p.danger, brandText: p.brandText, ...Object.fromEntries(PILLAR_KEYS.map((k) => [k, p.pillar[k].fg])) };
+    for (const ground of [p.background, ...p.bands]) {
+      for (const [name, text] of Object.entries(texts)) expect([name, ground, contrast(rgb(text), rgb(ground)) >= 4.5]).toEqual([name, ground, true]);
     }
   });
 });

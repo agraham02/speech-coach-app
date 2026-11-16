@@ -34,11 +34,13 @@ export function CompareTrack({ felt, after, measured, max = 5 }: CompareTrackPro
         {markers.map((m) => (
           <View key={m.key} style={[styles.at, { left: `${m.position * 100}%` }]}>
             <Marker kind={m.key} />
-            <View style={[styles.label, m.side === "above" ? styles.labelAbove : styles.labelBelow]}>
-              <Txt variant="caption2" tone="secondary" align="center" numberOfLines={1}>
-                {MARKER_LABELS[m.key]}
-              </Txt>
-            </View>
+            {m.names.length ? (
+              <View style={[styles.label, m.side === "above" ? styles.labelAbove : styles.labelBelow]}>
+                <Txt variant="caption2" tone="secondary" align="center" numberOfLines={1}>
+                  {m.names.map((n) => MARKER_LABELS[n]).join(" · ")}
+                </Txt>
+              </View>
+            ) : null}
           </View>
         ))}
       </View>
@@ -63,7 +65,9 @@ const useStyles = makeStyles((t) => ({
   label: { position: "absolute", left: -LABEL_WIDTH / 2, width: LABEL_WIDTH, alignItems: "center" },
   labelAbove: { bottom: BAND },
   labelBelow: { top: BAND },
-  felt: { width: 28, height: 28, borderRadius: 14, borderWidth: 3, borderColor: t.colors.textPrimary, backgroundColor: t.colors.surface },
+  // Drawn first and a little larger, so its ring still shows around the
+  // "after" dot when the two match.
+  felt: { width: 36, height: 36, borderRadius: 18, borderWidth: 3, borderColor: t.colors.textPrimary, backgroundColor: t.colors.surface },
   after: { width: 28, height: 28, borderRadius: 14, backgroundColor: t.colors.textPrimary },
   measured: { width: 22, height: 22, borderRadius: 5, backgroundColor: t.colors.success, transform: [{ rotate: "45deg" }] },
 }));

@@ -12,7 +12,7 @@ interface PrimaryButtonProps {
   disabled?: boolean;
   loading?: boolean;
   // primary: the one main action on a screen, in brand red. secondary: a
-  // quiet filled button. ghost: text only. danger: destructive.
+  // quiet filled button. ghost: text only. danger: destructive, tinted.
   variant?: "primary" | "danger" | "secondary" | "ghost";
   size?: "lg" | "md" | "sm";
   icon?: keyof typeof Ionicons.glyphMap;
@@ -57,7 +57,7 @@ export function PrimaryButton({
   const { colors } = useTheme();
   const fg = {
     primary: colors.onBrand,
-    danger: colors.onAccent,
+    danger: colors.danger,
     secondary: colors.textPrimary,
     ghost: colors.textPrimary,
   }[variant];
@@ -105,7 +105,8 @@ const useStyles = makeStyles((t) => ({
     justifyContent: "center",
   },
   content: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: t.space.sm },
-  danger: { backgroundColor: t.colors.danger },
+  // Tinted, so a destructive action never looks like the red main button.
+  danger: { backgroundColor: t.colors.dangerMuted },
   secondary: { backgroundColor: t.colors.surfaceRaised },
   ghost: { backgroundColor: "transparent" },
   disabled: { opacity: 0.35 },

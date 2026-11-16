@@ -716,3 +716,17 @@ A Sonnet reviewer read all of Phase 4 (4.1 to 4.6). Fixed:
 - **A test keeps it that way:** it fails on any old size or raw `<Text>` outside `Txt` and the iOS widget, and checks the scale's key steps and that no style sets `fontWeight`.
 
 **Owner's OK:** not asked; this is task 8.1.
+
+## D46. Tokens and shared components (2026-11-16)
+
+**Now** (task 8.2):
+- **Tokens:** brand red `#D9361F` for the main button (white on it is 4.7:1); five band tints; a `pillar` colour per pillar with Composure in moss; `skill` keeps pointing at the same colours. **Every text colour passes 4.5:1 on the background and on all five tints, in both themes**, which needed light-mode shades a little darker than the canvas drew: muted text `#615E57`, success `#116C42`, warning `#8A5000`, danger `#AD3228`, red text `#B22C18`, and each light pillar colour (Composure `#4C660F`); dark muted text is `#98968D`. A test checks every pair.
+- **The look applied everywhere at once:** the main button is red; `Card` is a flat tinted block with no shadow (a `tint` prop picks one of five); a destructive button is tinted, so it never looks like the main one.
+- **Components** in `src/components/ui/` (display pieces from `index.ts`, controls from `inputs.ts`): bands and band stacks, the sentence headline with a tappable phrase, big light numbers, the session capsule bar, the stage ladder, accordions, the week strip, value rows on the existing `AnchoredMenu`, option cards, the day picker, one 5-stop rating track, the read-only compare track, checklist rows and filter chips. `ListGroup` gains an outlined style; `SegmentedControl` now measures its segments. Dev, Components shows them all.
+- **Not native yet:** value rows use the app's own menu, not `@expo/ui`'s SwiftUI menu, which is iOS only and untried here (section 15 allowed the fallback). The nav bar and the native tab bar are left to 5.1, with the tabs themselves.
+
+**Known limits:** a tappable phrase inside a sentence headline is only as tall as its line (27 to 38 points), because nested text can't take a larger touch area; the dotted red underline is iOS only (Android draws a plain one). An accordion that starts open shows closed for one frame.
+
+**A fresh review, fixed:** muted and status text failed contrast on the tinted cards (above); the compare track printed labels on top of each other when values tied, and hid the "felt" ring under the "after" dot (a tied label now joins its neighbour's, "You · Measured", and the ring is drawn larger); big numbers resized for a timer or ring kept the 52-point tracking (it now scales with the size, and "Time's up" uses normal tracking); and the danger button looked like the main one.
+
+**Owner's OK:** not asked; this is task 8.2.
