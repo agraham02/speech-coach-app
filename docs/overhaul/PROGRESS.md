@@ -6,6 +6,8 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 
 ## Where we left off
 
+2026-11-16: **8.1 and 8.2 are built** (PRs #84 and #85, D45 and D46): one type scale with no old sizes or raw `<Text>` left, the canvas's tokens with contrast checked on every tint, and the shared components, all on Dev, Components. Looked at on the Android emulator in both themes. **Next: Phase 5, building each screen to the canvas with these components.** The nav bar and the native tab bar come with 5.1.
+
 2026-11-15 (later): **Phase 4 is built** (PRs #80 to #83, D40 to D44). Minutes a day with blocks and budgets, the five-slot session, the day override and nudges, Rewind at any hour, the Today cards function, streak repair, and reminders by block. A fresh review found seven real problems, all fixed (D44). Everything is waiting on the iPhone, and per D39 nothing is asked of the owner until every phase is built. The 4.5 card ranking goes into Today when Today is rebuilt to the canvas. **Next: 8.1 (type scale), then 8.2 (components), then Phase 5** (D38).
 
 2026-11-15: **The owner answered the canvas: all ten questions yes, plus two changes (D38).** Sections 8 to 15 of the plan now follow the canvas; the main action is brand red; 8.1 and 8.2 run before Phase 5, so new screens are built to the canvas once; Session mode is task 5.7. **D39: iPhone tests, migrations, deploys and every other owner step wait until all phases are built,** and each session aims to finish a whole phase. Next: Phase 4, starting with 4.1.
@@ -135,7 +137,7 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 | ID | Task | Status | Evidence |
 |---|---|---|---|
 | 8.1 | One type scale, with the canvas's type; legacy uses and raw `<Text>` migrated | iphone | D45. `typeScale` matches the canvas (light display numbers, `say` sentence headlines, a small-caps `label`); all 105 `typography` uses and the raw `<Text>` in 27 files moved onto it, and `typography` and `fontDisplay` are deleted. `src/theme/__tests__/typeScale.test.ts` fails on any old size or raw `<Text>` (the iOS widget and `Txt` itself are the only exceptions) and checks the scale. `tsc` clean, jest passes, both bundles build. Not looked at on a phone |
-| 8.2 | Tokens (brand red, pillar colours with moss-green Composure) and components per section 15 and the canvas | todo | |
+| 8.2 | Tokens (brand red, pillar colours with moss-green Composure) and components per section 15 and the canvas | iphone | D46. Tokens: brand red, five band tints, six pillar colours (Composure moss), every text colour 4.5:1 on the background and all five tints in both themes (`tokens.test.ts`). The red main button, flat tinted cards, a tinted danger button. New in `src/components/ui/`: bands, sentence headline, big number, capsule bar, ladder, accordion, week strip, value row, option cards, day picker, rating track, compare track, checklist, filter chips; the segmented control measures its segments. 46 tests on their logic. Dev, Components shows them all: looked at on the Android emulator in light and dark (bands, tracks, accordion opening, segmented). A fresh review's fixes are in D46. Not on an iPhone |
 
 ## Phase 5: new structure
 

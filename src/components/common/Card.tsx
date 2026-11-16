@@ -1,22 +1,26 @@
 import { View, type StyleProp, type ViewProps, type ViewStyle } from "react-native";
-import { makeStyles } from "../../theme/ThemeProvider";
+import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 import { PressableScale } from "./PressableScale";
 
 interface CardProps extends ViewProps {
   // Tappable cards sink slightly when pressed.
   onPress?: () => void;
-  // raised: a fill one step up, for a block inside a screen section (never
+  // raised: a quiet neutral fill, for a block inside a screen section (never
   // a card inside a card).
   tone?: "surface" | "raised";
+  // Which of the five band tints (0-4) a card takes; neighbouring cards can
+  // take different ones, as on the canvas.
+  tint?: number;
   accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
 }
 
-// A borderless surface. Dark mode separates it from the background by tone;
-// light mode by a soft shadow.
-export function Card({ style, children, onPress, tone = "surface", accessibilityLabel, ...props }: CardProps) {
+// A flat, tinted block ("Words and bands", D38): one of the five band tints,
+// no border and no shadow. A white surface is for grouped rows (ListGroup).
+export function Card({ style, children, onPress, tone = "surface", tint = 0, accessibilityLabel, ...props }: CardProps) {
   const styles = useStyles();
-  const cardStyle = [styles.card, tone === "raised" && styles.raised, style];
+  const { colors } = useTheme();
+  const cardStyle = [styles.card, { backgroundColor: colors.bands[((tint % 5) + 5) % 5] }, tone === "raised" && styles.raised, style];
   if (onPress) {
     return (
       <PressableScale onPress={onPress} scaleTo={0.985} accessibilityRole="button" accessibilityLabel={accessibilityLabel} style={cardStyle}>
@@ -33,10 +37,8 @@ export function Card({ style, children, onPress, tone = "surface", accessibility
 
 const useStyles = makeStyles((t) => ({
   card: {
-    backgroundColor: t.colors.surface,
     borderRadius: t.radius.lg,
     padding: t.space.lg - 4,
-    ...t.shadow.card,
   },
-  raised: { backgroundColor: t.colors.surfaceRaised, shadowOpacity: 0, elevation: 0 },
+  raised: { backgroundColor: t.colors.accentMuted },
 }));

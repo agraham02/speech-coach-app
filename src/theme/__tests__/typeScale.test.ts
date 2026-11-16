@@ -41,3 +41,14 @@ describe("the one type scale", () => {
     }
   });
 });
+
+describe("display tracking", () => {
+  it("scales with a resized display number and leaves explicit tracking alone", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { displayTracking } = require("../../components/common/Txt");
+    expect(displayTracking({ fontSize: 44 })).toEqual({ letterSpacing: -2.9 });
+    expect(displayTracking([{ fontSize: 76 }])).toEqual({ letterSpacing: -4.9 });
+    expect(displayTracking({ fontSize: 44, letterSpacing: -0.5 })).toBeNull();
+    expect(displayTracking(undefined)).toBeNull();
+  });
+});

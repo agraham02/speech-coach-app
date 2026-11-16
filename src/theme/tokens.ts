@@ -1,11 +1,17 @@
 import type { TextStyle, ViewStyle } from "react-native";
 
-// Design tokens — "Quiet Studio". Warm neutrals and
-// an ink accent; color only where it means something (the five skills,
-// status, recording). Screens read these through useTheme()/makeStyles()
+// Design tokens — "Quiet Studio", in the "Words and bands" look (D38, the
+// redesign canvas). Warm neutrals and an ink accent; colour only where it
+// means something: the six pillars, status, recording, and one brand red for
+// the main action. Screens read these through useTheme()/makeStyles()
 // (ThemeProvider.tsx), which follow the system appearance live.
 
 export type SkillId = "articulation" | "cadence" | "impromptu" | "confidence" | "conversation";
+
+// The skill tree's six pillars (domain/scoring/skillTree.ts; a test keeps the
+// two lists the same).
+export type PillarKey = "message" | "voice" | "connection" | "clarity" | "presence" | "composure";
+export const PILLAR_KEYS: readonly PillarKey[] = ["message", "voice", "connection", "clarity", "presence", "composure"];
 
 export interface SkillColor {
   fg: string;
@@ -26,6 +32,15 @@ export interface Palette {
   accent: string;
   accentMuted: string;
   onAccent: string;
+  // Brand red, from the logo's dot: the one main button on a screen, the
+  // selected tab's dot and a tappable phrase's underline. Nothing else.
+  brand: string;
+  // Brand red as text or a line (lighter in dark mode to stay readable).
+  brandText: string;
+  brandMuted: string;
+  onBrand: string;
+  // The five tints that stacked bands take, in order.
+  bands: readonly [string, string, string, string, string];
   success: string;
   successMuted: string;
   warning: string;
@@ -41,6 +56,9 @@ export interface Palette {
   overlayScrim: string;
   switchTrackOff: string;
   skill: Record<SkillId, SkillColor>;
+  // Text colour on its own tint, >= 4.5:1 in both schemes. Pillar colours
+  // always come with the pillar's name, so colour is never the only signal.
+  pillar: Record<PillarKey, SkillColor>;
 }
 
 export const darkPalette: Palette = {
@@ -51,10 +69,15 @@ export const darkPalette: Palette = {
   separator: "rgba(255,250,235,0.07)",
   textPrimary: "#F4F2EC",
   textSecondary: "#A9A69D",
-  textMuted: "#868379",
+  textMuted: "#98968D",
   accent: "#F4F2EC",
   accentMuted: "rgba(244,242,236,0.10)",
   onAccent: "#0E0E0C",
+  brand: "#D9361F",
+  brandText: "#FF6B55",
+  brandMuted: "rgba(255,107,85,0.18)",
+  onBrand: "#FFFFFF",
+  bands: ["#2B2823", "#33291F", "#262C22", "#22292D", "#302C1B"],
   success: "#5FD69B",
   successMuted: "rgba(95,214,155,0.14)",
   warning: "#F2B54B",
@@ -74,10 +97,18 @@ export const darkPalette: Palette = {
     confidence: { fg: "#FF92B8", bg: "rgba(255,146,184,0.14)" },
     conversation: { fg: "#6FC6FF", bg: "rgba(111,198,255,0.14)" },
   },
+  pillar: {
+    message: { fg: "#FFC85E", bg: "rgba(255,200,94,0.14)" },
+    voice: { fg: "#B3A1FF", bg: "rgba(179,161,255,0.14)" },
+    connection: { fg: "#6FC6FF", bg: "rgba(111,198,255,0.14)" },
+    clarity: { fg: "#5FE0C3", bg: "rgba(95,224,195,0.14)" },
+    presence: { fg: "#FF92B8", bg: "rgba(255,146,184,0.14)" },
+    composure: { fg: "#B6D96A", bg: "rgba(182,217,106,0.14)" },
+  },
 };
 
-// Skill fg colors are deeper in light mode so labels stay readable (>= 4.5:1
-// on surface and background).
+// Skill and pillar fg colours are deeper in light mode so labels stay
+// readable (>= 4.5:1 on their own tint, over the background or a surface).
 export const lightPalette: Palette = {
   background: "#F6F5F1",
   surface: "#FFFFFF",
@@ -86,27 +117,43 @@ export const lightPalette: Palette = {
   separator: "rgba(28,25,15,0.07)",
   textPrimary: "#181714",
   textSecondary: "#5D5A52",
-  textMuted: "#77726A",
+  // Every text colour passes 4.5:1 on the background and on each band tint
+// (cards are tinted), so muted and status text sit darker than the canvas drew.
+  textMuted: "#615E57",
   accent: "#181714",
   accentMuted: "rgba(24,23,20,0.07)",
   onAccent: "#FFFFFF",
-  success: "#14824F",
-  successMuted: "rgba(20,130,79,0.10)",
-  warning: "#A35F00",
-  warningMuted: "rgba(163,95,0,0.10)",
-  danger: "#C93A2E",
-  dangerMuted: "rgba(201,58,46,0.10)",
+  brand: "#D9361F",
+  // Darker than the button, so red text passes 4.5:1 on the background and tints.
+  brandText: "#B22C18",
+  brandMuted: "rgba(217,54,31,0.12)",
+  onBrand: "#FFFFFF",
+  bands: ["#EBE4D5", "#E8D8CB", "#DDE2D0", "#D9E0E3", "#EFE5C2"],
+  success: "#116C42",
+  successMuted: "rgba(17,108,66,0.10)",
+  warning: "#8A5000",
+  warningMuted: "rgba(138,80,0,0.10)",
+  danger: "#AD3228",
+  dangerMuted: "rgba(173,50,40,0.10)",
   // Highlighter yellow with the dark ink on top.
   highlight: "#FFE55C",
   record: "#FF3B30",
   overlayScrim: "rgba(24,23,20,0.42)",
   switchTrackOff: "rgba(28,25,15,0.16)",
   skill: {
-    articulation: { fg: "#0E7563", bg: "rgba(14,117,99,0.10)" },
-    cadence: { fg: "#6A3FD6", bg: "rgba(106,63,214,0.10)" },
-    impromptu: { fg: "#9A6200", bg: "rgba(154,98,0,0.10)" },
-    confidence: { fg: "#B8285F", bg: "rgba(184,40,95,0.10)" },
-    conversation: { fg: "#0A6FA6", bg: "rgba(10,111,166,0.10)" },
+    articulation: { fg: "#0D6B5A", bg: "rgba(13,107,90,0.10)" },
+    cadence: { fg: "#683ED3", bg: "rgba(104,62,211,0.10)" },
+    impromptu: { fg: "#845300", bg: "rgba(132,83,0,0.10)" },
+    confidence: { fg: "#B0265B", bg: "rgba(176,38,91,0.10)" },
+    conversation: { fg: "#096393", bg: "rgba(9,99,147,0.10)" },
+  },
+  pillar: {
+    message: { fg: "#845300", bg: "rgba(132,83,0,0.10)" },
+    voice: { fg: "#683ED3", bg: "rgba(104,62,211,0.10)" },
+    connection: { fg: "#096393", bg: "rgba(9,99,147,0.10)" },
+    clarity: { fg: "#0D6B5A", bg: "rgba(13,107,90,0.10)" },
+    presence: { fg: "#B0265B", bg: "rgba(176,38,91,0.10)" },
+    composure: { fg: "#4C660F", bg: "rgba(76,102,15,0.11)" },
   },
 };
 
