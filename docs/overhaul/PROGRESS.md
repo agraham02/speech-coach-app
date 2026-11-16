@@ -134,7 +134,7 @@ Read `PLAN.md` first. Work on the first task below that isn't `done`. Anything n
 
 | ID | Task | Status | Evidence |
 |---|---|---|---|
-| 8.1 | One type scale, with the canvas's type; legacy uses and raw `<Text>` migrated | todo | |
+| 8.1 | One type scale, with the canvas's type; legacy uses and raw `<Text>` migrated | iphone | D45. `typeScale` matches the canvas (light display numbers, `say` sentence headlines, a small-caps `label`); all 105 `typography` uses and the raw `<Text>` in 27 files moved onto it, and `typography` and `fontDisplay` are deleted. `src/theme/__tests__/typeScale.test.ts` fails on any old size or raw `<Text>` (the iOS widget and `Txt` itself are the only exceptions) and checks the scale. `tsc` clean, jest passes, both bundles build. Not looked at on a phone |
 | 8.2 | Tokens (brand red, pillar colours with moss-green Composure) and components per section 15 and the canvas | todo | |
 
 ## Phase 5: new structure
