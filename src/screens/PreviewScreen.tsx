@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Alert, ScrollView, Switch, Text, View } from "react-native";
+import { Alert, ScrollView, Switch, View } from "react-native";
 import { usePreventRemove } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
@@ -20,7 +20,8 @@ import { getAccount, useAccount } from "../services/account/accountStore";
 import { usedUpLine, usesOneLine } from "../domain/aiAllowance";
 import { readyForTono } from "../services/cloud/consent";
 import { tonoAgeGated } from "../services/cloud/routing";
-import { spacing, typography, font, fontDisplay } from "../theme/theme";
+import { spacing } from "../theme/theme";
+import { Txt } from "../components/common/Txt";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import { TranscriptionBanner } from "../components/common/TranscriptionBanner";
 
@@ -149,22 +150,22 @@ export function PreviewScreen({ route, navigation }: Props) {
       <View style={styles.headerRow}>
         <IconButton icon="chevron-back" onPress={() => navigation.goBack()} size={38} accessibilityLabel="Back" />
       </View>
-      <Text style={styles.title}>Review your take</Text>
+      <Txt variant="largeTitle">Review your take</Txt>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <VideoPlayback videoUri={videoUri} />
 
         <TranscriptionBanner />
 
         <Card style={styles.section}>
-          <Text style={styles.note}>
+          <Txt variant="footnote" tone="secondary">
             Your transcript, pace, pauses and voice analysis run on this phone either way.
-          </Text>
+          </Txt>
           {minor ? null : (
             <>
               <View style={styles.row}>
                 <View style={styles.rowText}>
-                  <Text style={styles.rowTitle}>Have Tono AI judge this take</Text>
-                  <Text style={styles.rowSubtitle}>{`Tono AI judges ${what}, ${from}. ${cost}`}</Text>
+                  <Txt variant="headline">Have Tono AI judge this take</Txt>
+                  <Txt variant="footnote" tone="secondary">{`Tono AI judges ${what}, ${from}. ${cost}`}</Txt>
                 </View>
                 <Switch
                   value={wantsCloudReview}
@@ -173,11 +174,11 @@ export function PreviewScreen({ route, navigation }: Props) {
                   thumbColor="#FFFFFF"
                 />
               </View>
-              <Text style={styles.hint}>
+              <Txt variant="footnote" tone="muted">
                 {isFeeling
                   ? "This is a private feeling rep: Tono AI stays off unless you turn it on. You can still have it judged later."
                   : "Off keeps this take private to your phone. You can have it judged later from the session."}
-              </Text>
+              </Txt>
             </>
           )}
         </Card>
@@ -201,16 +202,11 @@ export function PreviewScreen({ route, navigation }: Props) {
 const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
   headerRow: { flexDirection: "row", alignItems: "center", marginLeft: -spacing.xs },
-  title: { color: colors.textPrimary, fontFamily: fontDisplay.title, fontSize: 30, lineHeight: 36, letterSpacing: -0.8 },
   scroll: { flex: 1 },
   scrollContent: { gap: spacing.md, paddingBottom: spacing.lg },
   section: { gap: spacing.md },
-  note: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18 },
-  hint: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
   rowText: { flex: 1, gap: spacing.xs },
-  rowTitle: { color: colors.textPrimary, fontSize: typography.body, ...font("600") },
-  rowSubtitle: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },
   actions: { gap: spacing.sm },
   secondaryRow: { flexDirection: "row", gap: spacing.md },
   actionSlot: { flex: 1 },

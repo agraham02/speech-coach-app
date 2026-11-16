@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { SkeletonRows } from "../components/common/Skeleton";
-import { FlatList, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { FlatList, Pressable, ScrollView, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -14,7 +14,9 @@ import { SegmentedControl } from "../components/common/SegmentedControl";
 import { getAllPrompts } from "../services/db/promptsRepo";
 import { colorForCategory } from "../domain/categoryColor";
 import type { DifficultyTier, Prompt } from "../domain/sessionTypes";
-import { radii, spacing, typography, font, fontDisplay } from "../theme/theme";
+import { radii, spacing } from "../theme/theme";
+import { typeScale } from "../theme/tokens";
+import { Txt } from "../components/common/Txt";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import type { Colors } from "../theme/theme";
 
@@ -100,9 +102,9 @@ export function PromptLibraryScreen({ navigation }: Props) {
               accessibilityLabel={`Filter by ${category}`}
               accessibilityState={{ selected }}
             >
-              <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
+              <Txt variant="footnote" tone={selected ? "accent" : "secondary"} weight="600">
                 {category === "all" ? "All" : category}
-              </Text>
+              </Txt>
             </Pressable>
           );
         })}
@@ -113,7 +115,7 @@ export function PromptLibraryScreen({ navigation }: Props) {
       ) : filteredPrompts.length === 0 ? (
         <View style={styles.empty}>
           <Ionicons name="chatbubble-outline" size={40} color={colors.textMuted} />
-          <Text style={styles.emptyText}>Nothing matches your search or filters.</Text>
+          <Txt variant="callout" tone="muted" align="center" style={styles.emptyText}>Nothing matches your search or filters.</Txt>
         </View>
       ) : (
         <FlatList
@@ -134,9 +136,9 @@ export function PromptLibraryScreen({ navigation }: Props) {
                     />
                   ) : null}
                 </View>
-                <Text style={styles.promptText} numberOfLines={2}>
+                <Txt variant="body" weight="500" numberOfLines={2}>
                   {item.text}
-                </Text>
+                </Txt>
               </Card>
             </Pressable>
           )}
@@ -149,7 +151,6 @@ export function PromptLibraryScreen({ navigation }: Props) {
 const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  title: { color: colors.textPrimary, fontSize: typography.title, ...font("700") },
   addButton: { padding: spacing.xs },
   searchBox: {
     flexDirection: "row",
@@ -160,7 +161,7 @@ const useStyles = makeStyles(({ colors }) => ({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
-  searchInput: { ...font("400"), flex: 1, color: colors.textPrimary, fontSize: typography.body, padding: 0 },
+  searchInput: { ...typeScale.callout, flex: 1, color: colors.textPrimary, padding: 0 },
   chipScroll: { flexGrow: 0, flexShrink: 0 },
   chipRow: { flexDirection: "row", gap: spacing.xs },
   chip: {
@@ -170,12 +171,9 @@ const useStyles = makeStyles(({ colors }) => ({
     backgroundColor: colors.surfaceRaised,
   },
   chipSelected: { backgroundColor: colors.accentMuted, borderColor: colors.accent },
-  chipText: { color: colors.textSecondary, fontSize: typography.caption, ...font("600") },
-  chipTextSelected: { color: colors.accent },
   list: { gap: spacing.sm, paddingBottom: spacing.lg },
   promptCard: { gap: spacing.xs },
   promptCardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  promptText: { color: colors.textPrimary, fontFamily: fontDisplay.spoken, fontSize: 17, lineHeight: 23, letterSpacing: -0.2 },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
-  emptyText: { ...font("400"), color: colors.textMuted, fontSize: typography.body, textAlign: "center", paddingHorizontal: spacing.xl },
+  emptyText: { paddingHorizontal: spacing.xl },
 }));
