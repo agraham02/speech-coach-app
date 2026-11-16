@@ -706,3 +706,13 @@ A Sonnet reviewer read all of Phase 4 (4.1 to 4.6). Fixed:
 - Also: changing today's minutes re-arms the reminders, so a 20 or 30 minute day gets its second block's reminder.
 
 **Owner's OK:** not asked; these are fixes to Phase 4.
+
+## D45. One type scale (2026-11-16)
+
+**Now** (task 8.1):
+- **The scale is the canvas's**, in `typeScale` (`src/theme/tokens.ts`): Display 52, now **light** (regular weight, tight tracking) as the approved look has big numbers; **Say** 34 medium for two-tone sentence headlines; Large title 34, Titles 26 / 21 / 18, Headline 16, Body 16, Callout 15, Subhead 14, Footnote 13, Caption 12 and 11, a small-caps **Label** 12, and Quote 22 for spoken words. Callout, Footnote and the two captions aren't on the canvas board but stay, as iOS's own scale has them and most rows use them.
+- **Everything uses it.** The 105 uses of the old `typography` sizes and the raw `<Text>` in 27 files moved to `<Txt variant>` or `typeScale`, and the old `typography` and `fontDisplay` are deleted. Sizes moved to the nearest step (13 to Footnote, 15 to Callout, 17 to Body or Headline, 22 to Title 2, 28 to Title 1), so some text shifts by 1 to 3 points. Prompts and teleprompter text use Quote.
+- **Sizes kept on purpose**, each with a comment: the teleprompters' adjustable text, countdown and timer digits sized to their ring or screen, the follow-along transcript's line height (its scroll maths uses it), and a Result's score sized to its ring.
+- **A test keeps it that way:** it fails on any old size or raw `<Text>` outside `Txt` and the iOS widget, and checks the scale's key steps and that no style sets `fontWeight`.
+
+**Owner's OK:** not asked; this is task 8.1.

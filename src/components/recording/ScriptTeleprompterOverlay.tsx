@@ -1,5 +1,6 @@
 import { Component, Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent, type TextStyle } from "react-native";
+import { Pressable, StyleSheet, View, type LayoutChangeEvent, type TextStyle } from "react-native";
+import { Txt } from "../common/Txt";
 import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
@@ -7,7 +8,7 @@ import MaskedView from "@react-native-masked-view/masked-view";
 import { tokenizeScript, type Script } from "../../domain/scriptTypes";
 import { fillPlaceholder, filterMarks, marksByWord, type MarkLevel, type WordMarks } from "../../domain/cadence/marks";
 import { getUserProfile } from "../../services/prefs/prefsStore";
-import { darkColors as colors, radii, spacing, typography, font } from "../../theme/theme";
+import { darkColors as colors, radii, spacing, font } from "../../theme/theme";
 import { logger } from "../../utils/logger";
 
 // expo-blur and @react-native-masked-view/masked-view are NATIVE modules —
@@ -189,20 +190,20 @@ export function ScriptTeleprompterOverlay({ script, markLevel, isRecording, bott
         accessibilityLabel="Hold to pause the scroll"
       >
         <Animated.View onLayout={handleContentLayout} style={[styles.textContent, scrollStyle]}>
-          <Text style={styles.paragraph}>
+          <Txt variant="quote" style={styles.paragraph}>
             {words.map((w, index) => (
               <Fragment key={index}>
-                {w.note && phraseLines ? <Text style={styles.note}>{`${index > 0 ? "\n" : ""}${w.note}\n`}</Text> : null}
-                <Text style={wordStyle(w, isRecording && index === currentWordIndex)}>{fillPlaceholder(w.word, name)}</Text>
-                {w.inflection ? <Text style={styles.arrow}>{w.inflection === "rise" ? "↗" : "↘"}</Text> : null}
+                {w.note && phraseLines ? <Txt variant="footnote" italic style={styles.note}>{`${index > 0 ? "\n" : ""}${w.note}\n`}</Txt> : null}
+                <Txt variant="quote" style={wordStyle(w, isRecording && index === currentWordIndex)}>{fillPlaceholder(w.word, name)}</Txt>
+                {w.inflection ? <Txt variant="quote" style={styles.arrow}>{w.inflection === "rise" ? "↗" : "↘"}</Txt> : null}
                 {w.gapAfter && phraseLines ? (
-                  <Text style={styles.gap}>{w.gapAfter === "long_pause" ? "  ‖\n\n" : "  |\n"}</Text>
+                  <Txt variant="quote" style={styles.gap}>{w.gapAfter === "long_pause" ? "  ‖\n\n" : "  |\n"}</Txt>
                 ) : (
-                  <Text style={styles.word}> </Text>
+                  <Txt variant="quote" style={styles.word}> </Txt>
                 )}
               </Fragment>
             ))}
-          </Text>
+          </Txt>
         </Animated.View>
       </Pressable>
 
@@ -213,7 +214,7 @@ export function ScriptTeleprompterOverlay({ script, markLevel, isRecording, bott
 
       {isRecording ? (
         <View style={styles.controls} pointerEvents="box-none">
-          {held ? <Text style={styles.heldText}>Paused — let go to continue</Text> : null}
+          {held ? <Txt variant="footnote" weight="600" style={styles.heldText}>Paused — let go to continue</Txt> : null}
           <View style={styles.speedRow}>
             <Pressable
               onPress={() => setSpeedIndex((i) => Math.max(0, i - 1))}
@@ -222,9 +223,9 @@ export function ScriptTeleprompterOverlay({ script, markLevel, isRecording, bott
               accessibilityRole="button"
               accessibilityLabel="Scroll slower"
             >
-              <Text style={styles.speedText}>Slower</Text>
+              <Txt variant="footnote" weight="600" style={styles.speedText}>Slower</Txt>
             </Pressable>
-            <Text style={styles.speedValue}>{SPEEDS[speedIndex]}×</Text>
+            <Txt variant="footnote" weight="700" style={styles.speedValue}>{SPEEDS[speedIndex]}×</Txt>
             <Pressable
               onPress={() => setSpeedIndex((i) => Math.min(SPEEDS.length - 1, i + 1))}
               disabled={speedIndex === SPEEDS.length - 1}
@@ -232,7 +233,7 @@ export function ScriptTeleprompterOverlay({ script, markLevel, isRecording, bott
               accessibilityRole="button"
               accessibilityLabel="Scroll faster"
             >
-              <Text style={styles.speedText}>Faster</Text>
+              <Txt variant="footnote" weight="600" style={styles.speedText}>Faster</Txt>
             </Pressable>
           </View>
         </View>
@@ -246,7 +247,8 @@ const styles = StyleSheet.create({
   baseTint: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.78)" },
   textContent: { paddingHorizontal: spacing.xl },
   paragraph: { textAlign: "center" },
-  word: { color: "white", fontSize: FONT_SIZE, lineHeight: LINE_HEIGHT, ...font("500") },
+  // Teleprompter reading size is functional (the scroll pace is tuned to it), so size and line height are set here on top of the quote variant.
+  word: { color: "white", fontSize: FONT_SIZE, lineHeight: LINE_HEIGHT },
   stress: { ...font("800"), textDecorationLine: "underline" },
   louder: { fontSize: FONT_SIZE * 1.15, ...font("700") },
   softer: { ...font("400"), fontSize: FONT_SIZE * 0.88, color: "rgba(255,255,255,0.72)" },
@@ -255,15 +257,15 @@ const styles = StyleSheet.create({
   currentWord: { backgroundColor: colors.accent, color: colors.onAccent },
   arrow: { color: colors.skill.cadence.fg, fontSize: FONT_SIZE * 0.8, lineHeight: LINE_HEIGHT, ...font("700") },
   gap: { color: colors.skill.cadence.fg, fontSize: FONT_SIZE, lineHeight: LINE_HEIGHT, ...font("300") },
-  note: { ...font("400"), color: colors.textMuted, fontSize: typography.caption, lineHeight: 22, fontStyle: "italic" },
+  note: { color: colors.textMuted, lineHeight: 22 },
   panelWrap: { position: "absolute", left: 0, right: 0, overflow: "hidden" },
   panelTop: { top: 0 },
   panelBottom: { bottom: 0 },
   controls: { position: "absolute", left: 0, right: 0, bottom: spacing.sm, alignItems: "center", gap: spacing.xs },
-  heldText: { color: colors.textPrimary, fontSize: typography.caption, ...font("600") },
+  heldText: { color: colors.textPrimary },
   speedRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   speedButton: { paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radii.pill ?? 999, backgroundColor: "rgba(255,255,255,0.12)" },
   speedDisabled: { opacity: 0.35 },
-  speedText: { color: colors.textPrimary, fontSize: typography.caption, ...font("600") },
-  speedValue: { color: colors.textSecondary, fontSize: typography.caption, ...font("700"), minWidth: 40, textAlign: "center" },
+  speedText: { color: colors.textPrimary },
+  speedValue: { color: colors.textSecondary, minWidth: 40, textAlign: "center" },
 });

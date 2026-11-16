@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Txt } from "../common/Txt";
 import { Ionicons } from "@expo/vector-icons";
 import { useCountdownTimer } from "../../hooks/useCountdownTimer";
 import type { WarmUpStep } from "../../domain/warmUpRoutine";
-import { darkColors as colors, radii, spacing, typography, font } from "../../theme/theme";
+import { darkColors as colors, radii, spacing } from "../../theme/theme";
 
 interface WarmUpOverlayProps {
   steps: WarmUpStep[];
@@ -29,19 +30,19 @@ function WarmUpStepView({ step, stepNumber, totalSteps, onStepDone }: WarmUpStep
   return (
     <>
       <View style={styles.top}>
-        <Text style={styles.label}>
+        <Txt variant="footnote" weight="600" style={styles.label}>
           Step {stepNumber} of {totalSteps} · {step.label}
-        </Text>
-        <Text style={styles.instruction}>{step.instruction}</Text>
-        <Text style={styles.explain}>{step.explain}</Text>
+        </Txt>
+        <Txt variant="title2" style={styles.instruction}>{step.instruction}</Txt>
+        <Txt variant="footnote" style={styles.explain}>{step.explain}</Txt>
       </View>
 
       <View style={styles.countdownWrap} pointerEvents="none">
-        <Text style={styles.countdown}>{remainingSeconds}</Text>
+        <Txt variant="display" tabular style={styles.countdown}>{remainingSeconds}</Txt>
       </View>
 
       <Pressable onPress={skip} style={styles.skipButton}>
-        <Text style={styles.skipText}>{stepNumber === totalSteps ? "Finish" : "Next"}</Text>
+        <Txt variant="callout" weight="600" style={styles.skipText}>{stepNumber === totalSteps ? "Finish" : "Next"}</Txt>
       </Pressable>
     </>
   );
@@ -88,7 +89,7 @@ export function WarmUpOverlay({ steps, onComplete, onClose, topInset }: WarmUpOv
           accessibilityRole="button"
           accessibilityLabel="Skip warm-up"
         >
-          <Text style={styles.skipAllText}>Skip warm-up</Text>
+          <Txt variant="footnote" weight="600" style={styles.skipAllText}>Skip warm-up</Txt>
         </Pressable>
       </View>
 
@@ -137,13 +138,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm + 2,
     borderRadius: radii.pill,
   },
-  skipAllText: { color: colors.textPrimary, fontSize: typography.caption, ...font("600") },
+  skipAllText: { color: colors.textPrimary },
   top: { gap: spacing.sm, paddingHorizontal: spacing.xl, alignItems: "center", marginTop: spacing.xl },
-  label: { color: colors.accent, fontSize: 13, ...font("600") },
-  instruction: { color: colors.textPrimary, fontSize: typography.title, ...font("600"), textAlign: "center" },
+  label: { color: colors.accent },
+  instruction: { color: colors.textPrimary, textAlign: "center" },
   // Deliberately smaller/softer than `instruction` — the "why" belongs to
   // this line now, not nested as jargon inside the instruction itself.
-  explain: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18, textAlign: "center" },
+  explain: { color: colors.textSecondary, textAlign: "center" },
   countdownWrap: {
     width: 140,
     height: 140,
@@ -154,12 +155,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "rgba(0,0,0,0.4)",
   },
-  countdown: { color: colors.textPrimary, fontSize: 56, ...font("300"), fontVariant: ["tabular-nums"] },
+  // A big digit sized to fill the ring, so size and line height are set here on top of the display variant.
+  countdown: { color: colors.textPrimary, fontSize: 56, lineHeight: 58 },
   skipButton: {
     backgroundColor: "rgba(0,0,0,0.55)",
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm + 2,
     borderRadius: radii.pill,
   },
-  skipText: { color: colors.textPrimary, fontSize: typography.body, ...font("600") },
+  skipText: { color: colors.textPrimary },
 });

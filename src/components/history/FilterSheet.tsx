@@ -1,8 +1,9 @@
 import { useEffect } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Txt } from "../common/Txt";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { radii, spacing, typography, font, fontDisplay } from "../../theme/theme";
+import { radii, spacing } from "../../theme/theme";
 import { makeStyles } from "../../theme/ThemeProvider";
 
 interface FilterOption {
@@ -81,26 +82,26 @@ export function FilterSheet({
       <Animated.View style={[styles.panel, { paddingBottom: insets.bottom + spacing.lg }, panelStyle]}>
         <View style={styles.handle} />
         <View style={styles.panelHeader}>
-          <Text style={styles.panelTitle}>Filters</Text>
+          <Txt variant="title2" style={styles.panelTitle}>Filters</Txt>
           <Pressable onPress={onReset} hitSlop={12} accessibilityRole="button" accessibilityLabel="Reset filters">
-            <Text style={styles.resetText}>Reset</Text>
+            <Txt variant="callout" weight="600" style={styles.resetText}>Reset</Txt>
           </Pressable>
         </View>
 
         {kindOptions.length ? (
           <>
-            <Text style={styles.sectionLabel}>Type</Text>
+            <Txt variant="footnote" weight="600" style={styles.sectionLabel}>Type</Txt>
             <ChipRow options={kindOptions} value={kindValue} onChange={onKindChange} labelPrefix="Show" />
           </>
         ) : null}
 
-        <Text style={[styles.sectionLabel, kindOptions.length ? styles.sectionSpacer : null]}>When</Text>
+        <Txt variant="footnote" weight="600" style={[styles.sectionLabel, kindOptions.length ? styles.sectionSpacer : null]}>When</Txt>
         <ChipRow options={dateOptions} value={dateValue} onChange={onDateChange} labelPrefix="Recorded" />
 
-        <Text style={[styles.sectionLabel, styles.sectionSpacer]}>Show</Text>
+        <Txt variant="footnote" weight="600" style={[styles.sectionLabel, styles.sectionSpacer]}>Show</Txt>
         <ChipRow options={statusOptions} value={statusValue} onChange={onStatusChange} labelPrefix="Show" />
 
-        <Text style={[styles.sectionLabel, styles.sectionSpacer]}>Topic</Text>
+        <Txt variant="footnote" weight="600" style={[styles.sectionLabel, styles.sectionSpacer]}>Topic</Txt>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRowScroll}>
           {categoryOptions.map((category) => {
             const selected = categoryValue === category;
@@ -114,17 +115,17 @@ export function FilterSheet({
                 accessibilityLabel={`Filter by ${label}`}
                 accessibilityState={{ selected }}
               >
-                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
+                <Txt variant="footnote" weight="600" style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Txt>
               </Pressable>
             );
           })}
         </ScrollView>
 
-        <Text style={[styles.sectionLabel, styles.sectionSpacer]}>Length</Text>
+        <Txt variant="footnote" weight="600" style={[styles.sectionLabel, styles.sectionSpacer]}>Length</Txt>
         <ChipRow options={durationOptions} value={durationValue} onChange={onDurationChange} labelPrefix="Filter by" />
 
         <Pressable style={styles.doneButton} onPress={onClose} accessibilityRole="button" accessibilityLabel="Apply filters">
-          <Text style={styles.doneButtonText}>Done</Text>
+          <Txt variant="headline" style={styles.doneButtonText}>Done</Txt>
         </Pressable>
       </Animated.View>
     </Modal>
@@ -146,7 +147,7 @@ function ChipRow({ options, value, onChange, labelPrefix }: { options: FilterOpt
             accessibilityLabel={`${labelPrefix} ${option.label}`}
             accessibilityState={{ selected }}
           >
-            <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{option.label}</Text>
+            <Txt variant="footnote" weight="600" style={[styles.chipText, selected && styles.chipTextSelected]}>{option.label}</Txt>
           </Pressable>
         );
       })}
@@ -169,9 +170,9 @@ const useStyles = makeStyles(({ colors }) => ({
   },
   handle: { alignSelf: "center", width: 40, height: 5, borderRadius: 3, backgroundColor: colors.switchTrackOff, marginBottom: spacing.sm },
   panelHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  panelTitle: { color: colors.textPrimary, fontFamily: fontDisplay.title, fontSize: 24, lineHeight: 30, letterSpacing: -0.5 },
-  resetText: { color: colors.accent, fontSize: typography.body, ...font("600") },
-  sectionLabel: { color: colors.textMuted, fontSize: 13, ...font("600") },
+  panelTitle: { color: colors.textPrimary },
+  resetText: { color: colors.accent },
+  sectionLabel: { color: colors.textMuted },
   sectionSpacer: { marginTop: spacing.sm },
   chipRowScroll: { flexDirection: "row", gap: spacing.xs, paddingVertical: spacing.xs },
   chipRowWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, paddingVertical: spacing.xs },
@@ -182,7 +183,7 @@ const useStyles = makeStyles(({ colors }) => ({
     backgroundColor: colors.surfaceRaised,
   },
   chipSelected: { backgroundColor: colors.accentMuted, borderColor: colors.accent },
-  chipText: { color: colors.textSecondary, fontSize: typography.caption, ...font("600") },
+  chipText: { color: colors.textSecondary },
   chipTextSelected: { color: colors.accent },
   doneButton: {
     marginTop: spacing.md,
@@ -191,5 +192,5 @@ const useStyles = makeStyles(({ colors }) => ({
     paddingVertical: spacing.md,
     alignItems: "center",
   },
-  doneButtonText: { color: colors.onAccent, fontSize: typography.bodyLarge, ...font("600") },
+  doneButtonText: { color: colors.onAccent },
 }));

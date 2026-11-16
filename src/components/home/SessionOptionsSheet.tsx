@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
+import { Txt } from "../common/Txt";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LabeledSlider } from "../common/LabeledSlider";
@@ -15,7 +16,7 @@ import {
   RECORDING_DURATION_MIN_SECONDS,
   RECORDING_DURATION_STEP_SECONDS,
 } from "../../domain/recordingSettings";
-import { radii, spacing, typography, font, fontDisplay } from "../../theme/theme";
+import { radii, spacing } from "../../theme/theme";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 interface SessionOptionsSheetProps {
@@ -99,9 +100,9 @@ export function SessionOptionsSheet({
       <Animated.View style={[styles.panel, { maxHeight: "80%" }, panelStyle]}>
         <View style={styles.handle} />
         <View style={styles.panelHeader}>
-          <Text style={styles.panelTitle}>Session options</Text>
+          <Txt variant="title2" style={styles.panelTitle}>Session options</Txt>
           <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Done">
-            <Text style={styles.doneText}>Done</Text>
+            <Txt variant="callout" weight="600" style={styles.doneText}>Done</Txt>
           </Pressable>
         </View>
 
@@ -111,8 +112,8 @@ export function SessionOptionsSheet({
         >
           <View style={styles.row}>
             <View style={styles.rowText}>
-              <Text style={styles.rowTitle}>Warm-up</Text>
-              <Text style={styles.rowSubtitle}>Breathing + easy onset before you start</Text>
+              <Txt variant="headline" weight="700" style={styles.rowTitle}>Warm-up</Txt>
+              <Txt variant="footnote" style={styles.rowSubtitle}>Breathing + easy onset before you start</Txt>
             </View>
             <Switch
               value={warmUpEnabled}
@@ -124,8 +125,8 @@ export function SessionOptionsSheet({
 
           <View style={[styles.row, styles.divider]}>
             <View style={styles.rowText}>
-              <Text style={styles.rowTitle}>Prep phase</Text>
-              <Text style={styles.rowSubtitle}>Countdown to brainstorm before recording</Text>
+              <Txt variant="headline" weight="700" style={styles.rowTitle}>Prep phase</Txt>
+              <Txt variant="footnote" style={styles.rowSubtitle}>Countdown to brainstorm before recording</Txt>
             </View>
             <Switch
               value={prepSettings.enabled}
@@ -137,10 +138,10 @@ export function SessionOptionsSheet({
           {prepSettings.enabled ? (
             <View style={styles.subSection}>
               <View style={styles.row}>
-                <Text style={styles.rowTitle}>Prep time</Text>
+                <Txt variant="headline" weight="700" style={styles.rowTitle}>Prep time</Txt>
                 {!prepManuallySet ? (
                   <View style={styles.autoBadge}>
-                    <Text style={styles.autoBadgeText}>Auto · Difficulty {Math.floor(takeLevel)}</Text>
+                    <Txt variant="caption1" weight="700" style={styles.autoBadgeText}>Auto · Difficulty {Math.floor(takeLevel)}</Txt>
                   </View>
                 ) : null}
               </View>
@@ -155,7 +156,7 @@ export function SessionOptionsSheet({
                 onChange={(fixedSeconds) => onPrepSettingsChange({ ...prepSettings, mode: "fixed", fixedSeconds })}
               />
               <View style={styles.switchRow}>
-                <Text style={styles.switchLabel}>Randomize each session</Text>
+                <Txt variant="callout" style={styles.switchLabel}>Randomize each session</Txt>
                 <Switch
                   value={prepSettings.mode === "random"}
                   onValueChange={(isRandom) =>
@@ -167,23 +168,23 @@ export function SessionOptionsSheet({
               </View>
               {prepManuallySet ? (
                 <Pressable onPress={onResetPrepToAuto} hitSlop={8}>
-                  <Text style={styles.linkText}>Reset to auto (matches your take difficulty)</Text>
+                  <Txt variant="footnote" weight="600" style={styles.linkText}>Reset to auto (matches your take difficulty)</Txt>
                 </Pressable>
               ) : (
-                <Text style={styles.rowSubtitle}>
+                <Txt variant="footnote" style={styles.rowSubtitle}>
                   Matches your take difficulty: it shrinks as takes get harder. Adjusting below
                   sets your own prep time instead.
-                </Text>
+                </Txt>
               )}
             </View>
           ) : null}
 
           <View style={[styles.subSection, styles.divider]}>
             <View style={styles.row}>
-              <Text style={styles.rowTitle}>Recording length</Text>
+              <Txt variant="headline" weight="700" style={styles.rowTitle}>Recording length</Txt>
               {!durationManuallySet ? (
                 <View style={styles.autoBadge}>
-                  <Text style={styles.autoBadgeText}>Auto · Difficulty {Math.floor(takeLevel)}</Text>
+                  <Txt variant="caption1" weight="700" style={styles.autoBadgeText}>Auto · Difficulty {Math.floor(takeLevel)}</Txt>
                 </View>
               ) : null}
             </View>
@@ -198,7 +199,7 @@ export function SessionOptionsSheet({
               onChange={(fixedSeconds) => onDurationSettingsChange({ mode: "fixed", fixedSeconds })}
             />
             <View style={styles.switchRow}>
-              <Text style={styles.switchLabel}>Randomize each session</Text>
+              <Txt variant="callout" style={styles.switchLabel}>Randomize each session</Txt>
               <Switch
                 value={durationSettings.mode === "random"}
                 onValueChange={(isRandom) =>
@@ -210,18 +211,18 @@ export function SessionOptionsSheet({
             </View>
             {durationManuallySet ? (
               <Pressable onPress={onResetDurationToAuto} hitSlop={8}>
-                <Text style={styles.linkText}>Reset to auto (matches your take difficulty)</Text>
+                <Txt variant="footnote" weight="600" style={styles.linkText}>Reset to auto (matches your take difficulty)</Txt>
               </Pressable>
             ) : (
-              <Text style={styles.rowSubtitle}>
+              <Txt variant="footnote" style={styles.rowSubtitle}>
                 Matches your take difficulty: it grows as takes get harder. Adjusting below sets your own length instead.
-              </Text>
+              </Txt>
             )}
           </View>
 
           <View style={[styles.subSection, styles.divider]}>
-            <Text style={styles.rowTitle}>Concise mode length</Text>
-            <Text style={styles.rowSubtitle}>How long the Concise chip on Home gives you to make one point.</Text>
+            <Txt variant="headline" weight="700" style={styles.rowTitle}>Concise mode length</Txt>
+            <Txt variant="footnote" style={styles.rowSubtitle}>How long the Concise chip on Home gives you to make one point.</Txt>
             <LabeledSlider
               label="Length"
               value={conciseModeSeconds}
@@ -258,22 +259,22 @@ const useStyles = makeStyles(({ colors }) => ({
     justifyContent: "space-between",
     marginBottom: spacing.md,
   },
-  panelTitle: { color: colors.textPrimary, fontFamily: fontDisplay.title, fontSize: 24, lineHeight: 30, letterSpacing: -0.5 },
-  doneText: { color: colors.accent, fontSize: typography.body, ...font("600") },
+  panelTitle: { color: colors.textPrimary },
+  doneText: { color: colors.accent },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
   rowText: { flex: 1, gap: spacing.xs },
-  rowTitle: { color: colors.textPrimary, fontSize: typography.bodyLarge, ...font("700") },
-  rowSubtitle: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 18 },
+  rowTitle: { color: colors.textPrimary },
+  rowSubtitle: { color: colors.textSecondary },
   subSection: { gap: spacing.sm },
   divider: { paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.separator },
   switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  switchLabel: { ...font("400"), color: colors.textSecondary, fontSize: typography.body },
+  switchLabel: { color: colors.textSecondary },
   autoBadge: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     borderRadius: radii.pill,
     backgroundColor: colors.accentMuted,
   },
-  autoBadgeText: { color: colors.accent, fontSize: typography.caption - 1, ...font("700") },
-  linkText: { color: colors.accent, fontSize: typography.caption, ...font("600") },
+  autoBadgeText: { color: colors.accent },
+  linkText: { color: colors.accent },
 }));
