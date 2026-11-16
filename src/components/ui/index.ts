@@ -6,3 +6,4 @@ export { Ladder, type LadderProps } from "./Ladder";
 export { SayHeadline, type SayHeadlineProps } from "./SayHeadline";
 export { WeekStrip, type WeekStripProps } from "./WeekStrip";
 export * from "./displayLogic";
+// The input controls are in ./inputs.

@@ -147,6 +147,13 @@ function DevHome() {
 
       <ListGroup title="Labs">
         <ListRow
+          icon="color-palette-outline"
+          title="Components"
+          subtitle="Every shared component of the new look, in one place"
+          chevron
+          onPress={() => navigation.navigate("DevComponents")}
+        />
+        <ListRow
           icon="analytics-outline"
           title="Signal Lab"
           subtitle="Tests that decide which readings can be trusted"

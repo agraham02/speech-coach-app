@@ -37,6 +37,7 @@ import { ArtifactScreen } from "../screens/dev/ArtifactScreen";
 import { FaceLabScreen } from "../screens/dev/FaceLabScreen";
 import { SignalLabRunScreen } from "../screens/dev/SignalLabRunScreen";
 import { SignalLabScreen } from "../screens/dev/SignalLabScreen";
+import { ComponentsScreen } from "../screens/dev/ComponentsScreen";
 import { SignalLabTestScreen } from "../screens/dev/SignalLabTestScreen";
 import { VoiceLabScreen } from "../screens/dev/VoiceLabScreen";
 import { ToolsScreen } from "../screens/dev/ToolsScreen";
@@ -198,6 +199,7 @@ export type RootStackParamList = {
   DevFaceLab: undefined;
   DevVoiceLab: { sessionId: string };
   DevSignalLab: undefined;
+  DevComponents: undefined;
   DevSignalLabTest: { testId: string };
   DevSignalLabRun: { testId: string };
   DevTools: undefined;
@@ -452,6 +454,7 @@ export function AppNavigator({ onReady }: { onReady?: () => void }) {
             <Stack.Screen name="DevFaceLab" component={FaceLabScreen} />
             <Stack.Screen name="DevVoiceLab" component={VoiceLabScreen} />
             <Stack.Screen name="DevSignalLab" component={SignalLabScreen} />
+            <Stack.Screen name="DevComponents" component={ComponentsScreen} />
             <Stack.Screen name="DevSignalLabTest" component={SignalLabTestScreen} />
             <Stack.Screen name="DevSignalLabRun" component={SignalLabRunScreen} options={{ animation: "fade" }} />
             <Stack.Screen name="DevTools" component={ToolsScreen} />
