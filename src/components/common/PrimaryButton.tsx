@@ -11,8 +11,8 @@ interface PrimaryButtonProps {
   onPress: () => void | Promise<unknown>;
   disabled?: boolean;
   loading?: boolean;
-  // primary: the one ink action on a screen. secondary: a quiet filled
-  // button. ghost: text only. danger: destructive.
+  // primary: the one main action on a screen, in brand red. secondary: a
+  // quiet filled button. ghost: text only. danger: destructive.
   variant?: "primary" | "danger" | "secondary" | "ghost";
   size?: "lg" | "md" | "sm";
   icon?: keyof typeof Ionicons.glyphMap;
@@ -56,7 +56,7 @@ export function PrimaryButton({
   const styles = useStyles();
   const { colors } = useTheme();
   const fg = {
-    primary: colors.onAccent,
+    primary: colors.onBrand,
     danger: colors.onAccent,
     secondary: colors.textPrimary,
     ghost: colors.textPrimary,
@@ -99,7 +99,7 @@ export function PrimaryButton({
 
 const useStyles = makeStyles((t) => ({
   button: {
-    backgroundColor: t.colors.accent,
+    backgroundColor: t.colors.brand,
     borderRadius: t.radius.pill,
     alignItems: "center",
     justifyContent: "center",
