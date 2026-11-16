@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Txt } from "../common/Txt";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { RecordingTimer } from "./RecordingTimer";
 import { tap } from "../../utils/haptics";
 import { duration } from "../../theme/motion";
-import { darkColors as colors, spacing, typography, font } from "../../theme/theme";
+import { darkColors as colors, spacing } from "../../theme/theme";
 
 interface RecordBlindOverlayProps {
   promptText: string;
@@ -71,13 +72,13 @@ export function RecordBlindOverlay({ promptText, remainingSeconds, targetSeconds
     >
       {peeking ? (
         <View style={styles.peek}>
-          <Text style={styles.prompt}>{promptText}</Text>
+          <Txt variant="quote" style={styles.prompt}>{promptText}</Txt>
           <RecordingTimer elapsedSeconds={remainingSeconds} />
         </View>
       ) : warning != null ? (
         <Animated.View entering={FadeIn.duration(duration.slow)} exiting={FadeOut.duration(duration.slow)} style={styles.peek} accessibilityLiveRegion="assertive">
-          <Text style={styles.warning}>{warning} seconds left</Text>
-          <Text style={styles.warningHint}>{warning <= 10 ? "Land your last point." : "Start heading for your point."}</Text>
+          <Txt variant="largeTitle" tabular style={styles.warning}>{warning} seconds left</Txt>
+          <Txt variant="callout" style={styles.warningHint}>{warning <= 10 ? "Land your last point." : "Start heading for your point."}</Txt>
         </Animated.View>
       ) : (
         <View style={[styles.recDot, finalStretch && styles.recDotFinal]} />
@@ -102,7 +103,7 @@ const styles = StyleSheet.create({
   // The last ten seconds: the dot brightens, so a glance says "wrap up".
   recDotFinal: { width: 10, height: 10, borderRadius: 5, opacity: 0.9 },
   peek: { alignItems: "center", gap: spacing.lg },
-  prompt: { ...font("400"), color: colors.textSecondary, fontSize: typography.title, textAlign: "center", lineHeight: 30 },
-  warning: { ...font("600"), color: colors.textPrimary, fontSize: 34, letterSpacing: -0.8, fontVariant: ["tabular-nums"] },
-  warningHint: { ...font("400"), color: colors.textSecondary, fontSize: typography.body, textAlign: "center" },
+  prompt: { color: colors.textSecondary, textAlign: "center" },
+  warning: { color: colors.textPrimary },
+  warningHint: { color: colors.textSecondary, textAlign: "center" },
 });

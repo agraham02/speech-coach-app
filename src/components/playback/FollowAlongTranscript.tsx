@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ScrollView, Text, View, type LayoutChangeEvent } from "react-native";
+import { ScrollView, View, type LayoutChangeEvent } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeIn, FadeOut, useReducedMotion } from "react-native-reanimated";
@@ -120,7 +120,7 @@ export function FollowAlongTranscript({ words, fallbackText, positionMs, started
             {rendered}
           </View>
         ) : (
-          <Text style={styles.plain}>{fallbackText ?? ""}</Text>
+          <Txt variant="body" weight="500" style={styles.plain}>{fallbackText ?? ""}</Txt>
         )}
       </ScrollView>
 
@@ -166,14 +166,16 @@ const Word = memo(function Word({
 }) {
   const styles = useStyles();
   return (
-    <Text
+    <Txt
+      variant="body"
+      weight="500"
       onPress={() => onPress(index)}
       onLayout={(e: LayoutChangeEvent) => onTop(index, e.nativeEvent.layout.y)}
       suppressHighlighting
       style={[styles.word, state === "current" ? styles.current : state === "ahead" ? styles.ahead : styles.said]}
     >
       {text}
-    </Text>
+    </Txt>
   );
 });
 
@@ -187,10 +189,8 @@ const useStyles = makeStyles((t) => ({
   // Spoken words are set in medium (design language). Every word carries the
   // same padding, so marking one never reflows the line.
   word: {
-    ...t.font("500"),
-    fontSize: 17,
+    // LINE_HEIGHT stays hand-set: the scroll and fade maths are built on it.
     lineHeight: LINE_HEIGHT,
-    letterSpacing: -0.1,
     paddingHorizontal: 3,
     marginRight: 1,
     borderRadius: 6,
@@ -199,7 +199,7 @@ const useStyles = makeStyles((t) => ({
   said: { color: t.colors.textPrimary },
   ahead: { color: t.colors.textMuted },
   current: { color: t.colors.textPrimary, backgroundColor: t.colors.accentMuted },
-  plain: { ...t.font("500"), fontSize: 17, lineHeight: LINE_HEIGHT, color: t.colors.textSecondary, paddingHorizontal: 3 },
+  plain: { lineHeight: LINE_HEIGHT, color: t.colors.textSecondary, paddingHorizontal: 3 },
   fade: { position: "absolute", left: 0, right: 0, height: FADE_HEIGHT },
   fadeTop: { top: 0 },
   fadeBottom: { bottom: 0 },

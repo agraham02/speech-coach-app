@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Pressable, Switch, Text, View } from "react-native";
+import { Pressable, Switch, View } from "react-native";
+import { Txt } from "../common/Txt";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import {
@@ -15,7 +16,7 @@ import {
 } from "../../domain/transcriptAnnotations";
 import type { AiMark } from "../../domain/results/aiMarks";
 import type { TranscriptWord } from "../../domain/sessionTypes";
-import { getAnnotationColors, radii, spacing, typography, font } from "../../theme/theme";
+import { getAnnotationColors, radii, spacing } from "../../theme/theme";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 interface AnnotatedTranscriptProps {
@@ -151,18 +152,18 @@ export function AnnotatedTranscript({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.statLine}>
+      <Txt variant="footnote" weight="700" style={styles.statLine}>
         {stats.count} filler word{stats.count === 1 ? "" : "s"} · {stats.ratePerMinute}/min · {stats.label}
-      </Text>
+      </Txt>
       {typed.count > 0 ? (
-        <Text style={styles.statLine}>
+        <Txt variant="footnote" weight="700" style={styles.statLine}>
           {typed.hesitation.count} um or uh · {typed.contextual.count} like, you know, actually…
-        </Text>
+        </Txt>
       ) : null}
       {repeatedCount > 0 ? (
-        <Text style={styles.statLineSecondary}>
+        <Txt variant="footnote" weight="700" style={styles.statLineSecondary}>
           {repeatedCount} repeated word{repeatedCount === 1 ? "" : "s"} in a row
-        </Text>
+        </Txt>
       ) : null}
 
       {categoriesPresent.size > 0 ? (
@@ -170,43 +171,43 @@ export function AnnotatedTranscript({
           {Array.from(categoriesPresent).map((category) => (
             <View key={category} style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: annotationColors[category] }, isFiller(category) && styles.legendDotHighlight]} />
-              <Text style={styles.legendText}>{CATEGORY_LABELS[category]}</Text>
+              <Txt variant="caption1" weight="400" style={styles.legendText}>{CATEGORY_LABELS[category]}</Txt>
             </View>
           ))}
         </View>
       ) : null}
 
-      <Text style={styles.transcript}>
+      <Txt variant="body" style={styles.transcript}>
         {segments.map((segment, index) =>
           segment.category ? (
-            <Text key={index} style={{ backgroundColor: annotationColors[segment.category], color: colors.textPrimary }} onPress={() => toggleSegment(index)} suppressHighlighting>
+            <Txt key={index} variant="body" style={{ backgroundColor: annotationColors[segment.category], color: colors.textPrimary }} onPress={() => toggleSegment(index)} suppressHighlighting>
               {segment.text}
-            </Text>
+            </Txt>
           ) : (
-            <Text key={index}>{segment.text}</Text>
+            <Txt key={index} variant="body">{segment.text}</Txt>
           ),
         )}
-      </Text>
+      </Txt>
 
       {panelContent ? (
         <Animated.View style={[styles.notePanel, panelStyle]}>
           <View style={styles.notePanelHeader}>
-            <Text style={[styles.notePanelLabel, { color: isFiller(panelContent.category) ? colors.warning : annotationColors[panelContent.category] }]}>{panelContent.title}</Text>
+            <Txt variant="footnote" weight="600" style={{ color: isFiller(panelContent.category) ? colors.warning : annotationColors[panelContent.category] }}>{panelContent.title}</Txt>
             <Pressable onPress={dismissPanel} hitSlop={12} accessibilityRole="button" accessibilityLabel="Dismiss note">
               <Ionicons name="close" size={16} color={colors.textMuted} />
             </Pressable>
           </View>
-          <Text style={styles.notePanelText}>{panelContent.note}</Text>
+          <Txt variant="callout" style={styles.notePanelText}>{panelContent.note}</Txt>
         </Animated.View>
       ) : null}
 
       {aiMarks.length > 0 ? (
         <View style={styles.aiRow}>
           <View style={styles.aiText}>
-            <Text style={styles.aiTitle}>
+            <Txt variant="callout" weight="600" style={styles.aiTitle}>
               {aiBy ?? "Tono AI"}'s notes ({aiMarks.length})
-            </Text>
-            <Text style={styles.aiSub}>Moments it pointed at: structure, the point, repeated ideas. Tap a highlight to read why.</Text>
+            </Txt>
+            <Txt variant="footnote" style={styles.aiSub}>Moments it pointed at: structure, the point, repeated ideas. Tap a highlight to read why.</Txt>
           </View>
           <Switch
             value={showAi}
@@ -225,21 +226,20 @@ export function AnnotatedTranscript({
 
 const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.sm },
-  statLine: { color: colors.warning, fontSize: typography.caption, ...font("700") },
-  statLineSecondary: { color: colors.indigo, fontSize: typography.caption, ...font("700") },
+  statLine: { color: colors.warning },
+  statLineSecondary: { color: colors.indigo },
   legend: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
   legendItem: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   legendDot: { width: 9, height: 9, borderRadius: radii.pill },
   // The pale highlighter yellow vanishes on a light surface without an edge.
   legendDotHighlight: { borderWidth: 1, borderColor: colors.warning },
-  legendText: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption - 1 },
-  transcript: { ...font("400"), color: colors.textPrimary, fontSize: typography.bodyLarge, lineHeight: 26 },
+  legendText: { color: colors.textSecondary },
+  transcript: { color: colors.textPrimary },
   notePanel: { backgroundColor: colors.surfaceRaised, borderRadius: radii.md, padding: spacing.md, gap: spacing.xs },
   notePanelHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  notePanelLabel: { fontSize: 13, ...font("600") },
-  notePanelText: { ...font("400"), color: colors.textSecondary, fontSize: typography.body, lineHeight: 20 },
+  notePanelText: { color: colors.textSecondary },
   aiRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingTop: spacing.sm },
   aiText: { flex: 1, gap: 2 },
-  aiTitle: { ...font("600"), color: colors.textPrimary, fontSize: typography.body },
-  aiSub: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },
+  aiTitle: { color: colors.textPrimary },
+  aiSub: { color: colors.textSecondary },
 }));

@@ -1,8 +1,10 @@
-import { Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Switch, TextInput, View } from "react-native";
+import { Txt } from "../common/Txt";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Ionicons } from "@expo/vector-icons";
 import { mmss } from "../../domain/prepTimer";
-import { darkColors as colors, fontDisplay, radii, spacing, typography, font } from "../../theme/theme";
+import { darkColors as colors, radii, spacing } from "../../theme/theme";
+import { typeScale } from "../../theme/tokens";
 
 interface PrepOverlayProps {
   promptText: string;
@@ -52,15 +54,15 @@ export function PrepOverlay(props: PrepOverlayProps) {
 function PromptCard({ promptText, taskLabel, notes, label }: Pick<PrepOverlayProps, "promptText" | "taskLabel" | "notes"> & { label: string }) {
   return (
     <View style={styles.top}>
-      <Text style={styles.label}>{label}</Text>
-      {taskLabel ? <Text style={styles.task}>{taskLabel}</Text> : null}
-      <Text style={styles.promptText}>{promptText}</Text>
+      <Txt variant="footnote" weight="600" style={styles.label}>{label}</Txt>
+      {taskLabel ? <Txt variant="footnote" weight="500" style={styles.task}>{taskLabel}</Txt> : null}
+      <Txt variant="quote" style={styles.promptText}>{promptText}</Txt>
       {notes?.length ? (
         <View style={styles.notes}>
           {notes.map((n) => (
-            <Text key={n} style={styles.noteText}>
+            <Txt variant="callout" key={n} style={styles.noteText}>
               · {n}
-            </Text>
+            </Txt>
           ))}
         </View>
       ) : null}
@@ -74,18 +76,18 @@ function ShortBody({ promptText, taskLabel, notes, remainingSeconds, researchSug
       <PromptCard promptText={promptText} taskLabel={taskLabel} notes={notes} label="Get ready" />
 
       <View style={styles.countdownWrap} pointerEvents="none">
-        <Text style={styles.countdown}>{remainingSeconds}</Text>
+        <Txt variant="display" tabular style={styles.countdown}>{remainingSeconds}</Txt>
       </View>
 
       <View style={[styles.shortControls, { paddingBottom: bottomInset }]}>
-        {researchSuggested ? <Text style={styles.suggest}>New topic? Research helps.</Text> : null}
+        {researchSuggested ? <Txt variant="footnote" weight="500" style={styles.suggest}>New topic? Research helps.</Txt> : null}
         <View style={styles.row}>
           <Chip label="+30 s" icon="add" onPress={onAddTime} />
           <Chip label="Research" icon="search" onPress={onResearch} emphasized={researchSuggested} />
           <Chip label="No prep" onPress={onNoPrep} />
         </View>
         <Pressable onPress={onStart} style={styles.primary} accessibilityRole="button">
-          <Text style={styles.primaryText}>Start now</Text>
+          <Txt variant="headline" style={styles.primaryText}>Start now</Txt>
         </Pressable>
       </View>
     </>
@@ -118,9 +120,9 @@ function ResearchBody({
         <PromptCard promptText={promptText} taskLabel={taskLabel} label="Research" />
 
         <View style={styles.clockRow}>
-          <Text style={[styles.clock, timeUp && styles.clockUp]} accessibilityLabel={timeUp ? "Time is up" : `${mmss(remainingSeconds)} left`}>
+          <Txt variant="display" tabular style={[styles.clock, timeUp && styles.clockUp]} accessibilityLabel={timeUp ? "Time is up" : `${mmss(remainingSeconds)} left`}>
             {timeUp ? "Time's up" : mmss(remainingSeconds)}
-          </Text>
+          </Txt>
           <Chip label="+30 s" icon="add" onPress={onAddTime} />
         </View>
 
@@ -137,23 +139,23 @@ function ResearchBody({
 
         <Pressable onPress={onSearch} style={styles.searchButton} accessibilityRole="button" accessibilityHint="Opens a web search for this topic in your browser">
           <Ionicons name="search" size={18} color={colors.textPrimary} />
-          <Text style={styles.searchText}>Search the web</Text>
+          <Txt variant="headline" style={styles.searchText}>Search the web</Txt>
           <Ionicons name="open-outline" size={16} color={colors.textMuted} />
         </Pressable>
 
         <View style={styles.toggleRow}>
           <View style={styles.toggleText}>
-            <Text style={styles.toggleTitle}>Show my notes while I record</Text>
-            <Text style={styles.toggleSub}>Like a teleprompter, over the camera. Off by default: real speaking doesn't have one.</Text>
+            <Txt variant="callout" weight="600" style={styles.toggleTitle}>Show my notes while I record</Txt>
+            <Txt variant="footnote" style={styles.toggleSub}>Like a teleprompter, over the camera. Off by default: real speaking doesn't have one.</Txt>
           </View>
           <Switch value={notesOnScreen} onValueChange={onToggleNotesOnScreen} trackColor={{ true: colors.success, false: colors.switchTrackOff }} thumbColor={colors.textPrimary} />
         </View>
 
         <Pressable onPress={onStart} style={styles.primary} accessibilityRole="button">
-          <Text style={styles.primaryText}>{timeUp ? "Start recording" : "I'm ready — record"}</Text>
+          <Txt variant="headline" style={styles.primaryText}>{timeUp ? "Start recording" : "I'm ready — record"}</Txt>
         </Pressable>
         <Pressable onPress={onNoPrep} style={styles.ghost} accessibilityRole="button">
-          <Text style={styles.ghostText}>No prep</Text>
+          <Txt variant="callout" weight="500" style={styles.ghostText}>No prep</Txt>
         </Pressable>
       </KeyboardAwareScrollView>
     </View>
@@ -164,7 +166,7 @@ function Chip({ label, icon, onPress, emphasized }: { label: string; icon?: keyo
   return (
     <Pressable onPress={onPress} style={[styles.chip, emphasized && styles.chipEmphasized]} accessibilityRole="button" accessibilityLabel={label}>
       {icon ? <Ionicons name={icon} size={16} color={colors.textPrimary} /> : null}
-      <Text style={styles.chipText}>{label}</Text>
+      <Txt variant="subhead" weight="600" style={styles.chipText}>{label}</Txt>
     </Pressable>
   );
 }
@@ -203,11 +205,11 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     backgroundColor: "rgba(10,10,8,0.62)",
   },
-  label: { color: colors.textSecondary, fontSize: 13, ...font("600") },
-  task: { color: colors.textSecondary, fontSize: 13, ...font("500") },
-  promptText: { color: colors.textPrimary, fontFamily: fontDisplay.spoken, fontSize: 24, lineHeight: 31, letterSpacing: -0.3, textAlign: "center" },
+  label: { color: colors.textSecondary },
+  task: { color: colors.textSecondary },
+  promptText: { color: colors.textPrimary, textAlign: "center" },
   notes: { marginTop: spacing.xs, gap: 4, alignSelf: "stretch" },
-  noteText: { ...font("400"), color: colors.textPrimary, fontSize: typography.body, lineHeight: 21 },
+  noteText: { color: colors.textPrimary },
   countdownWrap: {
     width: 140,
     height: 140,
@@ -218,9 +220,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "rgba(10,10,8,0.45)",
   },
-  countdown: { color: colors.textPrimary, fontFamily: fontDisplay.title, fontSize: 60, lineHeight: 68, letterSpacing: -2, fontVariant: ["tabular-nums"] },
+  // A big digit sized to fill the ring, so size and line height are set here on top of the display variant.
+  countdown: { color: colors.textPrimary, fontSize: 60, lineHeight: 68 },
   shortControls: { alignItems: "center", gap: spacing.md, paddingHorizontal: spacing.lg },
-  suggest: { color: colors.textSecondary, fontSize: 13, ...font("500") },
+  suggest: { color: colors.textSecondary },
   row: { flexDirection: "row", gap: spacing.sm },
   chip: {
     flexDirection: "row",
@@ -234,7 +237,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.18)",
   },
   chipEmphasized: { borderColor: "rgba(255,255,255,0.7)" },
-  chipText: { color: colors.textPrimary, fontSize: 14, ...font("600") },
+  chipText: { color: colors.textPrimary },
   primary: {
     alignSelf: "stretch",
     alignItems: "center",
@@ -242,13 +245,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md - 2,
     borderRadius: radii.pill,
   },
-  primaryText: { color: colors.onAccent, fontSize: 16, ...font("600") },
+  primaryText: { color: colors.onAccent },
   ghost: { alignSelf: "center", paddingVertical: spacing.sm, paddingHorizontal: spacing.lg },
-  ghostText: { color: colors.textSecondary, fontSize: 15, ...font("500") },
+  ghostText: { color: colors.textSecondary },
   researchWrap: { alignSelf: "stretch", flex: 1 },
   researchContent: { gap: spacing.md, paddingHorizontal: spacing.lg },
   clockRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  clock: { color: colors.textPrimary, fontFamily: fontDisplay.title, fontSize: 44, lineHeight: 50, letterSpacing: -1.5, fontVariant: ["tabular-nums"] },
+  // A big digit sized to the row, so size and line height are set here on top of the display variant.
+  clock: { color: colors.textPrimary, fontSize: 44, lineHeight: 50 },
   clockUp: { color: colors.warning },
   notesInput: {
     minHeight: 150,
@@ -257,9 +261,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     backgroundColor: "rgba(255,255,255,0.08)",
     color: colors.textPrimary,
-    fontSize: 17,
-    lineHeight: 24,
-    ...font("400"),
+    ...typeScale.body,
   },
   searchButton: {
     flexDirection: "row",
@@ -270,9 +272,9 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     backgroundColor: "rgba(255,255,255,0.1)",
   },
-  searchText: { color: colors.textPrimary, fontSize: 16, ...font("600") },
+  searchText: { color: colors.textPrimary },
   toggleRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   toggleText: { flex: 1, gap: 2 },
-  toggleTitle: { color: colors.textPrimary, fontSize: 15, ...font("600") },
-  toggleSub: { color: colors.textSecondary, fontSize: 13, lineHeight: 18, ...font("400") },
+  toggleTitle: { color: colors.textPrimary },
+  toggleSub: { color: colors.textSecondary },
 });

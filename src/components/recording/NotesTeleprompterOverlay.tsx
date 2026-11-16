@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Txt } from "../common/Txt";
 import { Ionicons } from "@expo/vector-icons";
-import { darkColors as colors, radii, spacing, font } from "../../theme/theme";
+import { darkColors as colors, radii, spacing } from "../../theme/theme";
 
 interface NotesTeleprompterOverlayProps {
   notes: string;
@@ -45,7 +46,7 @@ export function NotesTeleprompterOverlay({ notes, isRecording, elapsedSeconds, t
     return (
       <Pressable onPress={() => setFolded(false)} style={[styles.pill, { top }]} accessibilityRole="button" accessibilityLabel="Show notes">
         <Ionicons name="reader-outline" size={16} color={colors.textPrimary} />
-        <Text style={styles.pillText}>Notes</Text>
+        <Txt variant="subhead" weight="600" style={styles.pillText}>Notes</Txt>
       </Pressable>
     );
   }
@@ -67,7 +68,7 @@ export function NotesTeleprompterOverlay({ notes, isRecording, elapsedSeconds, t
         }}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.text}>{notes.trim()}</Text>
+        <Txt variant="quote" style={styles.text}>{notes.trim()}</Txt>
       </ScrollView>
     </View>
   );
@@ -86,7 +87,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(10,10,8,0.62)",
   },
   fold: { alignSelf: "center", paddingBottom: 2 },
-  text: { color: colors.textPrimary, fontSize: FONT_SIZE, lineHeight: LINE_HEIGHT, ...font("500") },
+  // Teleprompter reading size is functional, so size and line height are set here on top of the quote variant.
+  text: { color: colors.textPrimary, fontSize: FONT_SIZE, lineHeight: LINE_HEIGHT },
   pill: {
     position: "absolute",
     left: spacing.lg,
@@ -98,5 +100,5 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     backgroundColor: "rgba(10,10,8,0.62)",
   },
-  pillText: { color: colors.textPrimary, fontSize: 14, ...font("600") },
+  pillText: { color: colors.textPrimary },
 });
