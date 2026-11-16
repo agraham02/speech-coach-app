@@ -1,4 +1,4 @@
-import { darkPalette, fontFamilies, lightPalette, radius, type Palette } from "./tokens";
+import { darkPalette, lightPalette, radius, type Palette } from "./tokens";
 
 export { font } from "./tokens";
 
@@ -84,19 +84,4 @@ export const radii = {
   md: radius.md,
   lg: radius.lg,
   pill: radius.pill,
-} as const;
-
-export const typography = {
-  caption: 13,
-  body: 15,
-  bodyLarge: 17,
-  title: 22,
-  headline: 28,
-} as const;
-
-// Families for older screens' display styles: titles and numbers (title),
-// spoken words — prompts and lines (spoken).
-export const fontDisplay = {
-  title: fontFamilies.semibold,
-  spoken: fontFamilies.medium,
 } as const;

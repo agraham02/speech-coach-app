@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
+import { Txt } from "../common/Txt";
 import { Ionicons } from "@expo/vector-icons";
 import { useEvent } from "expo";
 import { useVideoPlayer, VideoView } from "expo-video";
 import type { TranscriptWord } from "../../domain/sessionTypes";
-import { radii, spacing, typography, font } from "../../theme/theme";
+import { radii, spacing } from "../../theme/theme";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 import { getReviewPasses, markReviewPass } from "../../services/db/progressRepo";
 import { atEnd, clampMs } from "../../domain/playback/followAlong";
@@ -150,7 +151,7 @@ export function ThreePassPlayer({
                 size={16}
                 color={completed.has(p.key) ? colors.success : selected ? colors.onAccent : colors.textSecondary}
               />
-              <Text style={[styles.passChipText, selected && styles.passChipTextSelected]}>{p.label}</Text>
+              <Txt variant="footnote" weight="600" style={[styles.passChipText, selected && styles.passChipTextSelected]}>{p.label}</Txt>
             </Pressable>
           );
         })}
@@ -181,11 +182,11 @@ export function ThreePassPlayer({
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.focus}>{info.focus}</Text>
+        <Txt variant="footnote" style={styles.focus}>{info.focus}</Txt>
         <View style={styles.rateRow}>
           {RATES.map((r) => (
             <Pressable key={r} onPress={() => setRate(r)} style={[styles.rateChip, r === rate && styles.rateChipSelected]}>
-              <Text style={[styles.rateText, r === rate && styles.rateTextSelected]}>{r}×</Text>
+              <Txt variant="footnote" weight="600" style={[styles.rateText, r === rate && styles.rateTextSelected]}>{r}×</Txt>
             </Pressable>
           ))}
         </View>
@@ -208,7 +209,7 @@ const useStyles = makeStyles(({ colors }) => ({
     backgroundColor: colors.surfaceRaised,
   },
   passChipSelected: { backgroundColor: colors.accent },
-  passChipText: { color: colors.textSecondary, fontSize: typography.caption, ...font("600") },
+  passChipText: { color: colors.textSecondary },
   passChipTextSelected: { color: colors.onAccent },
   videoWrap: { borderRadius: radii.lg, overflow: "hidden", backgroundColor: "black" },
   video: { width: "100%", height: 360 },
@@ -217,10 +218,10 @@ const useStyles = makeStyles(({ colors }) => ({
   videoHidden: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0 },
   listenPanel: { padding: spacing.md, backgroundColor: colors.surface },
   footer: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  focus: { ...font("400"), flex: 1, color: colors.textSecondary, fontSize: typography.caption, lineHeight: 17 },
+  focus: { flex: 1, color: colors.textSecondary },
   rateRow: { flexDirection: "row", gap: 4 },
   rateChip: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radii.pill, backgroundColor: colors.surfaceRaised },
   rateChipSelected: { backgroundColor: colors.accentMuted },
-  rateText: { color: colors.textMuted, fontSize: typography.caption, ...font("600") },
+  rateText: { color: colors.textMuted },
   rateTextSelected: { color: colors.accent },
 }));

@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { Skeleton, SkeletonCard, SkeletonRows } from "../components/common/Skeleton";
 import { GuideTip, TourTarget } from "../components/common/GuideTip";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -44,7 +44,8 @@ import {
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
 import type { Prompt } from "../domain/sessionTypes";
 import { taskLabel, taskOf } from "../domain/promptTask";
-import { fontDisplay, radii, spacing, typography, font } from "../theme/theme";
+import { radii, spacing } from "../theme/theme";
+import { Txt } from "../components/common/Txt";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 const EMPTY_STREAK: StreakResult = { currentStreak: 0, longestStreak: 0 };
@@ -66,7 +67,7 @@ function ShelfCard({ icon, label, onPress }: ShelfCardProps) {
       <View style={styles.shelfIcon}>
         <Ionicons name={icon} size={19} color={colors.textPrimary} />
       </View>
-      <Text style={styles.shelfCardLabel}>{label}</Text>
+      <Txt variant="caption1" weight="600" align="center">{label}</Txt>
     </PressableScale>
   );
 }
@@ -251,14 +252,14 @@ export function HomeScreen() {
         <View style={styles.headerBar}>
           <IconButton icon="chevron-back" onPress={() => navigation.goBack()} accessibilityLabel="Back" size={38} />
         </View>
-        <Text style={styles.eyebrow}>Practice anything</Text>
-        <Text style={styles.appName}>Free practice</Text>
+        <Txt variant="footnote" tone="secondary" weight="500">Practice anything</Txt>
+        <Txt variant="largeTitle">Free practice</Txt>
         {streak.currentStreak > 0 ? (
           <View style={styles.streakRow}>
             <Ionicons name="flame" size={14} color={colors.warning} />
-            <Text style={styles.streakText}>
+            <Txt variant="footnote" tone="secondary" weight="600">
               {streak.currentStreak}-day streak{streak.currentStreak === streak.longestStreak ? " · personal best" : ""}
-            </Text>
+            </Txt>
           </View>
         ) : null}
       </View>
@@ -280,7 +281,7 @@ export function HomeScreen() {
                   difficulty. Says "prompts", not "level": your level is the
                   speaker level (LevelScreen). */}
               <View style={styles.levelChip} accessible accessibilityLabel={`${tierLabel(takeTier(takeLevel))} prompts, difficulty ${Math.floor(takeLevel)}`}>
-                <Text style={styles.levelChipText}>{tierLabel(takeTier(takeLevel))} prompts</Text>
+                <Txt variant="caption1" tone="secondary" weight="600">{tierLabel(takeTier(takeLevel))} prompts</Txt>
               </View>
               <Pressable
                 onPress={rerollPrompt}
@@ -292,7 +293,7 @@ export function HomeScreen() {
               </Pressable>
             </View>
           </View>
-          <Text style={styles.promptText}>{prompt.text}</Text>
+          <Txt variant="quote">{prompt.text}</Txt>
 
           {/* Folds the old standalone "Concise Mode" button into the hero
               card as a toggle chip — flips what the primary button below
@@ -305,9 +306,9 @@ export function HomeScreen() {
             accessibilityLabel={`Concise mode, ${conciseModeSeconds} seconds, ${conciseModeOn ? "on" : "off"}`}
           >
             <Ionicons name="timer-outline" size={14} color={conciseModeOn ? colors.onAccent : colors.textSecondary} />
-            <Text style={[styles.conciseChipText, conciseModeOn && styles.conciseChipTextOn]}>
+            <Txt variant="footnote" tone={conciseModeOn ? "onAccent" : "secondary"} weight="600">
               Concise · {conciseModeSeconds}s
-            </Text>
+            </Txt>
           </Pressable>
         </HeroCard>
         </TourTarget>
@@ -318,7 +319,7 @@ export function HomeScreen() {
             text="You've already practiced today — recording again just adds another session."
           />
         ) : (
-          <Text style={styles.hint}>Take a breath, then respond in 1–5 minutes. There's no wrong answer.</Text>
+          <Txt variant="callout" tone="muted" align="center">Take a breath, then respond in 1–5 minutes. There's no wrong answer.</Txt>
         )}
       </View>
 
@@ -335,7 +336,7 @@ export function HomeScreen() {
           accessibilityRole="button"
           accessibilityLabel="Free record, no prompt"
         >
-          <Text style={styles.freeLinkText}>Or free record, no prompt</Text>
+          <Txt variant="subhead" tone="secondary" weight="500">Or free record, no prompt</Txt>
         </Pressable>
 
         <View style={styles.shelf}>
@@ -383,15 +384,9 @@ const useStyles = makeStyles(({ colors }) => ({
     borderRadius: radii.pill,
     backgroundColor: colors.subtleFill,
   },
-  levelChipText: { color: colors.textSecondary, fontSize: 12, ...font("600") },
-  eyebrow: { ...font("500"), color: colors.textSecondary, fontSize: 13 },
-  appName: { color: colors.textPrimary, fontFamily: fontDisplay.title, fontSize: 34, lineHeight: 41, letterSpacing: -1 },
   streakRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: spacing.xs },
-  streakText: { color: colors.textSecondary, fontSize: typography.caption, ...font("600") },
   middle: { flex: 1, justifyContent: "center", gap: spacing.lg },
   promptCard: { gap: spacing.md },
-  promptText: { color: colors.textPrimary, fontFamily: fontDisplay.spoken, fontSize: 26, lineHeight: 34, letterSpacing: -0.5 },
-  hint: { ...font("400"), color: colors.textMuted, fontSize: typography.body, textAlign: "center" },
 
   conciseChip: {
     alignSelf: "flex-start",
@@ -404,14 +399,11 @@ const useStyles = makeStyles(({ colors }) => ({
     backgroundColor: colors.subtleFill,
   },
   conciseChipOn: { backgroundColor: colors.accent, borderColor: colors.accent },
-  conciseChipText: { color: colors.textSecondary, fontSize: 13, ...font("600") },
-  conciseChipTextOn: { color: colors.onAccent },
 
   primaryRow: { flexDirection: "row", gap: spacing.sm, alignItems: "stretch" },
   primaryButton: { flex: 1 },
 
   freeLinkWrap: { alignSelf: "center", paddingVertical: spacing.xs },
-  freeLinkText: { color: colors.textSecondary, fontSize: 14, ...font("500") },
 
   shelf: { flexDirection: "row", gap: spacing.sm },
   shelfCard: {
@@ -424,5 +416,4 @@ const useStyles = makeStyles(({ colors }) => ({
     backgroundColor: colors.surface,
   },
   shelfIcon: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: colors.accentMuted },
-  shelfCardLabel: { color: colors.textPrimary, fontSize: 12, ...font("600"), textAlign: "center", lineHeight: 16 },
 }));

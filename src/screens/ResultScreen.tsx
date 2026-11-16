@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Reveal, Skeleton, SkeletonCard, SkeletonHero } from "../components/common/Skeleton";
 import { GuideTip, TourScrollContext, TourTarget, useTourScroll } from "../components/common/GuideTip";
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
@@ -66,7 +66,7 @@ import { colorForCategory } from "../domain/categoryColor";
 import { makeAdhocPrompt, type Prompt, type Session, type SessionScores } from "../domain/sessionTypes";
 import { taskLabel, taskOf } from "../domain/promptTask";
 import { formatDuration } from "../utils/dateUtils";
-import { fontDisplay, radii, spacing, typography, font } from "../theme/theme";
+import { radii, spacing } from "../theme/theme";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Result">;
@@ -78,15 +78,15 @@ function ScoreDelta({ current, previous }: { current: number; previous: number |
   if (previous === null) return null;
   const diff = Math.round((current - previous) * 10) / 10;
   if (diff === 0) {
-    return <Text style={styles.deltaNeutral}>Same as last session</Text>;
+    return <Txt variant="footnote" tone="muted">Same as last session</Txt>;
   }
   const isUp = diff > 0;
   return (
     <View style={styles.deltaRow}>
       <Ionicons name={isUp ? "arrow-up" : "arrow-down"} size={12} color={isUp ? colors.success : colors.warning} />
-      <Text style={[styles.deltaText, { color: isUp ? colors.success : colors.warning }]}>
+      <Txt variant="footnote" weight="600" color={isUp ? colors.success : colors.warning}>
         {Math.abs(diff)} vs last session
-      </Text>
+      </Txt>
     </View>
   );
 }
@@ -95,8 +95,8 @@ function NumberTile({ value, label }: { value: string; label: string }) {
   const styles = useStyles();
   return (
     <View style={styles.tile}>
-      <Text style={styles.tileValue}>{value}</Text>
-      <Text style={styles.tileLabel}>{label}</Text>
+      <Txt variant="title1">{value}</Txt>
+      <Txt variant="caption1" tone="muted">{label}</Txt>
     </View>
   );
 }
@@ -373,11 +373,11 @@ export function ResultScreen({ route, navigation }: Props) {
                   <Txt variant="display" style={styles.scoreHeroNumber}>
                     {overall}
                   </Txt>
-                  <Text style={styles.scoreHeroOutOf}>out of 100</Text>
+                  <Txt variant="footnote" tone="muted" style={styles.scoreHeroOutOf}>out of 100</Txt>
                 </ProgressRing>
-                <Text style={styles.scoreHeroLayer}>
+                <Txt variant="footnote" tone="secondary" weight="500" style={styles.scoreHeroLayer}>
                   {attemptLabel(overall)} · {takeScores?.headline === "overall" ? `Overall, with Message judged by ${producerName(takeScores.judgedBy)}` : "Delivery, measured on this phone"}
-                </Text>
+                </Txt>
                 {movesSkills ? null : <ScoreDelta current={overall} previous={previousOverallScore} />}
                 {reviewing ? (
                   <View style={styles.reviewingRow}>
@@ -398,7 +398,7 @@ export function ResultScreen({ route, navigation }: Props) {
           ) : coach ? null : (
             <Reveal key="numbers">
               <Card style={styles.numbersCard}>
-                <Text style={styles.numbersLabel}>Your numbers</Text>
+                <Txt variant="footnote" tone="muted" weight="600">Your numbers</Txt>
                 <View style={styles.numbersRow}>
                   <NumberTile value={avgWpm != null ? `${avgWpm}` : "—"} label="words / min" />
                   <NumberTile
@@ -407,7 +407,7 @@ export function ResultScreen({ route, navigation }: Props) {
                   />
                   <NumberTile value={pitchRange != null ? `${Math.round(pitchRange * 10) / 10} st` : "—"} label="pitch range" />
                 </View>
-                <Text style={styles.rowSubtitle}>Measured on this phone.</Text>
+                <Txt variant="footnote" tone="secondary">Measured on this phone.</Txt>
               </Card>
             </Reveal>
           )}
@@ -471,17 +471,17 @@ export function ResultScreen({ route, navigation }: Props) {
                 <Badge label={prompt.category} {...colorForCategory(prompt.category, colors)} />
                 {taskLabel(taskOf(prompt)) ? <Badge label={taskLabel(taskOf(prompt))!} /> : null}
               </View>
-              <Text style={styles.promptText}>{prompt.text}</Text>
+              <Txt variant="quote">{prompt.text}</Txt>
             </Card>
           ) : null}
 
           {script ? (
             <Card style={styles.promptCard}>
               <Badge label={script.category} {...colorForCategory(script.category, colors)} />
-              <Text style={styles.rowTitle}>{script.title}</Text>
-              <Text style={styles.promptText} numberOfLines={3}>
+              <Txt variant="headline">{script.title}</Txt>
+              <Txt variant="quote" numberOfLines={3}>
                 {script.text}
-              </Text>
+              </Txt>
             </Card>
           ) : null}
 
@@ -498,7 +498,7 @@ export function ResultScreen({ route, navigation }: Props) {
           ) : (
             <View style={styles.videoRemovedRow}>
               <Ionicons name="trash-outline" size={16} color={colors.textMuted} />
-              <Text style={styles.videoRemovedText}>Video removed to save space</Text>
+              <Txt variant="callout" tone="muted">Video removed to save space</Txt>
             </View>
           )}
 
@@ -534,8 +534,8 @@ export function ResultScreen({ route, navigation }: Props) {
       {tab === "transcript" ? (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionLabel}>Your response</Text>
-            <Text style={styles.duration}>{formatDuration(session.durationSeconds)}</Text>
+            <Txt variant="footnote" tone="secondary" weight="600">Your response</Txt>
+            <Txt variant="footnote" tone="muted">{formatDuration(session.durationSeconds)}</Txt>
           </View>
           <Card>
             <AnnotatedTranscript
@@ -551,12 +551,12 @@ export function ResultScreen({ route, navigation }: Props) {
           </Card>
 
           <Pressable style={styles.verbatimToggle} onPress={() => setShowClean((v) => !v)}>
-            <Text style={styles.verbatimToggleText}>{showClean ? "Hide cleaned-up response" : "Show cleaned-up response"}</Text>
+            <Txt variant="headline" tone="secondary">{showClean ? "Hide cleaned-up response" : "Show cleaned-up response"}</Txt>
             <Ionicons name={showClean ? "chevron-up" : "chevron-down"} size={16} color={colors.accent} />
           </Pressable>
           {showClean ? (
             <Card style={styles.verbatimCard}>
-              <Text style={styles.transcript}>{session.transcriptClean}</Text>
+              <Txt variant="body">{session.transcriptClean}</Txt>
             </Card>
           ) : null}
         </ScrollView>
@@ -578,40 +578,26 @@ const useStyles = makeStyles(({ colors }) => ({
   headerTop: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   headerText: { flex: 1, gap: 2 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: spacing.lg },
-  headerType: { color: colors.textMuted, fontSize: 13, ...font("600") },
-  headerTitle: { color: colors.textPrimary, fontSize: typography.bodyLarge, ...font("700"), lineHeight: 22 },
   numbersCard: { gap: spacing.md },
-  numbersLabel: { color: colors.textMuted, fontSize: 13, ...font("600") },
   numbersRow: { flexDirection: "row", gap: spacing.sm },
   tile: { flex: 1, alignItems: "center", gap: 2, paddingVertical: spacing.md - 2, borderRadius: radii.md, backgroundColor: colors.surfaceRaised },
-  tileValue: { color: colors.textPrimary, fontFamily: fontDisplay.title, fontSize: 26, lineHeight: 32, letterSpacing: -0.6 },
-  tileLabel: { ...font("400"), color: colors.textMuted, fontSize: typography.caption - 1 },
   scroll: { flex: 1 },
   scrollContent: { gap: spacing.md, paddingBottom: spacing.lg },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
   rowText: { flex: 1, gap: spacing.xs },
-  rowTitle: { color: colors.textPrimary, fontSize: typography.body, ...font("600") },
-  rowSubtitle: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption },
   gradeCard: { gap: spacing.md },
   scoreHeroContent: { alignItems: "center", gap: spacing.sm, paddingVertical: spacing.xl },
+  // Hand-picked size: the score is sized to fill its 156pt progress ring (display is 52).
   scoreHeroNumber: { fontSize: 60, lineHeight: 66, letterSpacing: -2.4 },
-  scoreHeroOutOf: { ...font("400"), color: colors.textMuted, fontSize: 13, marginTop: 2 },
-  scoreHeroLayer: { ...font("500"), color: colors.textSecondary, fontSize: typography.caption, marginTop: spacing.sm },
+  scoreHeroOutOf: { marginTop: 2 },
+  scoreHeroLayer: { marginTop: spacing.sm },
   reviewingRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.sm },
   deltaRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  deltaText: { fontSize: typography.caption, ...font("600") },
-  deltaNeutral: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
   promptCard: { gap: spacing.sm },
   promptBadges: { flexDirection: "row", gap: spacing.xs + 2, flexWrap: "wrap" },
-  promptText: { fontFamily: fontDisplay.spoken, color: colors.textPrimary, fontSize: 19, lineHeight: 26, letterSpacing: -0.2 },
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  sectionLabel: { color: colors.textSecondary, fontSize: 13, ...font("600") },
   sectionSpacer: { marginTop: spacing.sm },
-  duration: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
-  transcript: { ...font("400"), color: colors.textPrimary, fontSize: typography.bodyLarge, lineHeight: 25 },
   verbatimToggle: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, paddingVertical: spacing.sm },
-  verbatimToggleText: { color: colors.textSecondary, fontSize: typography.body, ...font("600") },
   videoRemovedRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, paddingVertical: spacing.sm },
-  videoRemovedText: { ...font("400"), color: colors.textMuted, fontSize: typography.body },
   verbatimCard: { backgroundColor: colors.surfaceRaised },
 }));

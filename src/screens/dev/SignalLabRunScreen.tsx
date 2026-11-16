@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, ScrollView, TextInput, View } from "react-native";
 import { File } from "expo-file-system";
 import { StatusBar } from "expo-status-bar";
 import { useNavigation } from "@react-navigation/native";
@@ -296,31 +296,31 @@ export function SignalLabRunScreen({ route }: Props) {
       <StatusBar style="light" />
       {cameraOn ? <CameraPreview cameraRef={capture.cameraRef} isActive onFaceFrame={capture.onFaceFrame} audio={needsAudio(steps)} /> : null}
       <View style={[styles.top, { paddingTop: insets.top + 8 }]}>
-        <Text style={styles.small}>
+        <Txt variant="subhead" color="#fff">
           {entry.def.title} · step {stepIndex + 1} of {steps.length}
-        </Text>
-        <Text style={styles.close} onPress={leave} accessibilityRole="button" accessibilityLabel="Close">
+        </Txt>
+        <Txt variant="callout" weight="600" color="#fff" onPress={leave} accessibilityRole="button" accessibilityLabel="Close">
           Close
-        </Text>
+        </Txt>
       </View>
 
       <View style={[styles.panel, { paddingBottom: insets.bottom + 16 }]}>
-        <Text style={styles.title}>{step.title}</Text>
-        <Text style={styles.body}>{step.instruction}</Text>
+        <Txt variant="title2" color="#fff">{step.title}</Txt>
+        <Txt variant="callout" color="rgba(255,255,255,0.85)">{step.instruction}</Txt>
         {step.script ? (
           <ScrollView style={styles.script} contentContainerStyle={styles.scriptContent}>
-            <Text style={styles.scriptText}>{step.script}</Text>
+            <Txt variant="title3" weight="400" color="#fff">{step.script}</Txt>
           </ScrollView>
         ) : null}
 
         {phase === "intro" ? (
           <PrimaryButton label={`Start (${step.seconds}s)`} onPress={() => (step.capture === "none" ? beginCapture() : setPhase("countdown"))} />
         ) : null}
-        {phase === "countdown" ? <Text style={styles.big}>{countdown > 0 ? countdown : "Go"}</Text> : null}
+        {phase === "countdown" ? <Txt variant="display" color="#fff" align="center">{countdown > 0 ? countdown : "Go"}</Txt> : null}
         {phase === "capturing" ? (
           <>
-            {cue ? <Text style={styles.cue}>{cue.label}</Text> : null}
-            <Text style={styles.big}>{secondsLeft(step, elapsed)}</Text>
+            {cue ? <Txt variant="title1" color="#FFE55C" align="center">{cue.label}</Txt> : null}
+            <Txt variant="display" color="#fff" align="center">{secondsLeft(step, elapsed)}</Txt>
             {step.stopwatch ? (
               <PrimaryButton label={stopwatchRunning ? "Stop timing" : stopwatch.current.ms != null ? "Finishing..." : "Start timing"} onPress={tapStopwatch} />
             ) : (
@@ -331,7 +331,7 @@ export function SignalLabRunScreen({ route }: Props) {
         {phase === "analyzing" ? (
           <View style={styles.analyzing}>
             <ActivityIndicator color="#fff" />
-            <Text style={styles.body}>Analysing...</Text>
+            <Txt variant="callout" color="rgba(255,255,255,0.85)">Analysing...</Txt>
           </View>
         ) : null}
       </View>
@@ -342,19 +342,12 @@ export function SignalLabRunScreen({ route }: Props) {
 const useStyles = makeStyles((t) => ({
   root: { flex: 1, backgroundColor: "#000" },
   top: { position: "absolute", top: 0, left: 0, right: 0, flexDirection: "row", justifyContent: "space-between", paddingHorizontal: t.layout.gutter, backgroundColor: "rgba(0,0,0,0.45)", paddingBottom: 10 },
-  small: { color: "#fff", fontSize: 14 },
-  close: { color: "#fff", fontSize: 15, fontWeight: "600" },
   panel: { position: "absolute", left: 0, right: 0, bottom: 0, maxHeight: "62%", backgroundColor: "rgba(0,0,0,0.72)", paddingHorizontal: t.layout.gutter, paddingTop: 16, gap: 10 },
-  title: { color: "#fff", fontSize: 20, fontWeight: "700" },
-  body: { color: "rgba(255,255,255,0.85)", fontSize: 15, lineHeight: 21 },
   script: { maxHeight: 190 },
   scriptContent: { paddingVertical: 4 },
-  scriptText: { color: "#fff", fontSize: 18, lineHeight: 26 },
-  big: { color: "#fff", fontSize: 54, fontWeight: "700", textAlign: "center" },
-  cue: { color: "#FFE55C", fontSize: 24, fontWeight: "700", textAlign: "center" },
   analyzing: { flexDirection: "row", alignItems: "center", gap: 10, justifyContent: "center", paddingVertical: 12 },
   centered: { flex: 1, justifyContent: "center", gap: t.space.md },
   resultScroll: { gap: t.space.md, paddingBottom: 48 },
   check: { gap: 2 },
-  note: { minHeight: 72, borderRadius: t.radius.md, padding: t.space.md, fontSize: 15, textAlignVertical: "top" },
+  note: { minHeight: 72, borderRadius: t.radius.md, padding: t.space.md, ...t.type.callout, textAlignVertical: "top" },
 }));

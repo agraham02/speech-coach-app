@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, TextInput, View } from "react-native";
 import { KeyboardForm } from "../components/common/KeyboardForm";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -11,7 +11,9 @@ import { SegmentedControl } from "../components/common/SegmentedControl";
 import { useToast } from "../components/common/ToastProvider";
 import { getAllPrompts, insertUserPrompt } from "../services/db/promptsRepo";
 import type { DifficultyTier } from "../domain/sessionTypes";
-import { radii, spacing, typography, font } from "../theme/theme";
+import { radii, spacing } from "../theme/theme";
+import { typeScale } from "../theme/tokens";
+import { Txt } from "../components/common/Txt";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AddPrompt">;
@@ -72,7 +74,7 @@ export function AddPromptScreen({ navigation }: Props) {
         }
       >
         <View style={styles.field}>
-          <Text style={styles.label}>Prompt</Text>
+          <Txt variant="footnote" tone="secondary" weight="600">Prompt</Txt>
           <TextInput maxLength={300}
             style={styles.textArea}
             value={text}
@@ -83,13 +85,13 @@ export function AddPromptScreen({ navigation }: Props) {
             textAlignVertical="top"
             accessibilityLabel="Prompt text"
           />
-          <Text style={styles.charCount}>
+          <Txt variant="footnote" tone="muted" align="right">
             {trimmedText.length}/{TEXT_MAX_LENGTH}
-          </Text>
+          </Txt>
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Category</Text>
+          <Txt variant="footnote" tone="secondary" weight="600">Category</Txt>
           <TextInput maxLength={40}
             style={styles.input}
             value={category}
@@ -108,7 +110,7 @@ export function AddPromptScreen({ navigation }: Props) {
                   accessibilityRole="button"
                   accessibilityLabel={`Use category ${existing}`}
                 >
-                  <Text style={styles.chipText}>{existing}</Text>
+                  <Txt variant="footnote" tone="secondary" weight="600">{existing}</Txt>
                 </Pressable>
               ))}
             </ScrollView>
@@ -116,7 +118,7 @@ export function AddPromptScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Difficulty</Text>
+          <Txt variant="footnote" tone="secondary" weight="600">Difficulty</Txt>
           <SegmentedControl options={DIFFICULTY_OPTIONS} value={difficultyTier} onChange={setDifficultyTier} />
         </View>
       </KeyboardForm>
@@ -128,29 +130,24 @@ const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.lg },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   headerSpacer: { width: 24 },
-  title: { color: colors.textPrimary, fontSize: typography.title, ...font("700") },
   field: { gap: spacing.sm },
-  label: { color: colors.textSecondary, fontSize: 13, ...font("600") },
   input: {
-    ...font("400"),
+    ...typeScale.callout,
     backgroundColor: colors.surfaceRaised,
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
     color: colors.textPrimary,
-    fontSize: typography.body,
   },
   textArea: {
-    ...font("400"),
+    ...typeScale.callout,
     backgroundColor: colors.surfaceRaised,
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
     color: colors.textPrimary,
-    fontSize: typography.body,
     minHeight: 110,
   },
-  charCount: { ...font("400"), color: colors.textMuted, fontSize: typography.caption, textAlign: "right" },
   chipRow: { flexDirection: "row", gap: spacing.xs, marginTop: spacing.xs },
   chip: {
     paddingHorizontal: spacing.md,
@@ -158,6 +155,5 @@ const useStyles = makeStyles(({ colors }) => ({
     borderRadius: radii.pill,
     backgroundColor: colors.surfaceRaised,
   },
-  chipText: { color: colors.textSecondary, fontSize: typography.caption, ...font("600") },
   scroll: { gap: spacing.lg, paddingBottom: spacing.md },
 }));

@@ -142,8 +142,14 @@ export function font(weight: FontWeight | TextStyle["fontWeight"] = "400"): { fo
   }
 }
 
+// The one type scale (PLAN section 15, task 8.1), as the redesign canvas has
+// it ("Words and bands", D38). Screens use these through <Txt variant> or
+// theme.type; a test keeps raw sizes and <Text> out of the app.
 export const typeScale = {
-  display: { ...font("600"), fontSize: 52, lineHeight: 58, letterSpacing: -1.8 },
+  // Big numbers are light, never bold, with tight tracking (scores, Overall).
+  display: { ...font("400"), fontSize: 52, lineHeight: 54, letterSpacing: -3.4 },
+  // Two-tone sentence headlines ("Morning, Sam. Ten minutes on ...").
+  say: { ...font("500"), fontSize: 34, lineHeight: 38, letterSpacing: -0.9 },
   largeTitle: { ...font("600"), fontSize: 34, lineHeight: 41, letterSpacing: -1 },
   title1: { ...font("600"), fontSize: 26, lineHeight: 32, letterSpacing: -0.6 },
   title2: { ...font("600"), fontSize: 21, lineHeight: 27, letterSpacing: -0.2 },
@@ -155,6 +161,8 @@ export const typeScale = {
   footnote: { ...font("400"), fontSize: 13, lineHeight: 18 },
   caption1: { ...font("500"), fontSize: 12, lineHeight: 16 },
   caption2: { ...font("600"), fontSize: 11, lineHeight: 14, letterSpacing: 0.1 },
+  // A section's small-caps label: information, never tappable.
+  label: { ...font("600"), fontSize: 12, lineHeight: 16, letterSpacing: 0.7, textTransform: "uppercase" },
   // Spoken words: prompts, lines to read, quotes.
   quote: { ...font("500"), fontSize: 22, lineHeight: 30, letterSpacing: -0.3 },
 } satisfies Record<string, TextStyle>;
