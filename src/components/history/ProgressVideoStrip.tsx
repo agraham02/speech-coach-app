@@ -1,11 +1,12 @@
 import { useEffect } from "react";
-import { FlatList, Pressable, Text, View } from "react-native";
+import { FlatList, Pressable, View } from "react-native";
+import { Txt } from "../common/Txt";
 import { Ionicons } from "@expo/vector-icons";
 import { useVideoPlayer, VideoView } from "expo-video";
 import type { SessionWithScore } from "../../services/db/sessionsRepo";
 import { resolveVideoUri } from "../../services/storage/videoStorage";
 import { colorForScore } from "../result/scoreColor";
-import { radii, spacing, typography, font } from "../../theme/theme";
+import { radii, spacing } from "../../theme/theme";
 import { makeStyles, useTheme } from "../../theme/ThemeProvider";
 
 // Progress videos (one kept per month, or pinned by hand) as a row of
@@ -15,7 +16,7 @@ export function ProgressVideoStrip({ sessions, onOpen }: { sessions: SessionWith
   if (!sessions.length) return null;
   return (
     <View style={styles.wrap}>
-      <Text style={styles.label}>Progress videos</Text>
+      <Txt variant="footnote" weight="600" style={styles.label}>Progress videos</Txt>
       <FlatList
         horizontal
         data={sessions}
@@ -40,9 +41,9 @@ function ProgressVideoCard({ session, onPress }: { session: SessionWithScore; on
     <Pressable onPress={onPress} style={styles.card} accessibilityRole="button" accessibilityLabel={`Progress video from ${label}`}>
       <StillFrame uri={resolveVideoUri(session)} />
       <View style={styles.overlay}>
-        <Text style={styles.month}>{label}</Text>
+        <Txt variant="caption1" weight="700" style={styles.month}>{label}</Txt>
         {session.overallScore != null ? (
-          <Text style={[styles.score, { color: colorForScore(session.overallScore, colors) }]}>{session.overallScore}</Text>
+          <Txt variant="footnote" weight="800" style={{ color: colorForScore(session.overallScore, colors) }}>{session.overallScore}</Txt>
         ) : null}
       </View>
       <View style={styles.play}>
@@ -74,7 +75,7 @@ const CARD_HEIGHT = 136;
 
 const useStyles = makeStyles(({ colors }) => ({
   wrap: { gap: spacing.xs, marginBottom: spacing.md },
-  label: { color: colors.textMuted, fontSize: 13, ...font("600") },
+  label: { color: colors.textMuted },
   row: { gap: spacing.sm },
   card: { width: CARD_WIDTH, height: CARD_HEIGHT, borderRadius: radii.md, overflow: "hidden", backgroundColor: "black" },
   video: { width: CARD_WIDTH, height: CARD_HEIGHT },
@@ -90,8 +91,7 @@ const useStyles = makeStyles(({ colors }) => ({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  month: { color: "white", fontSize: typography.caption - 1, ...font("700") },
-  score: { fontSize: typography.caption, ...font("800") },
+  month: { color: "white" },
   play: {
     position: "absolute",
     top: 6,

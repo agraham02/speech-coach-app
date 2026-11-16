@@ -1,5 +1,6 @@
-import { StyleSheet, Switch, Text, View } from "react-native";
-import { darkColors as colors, radii, spacing, typography, font } from "../../theme/theme";
+import { StyleSheet, Switch, View } from "react-native";
+import { Txt } from "../common/Txt";
+import { darkColors as colors, radii, spacing } from "../../theme/theme";
 
 interface RecordBlindToggleProps {
   value: boolean;
@@ -11,8 +12,8 @@ export function RecordBlindToggle({ value, onValueChange, disabled }: RecordBlin
   return (
     <View style={styles.row}>
       <View style={styles.textGroup}>
-        <Text style={styles.label}>Record blind</Text>
-        <Text style={styles.sublabel}>Blank screen while recording. Switch any time with the eye button.</Text>
+        <Txt variant="callout" weight="600" style={styles.label}>Record blind</Txt>
+        <Txt variant="footnote" style={styles.sublabel}>Blank screen while recording. Switch any time with the eye button.</Txt>
       </View>
       <Switch
         value={value}
@@ -36,6 +37,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   textGroup: { gap: 2 },
-  label: { color: colors.textPrimary, fontSize: typography.body, ...font("600") },
-  sublabel: { ...font("400"), color: colors.textSecondary, fontSize: typography.caption },
+  label: { color: colors.textPrimary },
+  sublabel: { color: colors.textSecondary },
 });

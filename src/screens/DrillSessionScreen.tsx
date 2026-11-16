@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation";
@@ -34,7 +34,9 @@ import { drillActivityId } from "../content/activities";
 import { useLiveSpeech } from "../hooks/useLiveSpeech";
 import { useRecordingTimer } from "../hooks/useRecordingTimer";
 import { logger } from "../utils/logger";
-import { radii, spacing, typography, font } from "../theme/theme";
+import { radii, spacing } from "../theme/theme";
+import { font } from "../theme/tokens";
+import { Txt } from "../components/common/Txt";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "DrillSession">;
@@ -131,7 +133,7 @@ export function DrillSessionScreen({ route, navigation }: Props) {
         <Pressable onPress={() => navigation.goBack()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
           <Ionicons name="close" size={24} color={colors.textPrimary} />
         </Pressable>
-        <Text style={styles.missingText}>Loading…</Text>
+        <Txt variant="callout" tone="muted">Loading…</Txt>
       </ScreenContainer>
     );
   }
@@ -139,7 +141,7 @@ export function DrillSessionScreen({ route, navigation }: Props) {
   if (!twister) {
     return (
       <ScreenContainer style={styles.container}>
-        <Text style={styles.missingText}>Drill not found.</Text>
+        <Txt variant="callout" tone="muted">Drill not found.</Txt>
         <PrimaryButton label="Back" onPress={() => navigation.goBack()} />
       </ScreenContainer>
     );
@@ -260,11 +262,11 @@ export function DrillSessionScreen({ route, navigation }: Props) {
         <Pressable onPress={() => navigation.goBack()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
           <Ionicons name="close" size={24} color={colors.textPrimary} />
         </Pressable>
-        <Text style={styles.repeatHint}>
+        <Txt variant="footnote" tone="muted" weight="600">
           {listening
             ? `Rep ${Math.min(currentRep + 1, twister.repeatCount)} of ${twister.repeatCount}`
             : `Say it ×${twister.repeatCount}${targetWpm ? ` · ${targetWpm}+ wpm` : ""}`}
-        </Text>
+        </Txt>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -275,12 +277,13 @@ export function DrillSessionScreen({ route, navigation }: Props) {
           </>
         ) : (
           <Card style={styles.targetCard}>
-            <Text style={styles.targetText} accessibilityLabel={twister.text}>
+            <Txt variant="quote" accessibilityLabel={twister.text}>
               {target
                 .filter((w) => w.rep === (listening ? Math.min(currentRep, twister.repeatCount - 1) : 0))
                 .map((word) => (
-                  <Text
+                  <Txt
                     key={word.globalIndex}
+                    variant="quote"
                     style={[
                       styleForStatus(live?.statuses[word.globalIndex] ?? "pending", styles),
                       live && word.globalIndex === live.cursor ? styles.wordCurrent : null,
@@ -288,33 +291,33 @@ export function DrillSessionScreen({ route, navigation }: Props) {
                   >
                     {word.display}
                     {word.display.endsWith("-") ? "" : " "}
-                  </Text>
+                  </Txt>
                 ))}
-            </Text>
+            </Txt>
             {twister.focusSounds.length > 0 ? (
-              <Text style={styles.focusSounds}>Focus sounds: {twister.focusSounds.join(", ")}</Text>
+              <Txt variant="footnote" tone="muted">Focus sounds: {twister.focusSounds.join(", ")}</Txt>
             ) : null}
             {listening ? <ListeningStatus status={speech.status} heard={speech.text} /> : null}
           </Card>
         )}
 
         {stage === "manual_timing" ? (
-          <Text style={styles.degradeNotice}>
+          <Txt variant="footnote" tone="warning" style={styles.degradeNotice}>
             Live recognition isn't available right now, so this attempt uses a self-timer. Tap Stop when you finish.
-          </Text>
+          </Txt>
         ) : null}
 
         {stage === "result" && result?.kind === "nothing_heard" ? (
           <Card style={styles.resultCard}>
-            <Text style={styles.resultSub}>Didn't catch anything.</Text>
-            <Text style={styles.focusSounds}>Check that your mic isn't muted, hold the phone a little closer, and try again.</Text>
+            <Txt variant="callout" tone="secondary" align="center">Didn't catch anything.</Txt>
+            <Txt variant="footnote" tone="muted">Check that your mic isn't muted, hold the phone a little closer, and try again.</Txt>
           </Card>
         ) : null}
 
         {stage === "result" && result?.kind === "manual" ? (
           <Card style={styles.resultCard}>
-            <Text style={styles.resultBig}>{result.wpm} WPM</Text>
-            <Text style={styles.resultSub}>Logged from elapsed time — no live match was available.</Text>
+            <Txt variant="largeTitle">{result.wpm} WPM</Txt>
+            <Txt variant="callout" tone="secondary" align="center">Logged from elapsed time — no live match was available.</Txt>
           </Card>
         ) : null}
       </ScrollView>
@@ -357,11 +360,11 @@ function ListeningStatus({ status, heard }: { status: string; heard: string }) {
     <View style={styles.listening}>
       <View style={[styles.listeningDot, status === "listening" ? styles.listeningDotOn : null]} />
       <View style={styles.listeningTextWrap}>
-        <Text style={styles.listeningLabel}>{label}</Text>
+        <Txt variant="footnote" tone="secondary" weight="600">{label}</Txt>
         {heard ? (
-          <Text style={styles.heardText} numberOfLines={2}>
+          <Txt variant="footnote" tone="muted" numberOfLines={2}>
             Heard: {heard}
-          </Text>
+          </Txt>
         ) : null}
       </View>
     </View>
@@ -387,61 +390,61 @@ function ResultView({
   return (
     <View style={styles.resultWrap}>
       <Card style={styles.resultCard}>
-        <Text style={styles.resultBig}>{score.accuracyPercent}%</Text>
-        <Text style={styles.resultSub}>
+        <Txt variant="largeTitle">{score.accuracyPercent}%</Txt>
+        <Txt variant="callout" tone="secondary" align="center">
           {score.cleanWordPercent}% words clean · {score.wpm} WPM · {score.repsCompleted}/{twister.repeatCount} reps
-        </Text>
+        </Txt>
       </Card>
 
       <Card style={styles.repsCard}>
         {Array.from({ length: twister.repeatCount }, (_, rep) => (
           <View key={rep} style={styles.repRow}>
-            <Text style={styles.repLabel}>Rep {rep + 1}</Text>
-            <Text style={styles.repText}>
+            <Txt variant="footnote" tone="muted" weight="600">Rep {rep + 1}</Txt>
+            <Txt variant="body">
               {target
                 .filter((w) => w.rep === rep)
                 .map((w) => (
-                  <Text key={w.globalIndex} style={styleForStatus(statuses[w.globalIndex], styles)}>
+                  <Txt key={w.globalIndex} variant="body" style={styleForStatus(statuses[w.globalIndex], styles)}>
                     {w.display}
                     {w.display.endsWith("-") ? "" : " "}
-                  </Text>
+                  </Txt>
                 ))}
-            </Text>
+            </Txt>
           </View>
         ))}
-        <Text style={styles.legend}>
-          <Text style={styles.wordHit}>clear</Text> · <Text style={styles.wordNear}>close</Text> ·{" "}
-          <Text style={styles.wordMissed}>missed</Text>
-        </Text>
+        <Txt variant="footnote" tone="muted">
+          <Txt variant="footnote" style={styles.wordHit}>clear</Txt> · <Txt variant="footnote" style={styles.wordNear}>close</Txt> ·{" "}
+          <Txt variant="footnote" style={styles.wordMissed}>missed</Txt>
+        </Txt>
       </Card>
 
       {misses.length > 0 ? (
         <Card style={styles.missesCard}>
-          <Text style={styles.sectionLabel}>What the mic heard</Text>
+          <Txt variant="footnote" tone="muted" weight="600">What the mic heard</Txt>
           {misses.slice(0, 8).map((m) => (
-            <Text key={`${m.kind}-${m.target}-${m.heard}`} style={styles.missText}>
+            <Txt key={`${m.kind}-${m.target}-${m.heard}`} variant="callout" tone="secondary">
               {m.kind === "skipped" ? (
                 <>
-                  Skipped <Text style={styles.missWord}>“{m.target}”</Text>
+                  Skipped <Txt variant="callout" weight="700">“{m.target}”</Txt>
                 </>
               ) : (
                 <>
-                  Heard <Text style={styles.missWord}>“{m.heard}”</Text> for{" "}
-                  <Text style={styles.missWord}>“{m.target}”</Text>
+                  Heard <Txt variant="callout" weight="700">“{m.heard}”</Txt> for{" "}
+                  <Txt variant="callout" weight="700">“{m.target}”</Txt>
                 </>
               )}
-              {m.count > 1 ? <Text style={styles.missCount}> ×{m.count}</Text> : null}
-            </Text>
+              {m.count > 1 ? <Txt variant="callout" tone="muted"> ×{m.count}</Txt> : null}
+            </Txt>
           ))}
           {weakSounds.length > 0 ? (
-            <Text style={styles.soundHint}>
+            <Txt variant="footnote" tone="accent">
               Slow down on the {weakSounds.map((f) => `“${f.sound}”`).join(" and ")} sound
               {weakSounds.length > 1 ? "s" : ""} — over-articulate, then build speed.
-            </Text>
+            </Txt>
           ) : null}
         </Card>
       ) : (
-        <Text style={styles.cleanNote}>Every word came through clearly{wordsPerRep > 6 ? " — try it faster next time." : "."}</Text>
+        <Txt variant="callout" tone="success" align="center">Every word came through clearly{wordsPerRep > 6 ? " — try it faster next time." : "."}</Txt>
       )}
     </View>
   );
@@ -474,26 +477,18 @@ function styleForStatus(status: WordStatus, styles: ReturnType<typeof useStyles>
 const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  repeatHint: { color: colors.textMuted, fontSize: typography.caption, ...font("600") },
   scrollContent: { gap: spacing.md, paddingBottom: spacing.md },
   targetCard: { gap: spacing.md },
-  targetText: { ...font("400"), fontSize: typography.title, lineHeight: 34 },
   wordHit: { color: colors.success, ...font("700") },
   wordNear: { color: colors.warning, ...font("700") },
   wordMissed: { color: colors.danger, ...font("700") },
   wordPending: { color: colors.textPrimary },
   wordCurrent: { textDecorationLine: "underline", textDecorationColor: colors.accent },
-  focusSounds: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
   listening: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start" },
   listeningDot: { width: 10, height: 10, borderRadius: 5, marginTop: 4, backgroundColor: colors.textMuted },
   listeningDotOn: { backgroundColor: colors.danger },
   listeningTextWrap: { flex: 1, gap: 2 },
-  listeningLabel: { color: colors.textSecondary, fontSize: typography.caption, ...font("600") },
-  heardText: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
   degradeNotice: {
-    ...font("400"),
-    color: colors.warning,
-    fontSize: typography.caption,
     backgroundColor: colors.warningMuted,
     padding: spacing.sm,
     borderRadius: radii.sm,
@@ -501,21 +496,9 @@ const useStyles = makeStyles(({ colors }) => ({
   controls: { gap: spacing.sm },
   resultWrap: { gap: spacing.md },
   resultCard: { gap: spacing.xs, alignItems: "center" },
-  resultBig: { color: colors.textPrimary, fontSize: typography.headline + 8, ...font("800") },
-  resultSub: { ...font("400"), color: colors.textSecondary, fontSize: typography.body, textAlign: "center" },
   repsCard: { gap: spacing.sm },
   repRow: { gap: 2 },
-  repLabel: { color: colors.textMuted, fontSize: typography.caption, ...font("700") },
-  repText: { ...font("400"), fontSize: typography.bodyLarge, lineHeight: 24 },
-  legend: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
   missesCard: { gap: spacing.sm },
-  sectionLabel: { color: colors.textMuted, fontSize: 13, ...font("600") },
-  missText: { ...font("400"), color: colors.textSecondary, fontSize: typography.body },
-  missWord: { color: colors.textPrimary, ...font("700") },
-  missCount: { color: colors.textMuted },
-  soundHint: { ...font("400"), color: colors.accent, fontSize: typography.caption },
-  cleanNote: { ...font("400"), color: colors.success, fontSize: typography.body, textAlign: "center" },
   resultActions: { flexDirection: "row", gap: spacing.sm, width: "100%" },
   resultButton: { flex: 1 },
-  missingText: { ...font("400"), color: colors.textMuted, fontSize: typography.body },
 }));

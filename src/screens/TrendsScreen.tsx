@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { RefreshControl, ScrollView, Text, View } from "react-native";
+import { RefreshControl, ScrollView, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -17,7 +17,8 @@ import { nodeName } from "../domain/scoring/skillTree";
 import { getCompletedSessionDates, getScoreSeries } from "../services/db/statsRepo";
 import { subscribeToAllSessions } from "../services/pipeline/processingEvents";
 import { useTabBarBottomInset } from "../hooks/useTabBarBottomInset";
-import { fontDisplay, spacing, typography, font } from "../theme/theme";
+import { spacing } from "../theme/theme";
+import { Txt } from "../components/common/Txt";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 
 const CHART_TAKES = 20;
@@ -38,14 +39,14 @@ function DeltaIndicator({
   const styles = useStyles();
   const { colors } = useTheme();
   if (current === null || previous === null) {
-    return <Text style={styles.deltaNeutral}>Not enough data yet</Text>;
+    return <Txt variant="footnote" tone="muted" style={styles.deltaNeutral}>Not enough data yet</Txt>;
   }
   const diff = Math.round((current - previous) * 10) / 10;
   if (diff === 0) {
     return (
       <View style={styles.deltaRow}>
         <Ionicons name="remove" size={14} color={colors.textMuted} />
-        <Text style={styles.deltaNeutral}>Same as last week</Text>
+        <Txt variant="footnote" tone="muted">Same as last week</Txt>
       </View>
     );
   }
@@ -54,9 +55,9 @@ function DeltaIndicator({
   return (
     <View style={styles.deltaRow}>
       <Ionicons name={isUp ? "arrow-up" : "arrow-down"} size={14} color={isGood ? colors.success : colors.warning} />
-      <Text style={[styles.deltaText, { color: isGood ? colors.success : colors.warning }]}>
+      <Txt variant="footnote" weight="600" color={isGood ? colors.success : colors.warning}>
         {Math.abs(diff)} vs last week
-      </Text>
+      </Txt>
     </View>
   );
 }
@@ -68,19 +69,19 @@ function LineWeek({ line, points }: { line: TrendLine; points: ScorePoint[] }) {
   const { thisWeek, lastWeek } = computeThisWeekVsLastWeek(points, line);
   return (
     <Card style={styles.weekCard}>
-      <Text style={styles.sectionLabel}>{line === "message" ? "This week, Message, judged by Tono AI" : "This week, Delivery, measured on this phone"}</Text>
-      <Text style={styles.weekSessionCount}>
+      <Txt variant="footnote" tone="accent" weight="600">{line === "message" ? "This week, Message, judged by Tono AI" : "This week, Delivery, measured on this phone"}</Txt>
+      <Txt variant="headline">
         {thisWeek.sessionCount} take{thisWeek.sessionCount === 1 ? "" : "s"}
-      </Text>
+      </Txt>
       <View style={styles.weekStatRow}>
-        <Text style={styles.weekStatLabel}>{line === "message" ? "Message" : "Delivery"}</Text>
-        <Text style={styles.weekStatValue}>{thisWeek.score ?? "—"}/100</Text>
+        <Txt variant="callout" tone="secondary">{line === "message" ? "Message" : "Delivery"}</Txt>
+        <Txt variant="callout" weight="600">{thisWeek.score ?? "—"}/100</Txt>
       </View>
       <DeltaIndicator current={thisWeek.score} previous={lastWeek.score} />
       {line === "delivery" && TREND_PILLARS.map((pillar) => (
         <View key={pillar} style={styles.weekStatRow}>
-          <Text style={styles.weekStatLabel}>{nodeName(pillar)}</Text>
-          <Text style={styles.weekStatValue}>{thisWeek.byPillar[pillar] ?? "—"}/100</Text>
+          <Txt variant="callout" tone="secondary">{nodeName(pillar)}</Txt>
+          <Txt variant="callout" weight="600">{thisWeek.byPillar[pillar] ?? "—"}/100</Txt>
         </View>
       ))}
     </Card>
@@ -135,12 +136,12 @@ export function TrendsScreen() {
         <HeroCard contentStyle={styles.streakCard} accent={colors.warning} accentSecondary={colors.pink}>
           <View style={styles.streakRow}>
             <Ionicons name="flame" size={28} color={streaks.currentStreak > 0 ? colors.warning : colors.textMuted} />
-            <Text style={styles.streakNumber}>{streaks.currentStreak}</Text>
-            <Text style={styles.streakLabel}>day streak</Text>
+            <Txt variant="title1">{streaks.currentStreak}</Txt>
+            <Txt variant="callout" tone="secondary">day streak</Txt>
           </View>
-          <Text style={styles.streakMeta}>
+          <Txt variant="footnote" tone="muted">
             Longest streak: {streaks.longestStreak} · Total sessions: {totalSessions}
-          </Text>
+          </Txt>
           {highestStreakMilestone(streaks.longestStreak) ? (
             <Badge
               label={`🏆 ${highestStreakMilestone(streaks.longestStreak)}-day milestone`}
@@ -153,12 +154,12 @@ export function TrendsScreen() {
         {!hasScoredSessions ? (
           <View style={styles.empty}>
             <Ionicons name="trending-up-outline" size={40} color={colors.textMuted} />
-            <Text style={styles.emptyText}>Score trends will show up here once you have a few scored takes.</Text>
+            <Txt variant="callout" tone="muted" align="center" style={styles.emptyText}>Score trends will show up here once you have a few scored takes.</Txt>
           </View>
         ) : (
           <>
             <Card style={styles.recentCard}>
-              <Text style={styles.sectionLabel}>Last {Math.min(points.length, CHART_TAKES)} scored takes</Text>
+              <Txt variant="footnote" tone="accent" weight="600">Last {Math.min(points.length, CHART_TAKES)} scored takes</Txt>
               <ScoreLinesChart points={points.slice(-CHART_TAKES)} />
             </Card>
             {linesShown.map((line) => (
@@ -178,25 +179,16 @@ const useStyles = makeStyles(({ colors }) => ({
   // scrollContent's paddingBottom, and the tab bar sits directly below with
   // no further gap needed, unlike stack-pushed screens with a fixed button.
   container: { gap: spacing.md, paddingBottom: 0 },
-  title: { color: colors.textPrimary, fontSize: typography.title, ...font("700") },
   scroll: { flex: 1 },
   scrollContent: { gap: spacing.md, paddingBottom: spacing.lg },
   streakCard: { gap: spacing.xs },
   streakRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  streakNumber: { color: colors.textPrimary, fontSize: typography.headline, fontFamily: fontDisplay.title },
-  streakLabel: { ...font("400"), color: colors.textSecondary, fontSize: typography.body },
-  streakMeta: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
-  sectionLabel: { color: colors.accent, fontSize: 13, ...font("600") },
   weekCard: { gap: spacing.sm },
   weekHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  weekSessionCount: { color: colors.textPrimary, fontSize: typography.body, ...font("600") },
   weekStatRow: { flexDirection: "row", justifyContent: "space-between", marginTop: spacing.xs },
-  weekStatLabel: { ...font("400"), color: colors.textSecondary, fontSize: typography.body },
-  weekStatValue: { color: colors.textPrimary, fontSize: typography.body, ...font("700") },
   deltaRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: -spacing.xs },
-  deltaText: { fontSize: typography.caption, ...font("600") },
-  deltaNeutral: { ...font("400"), color: colors.textMuted, fontSize: typography.caption, marginTop: -spacing.xs },
+  deltaNeutral: { marginTop: -spacing.xs },
   recentCard: { gap: spacing.md },
   empty: { alignItems: "center", justifyContent: "center", gap: spacing.md, paddingVertical: spacing.xxl },
-  emptyText: { ...font("400"), color: colors.textMuted, fontSize: typography.body, textAlign: "center", paddingHorizontal: spacing.xl },
+  emptyText: { paddingHorizontal: spacing.xl },
 }));

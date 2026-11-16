@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { GuideTip, TourTarget } from "../components/common/GuideTip";
-import { Alert, AppState, Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, AppState, Linking, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -49,7 +49,8 @@ import { logger } from "../utils/logger";
 import { StatusBar } from "expo-status-bar";
 import { stashPresenceTimeline } from "../services/pipeline/presenceTimelineStore";
 import { formatDuration } from "../utils/dateUtils";
-import { darkColors as colors, spacing, typography, font } from "../theme/theme";
+import { darkColors as colors, spacing } from "../theme/theme";
+import { Txt } from "../components/common/Txt";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Recording">;
 
@@ -359,12 +360,12 @@ export function RecordingScreen({ route, navigation }: Props) {
         </Pressable>
         <View style={styles.permissionBody}>
           <Ionicons name="videocam-outline" size={48} color={colors.accent} />
-          <Text style={styles.permissionTitle}>Camera & microphone access</Text>
-          <Text style={styles.permissionText}>
+          <Txt variant="title2" color={colors.textPrimary} align="center">Camera & microphone access</Txt>
+          <Txt variant="callout" color={colors.textSecondary} align="center">
             {cameraBlocked || microphoneBlocked
               ? `${cameraBlocked && microphoneBlocked ? "The camera and microphone are" : cameraBlocked ? "The camera is" : "The microphone is"} turned off for Tono. Turn ${cameraBlocked && microphoneBlocked ? "them" : "it"} on in your phone's Settings to record.`
               : "Tono needs both to record your practice sessions. Nothing is uploaded until you finish recording."}
-          </Text>
+          </Txt>
         </View>
         <PrimaryButton
           label={(hasCameraPermission ? microphoneBlocked : cameraBlocked) ? "Open Settings" : hasCameraPermission ? "Grant Microphone Access" : "Grant Camera Access"}
@@ -503,7 +504,7 @@ export function RecordingScreen({ route, navigation }: Props) {
         <View style={[styles.bottomBar, { paddingBottom: insets.bottom + spacing.lg }]}>
           {stage === "idle" && !isScript ? (
             <View style={styles.prepRow}>
-              <Text style={styles.prepRowLabel}>{subject.kind === "prompt" && researchHelps(subject.prompt) ? "New topic? Prepare first" : "Prepare first"}</Text>
+              <Txt variant="footnote" weight="600" color={colors.textSecondary}>{subject.kind === "prompt" && researchHelps(subject.prompt) ? "New topic? Prepare first" : "Prepare first"}</Txt>
               <View style={styles.prepChips}>
                 {PREP_CHOICES.map((c) => (
                   <Pressable
@@ -513,7 +514,7 @@ export function RecordingScreen({ route, navigation }: Props) {
                     accessibilityRole="button"
                     accessibilityLabel={`Prepare for ${c.label}`}
                   >
-                    <Text style={styles.prepChipText}>{c.label}</Text>
+                    <Txt variant="footnote" weight="600" color={colors.textPrimary}>{c.label}</Txt>
                   </Pressable>
                 ))}
               </View>
@@ -533,7 +534,7 @@ export function RecordingScreen({ route, navigation }: Props) {
               accessibilityLabel="Restart take"
             >
               <Ionicons name="refresh" size={20} color={colors.textPrimary} />
-              <Text style={styles.restartText}>Restart</Text>
+              <Txt variant="caption1" weight="600" color={colors.textPrimary}>Restart</Txt>
             </Pressable>
           ) : null}
           <TourTarget id="recording.record" style={styles.recordButtonGroup}>
@@ -551,7 +552,11 @@ export function RecordingScreen({ route, navigation }: Props) {
                 onPress={stage === "recording" ? handleStop : beginRecording}
               />
             )}
-            <Text style={[styles.recordHint, isConcise && stage === "recording" && styles.recordHintUrgent]}>
+            <Txt
+              variant="footnote"
+              weight={isConcise && stage === "recording" ? "700" : "600"}
+              color={isConcise && stage === "recording" ? colors.danger : colors.textSecondary}
+            >
               {isFinishing
                 ? "Saving…"
                 : stage !== "recording"
@@ -563,7 +568,7 @@ export function RecordingScreen({ route, navigation }: Props) {
                     : recordBlind
                       ? "Tap to stop"
                       : `${formatDuration(remainingRecordingSeconds)} left · tap to stop`}
-            </Text>
+            </Txt>
           </TourTarget>
         </View>
       )}
@@ -583,8 +588,6 @@ const styles = StyleSheet.create({
   },
   closeButton: { alignSelf: "flex-start" },
   permissionBody: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, paddingHorizontal: spacing.lg },
-  permissionTitle: { color: colors.textPrimary, fontSize: typography.title, ...font("700"), textAlign: "center" },
-  permissionText: { ...font("400"), color: colors.textSecondary, fontSize: typography.body, textAlign: "center", lineHeight: 21 },
   topBar: {
     position: "absolute",
     left: spacing.lg,
@@ -615,7 +618,6 @@ const styles = StyleSheet.create({
   },
   recordButtonGroup: { alignItems: "center", gap: spacing.sm },
   prepRow: { alignItems: "center", gap: spacing.xs },
-  prepRowLabel: { color: colors.textSecondary, fontSize: typography.caption, ...font("600") },
   prepChips: { flexDirection: "row", gap: spacing.sm },
   prepChip: {
     paddingHorizontal: spacing.md,
@@ -625,7 +627,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.18)",
   },
-  prepChipText: { color: colors.textPrimary, fontSize: typography.caption, ...font("600") },
   restartButton: {
     position: "absolute",
     left: spacing.lg,
@@ -637,7 +638,4 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.45)",
     zIndex: 2,
   },
-  restartText: { color: colors.textPrimary, fontSize: typography.caption - 1, ...font("600") },
-  recordHint: { color: colors.textSecondary, fontSize: typography.caption, ...font("600") },
-  recordHintUrgent: { color: colors.danger, ...font("700") },
 });

@@ -1,6 +1,7 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Txt } from "../common/Txt";
 import type { FramingStatus, GuideOval } from "../../domain/faceGuide";
-import { darkColors as colors, radii, spacing, typography, font } from "../../theme/theme";
+import { darkColors as colors, radii, spacing } from "../../theme/theme";
 
 const STATUS_COPY: Record<FramingStatus, string> = {
   none: "Move into frame",
@@ -42,7 +43,7 @@ export function FramingGuideOverlay({ status, oval, hint }: Props) {
       />
       <View style={[styles.pill, { borderColor: ringColor, top: oval.cy + oval.ry + spacing.md }]}>
         <View style={[styles.dot, { backgroundColor: ringColor }]} />
-        <Text style={styles.label}>{copy}</Text>
+        <Txt variant="footnote" weight="600" style={styles.label}>{copy}</Txt>
       </View>
     </View>
   );
@@ -64,5 +65,5 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
   },
   dot: { width: 8, height: 8, borderRadius: 4 },
-  label: { color: colors.textPrimary, fontSize: typography.caption, ...font("600") },
+  label: { color: colors.textPrimary },
 });

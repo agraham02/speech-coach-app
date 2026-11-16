@@ -1,5 +1,6 @@
-import { StyleSheet, Text, View } from "react-native";
-import { darkColors as colors, radii, spacing, font } from "../../theme/theme";
+import { StyleSheet, View } from "react-native";
+import { Txt } from "../common/Txt";
+import { darkColors as colors, radii, spacing } from "../../theme/theme";
 import { formatDuration } from "../../utils/dateUtils";
 
 interface RecordingTimerProps {
@@ -12,16 +13,17 @@ export function RecordingTimer({ elapsedSeconds, size = "large" }: RecordingTime
     return (
       <View style={styles.badge}>
         <View style={styles.recDot} />
-        <Text style={styles.smallText}>{formatDuration(elapsedSeconds)}</Text>
+        <Txt variant="headline" tabular style={styles.smallText}>{formatDuration(elapsedSeconds)}</Txt>
       </View>
     );
   }
 
-  return <Text style={styles.largeText}>{formatDuration(elapsedSeconds)}</Text>;
+  return <Txt variant="display" tabular style={styles.largeText}>{formatDuration(elapsedSeconds)}</Txt>;
 }
 
 const styles = StyleSheet.create({
-  largeText: { color: colors.textPrimary, fontSize: 48, fontVariant: ["tabular-nums"], ...font("500") },
+  // The big timer is sized to the screen, so the size is set here on top of the display variant.
+  largeText: { color: colors.textPrimary, fontSize: 48 },
   badge: {
     flexDirection: "row",
     alignItems: "center",
@@ -34,8 +36,5 @@ const styles = StyleSheet.create({
   recDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.record },
   smallText: {
     color: colors.textPrimary,
-    fontSize: 17,
-    fontVariant: ["tabular-nums"],
-    ...font("600"),
   },
 });

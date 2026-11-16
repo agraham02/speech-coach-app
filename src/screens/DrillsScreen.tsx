@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { FlatList, Pressable, Text, View } from "react-native";
+import { FlatList, Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -15,7 +15,8 @@ import { getStreakState } from "../services/db/progressRepo";
 import { getTakeLevel } from "../services/prefs/prefsStore";
 import { takeTier } from "../domain/difficulty/scale";
 import type { DifficultyTier } from "../domain/sessionTypes";
-import { spacing, typography, font } from "../theme/theme";
+import { spacing } from "../theme/theme";
+import { Txt } from "../components/common/Txt";
 import { makeStyles, useTheme } from "../theme/ThemeProvider";
 import type { Colors } from "../theme/theme";
 
@@ -67,18 +68,18 @@ export function DrillsScreen({ navigation }: Props) {
       <Card style={styles.streakCard}>
         <Ionicons name="flame" size={28} color={streak.currentStreak > 0 ? colors.warning : colors.textMuted} />
         <View style={styles.streakTextGroup}>
-          <Text style={styles.streakNumber}>
+          <Txt variant="headline">
             {streak.currentStreak} day{streak.currentStreak === 1 ? "" : "s"} streak
-          </Text>
-          <Text style={styles.streakSubtext}>
+          </Txt>
+          <Txt variant="footnote" tone="muted">
             Short daily reps beat occasional long ones — a few seconds counts.
-          </Text>
+          </Txt>
         </View>
       </Card>
 
       <SegmentedControl options={DIFFICULTY_FILTERS} value={difficultyFilter} onChange={setDifficultyFilter} />
       {difficultyFilter === recommendedTier ? (
-        <Text style={styles.recommendedHint}>★ Recommended for you, from your take difficulty</Text>
+        <Txt variant="caption1" tone="accent" weight="600">★ Recommended for you, from your take difficulty</Txt>
       ) : null}
 
       <FlatList
@@ -91,9 +92,9 @@ export function DrillsScreen({ navigation }: Props) {
             <Card style={styles.twisterCard}>
               <View style={styles.twisterCardHeader}>
                 <Badge label={item.difficulty} fg={difficultyColors(colors)[item.difficulty]} bg={colors.surfaceRaised} />
-                <Text style={styles.repeatHint}>×{item.repeatCount}</Text>
+                <Txt variant="footnote" tone="muted" weight="600">×{item.repeatCount}</Txt>
               </View>
-              <Text style={styles.twisterText}>{item.text}</Text>
+              <Txt variant="headline">{item.text}</Txt>
             </Card>
           </Pressable>
         )}
@@ -105,15 +106,9 @@ export function DrillsScreen({ navigation }: Props) {
 const useStyles = makeStyles(({ colors }) => ({
   container: { gap: spacing.md },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  title: { color: colors.textPrimary, fontSize: typography.title, ...font("700") },
   streakCard: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   streakTextGroup: { flex: 1, gap: 2 },
-  streakNumber: { color: colors.textPrimary, fontSize: typography.bodyLarge, ...font("700") },
-  streakSubtext: { ...font("400"), color: colors.textMuted, fontSize: typography.caption },
-  recommendedHint: { color: colors.accent, fontSize: typography.caption - 1, ...font("600") },
   list: { gap: spacing.sm, paddingBottom: spacing.lg },
   twisterCard: { gap: spacing.xs },
   twisterCardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  repeatHint: { color: colors.textMuted, fontSize: typography.caption, ...font("600") },
-  twisterText: { color: colors.textPrimary, fontSize: typography.bodyLarge, ...font("600"), lineHeight: 22 },
 }));
