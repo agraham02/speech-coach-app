@@ -115,7 +115,19 @@ export function SwitchRow({
 }
 
 // Rows grouped on one surface, hairlines between them (inset-grouped list).
-export function ListGroup({ children, style, title }: { children: ReactNode; style?: StyleProp<ViewStyle>; title?: string }) {
+// `outlined` is the "Words and bands" look: a 1px border instead of a shadow,
+// rows inset 16 with a hairline between them (no icon column to clear).
+export function ListGroup({
+  children,
+  style,
+  title,
+  outlined,
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+  title?: string;
+  outlined?: boolean;
+}) {
   const styles = useStyles();
   const rows = Children.toArray(children).filter(isValidElement);
   return (
@@ -125,10 +137,10 @@ export function ListGroup({ children, style, title }: { children: ReactNode; sty
           {title}
         </Txt>
       ) : null}
-      <View style={[styles.group, style]}>
+      <View style={[styles.group, outlined && styles.groupOutlined, style]}>
         {rows.map((row, i) => (
           <Fragment key={row.key ?? i}>
-            {i > 0 ? <View style={styles.hairline} /> : null}
+            {i > 0 ? <View style={[styles.hairline, outlined && styles.hairlineOutlined]} /> : null}
             {row}
           </Fragment>
         ))}
@@ -144,5 +156,7 @@ const useStyles = makeStyles((t) => ({
   groupWrap: { gap: t.space.sm },
   groupTitle: { paddingHorizontal: 4 },
   group: { backgroundColor: t.colors.surface, borderRadius: t.radius.lg - 4, paddingHorizontal: t.space.md, paddingVertical: 2, ...t.shadow.card },
+  groupOutlined: { borderRadius: 16, borderWidth: 1, borderColor: t.colors.border, overflow: "hidden", paddingVertical: 0, shadowOpacity: 0, elevation: 0 },
+  hairlineOutlined: { marginLeft: 0 },
   hairline: { height: StyleSheet.hairlineWidth, backgroundColor: t.colors.separator, marginLeft: 48 },
 }));
